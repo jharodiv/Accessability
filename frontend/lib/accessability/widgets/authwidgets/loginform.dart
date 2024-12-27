@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:frontend/accessability/screens/authscreens/forgotpasswordscreen.dart';
+import 'package:frontend/accessability/screens/authscreens/signupscreen.dart';
+import 'package:frontend/accessability/widgets/authwidgets/forgotpasswordconfirmation.dart';
 
 class Loginform extends StatelessWidget {
   const Loginform({super.key});
@@ -22,7 +25,7 @@ class Loginform extends StatelessWidget {
                     fontFamily: 'Inter',
                   ),
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 10), // Reduced height
                 TextField(
                   decoration: InputDecoration(
                     labelText: 'Email',
@@ -31,7 +34,7 @@ class Loginform extends StatelessWidget {
                     ),
                   ),
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 10), // Reduced height
                 Container(
                   height: 80,
                   child: Stack(
@@ -46,10 +49,31 @@ class Loginform extends StatelessWidget {
                           ),
                         ),
                       ),
+                      Positioned(
+                        bottom: -13,
+                        right: 0,
+                        child: TextButton(
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                  builder: (context) => ForgotPasswordScreen()),
+                            );
+                          },
+                          child: const Text(
+                            'Forgot Password?',
+                            style: TextStyle(
+                              color: Color(0xFF6750A4),
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ),
                     ],
                   ),
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 10), // Reduced height
                 ElevatedButton(
                   onPressed: () {},
                   style: ElevatedButton.styleFrom(
@@ -66,7 +90,7 @@ class Loginform extends StatelessWidget {
                     ),
                   ),
                 ),
-                const SizedBox(height: 3),
+                const SizedBox(height: 5), // Reduced height
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
@@ -79,7 +103,11 @@ class Loginform extends StatelessWidget {
                     ),
                     TextButton(
                       onPressed: () {
-                        //GoToLoginScreen
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                              builder: (context) => SignupScreen()),
+                        );
                       },
                       child: const Text(
                         'Sign Up',

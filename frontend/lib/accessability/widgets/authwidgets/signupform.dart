@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:frontend/accessability/screens/authscreens/loginscreen.dart';
+
 class Signupform extends StatelessWidget {
   const Signupform({super.key});
 
@@ -58,7 +60,8 @@ class Signupform extends StatelessWidget {
                         decoration: InputDecoration(
                           labelText: 'Password',
                           border: OutlineInputBorder(
-                            borderSide: BorderSide(color: Colors.black, width: 3.0),
+                            borderSide:
+                                BorderSide(color: Colors.black, width: 3.0),
                           ),
                         ),
                       ),
@@ -70,14 +73,16 @@ class Signupform extends StatelessWidget {
                   onPressed: () {},
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF6750A4),
-                    padding: const EdgeInsets.symmetric(vertical: 15, horizontal: 50),
-                    textStyle: const TextStyle(fontSize:20),
+                    padding: const EdgeInsets.symmetric(
+                        vertical: 15, horizontal: 50),
+                    textStyle: const TextStyle(fontSize: 20),
                   ),
-                  child: const Text('Sign Up',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  child: const Text(
+                    'Sign Up',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
                 const SizedBox(height: 3),
@@ -86,21 +91,25 @@ class Signupform extends StatelessWidget {
                   children: [
                     const Text(
                       "Already have an account?",
-                    style: TextStyle(
-                      fontSize:13,
-                      fontWeight: FontWeight.w400,
-                    ),
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w400,
+                      ),
                     ),
                     TextButton(
-                      onPressed: (){
-                        //GoToLoginScreen
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                              builder: (context) => LoginScreen()),
+                        );
                       },
                       child: const Text(
                         'Log In',
                         style: TextStyle(
                           color: Color(0xFF6750A4),
                           fontWeight: FontWeight.bold,
-                          fontSize:13,
+                          fontSize: 13,
                         ),
                       ),
                     )

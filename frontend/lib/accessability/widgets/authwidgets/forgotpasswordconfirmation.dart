@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:frontend/accessability/screens/authscreens/newpassword.dart';
 
 class Forgotpasswordconfirmation extends StatelessWidget {
   const Forgotpasswordconfirmation({super.key});
@@ -34,7 +35,10 @@ class Forgotpasswordconfirmation extends StatelessWidget {
             width: 150,
             child: ElevatedButton(
               onPressed: () {
-                // ResetPasswordLogic
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => Newpassword()),
+                );
               },
               style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF6750A4),

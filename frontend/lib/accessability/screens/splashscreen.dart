@@ -10,11 +10,15 @@ class Splashscreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return AnimatedSplashScreen(
       splash: Center(
-        child: FractionallySizedBox(
-          widthFactor: 0.8,
-          child: Lottie.asset(
-            'assets/animation/Animation - 1735294254709.json',
-            fit: BoxFit.contain,
+        child: SizedBox(
+          height: 200,
+          child: OverflowBox(
+            minHeight: 150,
+            maxHeight: 150,
+            child: Lottie.asset(
+              'assets/animation/Animation - 1735294254709.json',
+              fit: BoxFit.contain,
+            ),
           ),
         ),
       ),

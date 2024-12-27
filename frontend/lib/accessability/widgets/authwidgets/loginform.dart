@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:frontend/accessability/screens/authscreens/forgotpasswordscreen.dart';
 import 'package:frontend/accessability/screens/authscreens/signupscreen.dart';
+import 'package:frontend/accessability/screens/gpsscreen/gps.dart';
 import 'package:frontend/accessability/widgets/authwidgets/forgotpasswordconfirmation.dart';
 
 class Loginform extends StatelessWidget {
@@ -75,7 +76,12 @@ class Loginform extends StatelessWidget {
                 ),
                 const SizedBox(height: 10), // Reduced height
                 ElevatedButton(
-                  onPressed: () {},
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => GpsScreen()),
+                    );
+                  },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF6750A4),
                     padding: const EdgeInsets.symmetric(

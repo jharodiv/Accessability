@@ -25,8 +25,8 @@ class Loginform extends StatelessWidget {
                     fontFamily: 'Inter',
                   ),
                 ),
-                const SizedBox(height: 10), // Reduced height
-                TextField(
+                const SizedBox(height: 10),
+                const TextField(
                   decoration: InputDecoration(
                     labelText: 'Email',
                     border: OutlineInputBorder(
@@ -39,7 +39,7 @@ class Loginform extends StatelessWidget {
                   height: 80,
                   child: Stack(
                     children: [
-                      TextField(
+                      const TextField(
                         obscureText: true,
                         decoration: InputDecoration(
                           labelText: 'Password',
@@ -57,7 +57,8 @@ class Loginform extends StatelessWidget {
                             Navigator.push(
                               context,
                               MaterialPageRoute(
-                                  builder: (context) => ForgotPasswordScreen()),
+                                  builder: (context) =>
+                                      const ForgotPasswordScreen()),
                             );
                           },
                           child: const Text(
@@ -78,7 +79,8 @@ class Loginform extends StatelessWidget {
                   onPressed: () {
                     Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (context) => GpsScreen()),
+                      MaterialPageRoute(
+                          builder: (context) => const GpsScreen()),
                     );
                   },
                   style: ElevatedButton.styleFrom(
@@ -111,7 +113,7 @@ class Loginform extends StatelessWidget {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                              builder: (context) => SignupScreen()),
+                              builder: (context) => const SignupScreen()),
                         );
                       },
                       child: const Text(

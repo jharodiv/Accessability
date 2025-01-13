@@ -175,8 +175,7 @@ class _TopwidgetsState extends State<Topwidgets> {
               right: 0,
               child: Container(
                 constraints: BoxConstraints(
-                  maxHeight:
-                      MediaQuery.of(context).size.height / 3, // Max height
+                  maxHeight: MediaQuery.of(context).size.height / 3,
                 ),
                 decoration: BoxDecoration(
                   color: Colors.white,
@@ -211,8 +210,7 @@ class _TopwidgetsState extends State<Topwidgets> {
                               radius: 15,
                               backgroundColor: const Color(0xFF6750A4),
                               child: Text(
-                                _options[index]
-                                    [0], // First letter of the option
+                                _options[index][0],
                                 style: const TextStyle(
                                   color: Colors.white,
                                   fontWeight: FontWeight.bold,

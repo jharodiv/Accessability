@@ -24,7 +24,7 @@ class Signupform extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 20),
-                TextField(
+                const TextField(
                   decoration: InputDecoration(
                     labelText: 'Username',
                     border: OutlineInputBorder(
@@ -33,7 +33,7 @@ class Signupform extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 20),
-                TextField(
+                const TextField(
                   decoration: InputDecoration(
                     labelText: 'Email',
                     border: OutlineInputBorder(
@@ -42,7 +42,7 @@ class Signupform extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 20),
-                TextField(
+                const TextField(
                   decoration: InputDecoration(
                     labelText: 'Contact Number',
                     border: OutlineInputBorder(
@@ -53,7 +53,7 @@ class Signupform extends StatelessWidget {
                 const SizedBox(height: 20),
                 Container(
                   height: 80,
-                  child: Stack(
+                  child: const Stack(
                     children: [
                       TextField(
                         obscureText: true,
@@ -101,7 +101,7 @@ class Signupform extends StatelessWidget {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                              builder: (context) => LoginScreen()),
+                              builder: (context) => const LoginScreen()),
                         );
                       },
                       child: const Text(

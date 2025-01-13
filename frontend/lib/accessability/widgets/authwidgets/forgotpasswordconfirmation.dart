@@ -37,7 +37,7 @@ class Forgotpasswordconfirmation extends StatelessWidget {
               onPressed: () {
                 Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (context) => Newpassword()),
+                  MaterialPageRoute(builder: (context) => const Newpassword()),
                 );
               },
               style: ElevatedButton.styleFrom(

@@ -15,8 +15,8 @@ class ForgotPasswordScreen extends StatelessWidget {
 
             return SingleChildScrollView(
               physics: isOverflowing
-                  ? AlwaysScrollableScrollPhysics()
-                  : NeverScrollableScrollPhysics(),
+                  ? const AlwaysScrollableScrollPhysics()
+                  : const NeverScrollableScrollPhysics(),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [

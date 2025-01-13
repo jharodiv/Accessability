@@ -15,16 +15,16 @@ class LoginScreen extends StatelessWidget {
 
           return SingleChildScrollView(
             physics: isOverflowing
-                ? AlwaysScrollableScrollPhysics()
-                : NeverScrollableScrollPhysics(),
-            child: Column(
+                ? const AlwaysScrollableScrollPhysics()
+                : const NeverScrollableScrollPhysics(),
+            child: const Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const AuthenticationImage(),
-                const SizedBox(height: 90),
+                AuthenticationImage(),
+                SizedBox(height: 90),
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                  child: const Loginform(),
+                  padding: EdgeInsets.symmetric(horizontal: 16.0),
+                  child: Loginform(),
                 ),
               ],
             ),

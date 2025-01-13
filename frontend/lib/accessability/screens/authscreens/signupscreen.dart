@@ -15,16 +15,16 @@ class SignupScreen extends StatelessWidget {
 
             return SingleChildScrollView(
               physics: isOverflowing
-                  ? AlwaysScrollableScrollPhysics()
-                  : NeverScrollableScrollPhysics(),
-              child: Column(
+                  ? const AlwaysScrollableScrollPhysics()
+                  : const NeverScrollableScrollPhysics(),
+              child: const Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  const AuthenticationImage(),
-                  const SizedBox(height: 10),
+                  AuthenticationImage(),
+                  SizedBox(height: 10),
                   Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                    child: const Signupform(),
+                    padding: EdgeInsets.symmetric(horizontal: 16.0),
+                    child: Signupform(),
                   ),
                 ],
               ),

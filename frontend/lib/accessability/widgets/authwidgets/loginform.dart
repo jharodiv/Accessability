@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:frontend/accessability/screens/authscreens/forgotpasswordscreen.dart';
 import 'package:frontend/accessability/screens/authscreens/signupscreen.dart';
 import 'package:frontend/accessability/screens/gpsscreen/gps.dart';
-import 'package:frontend/accessability/widgets/authwidgets/forgotpasswordconfirmation.dart';
 
 class Loginform extends StatelessWidget {
   const Loginform({super.key});

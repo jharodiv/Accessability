@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 
 class Topwidgets extends StatefulWidget {
-  const Topwidgets({super.key});
+  final Function(bool) onOverlayChange;
+
+  const Topwidgets({super.key, required this.onOverlayChange});
 
   @override
   _TopwidgetsState createState() => _TopwidgetsState();
@@ -20,24 +22,20 @@ class _TopwidgetsState extends State<Topwidgets> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: SafeArea(
-        child: Stack(
-          children: [
-            GestureDetector(
-              onTap: () {
-                if (_isDropdownOpen) {
-                  setState(() {
-                    _isDropdownOpen = false;
-                  });
-                }
-              },
-              child: Column(
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.only(
-                        top: 20.0, left: 20.0, right: 20.0),
-                    child: Row(
+    return Positioned(
+      top: 0,
+      left: 0,
+      right: 0,
+      child: SafeArea(
+        child: Container(
+          padding: const EdgeInsets.only(top: 20.0, left: 20.0, right: 20.0),
+          color: Colors.transparent,
+          child: Stack(
+            children: [
+              SingleChildScrollView(
+                child: Column(
+                  children: [
+                    Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         GestureDetector(
@@ -65,6 +63,7 @@ class _TopwidgetsState extends State<Topwidgets> {
                             setState(() {
                               _isDropdownOpen = !_isDropdownOpen;
                             });
+                            widget.onOverlayChange(_isDropdownOpen);
                           },
                           child: Container(
                             width: 150,
@@ -121,119 +120,45 @@ class _TopwidgetsState extends State<Topwidgets> {
                         ),
                       ],
                     ),
-                  ),
-                  const SizedBox(height: 20),
-                  SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: Row(
-                      children: _oblongItems
-                          .map(
-                            (item) => Padding(
+                    // The oblong items row
+                    SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 10),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.start,
+                          children: _oblongItems.map((item) {
+                            return Container(
+                              margin: const EdgeInsets.only(right: 10),
                               padding:
-                                  const EdgeInsets.symmetric(horizontal: 8.0),
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 16.0, vertical: 8.0),
-                                decoration: BoxDecoration(
-                                    color: Colors.white,
-                                    borderRadius: BorderRadius.circular(20),
-                                    border: Border.all(
-                                        color: Colors.black, width: 1)),
+                                  const EdgeInsets.symmetric(horizontal: 10),
+                              height: 30,
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(20),
+                                border:
+                                    Border.all(color: Colors.black, width: 1),
+                              ),
+                              child: Center(
                                 child: Text(
                                   item,
                                   style: const TextStyle(
                                     color: Color(0xFF6750A4),
                                     fontWeight: FontWeight.bold,
                                   ),
+                                  overflow: TextOverflow.ellipsis,
                                 ),
                               ),
-                            ),
-                          )
-                          .toList(),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            if (_isDropdownOpen)
-              GestureDetector(
-                onTap: () {
-                  setState(() {
-                    _isDropdownOpen = false;
-                  });
-                },
-                child: Container(
-                  color: Colors.black.withOpacity(0.5),
-                ),
-              ),
-            AnimatedPositioned(
-              duration: const Duration(milliseconds: 300),
-              curve: Curves.easeInOut,
-              top:
-                  _isDropdownOpen ? 0 : -MediaQuery.of(context).size.height / 3,
-              left: 0,
-              right: 0,
-              child: Container(
-                constraints: BoxConstraints(
-                  maxHeight: MediaQuery.of(context).size.height / 3,
-                ),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: const BorderRadius.only(
-                    bottomLeft: Radius.circular(20),
-                    bottomRight: Radius.circular(20),
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.1),
-                      blurRadius: 10,
-                      offset: const Offset(0, 4),
+                            );
+                          }).toList(),
+                        ),
+                      ),
                     ),
                   ],
                 ),
-                child: ListView.builder(
-                  shrinkWrap: true,
-                  itemCount: _options.length,
-                  itemBuilder: (context, index) {
-                    return GestureDetector(
-                      onTap: () {
-                        debugPrint('${_options[index]} selected');
-                        setState(() {
-                          _isDropdownOpen = false;
-                        });
-                      },
-                      child: Padding(
-                        padding: const EdgeInsets.all(15.0),
-                        child: Row(
-                          children: [
-                            CircleAvatar(
-                              radius: 15,
-                              backgroundColor: const Color(0xFF6750A4),
-                              child: Text(
-                                _options[index][0],
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 10),
-                            Text(
-                              _options[index],
-                              style: const TextStyle(
-                                  color: Color(0xFF6750A4),
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 18),
-                            ),
-                          ],
-                        ),
-                      ),
-                    );
-                  },
-                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

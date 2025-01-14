@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:frontend/accessability/screens/settings/settingsscreen.dart';
 
 class Topwidgets extends StatefulWidget {
   final Function(bool) onOverlayChange;
@@ -11,8 +12,8 @@ class Topwidgets extends StatefulWidget {
 
 class _TopwidgetsState extends State<Topwidgets> {
   bool _isDropdownOpen = false;
-  final List<String> _options = ['Circle One', 'Circle Two', 'Circle Three'];
-  final List<String> _oblongItems = [
+  final List<String> options = ['Circle One', 'Circle Two', 'Circle Three'];
+  final List<String> oblongItems = [
     'Hotel',
     'Restaurant',
     'Bus',
@@ -40,12 +41,23 @@ class _TopwidgetsState extends State<Topwidgets> {
                       children: [
                         GestureDetector(
                           onTap: () {
-                            debugPrint('Settings button tapped');
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => const SettingsScreen(),
+                              ),
+                            );
                           },
                           child: Container(
-                            decoration: BoxDecoration(
+                            decoration: const BoxDecoration(
                               shape: BoxShape.circle,
-                              border: Border.all(color: Colors.black, width: 1),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black26,
+                                  blurRadius: 4,
+                                  offset: Offset(2, 2),
+                                ),
+                              ],
                             ),
                             child: const CircleAvatar(
                               radius: 20,
@@ -71,7 +83,13 @@ class _TopwidgetsState extends State<Topwidgets> {
                             decoration: BoxDecoration(
                               color: Colors.white,
                               borderRadius: BorderRadius.circular(20),
-                              border: Border.all(color: Colors.black, width: 1),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black26,
+                                  blurRadius: 4,
+                                  offset: Offset(2, 2),
+                                ),
+                              ],
                             ),
                             child: const Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -103,9 +121,15 @@ class _TopwidgetsState extends State<Topwidgets> {
                             debugPrint('Chat button tapped');
                           },
                           child: Container(
-                            decoration: BoxDecoration(
+                            decoration: const BoxDecoration(
                               shape: BoxShape.circle,
-                              border: Border.all(color: Colors.black, width: 1),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black26,
+                                  blurRadius: 4,
+                                  offset: Offset(2, 2),
+                                ),
+                              ],
                             ),
                             child: const CircleAvatar(
                               radius: 20,
@@ -127,7 +151,7 @@ class _TopwidgetsState extends State<Topwidgets> {
                         padding: const EdgeInsets.symmetric(vertical: 10),
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.start,
-                          children: _oblongItems.map((item) {
+                          children: oblongItems.map((item) {
                             return Container(
                               margin: const EdgeInsets.only(right: 10),
                               padding:
@@ -136,8 +160,13 @@ class _TopwidgetsState extends State<Topwidgets> {
                               decoration: BoxDecoration(
                                 color: Colors.white,
                                 borderRadius: BorderRadius.circular(20),
-                                border:
-                                    Border.all(color: Colors.black, width: 1),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black26,
+                                    blurRadius: 4,
+                                    offset: Offset(2, 2),
+                                  ),
+                                ],
                               ),
                               child: Center(
                                 child: Text(

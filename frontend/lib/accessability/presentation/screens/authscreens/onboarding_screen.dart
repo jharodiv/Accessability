@@ -104,7 +104,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
                           color: index == _currentPage
-                              ? const Color.fromARGB(255, 29, 53, 115)
+                              ? const Color(0xFF6750A4)
                               : Colors.grey,
                         ),
                       );
@@ -114,7 +114,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                   ElevatedButton(
                     onPressed: _onNextPressed,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color.fromARGB(255, 29, 53, 115),
+                      backgroundColor: const Color(0xFF6750A4),
                     ),
                     child: Text(
                       _currentPage == _images.length - 1
@@ -126,15 +126,17 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 ],
               ),
             ),
-            Positioned(
-              top: 20,
-              left: 20,
-              child: Text(
-                'CRYPTOTEL',
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.w500,
-                  color: const Color.fromARGB(255, 29, 53, 115),
+            Align(
+              alignment: Alignment.topCenter,
+              child: Padding(
+                padding: const EdgeInsets.only(top: 40),
+                child: Text(
+                  'Accessibility',
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.w500,
+                    color: const Color(0xFF6750A4),
+                  ),
                 ),
               ),
             ),

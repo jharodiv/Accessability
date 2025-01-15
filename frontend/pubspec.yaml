@@ -62,7 +62,7 @@ flutter:
     - assets/images/authentication/authenticationImage.png
     - assets/animation/
     - assets/images/others/
-    - assets/images/onboarding
+    - assets/images/onboarding/
 
   # To add assets to your application, add an assets section, like this:
   # assets:

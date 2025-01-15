@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:frontend/accessability/presentation/screens/authScreens/forgot_password_screen.dart';
-import 'package:frontend/accessability/presentation/widgets/settingsWidgets/account_screen.dart';
+import 'package:frontend/accessability/presentation/screens/settings/settingsScreens/account_screen.dart';
 
 class Changepassword extends StatefulWidget {
   const Changepassword({super.key});

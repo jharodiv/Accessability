@@ -27,7 +27,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               icon: const Icon(Icons.arrow_back),
               color: const Color(0xFF6750A4)),
           title: const Text(
-            'Settings',
+            'SETTINGS',
             style: TextStyle(fontWeight: FontWeight.bold),
           ),
           centerTitle: true,
@@ -38,8 +38,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
       body: ListView(
         children: [
           ListTile(
-            leading: const Icon(Icons.person),
-            title: const Text('Account'),
+            leading: const Icon(Icons.person, color: Color(0xFF6750A4)),
+            title: const Text('Account',
+                style: TextStyle(fontWeight: FontWeight.bold)),
             onTap: () {
               Navigator.push(
                 context,
@@ -49,9 +50,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
               );
             },
           ),
+          const Divider(),
           ListTile(
-            leading: const Icon(Icons.tune),
-            title: const Text('Preference'),
+            leading: const Icon(Icons.tune, color: Color(0xFF6750A4)),
+            title: const Text('Preference',
+                style: TextStyle(fontWeight: FontWeight.bold)),
             onTap: () {
               Navigator.push(
                 context,
@@ -61,9 +64,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
               );
             },
           ),
+          const Divider(),
           ListTile(
-            leading: const Icon(Icons.notifications),
-            title: const Text('Notification'),
+            leading: const Icon(Icons.notifications, color: Color(0xFF6750A4)),
+            title: const Text('Notification',
+                style: TextStyle(fontWeight: FontWeight.bold)),
             trailing: Switch(
               value: isNotificationEnabled,
               onChanged: (bool value) {
@@ -75,9 +80,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
               },
             ),
           ),
+          const Divider(),
           ListTile(
-            leading: const Icon(Icons.security),
-            title: const Text('Privacy & Security'),
+            leading: const Icon(Icons.security, color: Color(0xFF6750A4)),
+            title: const Text('Privacy & Security',
+                style: TextStyle(fontWeight: FontWeight.bold)),
             onTap: () {
               Navigator.push(
                 context,
@@ -87,9 +94,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
               );
             },
           ),
+          const Divider(),
           ListTile(
-            leading: const Icon(Icons.chat),
-            title: const Text('Chat and Support'),
+            leading: const Icon(Icons.chat, color: Color(0xFF6750A4)),
+            title: const Text('Chat and Support',
+                style: TextStyle(fontWeight: FontWeight.bold)),
             onTap: () {
               Navigator.push(
                 context,
@@ -99,9 +108,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
               );
             },
           ),
+          const Divider(),
           ListTile(
-            leading: const Icon(Icons.fingerprint),
-            title: const Text('Biometric Login'),
+            leading: const Icon(Icons.fingerprint, color: Color(0xFF6750A4)),
+            title: const Text('Biometric Login',
+                style: TextStyle(fontWeight: FontWeight.bold)),
             onTap: () {
               Navigator.push(
                 context,
@@ -111,9 +122,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
               );
             },
           ),
+          const Divider(),
           ListTile(
-            leading: const Icon(Icons.info),
-            title: const Text('About'),
+            leading: const Icon(Icons.info, color: Color(0xFF6750A4)),
+            title: const Text('About',
+                style: TextStyle(fontWeight: FontWeight.bold)),
             onTap: () {
               Navigator.push(
                 context,
@@ -123,9 +136,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
               );
             },
           ),
+          const Divider(),
           ListTile(
-            leading: const Icon(Icons.logout),
-            title: const Text('Logout'),
+            leading: const Icon(Icons.logout, color: Color(0xFF6750A4)),
+            title: const Text(
+              'Log out',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
             onTap: () {},
           ),
         ],

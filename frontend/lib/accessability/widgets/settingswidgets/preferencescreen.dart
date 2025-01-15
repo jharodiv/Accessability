@@ -27,7 +27,7 @@ class _PreferenceScreenState extends State<Preferencescreen> {
               },
               icon: const Icon(Icons.arrow_back)),
           title: const Text(
-            'PREFERENCE',
+            'Preference',
             style: TextStyle(fontWeight: FontWeight.bold),
           ),
           centerTitle: true,

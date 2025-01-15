@@ -3,6 +3,9 @@ import 'package:frontend/accessability/presentation/widgets/authwidgets/authenti
 import 'package:frontend/accessability/presentation/widgets/authwidgets/signupform.dart';
 
 class SignupScreen extends StatelessWidget {
+  static const String routeName =
+      '/signup'; // Define route name for named routing
+
   const SignupScreen({super.key});
 
   @override

@@ -77,11 +77,7 @@ class Loginform extends StatelessWidget {
                 const SizedBox(height: 10), // Reduced height
                 ElevatedButton(
                   onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (context) => const GpsScreen()),
-                    );
+                    Navigator.pushNamed(context, '/onboarding');
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF6750A4),

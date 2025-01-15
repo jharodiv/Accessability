@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:frontend/accessability/widgets/authwidgets/authenticationImage.dart';
-import 'package:frontend/accessability/widgets/authwidgets/signupform.dart';
+import 'package:frontend/accessability/presentation/widgets/authwidgets/authenticationImage.dart';
+import 'package:frontend/accessability/presentation/widgets/authwidgets/signupform.dart';
 
 class SignupScreen extends StatelessWidget {
   const SignupScreen({super.key});

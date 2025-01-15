@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:frontend/accessability/screens/authscreens/loginscreen.dart';
+import 'package:frontend/accessability/presentation/screens/authscreens/loginscreen.dart';
 
 class Signupform extends StatelessWidget {
   const Signupform({super.key});

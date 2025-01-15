@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:frontend/accessability/screens/settings/settingsscreen.dart';
+import 'package:frontend/accessability/presentation/screens/settings/settingsscreen.dart';
 
 class Preferencescreen extends StatefulWidget {
   const Preferencescreen({super.key});

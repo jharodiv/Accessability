@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
-import 'package:frontend/accessability/widgets/authwidgets/authenticationImage.dart';
-import 'package:frontend/accessability/widgets/authwidgets/loginform.dart';
+import 'package:frontend/accessability/presentation/widgets/authwidgets/authenticationImage.dart';
+import 'package:frontend/accessability/presentation/widgets/authwidgets/loginform.dart';
 
 class LoginScreen extends StatelessWidget {
   const LoginScreen({super.key});

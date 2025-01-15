@@ -9,7 +9,7 @@ class AppRouter {
     switch (routeSettings.name) {
       case '/':
         return _buildRoute(const SignupScreen(), clearStack: true);
-      case SignupScreen.routeName: // Use the routeName defined in SignupScreen
+      case SignupScreen.routeName:
         return _buildRoute(const SignupScreen());
       case '/login':
         return _buildRoute(const Loginform(), clearStack: true);

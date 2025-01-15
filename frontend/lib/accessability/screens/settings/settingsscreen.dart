@@ -35,7 +35,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               icon: const Icon(Icons.arrow_back),
               color: const Color(0xFF6750A4)),
           title: const Text(
-            'SETTINGS',
+            'Settings',
             style: TextStyle(fontWeight: FontWeight.bold),
           ),
           centerTitle: true,

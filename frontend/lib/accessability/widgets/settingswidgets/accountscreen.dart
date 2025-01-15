@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:frontend/accessability/screens/settings/settingsscreen.dart';
+import 'package:frontend/accessability/widgets/settingswidgets/changepassword.dart';
 
 class AccountScreen extends StatelessWidget {
   const AccountScreen({super.key});
@@ -19,7 +20,7 @@ class AccountScreen extends StatelessWidget {
               },
               icon: const Icon(Icons.arrow_back, color: Color(0xFF6750A4))),
           title: const Text(
-            'ACCOUNT',
+            'Account',
             style: TextStyle(fontWeight: FontWeight.bold),
           ),
           centerTitle: true,
@@ -84,7 +85,12 @@ class AccountScreen extends StatelessWidget {
                   subtitle: const Text('*******'),
                   trailing: IconButton(
                     icon: const Icon(Icons.edit, color: Color(0xFF6750A4)),
-                    onPressed: () {},
+                    onPressed: () {
+                      Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                              builder: (context) => const Changepassword()));
+                    },
                   ),
                 ),
                 const SizedBox(

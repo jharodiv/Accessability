@@ -37,7 +37,7 @@ class _GpsScreenState extends State<GpsScreen> {
 
   void _showOverlay(BuildContext context) {
     _overlayEntry = _createOverlayEntry();
-    Overlay.of(context)?.insert(_overlayEntry!);
+    Overlay.of(context).insert(_overlayEntry!);
   }
 
   void _removeOverlay() {

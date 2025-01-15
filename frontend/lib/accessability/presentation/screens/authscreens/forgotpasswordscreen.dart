@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:frontend/accessability/widgets/accessabilityheader.dart';
-import 'package:frontend/accessability/widgets/authwidgets/forgotpasswordconfirmation.dart';
+import 'package:frontend/accessability/presentation/widgets/accessabilityheader.dart';
+import 'package:frontend/accessability/presentation/widgets/authwidgets/forgotpasswordconfirmation.dart';
 
 class ForgotPasswordScreen extends StatelessWidget {
   const ForgotPasswordScreen({super.key});

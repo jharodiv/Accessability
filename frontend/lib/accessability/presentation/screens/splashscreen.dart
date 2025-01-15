@@ -1,6 +1,6 @@
 import 'package:animated_splash_screen/animated_splash_screen.dart';
 import 'package:flutter/material.dart';
-import 'package:frontend/accessability/screens/authscreens/signupscreen.dart';
+import 'package:frontend/accessability/presentation/screens/authscreens/signupscreen.dart';
 import 'package:lottie/lottie.dart';
 
 class Splashscreen extends StatelessWidget {

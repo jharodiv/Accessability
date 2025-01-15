@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:frontend/accessability/widgets/accessabilityfooter.dart';
-import 'package:frontend/accessability/widgets/homepagewidgets/topwidgets.dart';
+import 'package:frontend/accessability/presentation/widgets/accessabilityfooter.dart';
+import 'package:frontend/accessability/presentation/widgets/homepagewidgets/topwidgets.dart';
 
 class GpsScreen extends StatefulWidget {
   const GpsScreen({super.key});

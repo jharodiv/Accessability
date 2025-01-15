@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:frontend/accessability/presentation/screens/authscreens/signupscreen.dart';
 import 'package:frontend/accessability/presentation/screens/authscreens/onboarding_screen.dart';
+import 'package:frontend/accessability/presentation/screens/gpsscreen/gps.dart';
 import 'package:frontend/accessability/presentation/widgets/authwidgets/loginform.dart';
 
 class AppRouter {
@@ -14,6 +15,8 @@ class AppRouter {
         return _buildRoute(const Loginform(), clearStack: true);
       case '/onboarding':
         return _buildRoute(const OnboardingScreen(), clearStack: true);
+      case '/homescreen':
+        return _buildRoute(const GpsScreen(), clearStack: true);
     }
     return null; // Handle unknown routes
   }

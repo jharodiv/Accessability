@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:frontend/accessability/presentation/screens/splashscreen.dart';
+import 'package:frontend/accessability/presentation/screens/splash_screen.dart';
 import 'package:frontend/accessability/router/app_router.dart';
 
 void main() {

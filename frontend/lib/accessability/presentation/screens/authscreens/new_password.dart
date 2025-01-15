@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:frontend/accessability/presentation/widgets/accessabilityheader.dart';
-import 'package:frontend/accessability/presentation/widgets/authwidgets/forgotpasswordconfirmation.dart';
+import 'package:frontend/accessability/presentation/widgets/accessability_header.dart';
+import 'package:frontend/accessability/presentation/widgets/authwidgets/new_password_form.dart';
 
-class ForgotPasswordScreen extends StatelessWidget {
-  const ForgotPasswordScreen({super.key});
+class Newpassword extends StatelessWidget {
+  const Newpassword({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -15,8 +15,8 @@ class ForgotPasswordScreen extends StatelessWidget {
 
             return SingleChildScrollView(
               physics: isOverflowing
-                  ? const AlwaysScrollableScrollPhysics()
-                  : const NeverScrollableScrollPhysics(),
+                  ? AlwaysScrollableScrollPhysics()
+                  : NeverScrollableScrollPhysics(),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
@@ -25,7 +25,7 @@ class ForgotPasswordScreen extends StatelessWidget {
                   const SizedBox(height: 70),
                   Container(
                     padding: const EdgeInsets.all(16),
-                    child: const Forgotpasswordconfirmation(),
+                    child: const Newpasswordform(),
                   ),
                 ],
               ),

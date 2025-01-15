@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:frontend/accessability/presentation/screens/gpsscreen/gps.dart';
-import 'package:frontend/accessability/presentation/widgets/settingswidgets/about.dart';
-import 'package:frontend/accessability/presentation/widgets/settingswidgets/accountscreen.dart';
-import 'package:frontend/accessability/presentation/widgets/settingswidgets/biometricscreen.dart';
-import 'package:frontend/accessability/presentation/widgets/settingswidgets/chatwithsupportscreen.dart';
-import 'package:frontend/accessability/presentation/widgets/settingswidgets/preferencescreen.dart';
-import 'package:frontend/accessability/presentation/widgets/settingswidgets/privacysecurityscreen.dart';
+import 'package:frontend/accessability/presentation/screens/gpsScreen/gps.dart';
+import 'package:frontend/accessability/presentation/widgets/settingsWidgets/about.dart';
+import 'package:frontend/accessability/presentation/widgets/settingsWidgets/account_screen.dart';
+import 'package:frontend/accessability/presentation/widgets/settingsWidgets/biometric_screen.dart';
+import 'package:frontend/accessability/presentation/widgets/settingsWidgets/chat_with_support_screen.dart';
+import 'package:frontend/accessability/presentation/widgets/settingsWidgets/preferences_screen.dart';
+import 'package:frontend/accessability/presentation/widgets/settingsWidgets/privacy_security_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});

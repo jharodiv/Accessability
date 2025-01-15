@@ -1,12 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:frontend/accessability/presentation/widgets/authwidgets/authenticationImage.dart';
-import 'package:frontend/accessability/presentation/widgets/authwidgets/signupform.dart';
+import 'package:frontend/accessability/presentation/widgets/accessability_header.dart';
+import 'package:frontend/accessability/presentation/widgets/authwidgets/forgot_password_confirmation.dart';
 
-class SignupScreen extends StatelessWidget {
-  static const String routeName =
-      '/signup'; // Define route name for named routing
-
-  const SignupScreen({super.key});
+class ForgotPasswordScreen extends StatelessWidget {
+  const ForgotPasswordScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -20,14 +17,15 @@ class SignupScreen extends StatelessWidget {
               physics: isOverflowing
                   ? const AlwaysScrollableScrollPhysics()
                   : const NeverScrollableScrollPhysics(),
-              child: const Column(
+              child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  AuthenticationImage(),
-                  SizedBox(height: 10),
-                  Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 16.0),
-                    child: Signupform(),
+                  const SizedBox(height: 30),
+                  const Accessabilityheader(),
+                  const SizedBox(height: 70),
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    child: const Forgotpasswordconfirmation(),
                   ),
                 ],
               ),

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:frontend/accessability/presentation/screens/authscreens/forgotpasswordscreen.dart';
-import 'package:frontend/accessability/presentation/screens/authscreens/signupscreen.dart';
-import 'package:frontend/accessability/presentation/screens/gpsscreen/gps.dart';
+import 'package:frontend/accessability/presentation/screens/authScreens/forgot_password_screen.dart';
+import 'package:frontend/accessability/presentation/screens/authScreens/signup_screen.dart';
+import 'package:frontend/accessability/presentation/screens/gpsScreen/gps.dart';
 
 class Loginform extends StatelessWidget {
   const Loginform({super.key});

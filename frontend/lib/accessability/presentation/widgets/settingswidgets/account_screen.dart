@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:frontend/accessability/presentation/screens/settings/settingsscreen.dart';
-import 'package:frontend/accessability/presentation/widgets/settingswidgets/changepassword.dart';
+import 'package:frontend/accessability/presentation/screens/settings/settings_screen.dart';
+import 'package:frontend/accessability/presentation/widgets/settingsWidgets/change_password.dart';
 
 class AccountScreen extends StatelessWidget {
   const AccountScreen({super.key});

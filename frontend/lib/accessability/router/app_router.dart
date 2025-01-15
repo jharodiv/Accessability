@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:frontend/accessability/presentation/screens/authscreens/signupscreen.dart';
-import 'package:frontend/accessability/presentation/screens/authscreens/onboarding_screen.dart';
-import 'package:frontend/accessability/presentation/screens/gpsscreen/gps.dart';
-import 'package:frontend/accessability/presentation/widgets/authwidgets/loginform.dart';
+import 'package:frontend/accessability/presentation/screens/authScreens/signup_screen.dart';
+import 'package:frontend/accessability/presentation/screens/authScreens/onboarding_screen.dart';
+import 'package:frontend/accessability/presentation/screens/gpsScreen/gps.dart';
+import 'package:frontend/accessability/presentation/widgets/authWidgets/login_form.dart';
 
 class AppRouter {
   Route<dynamic>? onGenerateRoute(RouteSettings routeSettings) {

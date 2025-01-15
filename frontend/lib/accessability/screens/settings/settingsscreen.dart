@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:frontend/accessability/screens/gpsscreen/gps.dart';
 import 'package:frontend/accessability/widgets/settingswidgets/about.dart';
 import 'package:frontend/accessability/widgets/settingswidgets/accountscreen.dart';
 import 'package:frontend/accessability/widgets/settingswidgets/biometricscreen.dart';
@@ -23,7 +24,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
         preferredSize: const Size.fromHeight(65),
         child: AppBar(
           leading: IconButton(
-              onPressed: () {},
+              onPressed: () {
+                Navigator.pop(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const GpsScreen(),
+                  ),
+                );
+              },
               icon: const Icon(Icons.arrow_back),
               color: const Color(0xFF6750A4)),
           title: const Text(

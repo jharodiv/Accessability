@@ -21,7 +21,7 @@ class DataSecurity extends StatelessWidget {
             color: const Color(0xFF6750A4),
           ),
           title: const Text(
-            'Data Security',
+            'Privacy & Security',
             style: TextStyle(fontWeight: FontWeight.bold),
           ),
           centerTitle: true,

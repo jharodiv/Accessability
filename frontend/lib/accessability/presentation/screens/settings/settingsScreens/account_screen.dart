@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:frontend/accessability/presentation/screens/settings/settingsScreens/delete_account.dart';
 import 'package:frontend/accessability/presentation/screens/settings/settings_screen.dart';
 import 'package:frontend/accessability/presentation/screens/settings/settingsScreens/change_password_screen.dart';
 
@@ -108,9 +109,17 @@ class AccountScreen extends StatelessWidget {
                   leading: Icon(Icons.delete, color: Color(0xFF6750A4)),
                   title: Text('Delete Account'),
                 ),
-                const ListTile(
-                  leading: Icon(Icons.logout, color: Color(0xFF6750A4)),
-                  title: Text('Log out'),
+                ListTile(
+                  leading: const Icon(Icons.logout, color: Color(0xFF6750A4)),
+                  title: const Text('Log out'),
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const DeleteAccount(),
+                      ),
+                    );
+                  },
                 ),
               ],
             ),

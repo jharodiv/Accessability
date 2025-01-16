@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:frontend/accessability/presentation/screens/settings/settings_screen.dart';
 
 class Chatandsupport extends StatelessWidget {
   const Chatandsupport({super.key});
@@ -7,8 +8,16 @@ class Chatandsupport extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        leading:
-            IconButton(onPressed: () {}, icon: const Icon(Icons.arrow_back)),
+        leading: IconButton(
+            onPressed: () {
+              Navigator.pop(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const SettingsScreen(),
+                ),
+              );
+            },
+            icon: const Icon(Icons.arrow_back)),
         title: const Text(
           'Chat and Support',
           style: TextStyle(fontWeight: FontWeight.bold),

@@ -2,13 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:frontend/accessability/presentation/screens/authScreens/signup_screen.dart';
 import 'package:frontend/accessability/presentation/screens/authScreens/onboarding_screen.dart';
 import 'package:frontend/accessability/presentation/screens/gpsScreen/gps.dart';
+import 'package:frontend/accessability/presentation/screens/settings/settingsScreens/privacy_security_screen.dart';
 import 'package:frontend/accessability/presentation/widgets/authWidgets/login_form.dart';
 
 class AppRouter {
   Route<dynamic>? onGenerateRoute(RouteSettings routeSettings) {
     switch (routeSettings.name) {
       case '/':
-        return _buildRoute(const SignupScreen(), clearStack: true);
+        return _buildRoute(const Privacysecurity(), clearStack: true);
       case SignupScreen.routeName:
         return _buildRoute(const SignupScreen());
       case '/login':

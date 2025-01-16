@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:frontend/accessability/presentation/widgets/authwidgets/authenticationImage.dart';
+import 'package:frontend/accessability/presentation/widgets/authwidgets/authentication_Image.dart';
 import 'package:frontend/accessability/presentation/widgets/authwidgets/signup_form.dart';
 
 class SignupScreen extends StatelessWidget {

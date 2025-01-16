@@ -13,7 +13,7 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      initialRoute: '/onboarding', // Set your initial route here
+      initialRoute: '/', // Set your initial route here
       onGenerateRoute:
           _appRouter.onGenerateRoute, // Use the AppRouter for route generation
       theme: ThemeData(

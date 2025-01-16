@@ -13,11 +13,10 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      initialRoute: '/', // Set your initial route here
-      onGenerateRoute:
-          _appRouter.onGenerateRoute, // Use the AppRouter for route generation
+      initialRoute: '/',
+      onGenerateRoute: _appRouter.onGenerateRoute,
       theme: ThemeData(
-        scaffoldBackgroundColor: Colors.white, // Set white background globally
+        scaffoldBackgroundColor: Colors.white,
       ),
     );
   }

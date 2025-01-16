@@ -105,13 +105,9 @@ class AccountScreen extends StatelessWidget {
                       color: Color(0xFF6750A4)),
                 ),
                 const Divider(),
-                const ListTile(
-                  leading: Icon(Icons.delete, color: Color(0xFF6750A4)),
-                  title: Text('Delete Account'),
-                ),
                 ListTile(
-                  leading: const Icon(Icons.logout, color: Color(0xFF6750A4)),
-                  title: const Text('Log out'),
+                  leading: const Icon(Icons.delete, color: Color(0xFF6750A4)),
+                  title: const Text('Delete Account'),
                   onTap: () {
                     Navigator.push(
                       context,
@@ -120,6 +116,10 @@ class AccountScreen extends StatelessWidget {
                       ),
                     );
                   },
+                ),
+                const ListTile(
+                  leading: Icon(Icons.logout, color: Color(0xFF6750A4)),
+                  title: Text('Log out'),
                 ),
               ],
             ),

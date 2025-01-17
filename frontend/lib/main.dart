@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-//import 'package:frontend/accessability/presentation/screens/splash_screen.dart';
 import 'package:frontend/accessability/router/app_router.dart';
 
 void main() {
@@ -8,6 +7,7 @@ void main() {
 }
 
 var kColorScheme = ColorScheme.fromSeed(seedColor: Colors.white);
+var kDarkColorScheme = ColorScheme.fromSeed(seedColor: Colors.black);
 
 class MyApp extends StatelessWidget {
   final AppRouter _appRouter = AppRouter();
@@ -17,13 +17,15 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       initialRoute: '/',
-      theme: _buildAppTheme(context),
+      theme: _buildLightTheme(context),
+      darkTheme: _buildDarkTheme(context), // Add dark theme here
+      themeMode: ThemeMode.system, // Switches based on system theme
       onGenerateRoute: _appRouter.onGenerateRoute,
     );
   }
 }
 
-ThemeData _buildAppTheme(BuildContext context) {
+ThemeData _buildLightTheme(BuildContext context) {
   return ThemeData(
     primaryColor: Colors.white,
     colorScheme: ColorScheme.fromSeed(
@@ -32,11 +34,8 @@ ThemeData _buildAppTheme(BuildContext context) {
     useMaterial3: true,
     listTileTheme: const ListTileThemeData(
       textColor: Colors.black,
-      iconColor: Colors.white,
+      iconColor: Colors.black,
     ),
-    // drawerTheme: const DrawerThemeData(
-    //   backgroundColor: Color.fromARGB(255, 29, 53, 115),
-    // ),
     elevatedButtonTheme: ElevatedButtonThemeData(
       style: ElevatedButton.styleFrom(
         backgroundColor: Colors.black,
@@ -55,6 +54,42 @@ ThemeData _buildAppTheme(BuildContext context) {
       backgroundColor: Colors.white,
     ),
     textTheme: _buildHelveticaTextTheme(),
+  );
+}
+
+ThemeData _buildDarkTheme(BuildContext context) {
+  return ThemeData(
+    primaryColor: Colors.black,
+    colorScheme: ColorScheme.fromSeed(
+      seedColor: const Color.fromARGB(255, 0, 0, 0),
+      brightness: Brightness.dark,
+    ),
+    useMaterial3: true,
+    listTileTheme: const ListTileThemeData(
+      textColor: Colors.white,
+      iconColor: Colors.white,
+    ),
+    elevatedButtonTheme: ElevatedButtonThemeData(
+      style: ElevatedButton.styleFrom(
+        backgroundColor: Colors.white,
+        foregroundColor: Colors.black,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(8.0),
+        ),
+      ),
+    ),
+    scaffoldBackgroundColor: Colors.black,
+    appBarTheme: const AppBarTheme(
+      systemOverlayStyle: SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        statusBarIconBrightness: Brightness.light,
+      ),
+      backgroundColor: Colors.black,
+    ),
+    textTheme: _buildHelveticaTextTheme().apply(
+      bodyColor: Colors.white,
+      displayColor: Colors.white,
+    ),
   );
 }
 

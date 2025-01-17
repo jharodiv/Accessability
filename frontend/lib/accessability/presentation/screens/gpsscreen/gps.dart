@@ -17,7 +17,7 @@ class _GpsScreenState extends State<GpsScreen> {
     return Scaffold(
       body: Stack(
         children: [
-          const Center(child: Text('GPS Map Placeholder')),
+          const Center(child: Text('GPS Map')),
           Topwidgets(
             onOverlayChange: (isVisible) {
               setState(() {

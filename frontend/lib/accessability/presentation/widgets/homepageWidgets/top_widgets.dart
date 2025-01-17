@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:frontend/accessability/presentation/screens/chat_system/inbox.dart';
 import 'package:frontend/accessability/presentation/screens/settings/settings_screen.dart';
 
 class Topwidgets extends StatefulWidget {
@@ -118,7 +119,12 @@ class _TopwidgetsState extends State<Topwidgets> {
                         ),
                         GestureDetector(
                           onTap: () {
-                            debugPrint('Chat button tapped');
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => const Inbox(),
+                              ),
+                            );
                           },
                           child: Container(
                             decoration: const BoxDecoration(

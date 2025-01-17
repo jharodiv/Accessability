@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 
-class Locationwidgets extends StatelessWidget {
-  const Locationwidgets({super.key});
+class BottomWidget extends StatelessWidget {
+  const BottomWidget({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return const Scaffold();
+    return const Placeholder();
   }
 }

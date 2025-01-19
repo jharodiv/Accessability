@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:frontend/accessability/presentation/widgets/authWidgets/signup_form.dart';
 import 'package:frontend/accessability/presentation/widgets/authwidgets/authentication_Image.dart';
-import 'package:frontend/accessability/presentation/widgets/authwidgets/signup_form.dart';
 
 class SignupScreen extends StatelessWidget {
   static const String routeName =
@@ -27,7 +27,7 @@ class SignupScreen extends StatelessWidget {
                   SizedBox(height: 10),
                   Padding(
                     padding: EdgeInsets.symmetric(horizontal: 16.0),
-                    child: Signupform(),
+                    child: SignupForm(),
                   ),
                 ],
               ),

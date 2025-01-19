@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:frontend/accessability/presentation/widgets/authWidgets/login_form.dart';
 import 'package:frontend/accessability/presentation/widgets/authwidgets/authentication_Image.dart';
-import 'package:frontend/accessability/presentation/widgets/authwidgets/login_form.dart';
 
 class LoginScreen extends StatelessWidget {
   const LoginScreen({super.key});
@@ -23,7 +23,7 @@ class LoginScreen extends StatelessWidget {
                 SizedBox(height: 90),
                 Padding(
                   padding: EdgeInsets.symmetric(horizontal: 16.0),
-                  child: Loginform(),
+                  child: LoginForm(),
                 ),
               ],
             ),

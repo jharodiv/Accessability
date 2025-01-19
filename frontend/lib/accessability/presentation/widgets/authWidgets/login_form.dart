@@ -1,9 +1,52 @@
 import 'package:flutter/material.dart';
+import 'package:frontend/accessability/firebaseServices/auth_service.dart';
 import 'package:frontend/accessability/presentation/screens/authScreens/forgot_password_screen.dart';
 import 'package:frontend/accessability/presentation/screens/authScreens/signup_screen.dart';
 
-class Loginform extends StatelessWidget {
-  const Loginform({super.key});
+class LoginForm extends StatefulWidget {
+  const LoginForm({super.key});
+
+  @override
+  _LoginFormState createState() => _LoginFormState();
+}
+
+class _LoginFormState extends State<LoginForm> {
+  final TextEditingController emailController = TextEditingController();
+  final TextEditingController passwordController = TextEditingController();
+  final AuthService authService = AuthService();
+
+  Future<void> login() async {
+    final email = emailController.text;
+    final password = passwordController.text;
+
+    try {
+      await authService.signInWithEmailPassword(email, password);
+      Navigator.pushNamed(context, '/onboarding');
+    } catch (e) {
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: Text('Error'),
+          content: Text(e.toString()),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              child: Text('OK'),
+            ),
+          ],
+        ),
+      );
+    }
+  }
+
+  @override
+  void dispose() {
+    emailController.dispose();
+    passwordController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -25,7 +68,8 @@ class Loginform extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 10),
-                const TextField(
+                TextField(
+                  controller: emailController,
                   decoration: InputDecoration(
                     labelText: 'Email',
                     border: OutlineInputBorder(
@@ -38,7 +82,8 @@ class Loginform extends StatelessWidget {
                   height: 80,
                   child: Stack(
                     children: [
-                      const TextField(
+                      TextField(
+                        controller: passwordController,
                         obscureText: true,
                         decoration: InputDecoration(
                           labelText: 'Password',
@@ -75,9 +120,7 @@ class Loginform extends StatelessWidget {
                 ),
                 const SizedBox(height: 10), // Reduced height
                 ElevatedButton(
-                  onPressed: () {
-                    Navigator.pushNamed(context, '/onboarding');
-                  },
+                  onPressed: login, // Call the login method
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF6750A4),
                     padding: const EdgeInsets.symmetric(

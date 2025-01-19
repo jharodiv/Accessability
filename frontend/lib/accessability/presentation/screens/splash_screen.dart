@@ -1,6 +1,6 @@
 import 'package:animated_splash_screen/animated_splash_screen.dart';
 import 'package:flutter/material.dart';
-import 'package:frontend/accessability/presentation/screens/authScreens/onboarding_screen.dart';
+import 'package:frontend/accessability/presentation/screens/authScreens/login_screen.dart';
 import 'package:lottie/lottie.dart';
 
 class Splashscreen extends StatelessWidget {
@@ -22,7 +22,7 @@ class Splashscreen extends StatelessWidget {
           ),
         ),
       ),
-      nextScreen: OnboardingScreen(),
+      nextScreen: LoginScreen(),
       duration: 3500,
     );
   }

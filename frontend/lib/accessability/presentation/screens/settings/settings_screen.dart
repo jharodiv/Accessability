@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:frontend/accessability/firebaseServices/auth_service.dart';
 import 'package:frontend/accessability/presentation/screens/gpsScreen/gps.dart';
 import 'package:frontend/accessability/presentation/screens/settings/settingsScreens/about_screen.dart';
 import 'package:frontend/accessability/presentation/screens/settings/settingsScreens/account_screen.dart';
@@ -12,6 +13,11 @@ class SettingsScreen extends StatefulWidget {
 
   @override
   _SettingsScreenState createState() => _SettingsScreenState();
+}
+
+void logout() {
+  final _authService = AuthService();
+  _authService.signOut();
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
@@ -151,7 +157,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               'Log out',
               style: TextStyle(fontWeight: FontWeight.bold),
             ),
-            onTap: () {},
+            onTap: logout,
           ),
         ],
       ),

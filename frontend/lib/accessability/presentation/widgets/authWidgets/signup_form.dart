@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:frontend/accessability/firebaseServices/auth_service.dart';
 import 'package:frontend/accessability/presentation/screens/authScreens/login_screen.dart';
 
 class SignupForm extends StatefulWidget {
@@ -28,6 +29,41 @@ class _SignupFormState extends State<SignupForm> {
     super.dispose();
   }
 
+  void signup() {
+    final auth = AuthService();
+
+    if (passwordController.text == confirmPasswordController.text) {
+      try {
+        auth.signUpWithEmailAndPassword(
+            emailController.text, passwordController.text);
+      } catch (e) {
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: Text(e.toString()),
+          ),
+        );
+      }
+    } else {
+      // Show an error dialog if passwords do not match
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text("Error"),
+          content: const Text("Passwords do not match."),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              child: const Text("OK"),
+            ),
+          ],
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Center(
@@ -50,7 +86,7 @@ class _SignupFormState extends State<SignupForm> {
                 const SizedBox(height: 20),
                 TextField(
                   controller: usernameController,
-                  decoration: InputDecoration(
+                  decoration: const InputDecoration(
                     labelText: 'Username',
                     border: OutlineInputBorder(
                       borderSide: BorderSide(color: Colors.black, width: 3.0),
@@ -60,7 +96,7 @@ class _SignupFormState extends State<SignupForm> {
                 const SizedBox(height: 20),
                 TextField(
                   controller: emailController,
-                  decoration: InputDecoration(
+                  decoration: const InputDecoration(
                     labelText: 'Email',
                     border: OutlineInputBorder(
                       borderSide: BorderSide(color: Colors.black, width: 3.0),
@@ -70,7 +106,7 @@ class _SignupFormState extends State<SignupForm> {
                 const SizedBox(height: 20),
                 TextField(
                   controller: contactNumberController,
-                  decoration: InputDecoration(
+                  decoration: const InputDecoration(
                     labelText: 'Contact Number',
                     border: OutlineInputBorder(
                       borderSide: BorderSide(color: Colors.black, width: 3.0),
@@ -81,7 +117,7 @@ class _SignupFormState extends State<SignupForm> {
                 TextField(
                   controller: passwordController,
                   obscureText: true,
-                  decoration: InputDecoration(
+                  decoration: const InputDecoration(
                     labelText: 'Password',
                     border: OutlineInputBorder(
                       borderSide: BorderSide(color: Colors.black, width: 3.0),
@@ -92,7 +128,7 @@ class _SignupFormState extends State<SignupForm> {
                 TextField(
                   controller: confirmPasswordController,
                   obscureText: true,
-                  decoration: InputDecoration(
+                  decoration: const InputDecoration(
                     labelText: 'Confirm Password',
                     border: OutlineInputBorder(
                       borderSide: BorderSide(color: Colors.black, width: 3.0),
@@ -101,9 +137,7 @@ class _SignupFormState extends State<SignupForm> {
                 ),
                 const SizedBox(height: 20),
                 ElevatedButton(
-                  onPressed: () {
-                    // Handle sign-up logic here
-                  },
+                  onPressed: signup, // Call the signup function here
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF6750A4),
                     padding: const EdgeInsets.symmetric(

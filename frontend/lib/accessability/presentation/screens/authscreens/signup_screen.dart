@@ -19,7 +19,7 @@ class SignupScreen extends StatelessWidget {
               AuthenticationImage(),
               SizedBox(height: 10),
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                padding: EdgeInsets.symmetric(horizontal: 16.0),
                 child: SignupForm(),
               ),
             ],

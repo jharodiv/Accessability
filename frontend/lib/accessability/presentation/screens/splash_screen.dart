@@ -22,7 +22,7 @@ class Splashscreen extends StatelessWidget {
           ),
         ),
       ),
-      nextScreen: LoginScreen(),
+      nextScreen: const LoginScreen(),
       duration: 3500,
     );
   }

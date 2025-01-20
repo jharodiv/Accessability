@@ -16,6 +16,8 @@ var kDarkColorScheme = ColorScheme.fromSeed(seedColor: Colors.black);
 class MyApp extends StatelessWidget {
   final AppRouter _appRouter = AppRouter();
 
+  MyApp({super.key});
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(

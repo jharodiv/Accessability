@@ -129,13 +129,13 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
             const Align(
               alignment: Alignment.topCenter,
               child: Padding(
-                padding: const EdgeInsets.only(top: 40),
+                padding: EdgeInsets.only(top: 40),
                 child: Text(
                   'Accessibility',
                   style: TextStyle(
                     fontSize: 24,
                     fontWeight: FontWeight.w500,
-                    color: const Color(0xFF6750A4),
+                    color: Color(0xFF6750A4),
                   ),
                 ),
               ),

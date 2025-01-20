@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:frontend/accessability/firebaseServices/auth_service.dart';
+import 'package:frontend/accessability/firebaseServices/auth/auth_service.dart';
 import 'package:frontend/accessability/presentation/screens/gpsScreen/gps.dart';
 import 'package:frontend/accessability/presentation/screens/settings/settingsScreens/about_screen.dart';
 import 'package:frontend/accessability/presentation/screens/settings/settingsScreens/account_screen.dart';
@@ -16,8 +16,8 @@ class SettingsScreen extends StatefulWidget {
 }
 
 void logout() {
-  final _authService = AuthService();
-  _authService.signOut();
+  final authService = AuthService();
+  authService.signOut();
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
@@ -151,9 +151,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
             },
           ),
           const Divider(),
-          ListTile(
-            leading: const Icon(Icons.logout, color: Color(0xFF6750A4)),
-            title: const Text(
+          const ListTile(
+            leading: Icon(Icons.logout, color: Color(0xFF6750A4)),
+            title: Text(
               'Log out',
               style: TextStyle(fontWeight: FontWeight.bold),
             ),

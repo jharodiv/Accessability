@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:frontend/accessability/firebaseServices/auth_service.dart';
+import 'package:frontend/accessability/firebaseServices/auth/auth_service.dart';
 import 'package:frontend/accessability/presentation/screens/authScreens/forgot_password_screen.dart';
 import 'package:frontend/accessability/presentation/screens/authScreens/signup_screen.dart';
 
@@ -26,14 +26,14 @@ class _LoginFormState extends State<LoginForm> {
       showDialog(
         context: context,
         builder: (context) => AlertDialog(
-          title: Text('Error'),
+          title: const Text('Error'),
           content: Text(e.toString()),
           actions: [
             TextButton(
               onPressed: () {
                 Navigator.of(context).pop();
               },
-              child: Text('OK'),
+              child: const Text('OK'),
             ),
           ],
         ),
@@ -70,7 +70,7 @@ class _LoginFormState extends State<LoginForm> {
                 const SizedBox(height: 10),
                 TextField(
                   controller: emailController,
-                  decoration: InputDecoration(
+                  decoration: const InputDecoration(
                     labelText: 'Email',
                     border: OutlineInputBorder(
                       borderSide: BorderSide(color: Colors.black, width: 3.0),
@@ -78,14 +78,14 @@ class _LoginFormState extends State<LoginForm> {
                   ),
                 ),
                 const SizedBox(height: 10), // Reduced height
-                Container(
+                SizedBox(
                   height: 80,
                   child: Stack(
                     children: [
                       TextField(
                         controller: passwordController,
                         obscureText: true,
-                        decoration: InputDecoration(
+                        decoration: const InputDecoration(
                           labelText: 'Password',
                           border: OutlineInputBorder(
                             borderSide:

@@ -1,6 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:frontend/accessability/presentation/screens/chat_system/inbox.dart';
-import 'package:frontend/accessability/presentation/screens/settings/settings_screen.dart';
 
 class Topwidgets extends StatefulWidget {
   final Function(bool) onOverlayChange;
@@ -42,12 +40,8 @@ class _TopwidgetsState extends State<Topwidgets> {
                       children: [
                         GestureDetector(
                           onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => const SettingsScreen(),
-                              ),
-                            );
+                            Navigator.pushNamed(
+                                context, '/settings'); // Use named route
                           },
                           child: Container(
                             decoration: const BoxDecoration(
@@ -119,12 +113,8 @@ class _TopwidgetsState extends State<Topwidgets> {
                         ),
                         GestureDetector(
                           onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => const Inbox(),
-                              ),
-                            );
+                            Navigator.pushNamed(
+                                context, '/inbox'); // Use named route
                           },
                           child: Container(
                             decoration: const BoxDecoration(

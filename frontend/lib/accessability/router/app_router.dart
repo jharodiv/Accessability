@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:frontend/accessability/presentation/screens/authScreens/login_screen.dart';
 import 'package:frontend/accessability/presentation/screens/authScreens/signup_screen.dart';
 import 'package:frontend/accessability/presentation/screens/authScreens/onboarding_screen.dart';
+import 'package:frontend/accessability/presentation/screens/chat_system/inbox.dart';
 import 'package:frontend/accessability/presentation/screens/gpsScreen/gps.dart';
+import 'package:frontend/accessability/presentation/screens/settings/settings_screen.dart';
 import 'package:frontend/accessability/presentation/screens/splash_screen.dart';
-import 'package:frontend/accessability/presentation/widgets/authWidgets/login_form.dart';
 import 'package:frontend/accessability/presentation/screens/settings/settingsScreens/account_screen.dart';
 import 'package:frontend/accessability/presentation/screens/settings/settingsScreens/biometric_screen.dart';
 import 'package:frontend/accessability/presentation/screens/settings/settingsScreens/chat_with_support_screen.dart';
@@ -19,7 +21,7 @@ class AppRouter {
       case SignupScreen.routeName:
         return _buildRoute(const SignupScreen());
       case '/login':
-        return _buildRoute(const LoginForm(), clearStack: true);
+        return _buildRoute(const LoginScreen(), clearStack: true);
       case '/onboarding':
         return _buildRoute(const OnboardingScreen(), clearStack: true);
       case '/homescreen':
@@ -34,6 +36,10 @@ class AppRouter {
         return _buildRoute(const ChatAndSupport());
       case '/biometric':
         return _buildRoute(const BiometricLogin());
+      case '/settings':
+        return _buildRoute(const SettingsScreen());
+      case '/inbox':
+        return _buildRoute(Inbox());
       case '/about':
         return _buildRoute(const AboutScreen());
     }

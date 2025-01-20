@@ -12,9 +12,29 @@ class SettingsScreen extends StatefulWidget {
 class _SettingsScreenState extends State<SettingsScreen> {
   bool isNotificationEnabled = false;
 
-  void logout() async {
+  Future<void> logout() async {
     final authService = AuthService();
-    await authService.signOut();
+    try {
+      await authService.signOut();
+
+      Navigator.pushReplacementNamed(context, '/login');
+    } catch (e) {
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Error'),
+          content: Text(e.toString()),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              child: const Text('OK'),
+            ),
+          ],
+        ),
+      );
+    }
   }
 
   @override

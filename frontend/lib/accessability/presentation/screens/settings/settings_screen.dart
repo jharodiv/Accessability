@@ -15,13 +15,14 @@ class SettingsScreen extends StatefulWidget {
   _SettingsScreenState createState() => _SettingsScreenState();
 }
 
-void logout() {
-  final authService = AuthService();
-  authService.signOut();
-}
-
 class _SettingsScreenState extends State<SettingsScreen> {
   bool isNotificationEnabled = false;
+
+  void logout() async {
+    final authService = AuthService();
+    await authService.signOut(); // Call the signOut method
+    // No need to navigate; AuthGate will handle it
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -73,7 +74,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => const Preferencescreen(),
+                  builder: (context) => const PreferencesScreen(),
                 ),
               );
             },
@@ -103,7 +104,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => const Privacysecurity(),
+                  builder: (context) => const PrivacySecurity(),
                 ),
               );
             },
@@ -117,7 +118,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => const Chatandsupport(),
+                  builder: (context) => const ChatAndSupport(),
                 ),
               );
             },
@@ -131,7 +132,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => const Biometriclogin(),
+                  builder: (context) => const BiometricLogin(),
                 ),
               );
             },
@@ -151,13 +152,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
             },
           ),
           const Divider(),
-          const ListTile(
-            leading: Icon(Icons.logout, color: Color(0xFF6750A4)),
-            title: Text(
+          ListTile(
+            leading: const Icon(Icons.logout, color: Color(0xFF6750A4)),
+            title: const Text(
               'Log out',
               style: TextStyle(fontWeight: FontWeight.bold),
             ),
-            onTap: logout,
+            onTap: logout, // Call the logout function here
           ),
         ],
       ),

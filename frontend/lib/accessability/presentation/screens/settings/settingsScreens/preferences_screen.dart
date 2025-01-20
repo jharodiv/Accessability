@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:frontend/accessability/presentation/screens/settings/settings_screen.dart';
 
-class Preferencescreen extends StatefulWidget {
-  const Preferencescreen({super.key});
+class PreferencesScreen extends StatefulWidget {
+  const PreferencesScreen({super.key});
 
   @override
-  _PreferenceScreenState createState() => _PreferenceScreenState();
+  _PreferencesScreenState createState() => _PreferencesScreenState();
 }
 
-class _PreferenceScreenState extends State<Preferencescreen> {
+class _PreferencesScreenState extends State<PreferencesScreen> {
   bool isNightmode = false;
   bool isColorblindmode = false;
   String selectedLanguage = 'English'; //Default Language

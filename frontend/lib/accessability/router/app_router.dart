@@ -4,6 +4,12 @@ import 'package:frontend/accessability/presentation/screens/authScreens/onboardi
 import 'package:frontend/accessability/presentation/screens/gpsScreen/gps.dart';
 import 'package:frontend/accessability/presentation/screens/splash_screen.dart';
 import 'package:frontend/accessability/presentation/widgets/authWidgets/login_form.dart';
+import 'package:frontend/accessability/presentation/screens/settings/settingsScreens/account_screen.dart';
+import 'package:frontend/accessability/presentation/screens/settings/settingsScreens/biometric_screen.dart';
+import 'package:frontend/accessability/presentation/screens/settings/settingsScreens/chat_with_support_screen.dart';
+import 'package:frontend/accessability/presentation/screens/settings/settingsScreens/preferences_screen.dart';
+import 'package:frontend/accessability/presentation/screens/settings/settingsScreens/privacy_security_screen.dart';
+import 'package:frontend/accessability/presentation/screens/settings/settingsScreens/about_screen.dart';
 
 class AppRouter {
   Route<dynamic>? onGenerateRoute(RouteSettings routeSettings) {
@@ -18,6 +24,18 @@ class AppRouter {
         return _buildRoute(const OnboardingScreen(), clearStack: true);
       case '/homescreen':
         return _buildRoute(const GpsScreen(), clearStack: true);
+      case '/account':
+        return _buildRoute(const AccountScreen());
+      case '/preferences':
+        return _buildRoute(const PreferencesScreen());
+      case '/privacy':
+        return _buildRoute(const PrivacySecurity());
+      case '/chat':
+        return _buildRoute(const ChatAndSupport());
+      case '/biometric':
+        return _buildRoute(const BiometricLogin());
+      case '/about':
+        return _buildRoute(const AboutScreen());
     }
     return null; // Handle unknown routes
   }

@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:frontend/accessability/presentation/screens/settings/settings_screen.dart';
 
-class Chatandsupport extends StatelessWidget {
-  const Chatandsupport({super.key});
+class ChatAndSupport extends StatelessWidget {
+  const ChatAndSupport({super.key});
 
   @override
   Widget build(BuildContext context) {

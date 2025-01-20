@@ -4,8 +4,8 @@ import 'package:frontend/accessability/presentation/screens/settings/settingsScr
 import 'package:frontend/accessability/presentation/screens/settings/settingsScreens/privacy_and_security/privacy_policy.dart';
 import 'package:frontend/accessability/presentation/screens/settings/settings_screen.dart';
 
-class Privacysecurity extends StatelessWidget {
-  const Privacysecurity({super.key});
+class PrivacySecurity extends StatelessWidget {
+  const PrivacySecurity({super.key});
 
   @override
   Widget build(BuildContext context) {

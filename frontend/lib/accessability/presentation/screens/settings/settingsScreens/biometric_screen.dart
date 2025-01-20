@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:frontend/accessability/presentation/screens/settings/settings_screen.dart';
 
-class Biometriclogin extends StatefulWidget {
-  const Biometriclogin({super.key});
+class BiometricLogin extends StatefulWidget {
+  const BiometricLogin({super.key});
 
   @override
-  _BiometricloginState createState() => _BiometricloginState();
+  _BiometricLoginState createState() => _BiometricLoginState();
 }
 
-class _BiometricloginState extends State<Biometriclogin> {
+class _BiometricLoginState extends State<BiometricLogin> {
   bool isBiometricEnabled = true;
 
   @override

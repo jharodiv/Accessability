@@ -1,12 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:frontend/accessability/firebaseServices/auth/auth_service.dart';
 import 'package:frontend/accessability/presentation/screens/gpsScreen/gps.dart';
-import 'package:frontend/accessability/presentation/screens/settings/settingsScreens/about_screen.dart';
-import 'package:frontend/accessability/presentation/screens/settings/settingsScreens/account_screen.dart';
-import 'package:frontend/accessability/presentation/screens/settings/settingsScreens/biometric_screen.dart';
-import 'package:frontend/accessability/presentation/screens/settings/settingsScreens/chat_with_support_screen.dart';
-import 'package:frontend/accessability/presentation/screens/settings/settingsScreens/preferences_screen.dart';
-import 'package:frontend/accessability/presentation/screens/settings/settingsScreens/privacy_security_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -20,8 +14,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   void logout() async {
     final authService = AuthService();
-    await authService.signOut(); // Call the signOut method
-    // No need to navigate; AuthGate will handle it
+    await authService.signOut();
   }
 
   @override
@@ -57,12 +50,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             title: const Text('Account',
                 style: TextStyle(fontWeight: FontWeight.bold)),
             onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const AccountScreen(),
-                ),
-              );
+              Navigator.pushNamed(context, '/account');
             },
           ),
           const Divider(),
@@ -71,12 +59,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             title: const Text('Preference',
                 style: TextStyle(fontWeight: FontWeight.bold)),
             onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const PreferencesScreen(),
-                ),
-              );
+              Navigator.pushNamed(context, '/preferences');
             },
           ),
           const Divider(),
@@ -101,12 +84,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             title: const Text('Privacy & Security',
                 style: TextStyle(fontWeight: FontWeight.bold)),
             onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const PrivacySecurity(),
-                ),
-              );
+              Navigator.pushNamed(context, '/privacy');
             },
           ),
           const Divider(),
@@ -115,12 +93,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             title: const Text('Chat and Support',
                 style: TextStyle(fontWeight: FontWeight.bold)),
             onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const ChatAndSupport(),
-                ),
-              );
+              Navigator.pushNamed(context, '/chat');
             },
           ),
           const Divider(),
@@ -129,12 +102,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             title: const Text('Biometric Login',
                 style: TextStyle(fontWeight: FontWeight.bold)),
             onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const BiometricLogin(),
-                ),
-              );
+              Navigator.pushNamed(context, '/biometric');
             },
           ),
           const Divider(),
@@ -143,12 +111,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             title: const Text('About',
                 style: TextStyle(fontWeight: FontWeight.bold)),
             onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const AboutScreen(),
-                ),
-              );
+              Navigator.pushNamed(context, '/about');
             },
           ),
           const Divider(),

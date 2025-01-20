@@ -15,7 +15,7 @@ class DataSecurity extends StatelessWidget {
               Navigator.pop(
                   context,
                   MaterialPageRoute(
-                      builder: (context) => const Privacysecurity()));
+                      builder: (context) => const PrivacySecurity()));
             },
             icon: const Icon(Icons.arrow_back),
             color: const Color(0xFF6750A4),

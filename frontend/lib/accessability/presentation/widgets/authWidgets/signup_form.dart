@@ -35,7 +35,10 @@ class _SignupFormState extends State<SignupForm> {
     if (passwordController.text == confirmPasswordController.text) {
       try {
         auth.signUpWithEmailAndPassword(
-            emailController.text, passwordController.text);
+            emailController.text,
+            passwordController.text,
+            usernameController.text,
+            contactNumberController.text);
       } catch (e) {
         showDialog(
           context: context,

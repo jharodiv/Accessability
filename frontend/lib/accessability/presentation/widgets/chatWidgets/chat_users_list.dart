@@ -38,12 +38,16 @@ class ChatUsersList extends StatelessWidget {
 
   Widget _buildUserListItem(
       Map<String, dynamic> userData, BuildContext context) {
-    return ChatUsersTile(
-      text: userData['email'],
-      onTap: () {
-        Navigator.pushNamed(context, '/chatconvo',
-            arguments: {'receiverEmail': userData['email']});
-      },
-    );
+    if (userData['email'] != authService.getCurrentUser()!.email) {
+      return ChatUsersTile(
+        text: userData['email'],
+        onTap: () {
+          Navigator.pushNamed(context, '/chatconvo',
+              arguments: {'receiverEmail': userData['email']});
+        },
+      );
+    } else {
+      return Container();
+    }
   }
 }

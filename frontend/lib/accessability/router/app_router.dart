@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:frontend/accessability/presentation/screens/authScreens/login_screen.dart';
 import 'package:frontend/accessability/presentation/screens/authScreens/signup_screen.dart';
 import 'package:frontend/accessability/presentation/screens/authScreens/onboarding_screen.dart';
-import 'package:frontend/accessability/presentation/screens/chat_system/inbox.dart';
+import 'package:frontend/accessability/presentation/screens/chat_system/inbox_screen.dart';
 import 'package:frontend/accessability/presentation/screens/gpsScreen/gps.dart';
 import 'package:frontend/accessability/presentation/screens/settings/settings_screen.dart';
 import 'package:frontend/accessability/presentation/screens/splash_screen.dart';
@@ -12,6 +12,7 @@ import 'package:frontend/accessability/presentation/screens/settings/settingsScr
 import 'package:frontend/accessability/presentation/screens/settings/settingsScreens/preferences_screen.dart';
 import 'package:frontend/accessability/presentation/screens/settings/settingsScreens/privacy_security_screen.dart';
 import 'package:frontend/accessability/presentation/screens/settings/settingsScreens/about_screen.dart';
+import 'package:frontend/accessability/presentation/widgets/chatWidgets/chat_convo_screen.dart';
 
 class AppRouter {
   Route<dynamic>? onGenerateRoute(RouteSettings routeSettings) {
@@ -32,16 +33,20 @@ class AppRouter {
         return _buildRoute(const PreferencesScreen());
       case '/privacy':
         return _buildRoute(const PrivacySecurity());
-      case '/chat':
+      case '/chatsupport':
         return _buildRoute(const ChatAndSupport());
       case '/biometric':
         return _buildRoute(const BiometricLogin());
       case '/settings':
-        return _buildRoute(const SettingsScreen());
+        return _buildRoute(const SettingsScreen(), clearStack: true);
       case '/inbox':
-        return _buildRoute(Inbox());
+        return _buildRoute(const Inbox());
       case '/about':
         return _buildRoute(const AboutScreen());
+      case '/chatconvo':
+        final args = routeSettings.arguments as Map<String, dynamic>;
+        final receiverEmail = args['receiverEmail'];
+        return _buildRoute(ChatConvoScreen(receiverEmail: receiverEmail));
     }
     return null; // Handle unknown routes
   }

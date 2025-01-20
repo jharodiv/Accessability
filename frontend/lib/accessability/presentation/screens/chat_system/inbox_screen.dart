@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:frontend/accessability/presentation/widgets/chatWidgets/chat_users_list.dart';
 
 class Inbox extends StatelessWidget {
   const Inbox({super.key});
@@ -23,15 +24,7 @@ class Inbox extends StatelessWidget {
           ),
         ),
       ),
-      body: const Center(
-        child: Text(
-          'Inbox',
-          style: TextStyle(
-            fontSize: 18.0,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-      ),
+      body: Center(child: ChatUsersList()),
     );
   }
 }

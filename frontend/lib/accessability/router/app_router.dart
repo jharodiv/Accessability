@@ -46,7 +46,8 @@ class AppRouter {
       case '/chatconvo':
         final args = routeSettings.arguments as Map<String, dynamic>;
         final receiverEmail = args['receiverEmail'];
-        return _buildRoute(ChatConvoScreen(receiverEmail: receiverEmail));
+        final receiverID = args['receiverID'];
+        return _buildRoute(ChatConvoScreen(receiverEmail: receiverEmail, receiverID: receiverID,));
     }
     return null; // Handle unknown routes
   }

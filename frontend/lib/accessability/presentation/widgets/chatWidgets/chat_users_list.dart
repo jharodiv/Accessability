@@ -43,7 +43,10 @@ class ChatUsersList extends StatelessWidget {
         text: userData['email'],
         onTap: () {
           Navigator.pushNamed(context, '/chatconvo',
-              arguments: {'receiverEmail': userData['email']});
+              arguments: {
+                'receiverEmail': userData['email'],
+                'receiverID': userData['uid']
+              });
         },
       );
     } else {

@@ -16,6 +16,7 @@ class ChatService {
     });
   }
 
+  //Sending
   Future<void> sendMessage(String receiverID, message) async {
     final String currentUserID = _auth.currentUser!.uid;
     final String currentUserEmail = _auth.currentUser!.email!;
@@ -37,5 +38,17 @@ class ChatService {
       .doc(chatRoomID)
       .collection('messages')
       .add(newMessage.toMap());
+  }
+
+  //Receiving
+  Stream<QuerySnapshot> getMessages(String userID, otherUserID) {
+    List<String> ids = [userID, otherUserID];
+    ids.sort();
+    String chatRoomID = ids.join('_');
+
+    return firebaseFirestore.collection('chat_rooms')
+    .doc(chatRoomID).collection('messages')
+    .orderBy('timestamp', descending: false)
+    .snapshots();
   }
 }

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:frontend/accessability/firebaseServices/auth/auth_service.dart';
-import 'package:frontend/accessability/presentation/screens/gpsScreen/gps.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -45,12 +44,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         child: AppBar(
           leading: IconButton(
               onPressed: () {
-                Navigator.pop(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const GpsScreen(),
-                  ),
-                );
+                Navigator.pop(context);
               },
               icon: const Icon(Icons.arrow_back),
               color: const Color(0xFF6750A4)),

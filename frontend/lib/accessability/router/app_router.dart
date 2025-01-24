@@ -38,7 +38,7 @@ class AppRouter {
       case '/biometric':
         return _buildRoute(const BiometricLogin());
       case '/settings':
-        return _buildRoute(const SettingsScreen(), clearStack: true);
+        return _buildRoute(const SettingsScreen());
       case '/inbox':
         return _buildRoute(const Inbox());
       case '/about':

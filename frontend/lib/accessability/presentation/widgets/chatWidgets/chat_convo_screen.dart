@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:frontend/accessability/firebaseServices/auth/auth_service.dart';
 import 'package:frontend/accessability/firebaseServices/chat/chat_service.dart';
+import 'package:frontend/accessability/presentation/widgets/chatWidgets/chat_convo_bubble.dart';
 import 'package:frontend/accessability/presentation/widgets/reusableWidgets/custom_text_field.dart';
 
 class ChatConvoScreen extends StatelessWidget {
@@ -71,7 +72,7 @@ class ChatConvoScreen extends StatelessWidget {
       child: Column(
         crossAxisAlignment: isCurrentUser ? CrossAxisAlignment.end : CrossAxisAlignment.start,
         children: [
-          Text(data['message']),
+         ChatConvoBubble(isCurrentUser: isCurrentUser, message: data['message']),
         ],
       ));
   }
@@ -86,7 +87,16 @@ class ChatConvoScreen extends StatelessWidget {
         ),
         ),
 
-        IconButton(onPressed: sendMessage, icon: const Icon(Icons.arrow_upward))
+        Container(
+          decoration: const BoxDecoration(
+            color: Color(0xFF6750A4),
+            shape: BoxShape.circle,
+          ),
+          margin: const EdgeInsets.only(right: 25 ),
+          child: IconButton(
+          onPressed: sendMessage, 
+          icon: const Icon(Icons.arrow_upward),
+          color: Colors.white,))
       ],
     );
   }

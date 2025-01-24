@@ -29,21 +29,46 @@ class _SignupFormState extends State<SignupForm> {
     super.dispose();
   }
 
-  void signup() {
+  void signup() async {
     final auth = AuthService();
 
     if (passwordController.text == confirmPasswordController.text) {
       try {
-        auth.signUpWithEmailAndPassword(
-            emailController.text,
-            passwordController.text,
-            usernameController.text,
-            contactNumberController.text);
+        // Attempt to sign up the user
+        await auth.signUpWithEmailAndPassword(
+          emailController.text,
+          passwordController.text,
+          usernameController.text,
+          contactNumberController.text,
+        );
+
+        // Show a SnackBar and navigate back to the login page
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("Successfully signed up!"),
+            duration: Duration(seconds: 2),
+          ),
+        );
+
+        // Wait for the SnackBar to display before navigating back
+        Future.delayed(const Duration(seconds: 2), () {
+          Navigator.of(context).pop(); // Navigate back to the login page
+        });
       } catch (e) {
+        // Show an error dialog if signup fails
         showDialog(
           context: context,
           builder: (context) => AlertDialog(
-            title: Text(e.toString()),
+            title: const Text("Error"),
+            content: Text(e.toString()),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.of(context).pop();
+                },
+                child: const Text("OK"),
+              ),
+            ],
           ),
         );
       }

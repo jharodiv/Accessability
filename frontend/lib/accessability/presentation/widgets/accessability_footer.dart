@@ -19,6 +19,8 @@ class AccessabilityfooterState extends State<Accessabilityfooter> {
           currentIndex = index;
         });
       },
+      selectedItemColor: const Color(0xFF6750A4),
+      unselectedItemColor: Colors.grey,
       items: const [
         BottomNavigationBarItem(
           icon: Icon(Icons.location_on),
@@ -31,7 +33,7 @@ class AccessabilityfooterState extends State<Accessabilityfooter> {
         BottomNavigationBarItem(
           icon: Icon(Icons.security),
           label: 'Security',
-        )
+        ),
       ],
     );
   }

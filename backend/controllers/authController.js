@@ -5,18 +5,20 @@ const AppError = require('../utils/appError');
 
 // Signup controller
 exports.signup = catchAsync(async (req, res, next) => {
-    const { username, password } = req.body;
+    const { uid, userName, email, contactNumber } = req.body;
 
     // Check if user already exists
-    let user = await User.findOne({ username });
+    let user = await User.findOne({ userName });
     if (user) {
         return next(new AppError('User already exists', 400));
     }
 
     // Create new user
     user = new User({
-        username,
-        password
+        uid,
+        userName,
+        email,
+        contactNumber
     });
 
     await user.save();
@@ -24,27 +26,52 @@ exports.signup = catchAsync(async (req, res, next) => {
     // Generate JWT token
     const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_LIFETIME });
 
-    res.status(201).json({ token });
+    // Send response
+    res.status(200).json({
+        status: 'success',
+        token,
+        data: {
+            user: {
+                id: user._id,
+                uid: user.uid,
+                username: user.userName,
+                email: user.email,
+                contactNumber: user.contactNumber
+            },
+        },
+    });
 });
 
 // Login controller
 exports.login = catchAsync(async (req, res, next) => {
-    const { username, password } = req.body;
+    const { uid, email } = req.body;
 
-    // Check if user exists
-    const user = await User.findOne({ username });
-    if (!user) {
-        return next(new AppError('Invalid credentials', 400));
+    // Validate input
+    if (!uid || !email) {
+        return next(new AppError('Please provide both UID and email', 400));
     }
 
-    // Check password
-    const isMatch = await user.comparePassword(password);
-    if (!isMatch) {
-        return next(new AppError('Invalid credentials', 400));
+    // Check if the user exists
+    const user = await User.findOne({ uid, email });
+    if (!user) {
+        return next(new AppError('Invalid credentials', 401)); // 401 for unauthorized
     }
 
     // Generate JWT token
-    const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_LIFETIME });
+    const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, {
+        expiresIn: process.env.JWT_LIFETIME,
+    });
 
-    res.json({ token });
+    // Send response
+    res.status(200).json({
+        status: 'success',
+        token,
+        data: {
+            user: {
+                id: user._id,
+                uid: user.uid,
+                email: user.email,
+            },
+        },
+    });
 });

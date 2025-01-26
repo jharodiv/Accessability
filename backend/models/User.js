@@ -1,5 +1,6 @@
 const mongoose = require('mongoose');
 const bcrypt = require('bcrypt');
+const jwt = require('jsonwebtoken');
 
 const userSchema = new mongoose.Schema({
   name: {
@@ -11,23 +12,21 @@ const userSchema = new mongoose.Schema({
     required: true,
     unique: true,
   },
+  contactNumber: {
+    type: String, // Changed to String to handle leading zeros and the "+" symbol
+    required: true,
+    validate: {
+      validator: function (v) {
+        // Updated regex pattern to handle numbers starting with "+" and the appropriate length
+        return /^(?:\+63|63|09)\d{9}$/.test(v);
+      },
+      message: (props) => `${props.value} is not a valid contact number!`,
+    },
+  },
+
   password: {
     type: String,
     required: true,
-  },
-  role: {
-    type: String,
-    enum: ['PWD', 'Caregiver'],
-    required: true,
-  },
-  accessibilityProfile: {
-    mobilityType: {
-      type: String,
-      enum: ['Wheelchair', 'Visually Impaired', 'Other'],
-    },
-    customSettings: {
-      type: [String],
-    },
   },
   createdAt: {
     type: Date,

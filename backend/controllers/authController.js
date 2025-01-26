@@ -1,77 +1,87 @@
 const jwt = require('jsonwebtoken');
-const User = require('../models/User'); // Assuming you have a User model
+const User = require('../models/User');
 const catchAsync = require('../utils/catchAsync');
 const AppError = require('../utils/appError');
 
 // Signup controller
 exports.signup = catchAsync(async (req, res, next) => {
-    const { uid, userName, email, contactNumber } = req.body;
-
-    // Check if user already exists
-    let user = await User.findOne({ userName });
-    if (user) {
-        return next(new AppError('User already exists', 400));
-    }
-
-    // Create new user
-    user = new User({
-        uid,
-        userName,
-        email,
-        contactNumber
-    });
-
-    await user.save();
-
-    // Generate JWT token
-    const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_LIFETIME });
-
-    // Send response
-    res.status(200).json({
-        status: 'success',
-        token,
-        data: {
-            user: {
-                id: user._id,
-                uid: user.uid,
-                username: user.userName,
-                email: user.email,
-                contactNumber: user.contactNumber
-            },
+  const userData = {
+    name: req.body.name,
+    email: req.body.email,
+    contactNumber: req.body.contactNumber,
+    password: req.body.password,
+    profile: req.body.profile || null,
+    details: req.body.details || {},
+    settings: {
+      ...req.body.settings, 
+      verificationCode: req.body.settings?.verificationCode || null,
+      codeExpiresAt: req.body.settings?.codeExpiresAt || null,
+      verified: req.body.settings?.verified !== undefined ? req.body.settings.verified : false,
+      passwordChangedAt: req.body.settings?.passwordChangedAt || null,
+      passwordResetToken: req.body.settings?.passwordResetToken || null,
+      passwordResetExpiresAt: req.body.settings?.passwordResetExpiresAt || null,
+      active: req.body.settings?.active !== undefined ? req.body.settings.active : true,
+    },
+  };
+  try {
+    const user = await User.create(userData);
+    const token = user.createJWT();
+    res.status(201).json({
+      status: 'success',
+      token,
+      data: {
+        user: {
+          id: user._id,
+          name: user.name,
+          email: user.email,
+          contactNumber: user.contactNumber,
+          details: user.details,
+          settings: user.settings,
         },
+      },
     });
+  } catch (err) {
+    if (err.code === 11000 && err.keyValue.email) {
+      return next(new AppError('Email already exists', 400));
+    }
+    return next(new AppError('User Creation failed', 400));
+  }
+  console.warn('User created successfully', userData);
+  
 });
 
-// Login controller
 exports.login = catchAsync(async (req, res, next) => {
-    const { uid, email } = req.body;
+  const { email, password, confirmPassword } = req.body;
 
-    // Validate input
-    if (!uid || !email) {
-        return next(new AppError('Please provide both UID and email', 400));
-    }
+  // Validate input: ensure both email and password are provided
+  if (!email || !password) {
+    return next(new AppError('Please provide both email and password', 400));
+  }
 
-    // Check if the user exists
-    const user = await User.findOne({ uid, email });
-    if (!user) {
-        return next(new AppError('Invalid credentials', 401)); // 401 for unauthorized
-    }
+  if (password !== confirmPassword) {
+    return next(new AppError('Passwords do not match', 400));
+  }
 
-    // Generate JWT token
-    const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, {
-        expiresIn: process.env.JWT_LIFETIME,
-    });
+  // Check if the user exists and compare the password
+  const user = await User.findOne({ email });
+  if (!user || !(await user.comparePassword(password))) {
+    return next(new AppError('Invalid credentials', 401)); // Unauthorized
+  }
 
-    // Send response
-    res.status(200).json({
-        status: 'success',
-        token,
-        data: {
-            user: {
-                id: user._id,
-                uid: user.uid,
-                email: user.email,
-            },
-        },
-    });
+  // Generate a JWT token for the user
+  const token = user.createJWT();
+
+  // Send the response with the token
+  res.status(200).json({
+    status: 'success',
+    token, // Send the token in the response
+    data: {
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        contactNumber: user.contactNumber,
+      },
+    },
+  });
 });

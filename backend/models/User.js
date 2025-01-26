@@ -38,13 +38,20 @@ const userSchema = new mongoose.Schema({
   },
   details: { // User details such as address, etc.
     type: mongoose.Schema.Types.Mixed,
-    default: {},
+    default: () => ({}),
   },
   settings: { // User settings such as verification status, etc.
     type: mongoose.Schema.Types.Mixed,
-    default: () => ({}),
+    default: {},
   },
-   timestamps: true,
+  createdAt: {
+    type: Date,
+    default: Date.now,
+  },
+  updatedAt: {
+    type: Date,
+    default: Date.now,
+  },
 });
 
 userSchema.pre('save', async function () {

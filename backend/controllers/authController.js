@@ -5,41 +5,49 @@ const AppError = require('../utils/appError');
 
 // Signup controller
 exports.signup = catchAsync(async (req, res, next) => {
-  const { name, email, password, contactNumber } = req.body;
-
-  // Check if user already exists
-  let user = await User.findOne({ email });
-  if (user) {
-    return next(new AppError('User already exists', 400));
-  }
-
-  // Create new user
-  user = new User({
-    name,
-    email,
-    password,
-    contactNumber,
-  });
-
-  // Save the user to the database
-  await user.save();
-
-  // Generate JWT token
-  const jwtToken = user.createJWT();
-
-  // Send response with the token
-  res.status(201).json({
-    status: 'success',
-    token: jwtToken,
-    data: {
-      user: {
-        id: user._id,
-        name: user.name,
-        email: user.email,
-        contactNumber: user.contactNumber,
-      },
+  const userData = {
+    name: req.body.name,
+    email: req.body.email,
+    contactNumber: req.body.contactNumber,
+    password: req.body.password,
+    profile: req.body.profile || null,
+    details: req.body.details || {},
+    settings: {
+      ...req.body.settings, 
+      verificationCode: req.body.settings?.verificationCode || null,
+      codeExpiresAt: req.body.settings?.codeExpiresAt || null,
+      verified: req.body.settings?.verified !== undefined ? req.body.settings.verified : false,
+      passwordChangedAt: req.body.settings?.passwordChangedAt || null,
+      passwordResetToken: req.body.settings?.passwordResetToken || null,
+      passwordResetExpiresAt: req.body.settings?.passwordResetExpiresAt || null,
+      active: req.body.settings?.active !== undefined ? req.body.settings.active : true,
     },
-  });
+  };
+  try {
+    const user = await User.create(userData);
+    const token = user.createJWT();
+    res.status(201).json({
+      status: 'success',
+      token,
+      data: {
+        user: {
+          id: user._id,
+          name: user.name,
+          email: user.email,
+          contactNumber: user.contactNumber,
+          details: user.details,
+          settings: user.settings,
+        },
+      },
+    });
+  } catch (err) {
+    if (err.code === 11000 && err.keyValue.email) {
+      return next(new AppError('Email already exists', 400));
+    }
+    return next(new AppError('User Creation failed', 400));
+  }
+  console.warn('User created successfully', userData);
+  
 });
 
 exports.login = catchAsync(async (req, res, next) => {

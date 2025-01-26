@@ -1,42 +1,43 @@
 const jwt = require('jsonwebtoken');
-const User = require('../models/User'); // Assuming you have a User model
+const User = require('../models/User');
 const catchAsync = require('../utils/catchAsync');
 const AppError = require('../utils/appError');
 
 // Signup controller
 exports.signup = catchAsync(async (req, res, next) => {
-    const { uid, userName, email, contactNumber } = req.body;
+    const { name, email, password, role, accessibilityProfile } = req.body;
 
     // Check if user already exists
-    let user = await User.findOne({ userName });
+    let user = await User.findOne({ email });
     if (user) {
         return next(new AppError('User already exists', 400));
     }
 
     // Create new user
     user = new User({
-        uid,
-        userName,
+        name,
         email,
-        contactNumber
+        password,
+        role,
+        accessibilityProfile
     });
 
     await user.save();
 
     // Generate JWT token
-    const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_LIFETIME });
+    const token = user.createJWT();
 
     // Send response
-    res.status(200).json({
+    res.status(201).json({
         status: 'success',
         token,
         data: {
             user: {
                 id: user._id,
-                uid: user.uid,
-                username: user.userName,
+                name: user.name,
                 email: user.email,
-                contactNumber: user.contactNumber
+                role: user.role,
+                accessibilityProfile: user.accessibilityProfile
             },
         },
     });
@@ -44,23 +45,21 @@ exports.signup = catchAsync(async (req, res, next) => {
 
 // Login controller
 exports.login = catchAsync(async (req, res, next) => {
-    const { uid, email } = req.body;
+    const { email, password } = req.body;
 
     // Validate input
-    if (!uid || !email) {
-        return next(new AppError('Please provide both UID and email', 400));
+    if (!email || !password) {
+        return next(new AppError('Please provide both email and password', 400));
     }
 
-    // Check if the user exists
-    const user = await User.findOne({ uid, email });
-    if (!user) {
+    // Check if the user exists and password is correct
+    const user = await User.findOne({ email });
+    if (!user || !(await user.comparePassword(password))) {
         return next(new AppError('Invalid credentials', 401)); // 401 for unauthorized
     }
 
     // Generate JWT token
-    const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, {
-        expiresIn: process.env.JWT_LIFETIME,
-    });
+    const token = user.createJWT();
 
     // Send response
     res.status(200).json({
@@ -69,8 +68,10 @@ exports.login = catchAsync(async (req, res, next) => {
         data: {
             user: {
                 id: user._id,
-                uid: user.uid,
+                name: user.name,
                 email: user.email,
+                role: user.role,
+                accessibilityProfile: user.accessibilityProfile
             },
         },
     });

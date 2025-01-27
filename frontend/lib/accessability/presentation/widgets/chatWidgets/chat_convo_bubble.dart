@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:frontend/accessability/themes/theme_provider.dart';
+import 'package:provider/provider.dart';
 
 class ChatConvoBubble extends StatelessWidget {
   final String message;
@@ -12,14 +14,21 @@ class ChatConvoBubble extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    bool isDarkMode = Provider.of<ThemeProvider>(context, listen: false).isDarkMode;
     return Container(
       decoration: BoxDecoration(
-        color: isCurrentUser ? const Color(0xFF6750A4) : Colors.grey.shade500,
+        color: isCurrentUser 
+        ? const Color(0xFF6750A4)
+        : (isDarkMode ? const Color.fromARGB(255, 65, 63, 71) : const Color.fromARGB(255, 145, 141, 141)),
         borderRadius: BorderRadius.circular(12)
       ),
       padding: const EdgeInsets.all(16),
       margin: const EdgeInsets.symmetric(vertical: 5, horizontal: 25),
-      child: Text(message, style: const TextStyle(color: Colors.white),)
+      child: Text(message, style: TextStyle(
+        color: isCurrentUser 
+        ? Colors.white
+        : (isDarkMode ? Colors.white : Colors.black)),
+      ),
     );
   }
 }

@@ -5,7 +5,7 @@ import 'package:frontend/accessability/firebaseServices/chat/chat_service.dart';
 import 'package:frontend/accessability/presentation/widgets/chatWidgets/chat_convo_bubble.dart';
 import 'package:frontend/accessability/presentation/widgets/reusableWidgets/custom_text_field.dart';
 
-class ChatConvoScreen extends StatelessWidget {
+class ChatConvoScreen extends StatefulWidget {
    ChatConvoScreen({
     super.key, 
     required this.receiverEmail,
@@ -15,23 +15,60 @@ class ChatConvoScreen extends StatelessWidget {
   final String receiverEmail;
   final String receiverID;
 
+  @override
+  State<ChatConvoScreen> createState() => _ChatConvoScreenState();
+}
+
+class _ChatConvoScreenState extends State<ChatConvoScreen> {
   final TextEditingController messageController = TextEditingController();
 
+  final ScrollController scrollController = ScrollController();
+
   final ChatService chatService = ChatService();
+
   final AuthService authService = AuthService();
+
+  FocusNode focusNode = FocusNode();
+
+  @override
+  void initState() {
+    super.initState();
+
+    focusNode.addListener(() {
+      if(focusNode.hasFocus) {
+        Future.delayed(const Duration(milliseconds: 500), () => scrollDown());
+      }
+    });
+  }
 
   void sendMessage() async {
     if (messageController.text.isNotEmpty) {
-      await chatService.sendMessage(receiverID, messageController.text);
+      await chatService.sendMessage(widget.receiverID, messageController.text);
 
       messageController.clear();
     }
   }
 
   @override
+  void dispose() {
+    focusNode.dispose();
+    messageController.dispose();
+    super.dispose();
+  }
+
+
+  void scrollDown() {
+    scrollController.animateTo(
+      scrollController.position.maxScrollExtent, 
+      duration: const Duration(seconds: 1),
+      curve: Curves.fastOutSlowIn);
+  }
+  
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(receiverEmail)),
+      appBar: AppBar(title: Text(widget.receiverEmail)),
       body: Column(
         children: [
           Expanded(child: _buildMessageList(),
@@ -46,7 +83,7 @@ class ChatConvoScreen extends StatelessWidget {
   Widget _buildMessageList() {
     String senderID = authService.getCurrentUser()!.uid;
     return StreamBuilder(
-      stream: chatService.getMessages(receiverID, senderID), 
+      stream: chatService.getMessages(widget.receiverID, senderID), 
       builder: (context, snapshot) {
         if(snapshot.hasError) {
           return const Text('Error');
@@ -57,6 +94,7 @@ class ChatConvoScreen extends StatelessWidget {
         }
 
         return ListView(
+          controller: scrollController,
           children: snapshot.data!.docs.map((doc) => _buildMessageItem(doc)).toList(),
         );
 
@@ -81,6 +119,7 @@ class ChatConvoScreen extends StatelessWidget {
     return Row(
       children: [
         Expanded(child: CustomTextField(
+          focusNode: focusNode,
           controller: messageController,
           hintText: 'Type a message...',
           obscureText: false,

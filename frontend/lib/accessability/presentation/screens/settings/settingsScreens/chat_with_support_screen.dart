@@ -9,7 +9,7 @@ class ChatAndSupport extends StatelessWidget {
       appBar: AppBar(
         leading: IconButton(
             onPressed: () {
-              Navigator.popAndPushNamed(context, '/settings');
+              Navigator.of(context).pop();
             },
             icon: const Icon(Icons.arrow_back)),
         title: const Text(

@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:frontend/accessability/presentation/screens/settings/settingsScreens/privacy_security_screen.dart';
 
 class PrivacyPolicy extends StatelessWidget {
   const PrivacyPolicy({super.key});
@@ -12,10 +11,7 @@ class PrivacyPolicy extends StatelessWidget {
         child: AppBar(
           leading: IconButton(
             onPressed: () {
-              Navigator.pop(
-                  context,
-                  MaterialPageRoute(
-                      builder: (context) => const PrivacySecurity()));
+             Navigator.of(context).pop();
             },
             icon: const Icon(Icons.arrow_back),
             color: const Color(0xFF6750A4),

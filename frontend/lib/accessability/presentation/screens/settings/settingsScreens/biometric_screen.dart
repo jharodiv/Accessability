@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:frontend/accessability/presentation/screens/settings/settings_screen.dart';
 
 class BiometricLogin extends StatefulWidget {
   const BiometricLogin({super.key});
@@ -17,11 +16,7 @@ class _BiometricLoginState extends State<BiometricLogin> {
       appBar: AppBar(
         leading: IconButton(
             onPressed: () {
-              Navigator.pop(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const SettingsScreen(),
-                  ));
+             Navigator.of(context).pop();
             },
             icon: const Icon(Icons.arrow_back)),
         title: const Text(

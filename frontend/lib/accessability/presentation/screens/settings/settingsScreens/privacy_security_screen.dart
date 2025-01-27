@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:frontend/accessability/presentation/screens/settings/settingsScreens/privacy_and_security/additional_data_rights.dart';
 import 'package:frontend/accessability/presentation/screens/settings/settingsScreens/privacy_and_security/data_security.dart';
 import 'package:frontend/accessability/presentation/screens/settings/settingsScreens/privacy_and_security/privacy_policy.dart';
-import 'package:frontend/accessability/presentation/screens/settings/settings_screen.dart';
 
 class PrivacySecurity extends StatelessWidget {
   const PrivacySecurity({super.key});
@@ -13,10 +12,7 @@ class PrivacySecurity extends StatelessWidget {
       appBar: AppBar(
         leading: IconButton(
             onPressed: () {
-              Navigator.pop(
-                  context,
-                  MaterialPageRoute(
-                      builder: (context) => const SettingsScreen()));
+              Navigator.of(context).pop();
             },
             icon: const Icon(Icons.arrow_back)),
         title: const Text(

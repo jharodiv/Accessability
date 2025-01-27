@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:frontend/accessability/presentation/screens/settings/settingsScreens/delete_account.dart';
-import 'package:frontend/accessability/presentation/screens/settings/settings_screen.dart';
 import 'package:frontend/accessability/presentation/screens/settings/settingsScreens/change_password_screen.dart';
 
 class AccountScreen extends StatelessWidget {
@@ -12,12 +11,7 @@ class AccountScreen extends StatelessWidget {
         appBar: AppBar(
           leading: IconButton(
               onPressed: () {
-                Navigator.pop(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const SettingsScreen(),
-                  ),
-                );
+                Navigator.of(context).pop();
               },
               icon: const Icon(Icons.arrow_back, color: Color(0xFF6750A4))),
           title: const Text(

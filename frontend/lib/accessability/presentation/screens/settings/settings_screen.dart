@@ -44,7 +44,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         child: AppBar(
           leading: IconButton(
               onPressed: () {
-                Navigator.pop(context);
+                Navigator.of(context).pop();
               },
               icon: const Icon(Icons.arrow_back),
               color: const Color(0xFF6750A4)),

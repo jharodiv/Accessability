@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:frontend/accessability/presentation/screens/authScreens/forgot_password_screen.dart';
-import 'package:frontend/accessability/presentation/screens/settings/settingsScreens/account_screen.dart';
 
 class Changepassword extends StatefulWidget {
   const Changepassword({super.key});
@@ -20,8 +19,7 @@ class _ChangepasswordState extends State<Changepassword> {
       appBar: AppBar(
         leading: IconButton(
           onPressed: () {
-            Navigator.pop(context,
-                MaterialPageRoute(builder: (context) => const AccountScreen()));
+            Navigator.of(context).pop();
           },
           icon: const Icon(Icons.arrow_back),
         ),

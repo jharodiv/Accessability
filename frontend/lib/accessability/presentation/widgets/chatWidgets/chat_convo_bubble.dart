@@ -14,12 +14,12 @@ class ChatConvoBubble extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: isCurrentUser ? Color(0xFF6750A4) : Colors.grey.shade500,
+        color: isCurrentUser ? const Color(0xFF6750A4) : Colors.grey.shade500,
         borderRadius: BorderRadius.circular(12)
       ),
       padding: const EdgeInsets.all(16),
-      margin: EdgeInsets.symmetric(vertical: 5, horizontal: 25),
-      child: Text(message, style: TextStyle(color: Colors.white),)
+      margin: const EdgeInsets.symmetric(vertical: 5, horizontal: 25),
+      child: Text(message, style: const TextStyle(color: Colors.white),)
     );
   }
 }

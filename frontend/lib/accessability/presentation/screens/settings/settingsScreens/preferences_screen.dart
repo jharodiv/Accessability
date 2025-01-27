@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:frontend/accessability/presentation/screens/settings/settings_screen.dart';
 import 'package:frontend/accessability/themes/theme_provider.dart';
 import 'package:provider/provider.dart';
 

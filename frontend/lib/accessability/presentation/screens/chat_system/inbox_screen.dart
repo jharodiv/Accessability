@@ -14,7 +14,7 @@ class Inbox extends StatelessWidget {
             color: Color(0xFF6750A4),
           ),
           onPressed: () {
-            Navigator.pop(context);
+            Navigator.of(context).pop();
           },
         ),
         title: const Text(

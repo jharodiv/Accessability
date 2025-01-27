@@ -39,6 +39,10 @@ class _ChatConvoScreenState extends State<ChatConvoScreen> {
         Future.delayed(const Duration(milliseconds: 500), () => scrollDown());
       }
     });
+
+    Future.delayed(const Duration(milliseconds: 500),
+    () => scrollDown(),
+    );
   }
 
   void sendMessage() async {

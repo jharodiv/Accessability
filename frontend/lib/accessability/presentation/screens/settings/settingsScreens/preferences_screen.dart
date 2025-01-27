@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:frontend/accessability/presentation/screens/settings/settings_screen.dart';
+import 'package:frontend/accessability/themes/theme_provider.dart';
+import 'package:provider/provider.dart';
 
 class PreferencesScreen extends StatefulWidget {
   const PreferencesScreen({super.key});
@@ -9,21 +11,18 @@ class PreferencesScreen extends StatefulWidget {
 }
 
 class _PreferencesScreenState extends State<PreferencesScreen> {
-  bool isNightmode = false;
   bool isColorblindmode = false;
   String selectedLanguage = 'English'; //Default Language
+  
 
   @override
   Widget build(BuildContext context) {
+    final themeProvider = Provider.of<ThemeProvider>(context);
     return Scaffold(
         appBar: AppBar(
           leading: IconButton(
               onPressed: () {
-                Navigator.pop(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const SettingsScreen(),
-                    ));
+                Navigator.of(context).pop();
               },
               icon: const Icon(Icons.arrow_back)),
           title: const Text(
@@ -49,12 +48,11 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
                     style: TextStyle(fontWeight: FontWeight.bold),
                   ),
                   trailing: Switch(
-                      value: isNightmode,
-                      onChanged: (bool value) {
-                        setState(() {
-                          isNightmode = value;
-                        });
-                      }),
+                      value: themeProvider.isDarkMode,
+                      onChanged: (value) {
+                        themeProvider.toggleTheme();
+                      },  
+                      ),
                 ),
                 const Divider(),
                 ListTile(

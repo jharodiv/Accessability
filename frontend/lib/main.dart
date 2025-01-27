@@ -2,12 +2,17 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:frontend/accessability/router/app_router.dart';
+import 'package:frontend/accessability/themes/theme_provider.dart';
 import 'package:frontend/firebase_options.dart';
+import 'package:provider/provider.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-  runApp(MyApp());
+  runApp(ChangeNotifierProvider(
+    create: (context) => ThemeProvider(),
+    child:  MyApp(),
+  ));
 }
 
 var kColorScheme = ColorScheme.fromSeed(seedColor: Colors.white);
@@ -23,9 +28,7 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       initialRoute: '/',
-      theme: _buildLightTheme(context),
-      darkTheme: _buildDarkTheme(context), // Add dark theme here
-      themeMode: ThemeMode.system, // Switches based on system theme
+      theme: Provider.of<ThemeProvider>(context).themeData,
       onGenerateRoute: _appRouter.onGenerateRoute,
     );
   }

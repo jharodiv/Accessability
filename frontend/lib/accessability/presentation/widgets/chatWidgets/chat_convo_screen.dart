@@ -4,6 +4,8 @@ import 'package:frontend/accessability/firebaseServices/auth/auth_service.dart';
 import 'package:frontend/accessability/firebaseServices/chat/chat_service.dart';
 import 'package:frontend/accessability/presentation/widgets/chatWidgets/chat_convo_bubble.dart';
 import 'package:frontend/accessability/presentation/widgets/reusableWidgets/custom_text_field.dart';
+import 'package:intl/intl.dart'; 
+
 
 class ChatConvoScreen extends StatefulWidget {
    ChatConvoScreen({
@@ -84,27 +86,59 @@ class _ChatConvoScreenState extends State<ChatConvoScreen> {
     );
   }
 
-  Widget _buildMessageList() {
-    String senderID = authService.getCurrentUser()!.uid;
-    return StreamBuilder(
-      stream: chatService.getMessages(widget.receiverID, senderID), 
-      builder: (context, snapshot) {
-        if(snapshot.hasError) {
-          return const Text('Error');
+Widget _buildMessageList() {
+  String senderID = authService.getCurrentUser ()!.uid;
+  return StreamBuilder(
+    stream: chatService.getMessages(widget.receiverID, senderID), 
+    builder: (context, snapshot) {
+      if (snapshot.hasError) {
+        return const Text('Error');
+      }
+
+      if (snapshot.connectionState == ConnectionState.waiting) {
+        return const Text('Loading...');
+      }
+
+      List<Widget> messageWidgets = [];
+      Timestamp? lastTimestamp;
+
+      for (var doc in snapshot.data!.docs) {
+        Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+        bool isCurrentUser  = data['senderID'] == senderID;
+
+        // Check if we need to add a timestamp divider
+        if (lastTimestamp != null) {
+          final currentTimestamp = data['timestamp'] as Timestamp;
+          final difference = currentTimestamp.toDate().difference(lastTimestamp.toDate()).inMinutes;
+
+          if (difference >= 10) {
+            messageWidgets.add(
+              Column(
+                children: [
+                  Divider(),
+                  Text(
+                    DateFormat('hh:mm a').format(currentTimestamp.toDate()),
+                    style: TextStyle(color: Colors.grey),
+                  ),
+                  Divider(),
+                ],
+              ),
+            );
+          }
         }
 
-        if(snapshot.connectionState == ConnectionState.waiting) {
-          return const Text('Loading...');
-        }
+        // Add the message item
+        messageWidgets.add(_buildMessageItem(doc));
+        lastTimestamp = data['timestamp'];
+      }
 
-        return ListView(
-          controller: scrollController,
-          children: snapshot.data!.docs.map((doc) => _buildMessageItem(doc)).toList(),
-        );
-
-    });
-  }
-
+      return ListView(
+        controller: scrollController,
+        children: messageWidgets,
+      );
+    },
+  );
+}
   Widget _buildMessageItem(DocumentSnapshot doc) {
     Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
     bool isCurrentUser = data['senderID'] == authService.getCurrentUser()!.uid;

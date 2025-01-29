@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:frontend/accessability/presentation/widgets/accessability_footer.dart';
 import 'package:frontend/accessability/presentation/widgets/homepagewidgets/top_widgets.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 class GpsScreen extends StatefulWidget {
   const GpsScreen({super.key});
@@ -11,13 +12,17 @@ class GpsScreen extends StatefulWidget {
 
 class _GpsScreenState extends State<GpsScreen> {
   OverlayEntry? _overlayEntry;
+  static const LatLng _pDagupan = LatLng(16.0430, 120.3333);
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: Stack(
         children: [
-          const Center(child: Text('GPS Map')),
+          // Dummy Map Representation
+          const GoogleMap(
+            initialCameraPosition: CameraPosition(target: _pDagupan, zoom: 13),
+          ),
           Topwidgets(
             onOverlayChange: (isVisible) {
               setState(() {

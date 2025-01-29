@@ -8,19 +8,26 @@ exports.signup = catchAsync(async (req, res, next) => {
   const userData = {
     name: req.body.name,
     email: req.body.email,
-    contactNumber: req.body.contactNumber,
     password: req.body.password,
-    profile: req.body.profile || null,
-    details: req.body.details || {},
+    details: {
+      ...req.body.details,
+      profilePicture: req.body.details?.profilePicture || null,
+    },
     settings: {
-      ...req.body.settings, 
+      ...req.body.settings,
       verificationCode: req.body.settings?.verificationCode || null,
       codeExpiresAt: req.body.settings?.codeExpiresAt || null,
-      verified: req.body.settings?.verified !== undefined ? req.body.settings.verified : false,
+      verified:
+        req.body.settings?.verified !== undefined
+          ? req.body.settings.verified
+          : false,
       passwordChangedAt: req.body.settings?.passwordChangedAt || null,
       passwordResetToken: req.body.settings?.passwordResetToken || null,
       passwordResetExpiresAt: req.body.settings?.passwordResetExpiresAt || null,
-      active: req.body.settings?.active !== undefined ? req.body.settings.active : true,
+      active:
+        req.body.settings?.active !== undefined
+          ? req.body.settings.active
+          : true,
     },
   };
   try {
@@ -34,7 +41,6 @@ exports.signup = catchAsync(async (req, res, next) => {
           id: user._id,
           name: user.name,
           email: user.email,
-          contactNumber: user.contactNumber,
           details: user.details,
           settings: user.settings,
         },
@@ -47,7 +53,6 @@ exports.signup = catchAsync(async (req, res, next) => {
     return next(new AppError('User Creation failed', 400));
   }
   console.warn('User created successfully', userData);
-  
 });
 
 exports.login = catchAsync(async (req, res, next) => {

@@ -18,23 +18,9 @@ const userSchema = new mongoose.Schema({
       message: (props) => `${props.value} is not a valid email address!`,
     },
   },
-  contactNumber: {
-    type: String,
-    required: true,
-    validate: {
-      validator: function (v) {
-        return /^(?:\+63|63|09)\d{9}$/.test(v);
-      },
-      message: (props) => `${props.value} is not a valid contact number!`,
-    },
-  },
   password: {
     type: String,
     required: true,
-  },
-  profile: {
-    type: String,
-    default: null,
   },
   details: { // User details such as address, etc.
     type: mongoose.Schema.Types.Mixed,

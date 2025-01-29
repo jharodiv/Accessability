@@ -114,7 +114,8 @@ class _ChatConvoScreenState extends State<ChatConvoScreen> {
       child: Column(
         crossAxisAlignment: isCurrentUser ? CrossAxisAlignment.end : CrossAxisAlignment.start,
         children: [
-         ChatConvoBubble(isCurrentUser: isCurrentUser, message: data['message']),
+         ChatConvoBubble(isCurrentUser: isCurrentUser, message: data['message'], timestamp: data['timestamp']),
+
         ],
       ));
   }

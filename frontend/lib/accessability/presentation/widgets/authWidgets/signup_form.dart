@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:frontend/accessability/Logic/Model/SignupModel.dart';
+import 'package:frontend/accessability/Logic/signUpToMongoDB.dart';
 import 'package:frontend/accessability/firebaseServices/auth/auth_service.dart';
 import 'package:frontend/accessability/presentation/screens/authScreens/login_screen.dart';
 
@@ -31,16 +33,34 @@ class _SignupFormState extends State<SignupForm> {
 
   void signup() async {
     final auth = AuthService();
+    final signUpToMongoDB = SignUpToMongoDB();
 
     if (passwordController.text == confirmPasswordController.text) {
       try {
-        // Attempt to sign up the user
+        // Attempt to sign up the user with Firebase
         await auth.signUpWithEmailAndPassword(
           emailController.text,
           passwordController.text,
           usernameController.text,
           contactNumberController.text,
         );
+
+        // If Firebase signup is successful, create a SignUpModel instance
+        final signUpModel = SignUpModel(
+          username: usernameController.text,
+          email: emailController.text,
+          contactNumber: contactNumberController.text,
+          password: passwordController.text,
+        );
+
+        // Debug: Print the signUpModel data
+        print('SignUpModel: ${signUpModel.toJson()}');
+
+        // Send data to MongoDB
+        final response = await signUpToMongoDB.register(signUpModel, null);
+
+        // Debug: Print the response from MongoDB
+        print('MongoDB Response: $response');
 
         // Show a SnackBar and navigate back to the login page
         ScaffoldMessenger.of(context).showSnackBar(
@@ -55,6 +75,9 @@ class _SignupFormState extends State<SignupForm> {
           Navigator.of(context).pop(); // Navigate back to the login page
         });
       } catch (e) {
+        // Debug: Print the error
+        print('Signup Error: $e');
+
         // Show an error dialog if signup fails
         showDialog(
           context: context,

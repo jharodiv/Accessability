@@ -30,6 +30,10 @@ exports.signup = catchAsync(async (req, res, next) => {
           : true,
     },
   };
+
+  // Debug: Log the received user data
+  console.log('Received user data:', userData);
+
   try {
     const user = await User.create(userData);
     const token = user.createJWT();
@@ -47,6 +51,9 @@ exports.signup = catchAsync(async (req, res, next) => {
       },
     });
   } catch (err) {
+    // Debug: Log the error details
+    console.error('Error creating user:', err);
+
     if (err.code === 11000 && err.keyValue.email) {
       return next(new AppError('Email already exists', 400));
     }

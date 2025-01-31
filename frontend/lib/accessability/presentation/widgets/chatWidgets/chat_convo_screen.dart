@@ -104,7 +104,7 @@ Widget _buildMessageList() {
 
       for (var doc in snapshot.data!.docs) {
         Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
-        bool isCurrentUser  = data['senderID'] == senderID;
+        bool isCurrentUser   = data['senderID'] == senderID;
 
         // Check if we need to add a timestamp divider
         if (lastTimestamp != null) {
@@ -130,6 +130,13 @@ Widget _buildMessageList() {
         // Add the message item
         messageWidgets.add(_buildMessageItem(doc));
         lastTimestamp = data['timestamp'];
+      }
+
+      // Automatically scroll down when new messages are added
+      if (snapshot.hasData && messageWidgets.isNotEmpty) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          scrollDown();
+        });
       }
 
       return ListView(

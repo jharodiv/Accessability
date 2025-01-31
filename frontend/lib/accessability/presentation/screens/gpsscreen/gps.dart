@@ -1,8 +1,11 @@
+
+
 import 'package:flutter/material.dart';
 import 'package:frontend/accessability/presentation/widgets/accessability_footer.dart';
 import 'package:frontend/accessability/presentation/widgets/homepagewidgets/top_widgets.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:location/location.dart';
+import 'package:tutorial_coach_mark/tutorial_coach_mark.dart';
 
 class GpsScreen extends StatefulWidget {
   const GpsScreen({super.key});
@@ -17,12 +20,99 @@ class _GpsScreenState extends State<GpsScreen> {
   Location _location = Location();
   LatLng? _currentLocation;
   Set<Marker> _markers = {}; // Set of markers for the map
+  GlobalKey inboxKey = GlobalKey();
+  GlobalKey settingsKey = GlobalKey();
 
   @override
   void initState() {
     super.initState();
     _getUserLocation();
+     WidgetsBinding.instance.addPostFrameCallback((_) {
+    _showTutorial();
+  });
   }
+
+void _showTutorial() {
+  List<TargetFocus> targets = [];
+
+  targets.add(TargetFocus(
+    identify: "inboxTarget",
+    keyTarget: inboxKey,
+    contents: [
+      TargetContent(
+  align: ContentAlign.bottom,
+  child: Container(
+    color: Colors.transparent, // Set a background color
+    child: const Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          "This is your inbox.",
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20.0, color: Colors.white),
+        ),
+        Padding(
+          padding: const EdgeInsets.only(top: 10.0),
+          child: Text(
+            "Tap here to view your messages.",
+            style: TextStyle(color: Colors.white),
+          ),
+        ),
+      ],
+    ),
+  ),
+),
+    ],
+  ));
+
+  targets.add(TargetFocus(
+    identify: "settingsTarget",
+    keyTarget: settingsKey,
+    contents: [
+      TargetContent(
+        align: ContentAlign.bottom,
+        child: Container(
+          color: Colors.transparent, // Set a background color
+          child: const Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                "This is the settings button.",
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20.0),
+              ),
+              Padding(
+                padding:  EdgeInsets.only(top: 10.0),
+                child: Text(
+                  "Tap here to access settings.",
+                  style: TextStyle(color: Colors.black),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    ],
+  ));
+
+  TutorialCoachMark(
+    targets: targets,
+    colorShadow: Colors.black,
+    textSkip: "SKIP",
+    paddingFocus: 10,
+    opacityShadow: 0.8,
+    onFinish: () {
+      print("Tutorial finished");
+    },
+    onClickTarget: (target) {
+      print('Clicked on target: $target');
+    },
+    onSkip: () {
+      print("Tutorial skipped");
+      return true; // Return a boolean value
+    },
+  ).show(context: context);
+}
 
   // Get User Location
   Future<void> _getUserLocation() async {
@@ -90,10 +180,12 @@ class _GpsScreenState extends State<GpsScreen> {
             },
           ),
           Topwidgets(
+            inboxKey: inboxKey,
+            settingsKey: settingsKey,
             onOverlayChange: (isVisible) {
               setState(() {
                 if (isVisible) {
-                  _showOverlay(context);
+                  _showOverlay(context, OverlayPosition.top);
                 } else {
                   _removeOverlay();
                 }
@@ -102,12 +194,22 @@ class _GpsScreenState extends State<GpsScreen> {
           ),
         ],
       ),
-      bottomNavigationBar: const Accessabilityfooter(),
+      bottomNavigationBar: Accessabilityfooter(
+        onOverlayChange: (isVisible) {
+          setState(() {
+            if (isVisible) {
+              _showOverlay(context, OverlayPosition.bottom);
+            } else {
+              _removeOverlay();
+            }
+          });
+        },
+      ),
     );
   }
 
-  void _showOverlay(BuildContext context) {
-    _overlayEntry = _createOverlayEntry();
+  void _showOverlay(BuildContext context, OverlayPosition position) {
+    _overlayEntry = _createOverlayEntry(position);
     Overlay.of(context).insert(_overlayEntry!);
   }
 
@@ -116,10 +218,11 @@ class _GpsScreenState extends State<GpsScreen> {
     _overlayEntry = null;
   }
 
-  OverlayEntry _createOverlayEntry() {
+  OverlayEntry _createOverlayEntry(OverlayPosition position) {
     return OverlayEntry(
       builder: (context) => Positioned(
-        top: 70,
+        top: position == OverlayPosition.top ? 70 : null,
+        bottom: position == OverlayPosition.bottom ? 70 : null,
         left: 20,
         right: 20,
         child: Material(
@@ -132,8 +235,7 @@ class _GpsScreenState extends State<GpsScreen> {
               border: Border.all(color: Colors.black, width: 1),
             ),
             child: Column(
-              children:
-                  ['Circle One', 'Circle Two', 'Circle Three'].map((option) {
+              children: [' Circle One', 'Circle Two', 'Circle Three'].map((option) {
                 return GestureDetector(
                   onTap: () {
                     debugPrint('$option selected');
@@ -158,3 +260,6 @@ class _GpsScreenState extends State<GpsScreen> {
     );
   }
 }
+
+enum OverlayPosition { top, bottom } 
+

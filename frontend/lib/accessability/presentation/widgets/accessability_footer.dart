@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 
 class Accessabilityfooter extends StatefulWidget {
-  const Accessabilityfooter({super.key});
+  final Function(bool) onOverlayChange; // Add this line
+
+  const Accessabilityfooter({super.key, required this.onOverlayChange}); // Update constructor
 
   @override
   State<Accessabilityfooter> createState() => AccessabilityfooterState();
@@ -17,6 +19,8 @@ class AccessabilityfooterState extends State<Accessabilityfooter> {
       onTap: (index) {
         setState(() {
           currentIndex = index;
+          // Trigger the overlay change when a button is tapped
+          widget.onOverlayChange(true); // Show overlay
         });
       },
       selectedItemColor: const Color(0xFF6750A4),

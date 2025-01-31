@@ -1,9 +1,18 @@
 import 'package:flutter/material.dart';
 
 class Accessabilityfooter extends StatefulWidget {
-  final Function(bool) onOverlayChange; // Add this line
+  final Function(bool) onOverlayChange;
+  final GlobalKey locationKey;
+  final GlobalKey youKey;
+  final GlobalKey securityKey;
 
-  const Accessabilityfooter({super.key, required this.onOverlayChange}); // Update constructor
+  const Accessabilityfooter({
+    super.key,
+    required this.onOverlayChange,
+    required this.locationKey,
+    required this.youKey,
+    required this.securityKey,
+  });
 
   @override
   State<Accessabilityfooter> createState() => AccessabilityfooterState();
@@ -19,23 +28,31 @@ class AccessabilityfooterState extends State<Accessabilityfooter> {
       onTap: (index) {
         setState(() {
           currentIndex = index;
-          // Trigger the overlay change when a button is tapped
           widget.onOverlayChange(true); // Show overlay
         });
       },
       selectedItemColor: const Color(0xFF6750A4),
       unselectedItemColor: Colors.grey,
-      items: const [
+      items: [
         BottomNavigationBarItem(
-          icon: Icon(Icons.location_on),
+          icon: GestureDetector(
+            key: widget.locationKey, // Assign the key here
+            child: const Icon(Icons.location_on),
+          ),
           label: 'Location',
         ),
         BottomNavigationBarItem(
-          icon: Icon(Icons.person),
+          icon: GestureDetector(
+            key: widget.youKey, // Assign the key here
+            child: const Icon(Icons.person),
+          ),
           label: 'You',
         ),
         BottomNavigationBarItem(
-          icon: Icon(Icons.security),
+          icon: GestureDetector(
+            key: widget.securityKey, // Assign the key here
+            child: const Icon(Icons.security),
+          ),
           label: 'Security',
         ),
       ],

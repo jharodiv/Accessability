@@ -22,6 +22,9 @@ class _GpsScreenState extends State<GpsScreen> {
   Set<Marker> _markers = {}; // Set of markers for the map
   GlobalKey inboxKey = GlobalKey();
   GlobalKey settingsKey = GlobalKey();
+  GlobalKey youKey = GlobalKey();
+  GlobalKey locationKey = GlobalKey();
+  GlobalKey securityKey = GlobalKey();
 
   @override
   void initState() {
@@ -52,7 +55,7 @@ void _showTutorial() {
           style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20.0, color: Colors.white),
         ),
         Padding(
-          padding: const EdgeInsets.only(top: 10.0),
+          padding: EdgeInsets.only(top: 10.0),
           child: Text(
             "Tap here to view your messages.",
             style: TextStyle(color: Colors.white),
@@ -79,13 +82,104 @@ void _showTutorial() {
             children: [
               Text(
                 "This is the settings button.",
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20.0),
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20.0, color: Colors.white),
               ),
               Padding(
                 padding:  EdgeInsets.only(top: 10.0),
                 child: Text(
                   "Tap here to access settings.",
-                  style: TextStyle(color: Colors.black),
+                  style: TextStyle(color: Colors.white),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    ],
+  ));
+
+  targets.add(TargetFocus(
+    identify: "locationTarget",
+    keyTarget: locationKey,
+    contents: [
+      TargetContent(
+        align: ContentAlign.bottom,
+        child: Container(
+          color: Colors.transparent,
+          child: const Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                "This is the location button.",
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20.0, color: Colors.white),
+              ),
+              Padding(
+                padding: EdgeInsets.only(top: 10.0),
+                child: Text(
+                  "Tap here to view your location.",
+                  style: TextStyle(color: Colors.white),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    ],
+  ));
+
+  targets.add(TargetFocus(
+    identify: "youTarget",
+    keyTarget: youKey,
+    contents: [
+      TargetContent(
+        align: ContentAlign.bottom,
+        child: Container(
+          color: Colors.transparent,
+          child: const Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                "This is the 'You' button.",
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20.0, color: Colors.white),
+              ),
+              Padding(
+                padding: EdgeInsets.only(top: 10.0),
+                child: Text(
+                  "Tap here to view your profile.",
+                  style: TextStyle(color: Colors.white),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    ],
+  ));
+
+  // Security Target
+  targets.add(TargetFocus(
+    identify: "securityTarget",
+    keyTarget: securityKey,
+    contents: [
+      TargetContent(
+        align: ContentAlign.bottom,
+        child: Container(
+          color: Colors.transparent,
+          child: const Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                "This is the security button.",
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20.0, color: Colors.white),
+              ),
+              Padding(
+                padding: EdgeInsets.only(top: 10.0),
+                child: Text(
+                  "Tap here to view security settings.",
+                  style: TextStyle(color: Colors.white),
                 ),
               ),
             ],
@@ -193,8 +287,11 @@ void _showTutorial() {
             },
           ),
         ],
-      ),
+      ),  
       bottomNavigationBar: Accessabilityfooter(
+        securityKey: securityKey,
+        locationKey: locationKey,
+        youKey: youKey,
         onOverlayChange: (isVisible) {
           setState(() {
             if (isVisible) {

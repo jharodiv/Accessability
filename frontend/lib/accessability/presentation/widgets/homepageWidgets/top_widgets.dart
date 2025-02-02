@@ -2,8 +2,14 @@ import 'package:flutter/material.dart';
 
 class Topwidgets extends StatefulWidget {
   final Function(bool) onOverlayChange;
+  final GlobalKey inboxKey;
+  final GlobalKey settingsKey;
 
-  const Topwidgets({super.key, required this.onOverlayChange});
+  const Topwidgets({super.key, 
+  required this.onOverlayChange,
+  required this.inboxKey, 
+  required this.settingsKey
+  });
 
   @override
   _TopwidgetsState createState() => _TopwidgetsState();
@@ -38,10 +44,11 @@ class _TopwidgetsState extends State<Topwidgets> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
+                        // Settings button
                         GestureDetector(
+                          key: widget.settingsKey,
                           onTap: () {
-                            Navigator.pushNamed(
-                                context, '/settings'); // Use named route
+                            Navigator.pushNamed(context, '/settings');
                           },
                           child: Container(
                             decoration: const BoxDecoration(
@@ -65,6 +72,7 @@ class _TopwidgetsState extends State<Topwidgets> {
                             ),
                           ),
                         ),
+                        // My Space button
                         GestureDetector(
                           onTap: () {
                             setState(() {
@@ -111,10 +119,11 @@ class _TopwidgetsState extends State<Topwidgets> {
                             ),
                           ),
                         ),
+                        // Inbox button with the global key
                         GestureDetector(
+                          key: widget.inboxKey, // Assign the key here
                           onTap: () {
-                            Navigator.pushNamed(
-                                context, '/inbox'); // Use named route
+                            Navigator.pushNamed(context, '/inbox');
                           },
                           child: Container(
                             decoration: const BoxDecoration(

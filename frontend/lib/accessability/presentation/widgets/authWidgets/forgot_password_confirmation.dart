@@ -7,7 +7,7 @@ class Forgotpasswordconfirmation extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.all(16.0),
+      padding: const EdgeInsets.all(16),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         crossAxisAlignment: CrossAxisAlignment.center,
@@ -15,24 +15,31 @@ class Forgotpasswordconfirmation extends StatelessWidget {
           const Text(
             "Please enter the email address associated with your account and we'll send you a link to reset your password",
             style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.w600,
+              fontSize: 17,
+              fontWeight: FontWeight.w400,
             ),
             textAlign: TextAlign.center,
           ),
-          const SizedBox(height: 20),
-          TextField(
-            decoration: InputDecoration(
-              labelText: 'Email',
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8.0),
-              ),
-            ),
-            keyboardType: TextInputType.emailAddress,
-          ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 30),
+
+          // Email Input Field
           SizedBox(
-            width: 150,
+            width: double.infinity, // Makes it full-width
+            child: TextField(
+              decoration: InputDecoration(
+                labelText: 'Email',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8.0),
+                ),
+              ),
+              keyboardType: TextInputType.emailAddress,
+            ),
+          ),
+          const SizedBox(height: 25),
+
+          // Continue Button
+          SizedBox(
+            width: double.infinity, // Makes it full-width
             child: ElevatedButton(
               onPressed: () {
                 Navigator.push(
@@ -41,10 +48,12 @@ class Forgotpasswordconfirmation extends StatelessWidget {
                 );
               },
               style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF6750A4),
-                  padding: const EdgeInsets.symmetric(vertical: 16.0),
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(50.0))),
+                backgroundColor: const Color(0xFF6750A4),
+                padding: const EdgeInsets.symmetric(vertical: 16.0),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8.0),
+                ),
+              ),
               child: const Text(
                 'Continue',
                 style: TextStyle(
@@ -55,29 +64,31 @@ class Forgotpasswordconfirmation extends StatelessWidget {
               ),
             ),
           ),
+
+          const SizedBox(height: 20),
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               const Text(
                 "Don't have an account?",
                 style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w400,
+                  fontSize: 17,
+                  fontWeight: FontWeight.w700,
                 ),
               ),
               TextButton(
                 onPressed: () {},
                 child: const Text(
-                  'Login',
+                  'Signup',
                   style: TextStyle(
                     color: Color(0xFF6750A4),
-                    fontWeight: FontWeight.bold,
-                    fontSize: 13,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 17,
                   ),
                 ),
-              )
+              ),
             ],
-          )
+          ),
         ],
       ),
     );

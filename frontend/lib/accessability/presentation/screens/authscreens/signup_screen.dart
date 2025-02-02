@@ -3,8 +3,7 @@ import 'package:frontend/accessability/presentation/widgets/authWidgets/signup_f
 import 'package:frontend/accessability/presentation/widgets/authwidgets/authentication_Image.dart';
 
 class SignupScreen extends StatelessWidget {
-  static const String routeName =
-      '/signup'; // Define route name for named routing
+  static const String routeName = '/signup';
 
   const SignupScreen({super.key});
 

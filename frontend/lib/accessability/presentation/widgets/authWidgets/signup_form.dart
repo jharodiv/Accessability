@@ -168,6 +168,8 @@ class _SignupFormState extends State<SignupForm> {
                 TextField(
                   controller: passwordController,
                   obscureText: true,
+                  onChanged: (value) =>
+                      setState(() {}), // Ensures backspace works
                   decoration: const InputDecoration(
                     labelText: 'Password',
                     border: OutlineInputBorder(
@@ -179,6 +181,8 @@ class _SignupFormState extends State<SignupForm> {
                 TextField(
                   controller: confirmPasswordController,
                   obscureText: true,
+                  onChanged: (value) =>
+                      setState(() {}), // Ensures backspace works
                   decoration: const InputDecoration(
                     labelText: 'Confirm Password',
                     border: OutlineInputBorder(

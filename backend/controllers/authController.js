@@ -3,10 +3,35 @@ const User = require('../models/User');
 const catchAsync = require('../utils/catchAsync');
 const AppError = require('../utils/appError');
 const sendEmail = require('../utils/email');
+const {
+  imageUploadMiddleware,
+} = require('../middlewares/imageUploadMiddleware');
 
 // Signup controller
 exports.signup = catchAsync(async (req, res, next) => {
   console.log('Line 6: Received signup request with data:', req.body); // Debug log
+  console.log('Line 7: File received in signup request:', req.file);
+
+  // Default profile picture URL (update this path if needed)
+  const DEFAULT_PROFILE_PICTURE = 'https://res.cloudinary.com/dfenjj2vs/image/upload/v1738594296/1ffe033b103737d30ee1c98c1d9c51a6_nv95n5.png';
+
+  let profilePicture = DEFAULT_PROFILE_PICTURE; // Set default initially
+
+  // Handle image upload if a file is provided
+  if (req.file) {
+    console.log('Line 17: Image upload detected, processing image...'); // Debug log
+    await imageUploadMiddleware(req, res, async (err) => {
+      if (err) {
+        console.log('Line 21: Error in image upload middleware:', err); // Debug log
+        return next(new AppError(err.message, 400));
+      }
+
+      if (req.file && req.file.path) {
+        console.log('Line 27: Updating profile picture:', req.file.path); // Debug log
+        profilePicture = req.file.path;
+      }
+    });
+  }
 
   const userData = {
     name: req.body.name,
@@ -14,7 +39,7 @@ exports.signup = catchAsync(async (req, res, next) => {
     password: req.body.password,
     details: {
       ...req.body.details,
-      profilePicture: req.body.details?.profilePicture || null,
+      profilePicture: profilePicture, // Use uploaded image or default
     },
     settings: {
       ...req.body.settings,

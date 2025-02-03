@@ -8,7 +8,8 @@ class AuthenticationImage extends StatelessWidget {
     double screenWidth = MediaQuery.of(context).size.width;
     double screenHeight = MediaQuery.of(context).size.height;
 
-    double imageHeight = screenHeight * 0.3;
+    double imageHeight = screenHeight * 0.5;
+    double imageHeight2 = screenHeight * 0.4;
     double imageWidth = screenWidth * 0.8;
 
     return SizedBox(
@@ -33,8 +34,8 @@ class AuthenticationImage extends StatelessWidget {
             top: -40,
             right: -40,
             child: Container(
-              width: screenWidth * 0.25,
-              height: screenWidth * 0.25,
+              width: screenWidth * 0.3,
+              height: screenWidth * 0.3,
               decoration: const BoxDecoration(
                 shape: BoxShape.circle,
                 color: Color(0xFF6750A4),
@@ -46,8 +47,8 @@ class AuthenticationImage extends StatelessWidget {
             top: imageHeight * 0.7,
             right: -30,
             child: Container(
-              width: screenWidth * 0.2,
-              height: screenWidth * 0.2,
+              width: screenWidth * 0.25,
+              height: screenWidth * 0.25,
               decoration: const BoxDecoration(
                 shape: BoxShape.circle,
                 color: Color(0xFF6750A4),
@@ -59,7 +60,7 @@ class AuthenticationImage extends StatelessWidget {
             child: Image.asset(
               'assets/images/authentication/authenticationImage.png',
               width: imageWidth,
-              height: imageHeight,
+              height: imageHeight2,
               fit: BoxFit.contain,
             ),
           ),

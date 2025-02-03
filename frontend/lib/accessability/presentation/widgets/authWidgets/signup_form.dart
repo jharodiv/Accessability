@@ -200,7 +200,7 @@ class _SignupFormState extends State<SignupForm> {
                     textStyle: const TextStyle(fontSize: 20),
                   ),
                   child: const Text(
-                    'Sign Up',
+                    'SIGN UP',
                     style: TextStyle(
                       color: Colors.white,
                       fontWeight: FontWeight.bold,
@@ -214,8 +214,8 @@ class _SignupFormState extends State<SignupForm> {
                     const Text(
                       "Already have an account?",
                       style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w400,
+                        fontSize: 17,
+                        fontWeight: FontWeight.w300,
                       ),
                     ),
                     TextButton(
@@ -230,8 +230,8 @@ class _SignupFormState extends State<SignupForm> {
                         'Log In',
                         style: TextStyle(
                           color: Color(0xFF6750A4),
-                          fontWeight: FontWeight.bold,
-                          fontSize: 13,
+                          fontWeight: FontWeight.w800,
+                          fontSize: 17,
                         ),
                       ),
                     ),

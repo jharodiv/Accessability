@@ -77,55 +77,50 @@ class _LoginFormState extends State<LoginForm> {
                     ),
                   ),
                 ),
-                const SizedBox(height: 10), // Reduced height
-                SizedBox(
-                  height: 80,
-                  child: Stack(
-                    children: [
-                      TextField(
-                        controller: passwordController,
-                        obscureText: true,
-                        decoration: const InputDecoration(
-                          labelText: 'Password',
-                          border: OutlineInputBorder(
-                            borderSide:
-                                BorderSide(color: Colors.black, width: 3.0),
-                          ),
-                        ),
-                      ),
-                      Positioned(
-                        bottom: -13,
-                        right: 0,
-                        child: TextButton(
-                          onPressed: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                  builder: (context) =>
-                                      const ForgotPasswordScreen()),
-                            );
-                          },
-                          child: const Text(
-                            'Forgot Password?',
-                            style: TextStyle(
-                              color: Color(0xFF6750A4),
-                              fontSize: 14,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
+                const SizedBox(height: 20), // Add spacing between input fields
+                TextField(
+                  controller: passwordController,
+                  obscureText: true,
+                  decoration: const InputDecoration(
+                    labelText: 'Password',
+                    border: OutlineInputBorder(
+                      borderSide: BorderSide(color: Colors.black, width: 3.0),
+                    ),
                   ),
                 ),
-                const SizedBox(height: 10), // Reduced height
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const ForgotPasswordScreen(),
+                        ),
+                      );
+                    },
+                    child: const Text(
+                      'Forgot Password?',
+                      style: TextStyle(
+                        color: Color(0xFF6750A4),
+                        fontSize: 17,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 5),
                 ElevatedButton(
                   onPressed: login, // Call the login method
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF6750A4),
-                    padding: const EdgeInsets.symmetric(
-                        vertical: 15, horizontal: 50),
+                    padding: const EdgeInsets.symmetric(vertical: 15),
+                    minimumSize: const Size(250, 50), // Adjust width and height
                     textStyle: const TextStyle(fontSize: 20),
+                    shape: RoundedRectangleBorder(
+                      borderRadius:
+                          BorderRadius.circular(8), // 8-pixel border radius
+                    ),
                   ),
                   child: const Text(
                     'Login',
@@ -135,15 +130,15 @@ class _LoginFormState extends State<LoginForm> {
                     ),
                   ),
                 ),
-                const SizedBox(height: 5), // Reduced height
+                const SizedBox(height: 10),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     const Text(
                       "Don't have an account?",
                       style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w400,
+                        fontSize: 17,
+                        fontWeight: FontWeight.w700,
                       ),
                     ),
                     TextButton(
@@ -151,20 +146,21 @@ class _LoginFormState extends State<LoginForm> {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                              builder: (context) => const SignupScreen()),
+                            builder: (context) => const SignupScreen(),
+                          ),
                         );
                       },
                       child: const Text(
                         'Sign Up',
                         style: TextStyle(
                           color: Color(0xFF6750A4),
-                          fontWeight: FontWeight.bold,
-                          fontSize: 13,
+                          fontWeight: FontWeight.w800,
+                          fontSize: 17,
                         ),
                       ),
-                    )
+                    ),
                   ],
-                )
+                ),
               ],
             ),
           ),

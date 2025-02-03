@@ -9,9 +9,9 @@ class Accessabilityheader extends StatelessWidget {
       padding: EdgeInsets.only(top: 10, bottom: 100),
       child: Center(
         child: Text(
-          'Accessability',
+          'ACCESABILITY',
           style: TextStyle(
-            fontWeight: FontWeight.bold,
+            fontWeight: FontWeight.w500,
             fontSize: 24,
             color: Color(0xFF6750A4),
           ),

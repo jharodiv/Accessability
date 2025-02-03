@@ -77,7 +77,9 @@ class Forgotpasswordconfirmation extends StatelessWidget {
                 ),
               ),
               TextButton(
-                onPressed: () {},
+                onPressed: () {
+                  Navigator.pushNamed(context, '/signup');
+                },
                 child: const Text(
                   'Signup',
                   style: TextStyle(

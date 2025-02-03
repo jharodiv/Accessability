@@ -17,9 +17,9 @@ class GpsScreen extends StatefulWidget {
 class _GpsScreenState extends State<GpsScreen> {
   OverlayEntry? _overlayEntry;
   GoogleMapController? _mapController;
-  Location _location = Location();
+  final Location _location = Location();
   LatLng? _currentLocation;
-  Set<Marker> _markers = {}; // Set of markers for the map
+  final Set<Marker> _markers = {}; // Set of markers for the map
   GlobalKey inboxKey = GlobalKey();
   GlobalKey settingsKey = GlobalKey();
   GlobalKey youKey = GlobalKey();
@@ -235,7 +235,7 @@ void _showTutorial() {
       // Add a marker at the current location
       _markers.add(
         Marker(
-          markerId: MarkerId('user_location'),
+          markerId: const MarkerId('user_location'),
           position: _currentLocation!,
           icon: BitmapDescriptor.defaultMarkerWithHue(
               BitmapDescriptor.hueAzure), // Custom marker icon (circle for now)

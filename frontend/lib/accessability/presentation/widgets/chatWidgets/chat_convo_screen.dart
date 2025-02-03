@@ -8,7 +8,7 @@ import 'package:intl/intl.dart';
 
 
 class ChatConvoScreen extends StatefulWidget {
-   ChatConvoScreen({
+   const ChatConvoScreen({
     super.key, 
     required this.receiverEmail,
     required this.receiverID
@@ -115,12 +115,12 @@ Widget _buildMessageList() {
             messageWidgets.add(
               Column(
                 children: [
-                  Divider(),
+                  const Divider(),
                   Text(
                     DateFormat('hh:mm a').format(currentTimestamp.toDate()),
-                    style: TextStyle(color: Colors.grey),
+                    style: const TextStyle(color: Colors.grey),
                   ),
-                  Divider(),
+                  const Divider(),
                 ],
               ),
             );

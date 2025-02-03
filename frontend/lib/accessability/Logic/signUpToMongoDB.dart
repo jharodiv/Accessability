@@ -6,7 +6,7 @@ import 'package:http/http.dart' as http;
 
 class SignUpToMongoDB {
   final String _baseUrl =
-      'https://3-y2-aapwd.vercel.app/api/v1'; // Change to your machine's IP address
+      'https://3-y2-aapwd-neon.vercel.app/api/v1'; // Change to your machine's IP address
 
   SignUpToMongoDB();
 

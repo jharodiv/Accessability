@@ -20,7 +20,6 @@ class LoginScreen extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 AuthenticationImage(),
-                SizedBox(height: 90),
                 Padding(
                   padding: EdgeInsets.symmetric(horizontal: 16.0),
                   child: LoginForm(),

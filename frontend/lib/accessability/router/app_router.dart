@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:frontend/accessability/presentation/screens/authScreens/login_screen.dart';
 import 'package:frontend/accessability/presentation/screens/authScreens/signup_screen.dart';
 import 'package:frontend/accessability/presentation/screens/authScreens/onboarding_screen.dart';
+import 'package:frontend/accessability/presentation/screens/authscreens/upload_profile_screen.dart';
 import 'package:frontend/accessability/presentation/screens/chat_system/inbox_screen.dart';
 import 'package:frontend/accessability/presentation/screens/gpsScreen/gps.dart';
 import 'package:frontend/accessability/presentation/screens/settings/settings_screen.dart';
@@ -22,7 +23,7 @@ class AppRouter {
       case SignupScreen.routeName:
         return _buildRoute(const SignupScreen());
       case '/login':
-        return _buildRoute(const LoginScreen(), clearStack: true);
+        return _buildRoute(UploadProfileScreen(), clearStack: true);
       case '/onboarding':
         return _buildRoute(const OnboardingScreen(), clearStack: true);
       case '/homescreen':
@@ -47,7 +48,10 @@ class AppRouter {
         final args = routeSettings.arguments as Map<String, dynamic>;
         final receiverEmail = args['receiverEmail'];
         final receiverID = args['receiverID'];
-        return _buildRoute(ChatConvoScreen(receiverEmail: receiverEmail, receiverID: receiverID,));
+        return _buildRoute(ChatConvoScreen(
+          receiverEmail: receiverEmail,
+          receiverID: receiverID,
+        ));
     }
     return null; // Handle unknown routes
   }

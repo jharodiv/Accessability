@@ -1,6 +1,7 @@
 const User = require('../models/User');
 const catchAsync = require('../utils/catchAsync');
 const AppError = require('../utils/appError');
+const sendEmail = require('../utils/email');
 
 // Signup controller
 exports.signup = catchAsync(async (req, res, next) => {
@@ -102,5 +103,67 @@ exports.login = catchAsync(async (req, res, next) => {
         settings: user.settings,
       },
     },
+  });
+});
+
+// ** Send Verification Code controller
+exports.sendVerificationCode = catchAsync(async (req, res, next) => {
+  const user = await User.findOne({ email: req.body.email });
+
+  if (!user) {
+    return next(new AppError('User not found with this email.', 404));
+  }
+
+  const verificationCode = user.createVerificationCode();
+  await user.save({ validateBeforeSave: false });
+
+  try {
+    await sendEmail({
+      email: user.email,
+      subject: 'Your Verification Code',
+      verificationCode: verificationCode,
+      type: 'verification',
+    });
+    res.status(200).json({
+      status: 'success',
+      message: 'Verification code sent to email!',
+    });
+  } catch (err) {
+    user.verificationCode = undefined;
+    user.codeExpires = undefined;
+    await user.save({ validateBeforeSave: false });
+
+    return next(
+      new AppError('Error sending verification code. Try again later.', 500),
+    );
+  }
+});
+
+// ** Verify code controller
+exports.verifyCode = catchAsync(async (req, res, next) => {
+  const { email, code } = req.body;
+
+  const hashedCode = crypto.createHash('sha256').update(code).digest('hex');
+
+  // Find user by email and verification code, ensuring code has not expired
+  const user = await User.findOne({
+    email,
+    verificationCode: hashedCode,
+    codeExpires: { $gt: Date.now() }, // Ensure the code has not expired
+  });
+
+  if (!user) {
+    return next(new AppError('Invalid or expired verification code.', 400));
+  }
+
+  user.verified = true;
+  user.verificationCode = undefined;
+  user.codeExpires = undefined;
+
+  await user.save({ validateBeforeSave: false });
+
+  res.status(200).json({
+    status: 'success',
+    message: 'User successfully verified!',
   });
 });

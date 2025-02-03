@@ -23,6 +23,8 @@ class AppRouter {
       case SignupScreen.routeName:
         return _buildRoute(const SignupScreen());
       case '/login':
+        return _buildRoute(const LoginScreen(), clearStack: true);
+      case '/uploadProfilePicture':
         return _buildRoute(UploadProfileScreen(), clearStack: true);
       case '/onboarding':
         return _buildRoute(const OnboardingScreen(), clearStack: true);

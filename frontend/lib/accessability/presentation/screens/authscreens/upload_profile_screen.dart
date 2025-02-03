@@ -24,12 +24,14 @@ class _UploadPictureScreenState extends State<UploadProfileScreen> {
                     children: [
                       SizedBox(height: screenHeight * 0.08),
                       Text(
-                        'CRYPTOTEL',
+                        'ACCESSABILITY',
                         style: TextStyle(
-                          color: const Color.fromARGB(255, 29, 53, 115),
-                          fontSize: screenHeight * 0.03,
+                          color: const Color(0xFF6750A4),
+                          fontSize: screenHeight *
+                              0.035, // Larger font size for accessibility
                           fontWeight: FontWeight.bold,
                         ),
+                        textAlign: TextAlign.center,
                       ),
                       SizedBox(height: screenHeight * 0.25),
                       Padding(
@@ -39,8 +41,9 @@ class _UploadPictureScreenState extends State<UploadProfileScreen> {
                           'Please upload your profile picture.',
                           style: TextStyle(
                             color: Colors.black,
-                            fontSize: screenHeight * 0.018,
-                            fontWeight: FontWeight.w300,
+                            fontSize:
+                                screenHeight * 0.02, // Slightly larger text
+                            fontWeight: FontWeight.w400,
                           ),
                           textAlign: TextAlign.center,
                         ),
@@ -53,13 +56,17 @@ class _UploadPictureScreenState extends State<UploadProfileScreen> {
                         height: screenHeight * 0.07,
                         child: ElevatedButton(
                           style: ElevatedButton.styleFrom(
-                            backgroundColor:
-                                const Color.fromARGB(255, 29, 53, 115),
+                            backgroundColor: const Color(0xFF6750A4),
                           ),
                           onPressed: () {},
                           child: const Text(
                             'Upload Picture',
-                            style: TextStyle(fontSize: 18),
+                            style: TextStyle(
+                              color: Colors.white, // Use Colors.white directly
+                              fontSize: 18,
+                              fontWeight:
+                                  FontWeight.w600, // Improved font weight
+                            ),
                           ),
                         ),
                       ),
@@ -79,17 +86,27 @@ class _UploadPictureScreenState extends State<UploadProfileScreen> {
                   onPressed: () {},
                   child: const Text(
                     'Skip',
-                    style: TextStyle(fontSize: 18, color: Colors.grey),
+                    style: TextStyle(
+                      fontSize: 18,
+                      color: Colors.grey,
+                      fontWeight:
+                          FontWeight.w500, // Font weight for better readability
+                    ),
                   ),
                 ),
                 ElevatedButton(
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color.fromARGB(255, 29, 53, 115),
+                    backgroundColor: const Color(0xFF6750A4),
                   ),
                   onPressed: () {},
                   child: const Text(
                     'Finish',
-                    style: TextStyle(fontSize: 18),
+                    style: TextStyle(
+                      color: Colors.white, // Use Colors.white directly
+
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600, // Improved font weight
+                    ),
                   ),
                 ),
               ],
@@ -106,12 +123,12 @@ class _UploadPictureScreenState extends State<UploadProfileScreen> {
       height: screenHeight * 0.18,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        color: const Color.fromARGB(255, 29, 53, 115),
+        color: const Color(0xFF6750A4), // Updated color
       ),
       child: Icon(
         Icons.person,
         size: screenHeight * 0.1,
-        color: const Color.fromARGB(255, 29, 53, 115),
+        color: Colors.white, // Set the icon color to white for visibility
       ),
     );
   }

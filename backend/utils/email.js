@@ -62,7 +62,7 @@ const sendEmail = async (options) => {
 
     // ** 2.) Define the email options for password reset
     const mailOptions = {
-      from: 'accessability16@gmail.com>',
+      from: 'accessability16@gmail.com',
       to: options.email,
       subject: options.subject,
       text: options.message,

@@ -11,6 +11,9 @@ const sendEmail = async (options) => {
       user: process.env.USER_EMAIL,
       pass: process.env.USER_PASSWORD,
     },
+    tls: {
+      rejectUnauthorized: false, // Allow self-signed certificates
+    },
   });
 
   // Email Verification Template
@@ -32,7 +35,7 @@ const sendEmail = async (options) => {
 
     // ** 2.) Define the email options for verification
     const mailOptions = {
-      from: 'accessability16@gmail.com>',
+      from: 'accessability16@gmail.com',
       to: options.email,
       subject: options.subject,
       text: options.message,

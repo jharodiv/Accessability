@@ -24,14 +24,55 @@ const userSchema = new mongoose.Schema({
     required: true,
   },
   details: {
-    // User details such as address, etc.
-    type: mongoose.Schema.Types.Mixed,
+    type: new mongoose.Schema({
+      address: {
+        type: String,
+        default: null,
+      },
+      phoneNumber: {
+        type: String,
+        default: null,
+      },
+      profilePicture: {
+        type: String,
+        default:
+          'https://res.cloudinary.com/dfenjj2vs/image/upload/v1738594296/1ffe033b103737d30ee1c98c1d9c51a6_nv95n5.png',
+      },
+    }),
     default: () => ({}),
   },
   settings: {
-    // User settings such as verification status, etc.
-    type: mongoose.Schema.Types.Mixed,
-    default: {},
+    type: new mongoose.Schema({
+      verificationCode: {
+        type: String,
+        default: null,
+      },
+      codeExpiresAt: {
+        type: Date,
+        default: null,
+      },
+      verified: {
+        type: Boolean,
+        default: false,
+      },
+      passwordChangedAt: {
+        type: Date,
+        default: null,
+      },
+      passwordResetToken: {
+        type: String,
+        default: null,
+      },
+      passwordResetExpiresAt: {
+        type: Date,
+        default: null,
+      },
+      active: {
+        type: Boolean,
+        default: true,
+      },
+    }),
+    default: () => ({}),
   },
   createdAt: {
     type: Date,
@@ -124,12 +165,12 @@ userSchema.pre(/^find/, function (next) {
 userSchema.methods.createVerificationCode = function () {
   const verificationCode = crypto.randomBytes(3).toString('hex');
 
-  this.verificationCode = crypto
+  this.settings.verificationCode = crypto
     .createHash('sha256')
     .update(verificationCode)
     .digest('hex');
 
-  this.codeExpires = Date.now() + 10 * 60 * 1000; // 10 minutes
+  this.settings.codeExpiresAt = Date.now() + 10 * 60 * 1000; // 10 minutes
 
   return verificationCode;
 };

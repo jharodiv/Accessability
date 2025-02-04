@@ -7,13 +7,35 @@ const {
   imageUploadMiddleware,
 } = require('../middlewares/imageUploadMiddleware');
 
-// Signup controller
+// ** Send Token
+const createSendToken = (user, statusCode, res, additionalData = {}) => {
+  const token = user.createJWT();
+  const cookieOptions = {
+    expires: new Date(
+      Date.now() + process.env.JWT_COOKIE_EXPIRES_IN * 24 * 60 * 60 * 1000,
+    ),
+    secure: true,
+    httpOnly: true,
+  };
+  if (process.env.NODE_ENV === 'production') cookieOptions.secure = true;
+
+  //! Send the token and additional data to the client
+  res.cookie('jwt', token, cookieOptions);
+  res.status(statusCode).json({
+    status: 'success',
+    token,
+    ...additionalData,
+  });
+};
+
+// ** Signup controller
 exports.signup = catchAsync(async (req, res, next) => {
   console.log('Line 6: Received signup request with data:', req.body); // Debug log
   console.log('Line 7: File received in signup request:', req.file);
 
   // Default profile picture URL (update this path if needed)
-  const DEFAULT_PROFILE_PICTURE = 'https://res.cloudinary.com/dfenjj2vs/image/upload/v1738594296/1ffe033b103737d30ee1c98c1d9c51a6_nv95n5.png';
+  const DEFAULT_PROFILE_PICTURE =
+    'https://res.cloudinary.com/dfenjj2vs/image/upload/v1738594296/1ffe033b103737d30ee1c98c1d9c51a6_nv95n5.png';
 
   let profilePicture = DEFAULT_PROFILE_PICTURE; // Set default initially
 
@@ -91,7 +113,7 @@ exports.signup = catchAsync(async (req, res, next) => {
   }
 });
 
-// Login controller
+// ** Login controller
 exports.login = catchAsync(async (req, res, next) => {
   console.log('Line 51: Received login request with data:', req.body); // Debug log
   const { email, password } = req.body;

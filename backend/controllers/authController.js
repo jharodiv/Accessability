@@ -124,6 +124,12 @@ exports.login = catchAsync(async (req, res, next) => {
     return next(new AppError('Invalid credentials', 401)); // Unauthorized
   }
 
+  if (!user.settings.verified) {
+    return next(
+      new AppError('Please verify your email before logging in.', 401),
+    );
+  }
+
   // Generate a JWT token for the user
   console.log('Line 66: Generating JWT for the user...'); // Debug log
   const token = user.createJWT();

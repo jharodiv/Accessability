@@ -7,64 +7,78 @@ const {
   imageUploadMiddleware,
 } = require('../middlewares/imageUploadMiddleware');
 
-// Signup controller
+// ** Send Token
+const createSendToken = (user, statusCode, res, additionalData = {}) => {
+  const token = user.createJWT();
+  const cookieOptions = {
+    expires: new Date(
+      Date.now() + process.env.JWT_COOKIE_EXPIRES_IN * 24 * 60 * 60 * 1000,
+    ),
+    secure: true,
+    httpOnly: true,
+  };
+  if (process.env.NODE_ENV === 'production') cookieOptions.secure = true;
+
+  //! Send the token and additional data to the client
+  res.cookie('jwt', token, cookieOptions);
+  res.status(statusCode).json({
+    status: 'success',
+    token,
+    ...additionalData,
+  });
+};
+
+// ** Signup controller
 exports.signup = catchAsync(async (req, res, next) => {
-  console.log('Line 6: Received signup request with data:', req.body); // Debug log
-  console.log('Line 7: File received in signup request:', req.file);
+  console.log('Received signup request with data:', req.body);
+  console.log('File received in signup request:', req.file);
 
-  // Default profile picture URL (update this path if needed)
-  const DEFAULT_PROFILE_PICTURE = 'https://res.cloudinary.com/dfenjj2vs/image/upload/v1738594296/1ffe033b103737d30ee1c98c1d9c51a6_nv95n5.png';
+  // Default profile picture URL
+  const DEFAULT_PROFILE_PICTURE =
+    'https://res.cloudinary.com/dfenjj2vs/image/upload/v1738594296/1ffe033b103737d30ee1c98c1d9c51a6_nv95n5.png';
 
-  let profilePicture = DEFAULT_PROFILE_PICTURE; // Set default initially
+  let profilePicture = DEFAULT_PROFILE_PICTURE;
 
   // Handle image upload if a file is provided
   if (req.file) {
-    console.log('Line 17: Image upload detected, processing image...'); // Debug log
+    console.log('Image upload detected, processing image...');
     await imageUploadMiddleware(req, res, async (err) => {
       if (err) {
-        console.log('Line 21: Error in image upload middleware:', err); // Debug log
+        console.log('Error in image upload middleware:', err);
         return next(new AppError(err.message, 400));
       }
-
-      if (req.file && req.file.path) {
-        console.log('Line 27: Updating profile picture:', req.file.path); // Debug log
+      if (req.file.path) {
+        console.log('Updating profile picture:', req.file.path);
         profilePicture = req.file.path;
       }
     });
   }
 
+  // Validate required fields
+  const { name, email, password, phone } = req.body;
+  if (!name || !email || !password || !phone) {
+    return next(
+      new AppError(
+        'All fields (name, email, password, phone) are required.',
+        400,
+      ),
+    );
+  }
+
   const userData = {
-    name: req.body.name,
-    email: req.body.email,
-    password: req.body.password,
-    details: {
-      ...req.body.details,
-      profilePicture: profilePicture, // Use uploaded image or default
-    },
-    settings: {
-      ...req.body.settings,
-      verificationCode: req.body.settings?.verificationCode || null,
-      codeExpiresAt: req.body.settings?.codeExpiresAt || null,
-      verified:
-        req.body.settings?.verified !== undefined
-          ? req.body.settings.verified
-          : false,
-      passwordChangedAt: req.body.settings?.passwordChangedAt || null,
-      passwordResetToken: req.body.settings?.passwordResetToken || null,
-      passwordResetExpiresAt: req.body.settings?.passwordResetExpiresAt || null,
-      active:
-        req.body.settings?.active !== undefined
-          ? req.body.settings.active
-          : true,
-    },
+    name,
+    email,
+    password,
+    phone,
+    profilePicture, // Use uploaded image or default
   };
 
-  console.log('Line 24: Prepared user data:', userData); // Debug log
+  console.log('Prepared user data:', userData);
 
   try {
-    console.log('Line 26: Attempting to create a new user...'); // Debug log
+    console.log('Attempting to create a new user...');
     const user = await User.create(userData);
-    console.log('Line 28: User created successfully:', user); // Debug log
+    console.log('User created successfully:', user);
 
     const token = user.createJWT();
     res.status(201).json({
@@ -75,23 +89,23 @@ exports.signup = catchAsync(async (req, res, next) => {
           id: user._id,
           name: user.name,
           email: user.email,
-          details: user.details,
-          settings: user.settings,
+          phone: user.phone,
+          profilePicture: user.profilePicture,
         },
       },
     });
   } catch (err) {
-    console.error('Line 36: Error creating user:', err); // Debug log
+    console.error('Error creating user:', err);
 
     if (err.code === 11000 && err.keyValue.email) {
-      console.log('Line 39: Email already exists.'); // Debug log
+      console.log('Email already exists.');
       return next(new AppError('Email already exists', 400));
     }
-    return next(new AppError('User Creation failed', 400));
+    return next(new AppError('User creation failed', 400));
   }
 });
 
-// Login controller
+// ** Login controller
 exports.login = catchAsync(async (req, res, next) => {
   console.log('Line 51: Received login request with data:', req.body); // Debug log
   const { email, password } = req.body;

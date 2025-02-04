@@ -54,23 +54,39 @@ exports.signup = catchAsync(async (req, res, next) => {
     });
   }
 
-  // Validate required fields
-  const { name, email, password, phone } = req.body;
-  if (!name || !email || !password || !phone) {
+  // Validate required fields (name, email, password, phoneNumber)
+  const { name, email, password, phoneNumber, address } = req.body;
+  if (!name || !email || !password || !phoneNumber) {
     return next(
       new AppError(
-        'All fields (name, email, password, phone) are required.',
+        'Name, email, password, and phone number are required.',
         400,
       ),
     );
   }
 
+  // Log to check phoneNumber value
+  console.log('Phone number received:', phoneNumber);
+
+  // Add phoneNumber and address to user data
   const userData = {
     name,
     email,
     password,
-    phone,
-    profilePicture, // Use uploaded image or default
+    details: {
+      phoneNumber, // Use provided phone number
+      address: address || null, // If address is not provided, set as null
+      profilePicture, // Use uploaded image or default
+    },
+    settings: {
+      verificationCode: null,
+      codeExpiresAt: null,
+      verified: false,
+      passwordChangedAt: null,
+      passwordResetToken: null,
+      passwordResetExpiresAt: null,
+      active: true,
+    },
   };
 
   console.log('Prepared user data:', userData);
@@ -86,11 +102,14 @@ exports.signup = catchAsync(async (req, res, next) => {
       token,
       data: {
         user: {
-          id: user._id,
           name: user.name,
           email: user.email,
-          phone: user.phone,
-          profilePicture: user.profilePicture,
+          details: {
+            address: user.details.address,
+            phoneNumber: user.details.phoneNumber,
+            profilePicture: user.details.profilePicture,
+          },
+          settings: user.settings, // Return the default settings
         },
       },
     });
@@ -159,21 +178,27 @@ exports.sendVerificationCode = catchAsync(async (req, res, next) => {
     return next(new AppError('User not found with this email.', 404));
   }
 
+  // Generate raw verification code and store it in the database (hashed version)
   const verificationCode = user.createVerificationCode();
   await user.save({ validateBeforeSave: false });
 
   try {
+    console.log('Attempting to send email...');
+    // Send raw verification code in the email
     await sendEmail({
       email: user.email,
       subject: 'Your Verification Code',
-      verificationCode: verificationCode,
+      verificationCode: verificationCode, // raw verification code sent here
       type: 'verification',
     });
+
+    console.log('Email sent successfully!');
     res.status(200).json({
       status: 'success',
       message: 'Verification code sent to email!',
     });
   } catch (err) {
+    console.error('Error sending email:', err); // Log the actual error
     user.verificationCode = undefined;
     user.codeExpires = undefined;
     await user.save({ validateBeforeSave: false });
@@ -186,30 +211,37 @@ exports.sendVerificationCode = catchAsync(async (req, res, next) => {
 
 // ** Verify code controller
 exports.verifyCode = catchAsync(async (req, res, next) => {
-  const { email, code } = req.body;
-
-  const hashedCode = crypto.createHash('sha256').update(code).digest('hex');
-
-  // Find user by email and verification code, ensuring code has not expired
-  const user = await User.findOne({
-    email,
-    verificationCode: hashedCode,
-    codeExpires: { $gt: Date.now() }, // Ensure the code has not expired
-  });
+  const { email, verificationCode } = req.body;
+  const user = await User.findOne({ email });
 
   if (!user) {
-    return next(new AppError('Invalid or expired verification code.', 400));
+    return next(new AppError('User not found with this email.', 404));
   }
 
-  user.verified = true;
-  user.verificationCode = undefined;
-  user.codeExpires = undefined;
+  // Check if the verification code is expired
+  if (user.codeExpires < Date.now()) {
+    return next(new AppError('Verification code expired.', 400));
+  }
 
+  // Hash the entered code and compare with the stored one
+  const hashedCode = crypto
+    .createHash('sha256')
+    .update(verificationCode)
+    .digest('hex');
+
+  if (hashedCode !== user.verificationCode) {
+    return next(new AppError('Invalid verification code.', 400));
+  }
+
+  // Mark the user as verified
+  user.settings.verified = true;
+  user.verificationCode = undefined; // Clear the code after verification
+  user.codeExpires = undefined; // Clear expiration time
   await user.save({ validateBeforeSave: false });
 
   res.status(200).json({
     status: 'success',
-    message: 'User successfully verified!',
+    message: 'Verification successful!',
   });
 });
 

@@ -90,20 +90,6 @@ userSchema.methods.createPasswordResetToken = function () {
   return resetToken;
 };
 
-// Generate email verification code
-userSchema.methods.createVerificationCode = function () {
-  const verificationCode = crypto.randomBytes(3).toString('hex');
-
-  this.verificationCode = crypto
-    .createHash('sha256')
-    .update(verificationCode)
-    .digest('hex');
-
-  this.codeExpires = Date.now() + 10 * 60 * 1000; // 10 minutes
-
-  return verificationCode;
-};
-
 // Pre-save middleware to hash the password if it's modified
 userSchema.pre('save', async function (next) {
   // Only run this function if password was actually modified or the document is new
@@ -132,6 +118,20 @@ userSchema.pre(/^find/, function (next) {
   this.find({ active: { $ne: false } });
   next();
 });
+
+// Generate email verification code
+userSchema.methods.createVerificationCode = function () {
+  const verificationCode = crypto.randomBytes(3).toString('hex');
+
+  this.verificationCode = crypto
+    .createHash('sha256')
+    .update(verificationCode)
+    .digest('hex');
+
+  this.codeExpires = Date.now() + 10 * 60 * 1000; // 10 minutes
+
+  return verificationCode;
+};
 
 const User = mongoose.model('User', userSchema);
 

@@ -1,22 +1,30 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:frontend/accessability/data/data_provider/auth_data_provider.dart';
+import 'package:frontend/accessability/data/repositories/auth_repository.dart';
+import 'package:frontend/accessability/logic/bloc/auth/bloc/auth_bloc.dart';
+import 'package:provider/provider.dart';
 import 'package:frontend/accessability/router/app_router.dart';
 import 'package:frontend/accessability/themes/theme_provider.dart';
 import 'package:frontend/firebase_options.dart';
-import 'package:provider/provider.dart';
 
 void main() async {
+  // Ensure Flutter bindings are initialized
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-  runApp(ChangeNotifierProvider(
-    create: (context) => ThemeProvider(),
-    child:  MyApp(),
-  ));
-}
 
-var kColorScheme = ColorScheme.fromSeed(seedColor: Colors.white);
-var kDarkColorScheme = ColorScheme.fromSeed(seedColor: Colors.black);
+  // Initialize Firebase
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+
+  // Initialize ThemeProvider
+  runApp(
+    ChangeNotifierProvider(
+      create: (context) => ThemeProvider(),
+      child: MyApp(),
+    ),
+  );
+}
 
 class MyApp extends StatelessWidget {
   final AppRouter _appRouter = AppRouter();
@@ -25,11 +33,19 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      initialRoute: '/',
-      theme: Provider.of<ThemeProvider>(context).themeData,
-      onGenerateRoute: _appRouter.onGenerateRoute,
+    return MultiBlocProvider(
+      providers: [
+        // Add Bloc and RepositoryProviders here as needed
+        BlocProvider(
+          create: (context) => AuthBloc(AuthRepository(AuthDataProvider())),
+        ),
+      ],
+      child: MaterialApp(
+        debugShowCheckedModeBanner: false,
+        initialRoute: '/',
+        theme: Provider.of<ThemeProvider>(context).themeData,
+        onGenerateRoute: _appRouter.onGenerateRoute,
+      ),
     );
   }
 }
@@ -95,10 +111,7 @@ ThemeData _buildDarkTheme(BuildContext context) {
       ),
       backgroundColor: Colors.black,
     ),
-    textTheme: _buildHelveticaTextTheme().apply(
-      bodyColor: Colors.white,
-      displayColor: Colors.white,
-    ),
+    textTheme: _buildHelveticaTextTheme(),
   );
 }
 

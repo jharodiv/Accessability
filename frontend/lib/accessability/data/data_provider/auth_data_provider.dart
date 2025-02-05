@@ -40,6 +40,8 @@ class AuthDataProvider {
       headers: {'Content-Type': 'application/json'},
       body: json.encode({'email': email, 'password': password}),
     );
+    print('Response Code: ${response.statusCode}');
+    print('Response Body: ${response.body}');
     final data = await _handleResponse(response);
 
     await _storeAuthData(data);

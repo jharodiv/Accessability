@@ -125,8 +125,10 @@ exports.signup = catchAsync(async (req, res, next) => {
 });
 
 // ** Login controller
+// ** Login controller
 exports.login = catchAsync(async (req, res, next) => {
   console.log('Line 51: Received login request with data:', req.body); // Debug log
+
   const { email, password } = req.body;
 
   // Validate input: ensure both email and password are provided
@@ -135,11 +137,26 @@ exports.login = catchAsync(async (req, res, next) => {
     return next(new AppError('Please provide both email and password', 400));
   }
 
-  // Check if the user exists and compare the password
-  console.log('Line 58: Searching for user with email:', email); // Debug log
-  const user = await User.findOne({ email });
-  if (!user || !(await user.comparePassword(password))) {
-    console.log('Line 62: Invalid credentials for email:', email); // Debug log
+  // Convert email to lowercase to avoid case-sensitivity issues
+  const normalizedEmail = email.toLowerCase();
+  console.log('Line 58: Searching for user with email:', normalizedEmail); // Debug log
+
+  // Check if the user exists
+  const user = await User.findOne({ email: normalizedEmail });
+
+  if (!user) {
+    console.log('Line 61: No user found with email:', normalizedEmail); // Debug log
+    return next(new AppError('Invalid credentials', 401)); // Unauthorized
+  }
+
+  // Debugging password comparison
+  console.log('Stored Hashed Password:', user.password);
+  console.log('Entered Password:', password);
+  const isPasswordCorrect = await user.comparePassword(password);
+  console.log('Comparison Result:', isPasswordCorrect);
+
+  if (!isPasswordCorrect) {
+    console.log('Line 68: Incorrect password for email:', normalizedEmail);
     return next(new AppError('Invalid credentials', 401)); // Unauthorized
   }
 
@@ -150,11 +167,11 @@ exports.login = catchAsync(async (req, res, next) => {
   }
 
   // Generate a JWT token for the user
-  console.log('Line 66: Generating JWT for the user...'); // Debug log
+  console.log('Line 74: Generating JWT for the user...'); // Debug log
   const token = user.createJWT();
 
   // Send the response with the token
-  console.log('Line 69: Sending success response with token'); // Debug log
+  console.log('Line 78: Sending success response with token'); // Debug log
   res.status(200).json({
     status: 'success',
     token,

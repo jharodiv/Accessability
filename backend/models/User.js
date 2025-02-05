@@ -84,9 +84,33 @@ const userSchema = new mongoose.Schema({
   },
 });
 
-userSchema.pre('save', async function () {
-  const salt = await bcrypt.genSalt(10);
-  this.password = await bcrypt.hash(this.password, salt);
+// Pre-save middleware to hash the password if it's modified
+userSchema.pre('save', async function (next) {
+  // Only run this function if password was actually modified or the document is new
+  if (!this.isModified('password')) return next();
+
+  // Hash the password with a cost of 12
+  this.password = await bcrypt.hash(this.password, 12);
+
+  // Delete confirmPassword field if it exists (if you use it for validation)
+  this.confirmPassword = undefined;
+
+  next();
+});
+
+// Pre-save middleware to set passwordChangedAt for new passwords
+userSchema.pre('save', function (next) {
+  // Only set passwordChangedAt if the password was modified and the document is not new
+  if (!this.isModified('password') || this.isNew) return next();
+
+  this.passwordChangedAt = Date.now() - 1000; // Set to just before token is issued
+  next();
+});
+
+// Pre-query middleware to exclude inactive users
+userSchema.pre(/^find/, function (next) {
+  this.find({ active: { $ne: false } });
+  next();
 });
 
 // Instance method to create JWT
@@ -113,7 +137,6 @@ userSchema.methods.changedPasswordAfter = function (JWTTimestamp) {
     );
     return JWTTimestamp < changedTimestamp;
   }
-
   // False means the password has NOT been changed
   return false;
 };
@@ -131,35 +154,6 @@ userSchema.methods.createPasswordResetToken = function () {
 
   return resetToken;
 };
-
-// Pre-save middleware to hash the password if it's modified
-userSchema.pre('save', async function (next) {
-  // Only run this function if password was actually modified or the document is new
-  if (!this.isModified('password')) return next();
-
-  // Hash the password with cost of 12
-  this.password = await bcrypt.hash(this.password, 12);
-
-  // Delete confirmPassword field after validation
-  this.confirmPassword = undefined;
-
-  next();
-});
-
-// Pre-save middleware to set passwordChangedAt for new passwords
-userSchema.pre('save', function (next) {
-  // Only set passwordChangedAt if the password was modified and the document is not new
-  if (!this.isModified('password') || this.isNew) return next();
-
-  this.passwordChangedAt = Date.now() - 1000; // Set to just before token is issued
-  next();
-});
-
-// Pre-query middleware to exclude inactive users
-userSchema.pre(/^find/, function (next) {
-  this.find({ active: { $ne: false } });
-  next();
-});
 
 // Generate email verification code
 userSchema.methods.createVerificationCode = function () {

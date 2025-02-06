@@ -1,12 +1,13 @@
 import 'package:frontend/accessability/data/model/login_model.dart';
 import 'package:frontend/accessability/data/model/user_model.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'auth_service.dart';
+import 'package:frontend/accessability/auth/auth_service.dart';
 
 class AuthRepository {
   SharedPreferences? _sharedPrefs;
   final AuthService authService;
   UserModel? _cachedUser;
+  
 
   AuthRepository(this.authService) {
     _initSharedPrefs();

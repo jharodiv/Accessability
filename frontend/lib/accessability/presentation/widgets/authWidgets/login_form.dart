@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:frontend/accessability/firebaseServices/auth/auth_service.dart';
 import 'package:frontend/accessability/logic/bloc/auth/bloc/auth_bloc.dart';
 import 'package:frontend/accessability/logic/bloc/auth/bloc/auth_event.dart';
 import 'package:frontend/accessability/logic/bloc/auth/bloc/auth_state.dart';
@@ -17,7 +16,6 @@ class LoginForm extends StatefulWidget {
 class _LoginFormState extends State<LoginForm> {
   final TextEditingController emailController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
-  final AuthService authService = AuthService();
 
   @override
   void dispose() {

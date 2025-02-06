@@ -48,9 +48,15 @@ class AuthService {
   }
 
   // Complete Onboarding
-  Future<void> completeOnboarding(String uid) async {
-    await _firestore.collection('Users').doc(uid).update({
+ Future<void> completeOnboarding(String uid) async {
+  try {
+    await FirebaseFirestore.instance.collection('Users').doc(uid).update({
       'hasCompletedOnboarding': true,
     });
+    print('AuthService: Onboarding status updated for user $uid');
+  } catch (e) {
+    print('AuthService: Error updating onboarding status - ${e.toString()}');
+    throw Exception('Failed to update onboarding status: ${e.toString()}');
   }
+}
 }

@@ -7,6 +7,7 @@
     "gpsscreen",
     "homescreen",
     "Loginform",
+    "Prefs",
     "signupscreen"
   ]
 }

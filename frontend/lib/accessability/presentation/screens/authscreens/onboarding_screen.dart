@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:frontend/accessability/logic/bloc/auth/bloc/auth_bloc.dart';
 import 'package:frontend/accessability/logic/bloc/auth/bloc/auth_event.dart';
-import 'package:frontend/accessability/logic/bloc/auth/bloc/auth_state.dart';
 
 class OnboardingScreen extends StatefulWidget {
   const OnboardingScreen({super.key});
@@ -35,19 +34,20 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     'We’re so glad you’ve chosen our app to assist with your navigation and communication needs. Our goal is to make your journey safer and more connected. Thank you for using our app, and we hope it enhances your daily experience.',
   ];
 
-  void _onNextPressed() {
-    if (_currentPage < _images.length - 1) {
-      _pageController.nextPage(
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeIn,
-      );
-    } else {
-      // Complete the onboarding process using BLoC
-      context.read<AuthBloc>().add(CompleteOnboardingEvent());
-      // Navigate to the home screen
-      Navigator.of(context).pushReplacementNamed('/homescreen');
-    }
+ void _onNextPressed() {
+  if (_currentPage < _images.length - 1) {
+    _pageController.nextPage(
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeIn,
+    );
+  } else {
+    // Complete the onboarding process using BLoC
+    print('OnboardingScreen: Dispatching CompleteOnboardingEvent');
+    context.read<AuthBloc>().add(CompleteOnboardingEvent());
+    // Navigate to the home screen
+    Navigator.of(context).pushReplacementNamed('/homescreen');
   }
+}
 
   @override
   void dispose() {

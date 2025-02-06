@@ -18,19 +18,22 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       }
     });
 
-    on<CompleteOnboardingEvent>((event, emit) async {
-      emit(AuthLoading());
-      try {
-        final user = await authRepository.getCachedUser();
-        if (user != null) {
-          await authRepository.completeOnboarding(user.id);
-          emit(const AuthSuccess('Onboarding completed successfully'));
-        } else {
-          emit(AuthError('User not found'));
-        }
-      } catch (e) {
-        emit(AuthError('Failed to complete onboarding: ${e.toString()}'));
-      }
-    });
+   on<CompleteOnboardingEvent>((event, emit) async {
+  emit(AuthLoading());
+  try {
+    final user = await authRepository.getCachedUser();
+    if (user != null) {
+      print('AuthBloc: Completing onboarding for user ${user.id}');
+      await authRepository.completeOnboarding(user.id);
+      emit(const AuthSuccess('Onboarding completed successfully'));
+    } else {
+      print('AuthBloc: User not found');
+      emit(AuthError('User not found'));
+    }
+  } catch (e) {
+    print('AuthBloc: Error completing onboarding - ${e.toString()}');
+    emit(AuthError('Failed to complete onboarding: ${e.toString()}'));
+  }
+});
   }
 }

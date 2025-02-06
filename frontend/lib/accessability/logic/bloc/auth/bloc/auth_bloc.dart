@@ -19,5 +19,15 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         emit(AuthError('Login failed: ${e.toString()}'));
       }
     });
+    // Handle the CompleteOnboardingEvent
+    on<CompleteOnboardingEvent>((event, emit) async {
+      emit(AuthLoading());
+      try {
+        await authRepository.completeOnboarding();
+        emit(const AuthSuccess('Onboarding completed successfully'));
+      } catch (e) {
+        emit(AuthError('Failed to complete onboarding: ${e.toString()}'));
+      }
+    });
   }
 }

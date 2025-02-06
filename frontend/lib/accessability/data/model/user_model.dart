@@ -1,4 +1,4 @@
-class User {
+class UserModel {
   final String id;
   final String name;
   final String email;
@@ -7,8 +7,10 @@ class User {
   final UserSettings settings;
   final DateTime createdAt;
   final DateTime updatedAt;
+  final bool hasCompletedOnboarding; // Required (no longer nullable)
+  final String token; // Required (no longer nullable)
 
-  User({
+  UserModel({
     required this.id,
     required this.name,
     required this.email,
@@ -17,18 +19,55 @@ class User {
     required this.settings,
     required this.createdAt,
     required this.updatedAt,
+    this.hasCompletedOnboarding = false, // Default value false
+    this.token = '', // Default empty string
   });
 
-  factory User.fromJson(Map<String, dynamic> json) {
-    return User(
-      id: json['_id'],
-      name: json['name'],
-      email: json['email'],
-      password: json['password'],
-      details: UserDetails.fromJson(json['details']),
-      settings: UserSettings.fromJson(json['settings']),
-      createdAt: DateTime.parse(json['createdAt']),
-      updatedAt: DateTime.parse(json['updatedAt']),
+  // Copy constructor to create a new instance with updated properties
+  UserModel copyWith({
+    String? id,
+    String? name,
+    String? email,
+    String? password,
+    UserDetails? details,
+    UserSettings? settings,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+    bool? hasCompletedOnboarding,
+    String? token,
+  }) {
+    return UserModel(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      email: email ?? this.email,
+      password: password ?? this.password,
+      details: details ?? this.details,
+      settings: settings ?? this.settings,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      hasCompletedOnboarding:
+          hasCompletedOnboarding ?? this.hasCompletedOnboarding,
+      token: token ?? this.token,
+    );
+  }
+
+  factory UserModel.fromJson(Map<String, dynamic> json) {
+    return UserModel(
+      id: json['_id'] ?? '', // Fallback to empty string if null
+      name: json['name'] ?? 'Unknown', // Fallback to 'Unknown' if null
+      email: json['email'] ?? '', // Fallback to empty string if null
+      password: json['password'] ?? '', // Fallback to empty string if null
+      details: UserDetails.fromJson(
+          json['details'] ?? {}), // Fallback to empty map if null
+      settings: UserSettings.fromJson(
+          json['settings'] ?? {}), // Fallback to empty map if null
+      createdAt: DateTime.parse(json['createdAt'] ??
+          DateTime.now().toIso8601String()), // Fallback to current time if null
+      updatedAt: DateTime.parse(json['updatedAt'] ??
+          DateTime.now().toIso8601String()), // Fallback to current time if null
+      hasCompletedOnboarding:
+          json['hasCompletedOnboarding'] ?? false, // Fallback to false if null
+      token: json['token'] ?? '', // Fallback to empty string if null
     );
   }
 
@@ -42,26 +81,30 @@ class User {
       'settings': settings.toJson(),
       'createdAt': createdAt.toIso8601String(),
       'updatedAt': updatedAt.toIso8601String(),
+      'hasCompletedOnboarding': hasCompletedOnboarding,
+      'token': token,
     };
   }
 }
 
 class UserDetails {
-  final String? address;
+  final String address;
   final String phoneNumber;
   final String profilePicture;
 
   UserDetails({
-    required this.address,
+    this.address = '', // Default to empty string if null
     required this.phoneNumber,
-    required this.profilePicture,
+    this.profilePicture = '', // Default to empty string if null
   });
 
   factory UserDetails.fromJson(Map<String, dynamic> json) {
     return UserDetails(
-      address: json['address'],
-      phoneNumber: json['phoneNumber'],
-      profilePicture: json['profilePicture'],
+      address: json['address'] ?? '', // Fallback to empty string if null
+      phoneNumber:
+          json['phoneNumber'] ?? '', // Fallback to empty string if null
+      profilePicture:
+          json['profilePicture'] ?? '', // Fallback to empty string if null
     );
   }
 
@@ -75,33 +118,38 @@ class UserDetails {
 }
 
 class UserSettings {
-  final String? verificationCode;
-  final String? codeExpiresAt;
+  final String verificationCode;
+  final String codeExpiresAt;
   final bool verified;
-  final String? passwordChangedAt;
-  final String? passwordResetToken;
-  final String? passwordResetExpiresAt;
+  final String passwordChangedAt;
+  final String passwordResetToken;
+  final String passwordResetExpiresAt;
   final bool active;
 
   UserSettings({
-    required this.verificationCode,
-    required this.codeExpiresAt,
-    required this.verified,
-    required this.passwordChangedAt,
-    required this.passwordResetToken,
-    required this.passwordResetExpiresAt,
-    required this.active,
+    this.verificationCode = '', // Default to empty string if null
+    this.codeExpiresAt = '', // Default to empty string if null
+    this.verified = false, // Default to false if null
+    this.passwordChangedAt = '', // Default to empty string if null
+    this.passwordResetToken = '', // Default to empty string if null
+    this.passwordResetExpiresAt = '', // Default to empty string if null
+    this.active = true, // Default to true if null
   });
 
   factory UserSettings.fromJson(Map<String, dynamic> json) {
     return UserSettings(
-      verificationCode: json['verificationCode'],
-      codeExpiresAt: json['codeExpiresAt'],
-      verified: json['verified'],
-      passwordChangedAt: json['passwordChangedAt'],
-      passwordResetToken: json['passwordResetToken'],
-      passwordResetExpiresAt: json['passwordResetExpiresAt'],
-      active: json['active'],
+      verificationCode:
+          json['verificationCode'] ?? '', // Fallback to empty string if null
+      codeExpiresAt:
+          json['codeExpiresAt'] ?? '', // Fallback to empty string if null
+      verified: json['verified'] ?? false, // Fallback to false if null
+      passwordChangedAt:
+          json['passwordChangedAt'] ?? '', // Fallback to empty string if null
+      passwordResetToken:
+          json['passwordResetToken'] ?? '', // Fallback to empty string if null
+      passwordResetExpiresAt: json['passwordResetExpiresAt'] ??
+          '', // Fallback to empty string if null
+      active: json['active'] ?? true, // Fallback to true if null
     );
   }
 

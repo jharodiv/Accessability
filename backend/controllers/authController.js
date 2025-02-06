@@ -6,6 +6,8 @@ const sendEmail = require('../utils/email');
 const {
   imageUploadMiddleware,
 } = require('../middlewares/imageUploadMiddleware');
+const { promisify } = require('util');
+const jwt = require('jsonwebtoken');
 
 // ** Send Token
 const createSendToken = (user, statusCode, res, additionalData = {}) => {
@@ -186,7 +188,7 @@ exports.login = catchAsync(async (req, res, next) => {
 
 // ** Protected Controller
 exports.protect = catchAsync(async (req, res, next) => {
-  //! 1) Getting token and check of it's there
+  //! 1) Getting token and check if it's there
   let token;
   if (
     req.headers.authorization &&
@@ -194,7 +196,11 @@ exports.protect = catchAsync(async (req, res, next) => {
   ) {
     token = req.headers.authorization.split(' ')[1];
   }
+
+  console.log('Token received:', token); // Log the token received
+
   if (!token) {
+    console.log('No token provided'); // Log if no token is found
     return next(
       new AppError(
         'You are not logged in!, Please login in to get access',
@@ -202,11 +208,21 @@ exports.protect = catchAsync(async (req, res, next) => {
       ),
     );
   }
+
   //! 2) Verification token
-  const decoded = await promisify(jwt.verify)(token, process.env.JWT_SECRET);
+  let decoded;
+  try {
+    decoded = await promisify(jwt.verify)(token, process.env.JWT_SECRET);
+    console.log('Decoded token:', decoded); // Log decoded token
+  } catch (err) {
+    console.log('Error decoding token:', err.message); // Log decoding errors
+    return next(new AppError('Invalid or expired token', 401));
+  }
+
   //! 3) Check if user still exists
-  const currentUser = await User.findById(decoded.id);
+  const currentUser = await User.findById(decoded.userId); // Use decoded.userId
   if (!currentUser) {
+    console.log('No user found with this token'); // Log if no user found
     return next(
       new AppError(
         'The token belonging to this user is no longer exists.',
@@ -215,8 +231,11 @@ exports.protect = catchAsync(async (req, res, next) => {
     );
   }
 
+  console.log('Current user:', currentUser); // Log the current user object
+
   //! 4) Check if user changed password after the JWT was issued
   if (currentUser.changedPasswordAfter(decoded.iat)) {
+    console.log('User changed password after token was issued'); // Log if password was changed
     return next(
       new AppError('User recently changed password!, Please login again', 401),
     );
@@ -224,6 +243,7 @@ exports.protect = catchAsync(async (req, res, next) => {
 
   // !! GRANT ACCESS TO THE USER ROUTE
   req.user = currentUser;
+  console.log('Access granted to user:', currentUser); // Log when access is granted
   next();
 });
 

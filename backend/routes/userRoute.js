@@ -2,6 +2,7 @@ const express = require('express');
 const userController = require('../controllers/userController');
 const authorizationMiddleware = require('../middlewares/authorizationMiddleware');
 const { upload } = require('../middlewares/imageUploadMiddleware');
+const authController = require('../controllers/authController');
 
 const router = express.Router();
 
@@ -14,7 +15,17 @@ router.get('/', userController.getAllUsers);
 router
   .route('/:id')
   .get(userController.getUser) // Get user by ID
-  .patch(upload.single('image'), userController.updateUser) // Update user (use PATCH instead of PUT for partial updates)
+  .patch(
+    authController.protect,
+    upload.single('image'),
+    userController.updateUser,
+  ) // Update user (use PATCH instead of PUT for partial updates)
   .delete(userController.deleteUser); // Delete user by ID
+
+router.put(
+  '/updateHasCompletedOnboarding',
+  authController.protect,
+  userController.updateHasCompletedOnboarding,
+);
 
 module.exports = router;

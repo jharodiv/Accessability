@@ -5,7 +5,6 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 class AuthDataProvider {
   final String _baseUrl = 'https://3-y2-aapwd-neon.vercel.app/api/v1/auth';
-
   final FlutterSecureStorage _storage = const FlutterSecureStorage();
 
   //! Helper: Get Token from Storage
@@ -26,25 +25,73 @@ class AuthDataProvider {
 
   //! Store Auth Data
   Future<void> _storeAuthData(Map<String, dynamic> data) async {
-    await _storage.write(key: 'jwt', value: data['token']);
-    await _storage.write(key: 'userId', value: data['userId']);
-    if (data['handleId'] != null) {
-      await _storage.write(key: 'handleId', value: data['handleId']);
+    if (data['token'] != null && data['user'] != null) {
+      await _storage.write(key: 'jwt', value: data['token']);
+      await _storage.write(
+          key: 'userId',
+          value: data['user']['id']); // Ensure the userId is correct
+      if (data['user']['handleId'] != null) {
+        await _storage.write(key: 'handleId', value: data['user']['handleId']);
+      }
+    } else {
+      throw Exception('Missing token or user data');
     }
   }
 
-  //! Login
+//! Login
   Future<Map<String, dynamic>> login(String email, String password) async {
     final response = await http.post(
       Uri.parse('$_baseUrl/login'),
       headers: {'Content-Type': 'application/json'},
       body: json.encode({'email': email, 'password': password}),
     );
+
     print('Response Code: ${response.statusCode}');
     print('Response Body: ${response.body}');
+
     final data = await _handleResponse(response);
 
-    await _storeAuthData(data);
+    // Ensure we have all the necessary fields in the response
+    if (data['token'] == null ||
+        data['data'] == null ||
+        data['data']['user'] == null) {
+      throw Exception('Missing token or user data');
+    }
+
+    // Storing the token and user data correctly
+    await _storeAuthData({
+      'token': data['token'],
+      'user': data['data']['user'], // Correct user data structure
+    });
+
     return data;
+  }
+
+  //! Update User Onboarding
+  Future<void> completeOnboarding() async {
+    final token = await _getToken();
+    if (token == null) {
+      throw Exception('No authentication token found');
+    }
+
+    final response = await http.put(
+      Uri.parse(
+          'https://3-y1-cryptotel-hazel.vercel.app/api/v1/user/updateHasCompletedOnboarding'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: json.encode({
+        'settings': {
+          'hasCompletedOnboarding': true,
+        }
+      }),
+    );
+
+    if (response.statusCode != 200) {
+      final errorResponse = json.decode(response.body);
+      String errorMessage = errorResponse['message'] ?? 'An error occurred';
+      throw Exception('Failed to complete onboarding: $errorMessage');
+    }
   }
 }

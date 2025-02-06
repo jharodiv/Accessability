@@ -1,4 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:frontend/accessability/logic/bloc/auth/bloc/auth_bloc.dart';
+import 'package:frontend/accessability/logic/bloc/auth/bloc/auth_event.dart';
+import 'package:frontend/accessability/logic/bloc/auth/bloc/auth_state.dart';
 
 class OnboardingScreen extends StatefulWidget {
   const OnboardingScreen({super.key});
@@ -24,8 +28,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
   final List<String> _descriptions = [
     'Welcome to AccessAbility a GPS app designed for persons with disabilities. It helps you mark locations and find wheelchair-friendly routes, ensuring safe and accessible travel wherever you go.',
-    'Create a private space where you can invite family and friends to join. This feature allows them to track your real-time location, ensuring you’re always connected. It’s perfect for staying in touch and receiving support when needed.  ',
-    'Within your private space, you can chat and make voice calls with family and friends. This feature allows you to easily share updates, ask for help, or simply stay connected. It ensures that communication is always just a tap away.  ',
+    'Create a private space where you can invite family and friends to join. This feature allows them to track your real-time location, ensuring you’re always connected. It’s perfect for staying in touch and receiving support when needed.',
+    'Within your private space, you can chat and make voice calls with family and friends. This feature allows you to easily share updates, ask for help, or simply stay connected. It ensures that communication is always just a tap away.',
     'The app includes text-to-speech and speech-to-text features to make communication easier. Text-to-speech reads content aloud, while speech-to-text converts your spoken words into text. These tools provide accessibility for a smoother experience.',
     'You can add emergency contacts to your profile for quick access in case of an emergency. The SOS feature sends an immediate distress signal with your location to alert your contacts. This ensures help is always nearby when you need it most.',
     'We’re so glad you’ve chosen our app to assist with your navigation and communication needs. Our goal is to make your journey safer and more connected. Thank you for using our app, and we hope it enhances your daily experience.',
@@ -38,7 +42,9 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         curve: Curves.easeIn,
       );
     } else {
-      // Navigate to the home screen directly
+      // Complete the onboarding process using BLoC
+      context.read<AuthBloc>().add(CompleteOnboardingEvent());
+      // Navigate to the home screen
       Navigator.of(context).pushReplacementNamed('/homescreen');
     }
   }

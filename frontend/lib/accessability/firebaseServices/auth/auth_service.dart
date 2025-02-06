@@ -9,20 +9,21 @@ class AuthService {
     return _auth.currentUser;
   }
 
-  //Register
+  // Register
   Future<UserCredential> signUpWithEmailAndPassword(
-      String email, password, String username, String contactNumber) async {
+      String email, String password, String username, String contactNumber) async {
     try {
       UserCredential userCredential = await _auth
           .createUserWithEmailAndPassword(email: email, password: password);
 
       String uid = userCredential.user!.uid;
 
-      _firestore.collection('Users').doc(uid).set({
+      await _firestore.collection('Users').doc(uid).set({
         'uid': uid,
         'email': email,
         'username': username,
-        'contactNumber': contactNumber
+        'contactNumber': contactNumber,
+        'hasCompletedOnboarding': false,
       });
       return userCredential;
     } on FirebaseAuthException catch (e) {
@@ -31,7 +32,7 @@ class AuthService {
   }
 
   // Login
-  Future<UserCredential> signInWithEmailPassword(String email, password) async {
+  Future<UserCredential> signInWithEmailPassword(String email, String password) async {
     try {
       UserCredential userCredential = await _auth.signInWithEmailAndPassword(
           email: email, password: password);
@@ -41,8 +42,15 @@ class AuthService {
     }
   }
 
-  //Logout
+  // Logout
   Future<void> signOut() async {
     return await _auth.signOut();
+  }
+
+  // Complete Onboarding
+  Future<void> completeOnboarding(String uid) async {
+    await _firestore.collection('Users').doc(uid).update({
+      'hasCompletedOnboarding': true,
+    });
   }
 }

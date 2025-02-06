@@ -23,8 +23,8 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   try {
     final user = await authRepository.getCachedUser();
     if (user != null) {
-      print('AuthBloc: Completing onboarding for user ${user.id}');
-      await authRepository.completeOnboarding(user.id);
+      print('AuthBloc: Completing onboarding for user ${user.uid}');
+      await authRepository.completeOnboarding(user.uid);
       emit(const AuthSuccess('Onboarding completed successfully'));
     } else {
       print('AuthBloc: User not found');

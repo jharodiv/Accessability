@@ -1,62 +1,58 @@
 class UserModel {
-  final String id;
+  final String uid; // Use `uid` instead of `id` to match Firestore
   final String name;
   final String email;
-  final String password;
+  final String? contactNumber; // Optional field
   final UserDetails details;
   final UserSettings settings;
   final DateTime createdAt;
   final DateTime updatedAt;
   final bool hasCompletedOnboarding; // Required (no longer nullable)
-  final String token; // Required (no longer nullable)
 
   UserModel({
-    required this.id,
+    required this.uid,
     required this.name,
     required this.email,
-    required this.password,
+    this.contactNumber,
     required this.details,
     required this.settings,
     required this.createdAt,
     required this.updatedAt,
     this.hasCompletedOnboarding = false, // Default value false
-    this.token = '', // Default empty string
   });
 
   // Copy constructor to create a new instance with updated properties
   UserModel copyWith({
-    String? id,
+    String? uid,
     String? name,
     String? email,
-    String? password,
+    String? contactNumber,
     UserDetails? details,
     UserSettings? settings,
     DateTime? createdAt,
     DateTime? updatedAt,
     bool? hasCompletedOnboarding,
-    String? token,
   }) {
     return UserModel(
-      id: id ?? this.id,
+      uid: uid ?? this.uid,
       name: name ?? this.name,
       email: email ?? this.email,
-      password: password ?? this.password,
+      contactNumber: contactNumber ?? this.contactNumber,
       details: details ?? this.details,
       settings: settings ?? this.settings,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       hasCompletedOnboarding:
           hasCompletedOnboarding ?? this.hasCompletedOnboarding,
-      token: token ?? this.token,
     );
   }
 
   factory UserModel.fromJson(Map<String, dynamic> json) {
     return UserModel(
-      id: json['_id'] ?? '', // Fallback to empty string if null
+      uid: json['uid'] ?? '', // Fallback to empty string if null
       name: json['name'] ?? 'Unknown', // Fallback to 'Unknown' if null
       email: json['email'] ?? '', // Fallback to empty string if null
-      password: json['password'] ?? '', // Fallback to empty string if null
+      contactNumber: json['contactNumber'], // Optional field
       details: UserDetails.fromJson(
           json['details'] ?? {}), // Fallback to empty map if null
       settings: UserSettings.fromJson(
@@ -67,22 +63,20 @@ class UserModel {
           DateTime.now().toIso8601String()), // Fallback to current time if null
       hasCompletedOnboarding:
           json['hasCompletedOnboarding'] ?? false, // Fallback to false if null
-      token: json['token'] ?? '', // Fallback to empty string if null
     );
   }
 
   Map<String, dynamic> toJson() {
     return {
-      '_id': id,
+      'uid': uid,
       'name': name,
       'email': email,
-      'password': password,
+      'contactNumber': contactNumber,
       'details': details.toJson(),
       'settings': settings.toJson(),
       'createdAt': createdAt.toIso8601String(),
       'updatedAt': updatedAt.toIso8601String(),
       'hasCompletedOnboarding': hasCompletedOnboarding,
-      'token': token,
     };
   }
 }
@@ -94,17 +88,15 @@ class UserDetails {
 
   UserDetails({
     this.address = '', // Default to empty string if null
-    required this.phoneNumber,
+    this.phoneNumber = '', // Default to empty string if null
     this.profilePicture = '', // Default to empty string if null
   });
 
   factory UserDetails.fromJson(Map<String, dynamic> json) {
     return UserDetails(
       address: json['address'] ?? '', // Fallback to empty string if null
-      phoneNumber:
-          json['phoneNumber'] ?? '', // Fallback to empty string if null
-      profilePicture:
-          json['profilePicture'] ?? '', // Fallback to empty string if null
+      phoneNumber: json['phoneNumber'] ?? '', // Fallback to empty string if null
+      profilePicture: json['profilePicture'] ?? '', // Fallback to empty string if null
     );
   }
 
@@ -138,17 +130,12 @@ class UserSettings {
 
   factory UserSettings.fromJson(Map<String, dynamic> json) {
     return UserSettings(
-      verificationCode:
-          json['verificationCode'] ?? '', // Fallback to empty string if null
-      codeExpiresAt:
-          json['codeExpiresAt'] ?? '', // Fallback to empty string if null
+      verificationCode: json['verificationCode'] ?? '', // Fallback to empty string if null
+      codeExpiresAt: json['codeExpiresAt'] ?? '', // Fallback to empty string if null
       verified: json['verified'] ?? false, // Fallback to false if null
-      passwordChangedAt:
-          json['passwordChangedAt'] ?? '', // Fallback to empty string if null
-      passwordResetToken:
-          json['passwordResetToken'] ?? '', // Fallback to empty string if null
-      passwordResetExpiresAt: json['passwordResetExpiresAt'] ??
-          '', // Fallback to empty string if null
+      passwordChangedAt: json['passwordChangedAt'] ?? '', // Fallback to empty string if null
+      passwordResetToken: json['passwordResetToken'] ?? '', // Fallback to empty string if null
+      passwordResetExpiresAt: json['passwordResetExpiresAt'] ?? '', // Fallback to empty string if null
       active: json['active'] ?? true, // Fallback to true if null
     );
   }

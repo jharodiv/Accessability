@@ -12,7 +12,8 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       emit(AuthLoading());
       try {
         final loginModel = await authRepository.login(event.email, event.password);
-        emit(AuthenticatedLogin(loginModel));
+        
+        emit(AuthenticatedLogin(loginModel, hasCompletedOnboarding: loginModel.hasCompletedOnboarding));
       } catch (e) {
         emit(AuthError('Login failed: ${e.toString()}'));
       }

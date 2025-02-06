@@ -14,13 +14,12 @@ class AuthLoading extends AuthState {}
 
 class AuthenticatedLogin extends AuthState {
   final LoginModel user;
+  final bool hasCompletedOnboarding;
 
-  const AuthenticatedLogin(this.user);
-
-  bool get hasCompletedOnboarding => user.hasCompletedOnboarding;
+  const AuthenticatedLogin(this.user, {required this.hasCompletedOnboarding});
 
   @override
-  List<Object> get props => [user];
+  List<Object> get props => [user, hasCompletedOnboarding];
 }
 
 class AuthError extends AuthState {

@@ -43,7 +43,15 @@ class _LoginFormState extends State<LoginForm> {
           );
         } else if (state is AuthenticatedLogin) {
           Navigator.pop(context); // Dismiss loading indicator
-          Navigator.pushNamed(context, '/onboarding');
+
+          // Check if onboarding is completed
+          if (state.hasCompletedOnboarding) {
+            // Navigate to home screen
+            Navigator.pushReplacementNamed(context, '/homescreen');
+          } else {
+            // Navigate to onboarding screen
+            Navigator.pushReplacementNamed(context, '/onboarding');
+          }
         } else if (state is AuthError) {
           Navigator.pop(context); // Dismiss loading indicator
           showDialog(

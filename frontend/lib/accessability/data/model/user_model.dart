@@ -1,6 +1,6 @@
 class UserModel {
   final String uid; // Use `uid` instead of `id` to match Firestore
-  final String name;
+  final String username;
   final String email;
   final String? contactNumber; // Optional field
   final UserDetails details;
@@ -11,7 +11,7 @@ class UserModel {
 
   UserModel({
     required this.uid,
-    required this.name,
+    required this.username,
     required this.email,
     this.contactNumber,
     required this.details,
@@ -24,7 +24,7 @@ class UserModel {
   // Copy constructor to create a new instance with updated properties
   UserModel copyWith({
     String? uid,
-    String? name,
+    String? username,
     String? email,
     String? contactNumber,
     UserDetails? details,
@@ -35,7 +35,7 @@ class UserModel {
   }) {
     return UserModel(
       uid: uid ?? this.uid,
-      name: name ?? this.name,
+      username: username ?? this.username,
       email: email ?? this.email,
       contactNumber: contactNumber ?? this.contactNumber,
       details: details ?? this.details,
@@ -50,7 +50,7 @@ class UserModel {
   factory UserModel.fromJson(Map<String, dynamic> json) {
     return UserModel(
       uid: json['uid'] ?? '', // Fallback to empty string if null
-      name: json['name'] ?? 'Unknown', // Fallback to 'Unknown' if null
+      username: json['username'] ?? 'Unknown', // Fallback to 'Unknown' if null
       email: json['email'] ?? '', // Fallback to empty string if null
       contactNumber: json['contactNumber'], // Optional field
       details: UserDetails.fromJson(
@@ -69,7 +69,7 @@ class UserModel {
   Map<String, dynamic> toJson() {
     return {
       'uid': uid,
-      'name': name,
+      'username': username,
       'email': email,
       'contactNumber': contactNumber,
       'details': details.toJson(),

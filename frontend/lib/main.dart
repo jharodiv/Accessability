@@ -3,12 +3,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:frontend/accessability/data/repositories/auth_repository.dart';
+import 'package:frontend/accessability/data/repositories/user_repository.dart';
 import 'package:frontend/accessability/logic/bloc/auth/auth_bloc.dart';
+import 'package:frontend/accessability/logic/bloc/user/user_bloc.dart';
 import 'package:provider/provider.dart';
 import 'package:frontend/accessability/router/app_router.dart';
 import 'package:frontend/accessability/themes/theme_provider.dart';
 import 'package:frontend/firebase_options.dart';
 import 'package:frontend/accessability/firebaseServices/auth/auth_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() async {
   // Ensure Flutter bindings are initialized
@@ -17,30 +20,37 @@ void main() async {
   // Initialize Firebase
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
+  // Initialize SharedPreferences
+  final SharedPreferences sharedPreferences = await SharedPreferences.getInstance();
+
   // Initialize ThemeProvider
   runApp(
     ChangeNotifierProvider(
       create: (context) => ThemeProvider(),
-      child: MyApp(),
+      child: MyApp(sharedPreferences: sharedPreferences),
     ),
   );
 }
 
 class MyApp extends StatelessWidget {
   final AppRouter _appRouter = AppRouter();
+  final SharedPreferences sharedPreferences;
 
-  MyApp({super.key});
+  MyApp({super.key, required this.sharedPreferences});
 
   @override
   Widget build(BuildContext context) {
     return MultiBlocProvider(
       providers: [
-        // Provide AuthBloc with AuthRepository and AuthService
+        // Provide UserBloc first
+        BlocProvider<UserBloc>(
+          create: (context) => UserBloc(UserRepository(sharedPreferences)),
+        ),
+        // Provide AuthBloc with AuthRepository and UserBloc
         BlocProvider(
           create: (context) => AuthBloc(
-            AuthRepository(
-              AuthService(), // Use AuthService instead of AuthDataProvider
-            ),
+            AuthRepository(AuthService()),
+            context.read<UserBloc>(), // Pass UserBloc to AuthBloc
           ),
         ),
       ],

@@ -2,18 +2,24 @@ import 'package:bloc/bloc.dart';
 import 'package:frontend/accessability/data/repositories/auth_repository.dart';
 import 'package:frontend/accessability/logic/bloc/auth/auth_event.dart';
 import 'package:frontend/accessability/logic/bloc/auth/auth_state.dart';
+import 'package:frontend/accessability/logic/bloc/user/user_bloc.dart';
+import 'package:frontend/accessability/logic/bloc/user/user_event.dart';
 import 'package:meta/meta.dart';
 
 class AuthBloc extends Bloc<AuthEvent, AuthState> {
   final AuthRepository authRepository;
+  final UserBloc userBloc;
 
-  AuthBloc(this.authRepository) : super(AuthInitial()) {
+  AuthBloc(this.authRepository, this.userBloc) : super(AuthInitial()) {
     on<LoginEvent>((event, emit) async {
       emit(AuthLoading());
       try {
         final loginModel = await authRepository.login(event.email, event.password);
         
         emit(AuthenticatedLogin(loginModel, hasCompletedOnboarding: loginModel.hasCompletedOnboarding));
+        
+        // Dispatch FetchUserData event to UserBloc
+        userBloc.add(FetchUserData());
       } catch (e) {
         emit(AuthError('Login failed: ${e.toString()}'));
       }

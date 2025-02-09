@@ -1,11 +1,12 @@
-
-
 import 'package:flutter/material.dart';
 import 'package:frontend/accessability/presentation/widgets/accessability_footer.dart';
 import 'package:frontend/accessability/presentation/widgets/homepagewidgets/top_widgets.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:location/location.dart';
 import 'package:tutorial_coach_mark/tutorial_coach_mark.dart';
+import 'package:frontend/accessability/logic/bloc/auth/bloc/auth_bloc.dart'; 
+import 'package:frontend/accessability/logic/bloc/auth/bloc/auth_state.dart'; 
+import 'package:flutter_bloc/flutter_bloc.dart'; 
 
 class GpsScreen extends StatefulWidget {
   const GpsScreen({super.key});
@@ -30,183 +31,207 @@ class _GpsScreenState extends State<GpsScreen> {
   void initState() {
     super.initState();
     _getUserLocation();
-     WidgetsBinding.instance.addPostFrameCallback((_) {
-    _showTutorial();
-  });
+
+    // Check if onboarding is completed before showing the tutorial
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final authBloc = context.read<AuthBloc>();
+      final hasCompletedOnboarding = authBloc.state is AuthenticatedLogin
+          ? (authBloc.state as AuthenticatedLogin).hasCompletedOnboarding
+          : false;
+
+      if (!hasCompletedOnboarding) {
+        _showTutorial();
+      }
+    });
   }
 
-void _showTutorial() {
-  List<TargetFocus> targets = [];
+  void _showTutorial() {
+    List<TargetFocus> targets = [];
 
-  targets.add(TargetFocus(
-    identify: "inboxTarget",
-    keyTarget: inboxKey,
-    contents: [
-      TargetContent(
-  align: ContentAlign.bottom,
-  child: Container(
-    color: Colors.transparent, // Set a background color
-    child: const Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          "This is your inbox.",
-          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20.0, color: Colors.white),
-        ),
-        Padding(
-          padding: EdgeInsets.only(top: 10.0),
-          child: Text(
-            "Tap here to view your messages.",
-            style: TextStyle(color: Colors.white),
+    targets.add(TargetFocus(
+      identify: "inboxTarget",
+      keyTarget: inboxKey,
+      contents: [
+        TargetContent(
+          align: ContentAlign.bottom,
+          child: Container(
+            color: Colors.transparent, // Set a background color
+            child: const Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  "This is your inbox.",
+                  style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 20.0,
+                      color: Colors.white),
+                ),
+                Padding(
+                  padding: EdgeInsets.only(top: 10.0),
+                  child: Text(
+                    "Tap here to view your messages.",
+                    style: TextStyle(color: Colors.white),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ],
-    ),
-  ),
-),
-    ],
-  ));
+    ));
 
-  targets.add(TargetFocus(
-    identify: "settingsTarget",
-    keyTarget: settingsKey,
-    contents: [
-      TargetContent(
-        align: ContentAlign.bottom,
-        child: Container(
-          color: Colors.transparent, // Set a background color
-          child: const Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                "This is the settings button.",
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20.0, color: Colors.white),
-              ),
-              Padding(
-                padding:  EdgeInsets.only(top: 10.0),
-                child: Text(
-                  "Tap here to access settings.",
-                  style: TextStyle(color: Colors.white),
+    targets.add(TargetFocus(
+      identify: "settingsTarget",
+      keyTarget: settingsKey,
+      contents: [
+        TargetContent(
+          align: ContentAlign.bottom,
+          child: Container(
+            color: Colors.transparent, // Set a background color
+            child: const Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  "This is the settings button.",
+                  style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 20.0,
+                      color: Colors.white),
                 ),
-              ),
-            ],
+                Padding(
+                  padding: EdgeInsets.only(top: 10.0),
+                  child: Text(
+                    "Tap here to access settings.",
+                    style: TextStyle(color: Colors.white),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
-      ),
-    ],
-  ));
+      ],
+    ));
 
-  targets.add(TargetFocus(
-    identify: "locationTarget",
-    keyTarget: locationKey,
-    contents: [
-      TargetContent(
-        align: ContentAlign.bottom,
-        child: Container(
-          color: Colors.transparent,
-          child: const Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                "This is the location button.",
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20.0, color: Colors.white),
-              ),
-              Padding(
-                padding: EdgeInsets.only(top: 10.0),
-                child: Text(
-                  "Tap here to view your location.",
-                  style: TextStyle(color: Colors.white),
+    targets.add(TargetFocus(
+      identify: "locationTarget",
+      keyTarget: locationKey,
+      contents: [
+        TargetContent(
+          align: ContentAlign.bottom,
+          child: Container(
+            color: Colors.transparent,
+            child: const Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  "This is the location button.",
+                  style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 20.0,
+                      color: Colors.white),
                 ),
-              ),
-            ],
+                Padding(
+                  padding: EdgeInsets.only(top: 10.0),
+                  child: Text(
+                    "Tap here to view your location.",
+                    style: TextStyle(color: Colors.white),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
-      ),
-    ],
-  ));
+      ],
+    ));
 
-  targets.add(TargetFocus(
-    identify: "youTarget",
-    keyTarget: youKey,
-    contents: [
-      TargetContent(
-        align: ContentAlign.bottom,
-        child: Container(
-          color: Colors.transparent,
-          child: const Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                "This is the 'You' button.",
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20.0, color: Colors.white),
-              ),
-              Padding(
-                padding: EdgeInsets.only(top: 10.0),
-                child: Text(
-                  "Tap here to view your profile.",
-                  style: TextStyle(color: Colors.white),
+    targets.add(TargetFocus(
+      identify: "youTarget",
+      keyTarget: youKey,
+      contents: [
+        TargetContent(
+          align: ContentAlign.bottom,
+          child: Container(
+            color: Colors.transparent,
+            child: const Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  "This is the 'You' button.",
+                  style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 20.0,
+                      color: Colors.white),
                 ),
-              ),
-            ],
+                Padding(
+                  padding: EdgeInsets.only(top: 10.0),
+                  child: Text(
+                    "Tap here to view your profile.",
+                    style: TextStyle(color: Colors.white),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
-      ),
-    ],
-  ));
+      ],
+    ));
 
-  // Security Target
-  targets.add(TargetFocus(
-    identify: "securityTarget",
-    keyTarget: securityKey,
-    contents: [
-      TargetContent(
-        align: ContentAlign.bottom,
-        child: Container(
-          color: Colors.transparent,
-          child: const Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                "This is the security button.",
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20.0, color: Colors.white),
-              ),
-              Padding(
-                padding: EdgeInsets.only(top: 10.0),
-                child: Text(
-                  "Tap here to view security settings.",
-                  style: TextStyle(color: Colors.white),
+    // Security Target
+    targets.add(TargetFocus(
+      identify: "securityTarget",
+      keyTarget: securityKey,
+      contents: [
+        TargetContent(
+          align: ContentAlign.bottom,
+          child: Container(
+            color: Colors.transparent,
+            child: const Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  "This is the security button.",
+                  style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 20.0,
+                      color: Colors.white),
                 ),
-              ),
-            ],
+                Padding(
+                  padding: EdgeInsets.only(top: 10.0),
+                  child: Text(
+                    "Tap here to view security settings.",
+                    style: TextStyle(color: Colors.white),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
-      ),
-    ],
-  ));
+      ],
+    ));
 
-  TutorialCoachMark(
-    targets: targets,
-    colorShadow: Colors.black,
-    textSkip: "SKIP",
-    paddingFocus: 10,
-    opacityShadow: 0.8,
-    onFinish: () {
-      print("Tutorial finished");
-    },
-    onClickTarget: (target) {
-      print('Clicked on target: $target');
-    },
-    onSkip: () {
-      print("Tutorial skipped");
-      return true; // Return a boolean value
-    },
-  ).show(context: context);
-}
+    TutorialCoachMark(
+      targets: targets,
+      colorShadow: Colors.black,
+      textSkip: "SKIP",
+      paddingFocus: 10,
+      opacityShadow: 0.8,
+      onFinish: () {
+        print("Tutorial finished");
+      },
+      onClickTarget: (target) {
+        print('Clicked on target: $target');
+      },
+      onSkip: () {
+        print("Tutorial skipped");
+        return true; // Return a boolean value
+      },
+    ).show(context: context);
+  }
 
   // Get User Location
   Future<void> _getUserLocation() async {
@@ -287,7 +312,7 @@ void _showTutorial() {
             },
           ),
         ],
-      ),  
+      ),
       bottomNavigationBar: Accessabilityfooter(
         securityKey: securityKey,
         locationKey: locationKey,
@@ -358,5 +383,4 @@ void _showTutorial() {
   }
 }
 
-enum OverlayPosition { top, bottom } 
-
+enum OverlayPosition { top, bottom }

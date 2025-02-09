@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 class UploadProfileScreen extends StatefulWidget {
+  const UploadProfileScreen({super.key});
+
   @override
   State<UploadProfileScreen> createState() => _UploadPictureScreenState();
 }
@@ -121,9 +123,9 @@ class _UploadPictureScreenState extends State<UploadProfileScreen> {
     return Container(
       width: screenHeight * 0.18,
       height: screenHeight * 0.18,
-      decoration: BoxDecoration(
+      decoration: const BoxDecoration(
         shape: BoxShape.circle,
-        color: const Color(0xFF6750A4), // Updated color
+        color: Color(0xFF6750A4), // Updated color
       ),
       child: Icon(
         Icons.person,

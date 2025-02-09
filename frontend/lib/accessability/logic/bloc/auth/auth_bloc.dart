@@ -35,7 +35,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       emit(const AuthSuccess('Onboarding completed successfully'));
     } else {
       print('AuthBloc: User not found');
-      emit(AuthError('User not found'));
+      emit(const AuthError('User not found'));
     }
   } catch (e) {
     print('AuthBloc: Error completing onboarding - ${e.toString()}');

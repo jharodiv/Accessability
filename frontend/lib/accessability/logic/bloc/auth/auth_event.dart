@@ -1,4 +1,4 @@
-import 'package:frontend/accessability/logic/bloc/auth/bloc/auth_state.dart';
+import 'package:frontend/accessability/logic/bloc/auth/auth_state.dart';
 
 abstract class AuthEvent {}
 

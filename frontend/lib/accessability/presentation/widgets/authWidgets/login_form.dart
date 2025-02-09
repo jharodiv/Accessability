@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:frontend/accessability/logic/bloc/auth/bloc/auth_bloc.dart';
-import 'package:frontend/accessability/logic/bloc/auth/bloc/auth_event.dart';
-import 'package:frontend/accessability/logic/bloc/auth/bloc/auth_state.dart';
+import 'package:frontend/accessability/logic/bloc/auth/auth_bloc.dart';
+import 'package:frontend/accessability/logic/bloc/auth/auth_event.dart';
+import 'package:frontend/accessability/logic/bloc/auth/auth_state.dart';
 import 'package:frontend/accessability/presentation/screens/authScreens/forgot_password_screen.dart';
 import 'package:frontend/accessability/presentation/screens/authScreens/signup_screen.dart';
 

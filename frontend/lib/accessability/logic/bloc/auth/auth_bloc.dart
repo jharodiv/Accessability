@@ -1,7 +1,7 @@
 import 'package:bloc/bloc.dart';
 import 'package:frontend/accessability/data/repositories/auth_repository.dart';
-import 'package:frontend/accessability/logic/bloc/auth/bloc/auth_event.dart';
-import 'package:frontend/accessability/logic/bloc/auth/bloc/auth_state.dart';
+import 'package:frontend/accessability/logic/bloc/auth/auth_event.dart';
+import 'package:frontend/accessability/logic/bloc/auth/auth_state.dart';
 import 'package:meta/meta.dart';
 
 class AuthBloc extends Bloc<AuthEvent, AuthState> {

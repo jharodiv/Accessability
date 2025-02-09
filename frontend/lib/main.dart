@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:frontend/accessability/data/repositories/auth_repository.dart';
-import 'package:frontend/accessability/logic/bloc/auth/bloc/auth_bloc.dart';
+import 'package:frontend/accessability/logic/bloc/auth/auth_bloc.dart';
 import 'package:provider/provider.dart';
 import 'package:frontend/accessability/router/app_router.dart';
 import 'package:frontend/accessability/themes/theme_provider.dart';

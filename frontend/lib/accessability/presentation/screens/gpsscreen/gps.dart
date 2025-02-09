@@ -4,8 +4,8 @@ import 'package:frontend/accessability/presentation/widgets/homepagewidgets/top_
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:location/location.dart';
 import 'package:tutorial_coach_mark/tutorial_coach_mark.dart';
-import 'package:frontend/accessability/logic/bloc/auth/bloc/auth_bloc.dart'; 
-import 'package:frontend/accessability/logic/bloc/auth/bloc/auth_state.dart'; 
+import 'package:frontend/accessability/logic/bloc/auth/auth_bloc.dart'; 
+import 'package:frontend/accessability/logic/bloc/auth/auth_state.dart'; 
 import 'package:flutter_bloc/flutter_bloc.dart'; 
 
 class GpsScreen extends StatefulWidget {
@@ -119,7 +119,7 @@ class _GpsScreenState extends State<GpsScreen> {
       keyTarget: locationKey,
       contents: [
         TargetContent(
-          align: ContentAlign.bottom,
+          align: ContentAlign.top,
           child: Container(
             color: Colors.transparent,
             child: const Column(
@@ -152,7 +152,7 @@ class _GpsScreenState extends State<GpsScreen> {
       keyTarget: youKey,
       contents: [
         TargetContent(
-          align: ContentAlign.bottom,
+          align: ContentAlign.top,
           child: Container(
             color: Colors.transparent,
             child: const Column(
@@ -186,7 +186,7 @@ class _GpsScreenState extends State<GpsScreen> {
       keyTarget: securityKey,
       contents: [
         TargetContent(
-          align: ContentAlign.bottom,
+          align: ContentAlign.top,
           child: Container(
             color: Colors.transparent,
             child: const Column(

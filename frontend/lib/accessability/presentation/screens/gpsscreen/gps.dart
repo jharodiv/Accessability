@@ -4,9 +4,12 @@ import 'package:frontend/accessability/presentation/widgets/homepagewidgets/top_
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:location/location.dart';
 import 'package:tutorial_coach_mark/tutorial_coach_mark.dart';
-import 'package:frontend/accessability/logic/bloc/auth/auth_bloc.dart'; 
-import 'package:frontend/accessability/logic/bloc/auth/auth_state.dart'; 
-import 'package:flutter_bloc/flutter_bloc.dart'; 
+import 'package:frontend/accessability/logic/bloc/auth/auth_bloc.dart';
+import 'package:frontend/accessability/logic/bloc/auth/auth_state.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'dart:convert';
+// ignore: depend_on_referenced_packages
+import 'package:http/http.dart' as http;
 
 class GpsScreen extends StatefulWidget {
   const GpsScreen({super.key});
@@ -26,6 +29,7 @@ class _GpsScreenState extends State<GpsScreen> {
   GlobalKey youKey = GlobalKey();
   GlobalKey locationKey = GlobalKey();
   GlobalKey securityKey = GlobalKey();
+  final String _apiKey = "AIzaSyBNU2l5pZ__ZjAfuv7SZRPkeexEcakrDJs";
 
   @override
   void initState() {
@@ -43,6 +47,90 @@ class _GpsScreenState extends State<GpsScreen> {
         _showTutorial();
       }
     });
+  }
+
+  void _onMapCreated(GoogleMapController controller) {
+    _mapController = controller;
+  }
+
+  Future<void> _fetchNearbyPlaces(String placeType) async {
+    if (_currentLocation == null) {
+      print("🚨 Current position is null, cannot fetch nearby places.");
+      return;
+    }
+
+    final String url =
+        "https://maps.googleapis.com/maps/api/place/nearbysearch/json?"
+        "location=${_currentLocation!.latitude},${_currentLocation!.longitude}"
+        "&radius=1500&type=$placeType&key=$_apiKey";
+
+    print("🔵 Fetching nearby places: $url");
+
+    final response = await http.get(Uri.parse(url));
+
+    if (response.statusCode == 200) {
+      final data = json.decode(response.body);
+      print("🟢 API Response: ${data.toString()}"); // Log full response
+
+      final List<dynamic> places = data["results"];
+
+      setState(() {
+        _markers.clear();
+        List<LatLng> bounds = [];
+
+        for (var place in places) {
+          final lat = place["geometry"]["location"]["lat"];
+          final lng = place["geometry"]["location"]["lng"];
+          final name = place["name"];
+          LatLng position = LatLng(lat, lng);
+
+          _markers.add(
+            Marker(
+              markerId: MarkerId(name),
+              position: position,
+              infoWindow: InfoWindow(title: name),
+            ),
+          );
+
+          bounds.add(position);
+          print("📍 Added Marker: $name at ($lat, $lng)");
+        }
+
+        // Adjust the camera to fit all markers
+        if (_mapController != null && bounds.isNotEmpty) {
+          LatLngBounds bound = _getLatLngBounds(bounds);
+          _mapController!
+              .animateCamera(CameraUpdate.newLatLngBounds(bound, 100));
+          print("🎯 Adjusted camera to fit ${_markers.length} markers.");
+        } else {
+          print("⚠️ No bounds to adjust camera.");
+        }
+      });
+    } else {
+      print("❌ HTTP Request Failed: ${response.statusCode}");
+    }
+  }
+
+// Helper function to calculate bounds
+  LatLngBounds _getLatLngBounds(List<LatLng> locations) {
+    double south = locations.first.latitude;
+    double north = locations.first.latitude;
+    double west = locations.first.longitude;
+    double east = locations.first.longitude;
+
+    for (var loc in locations) {
+      if (loc.latitude < south) south = loc.latitude;
+      if (loc.latitude > north) north = loc.latitude;
+      if (loc.longitude < west) west = loc.longitude;
+      if (loc.longitude > east) east = loc.longitude;
+    }
+
+    print("📌 Camera Bounds: SW($south, $west) - NE($north, $east)");
+
+    return LatLngBounds(
+      southwest: LatLng(south, west),
+      northeast: LatLng(north, east),
+    );
   }
 
   void _showTutorial() {
@@ -255,20 +343,19 @@ class _GpsScreenState extends State<GpsScreen> {
     // Get location
     final locationData = await _location.getLocation();
     setState(() {
-      _currentLocation = LatLng(
-          locationData.latitude ?? 120.0, locationData.longitude ?? 120.0);
+      _currentLocation = const LatLng(16.043, 120.3333); // Dagupan City
+
       // Add a marker at the current location
       _markers.add(
         Marker(
           markerId: const MarkerId('user_location'),
           position: _currentLocation!,
-          icon: BitmapDescriptor.defaultMarkerWithHue(
-              BitmapDescriptor.hueAzure), // Custom marker icon (circle for now)
+          icon:
+              BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure),
         ),
       );
     });
 
-    // Move camera to user location
     if (_mapController != null && _currentLocation != null) {
       _mapController!.animateCamera(
         CameraUpdate.newLatLngZoom(_currentLocation!, 17),
@@ -286,9 +373,9 @@ class _GpsScreenState extends State<GpsScreen> {
               target: _currentLocation ?? const LatLng(16.0430, 120.3333),
               zoom: 14,
             ),
-            myLocationEnabled: true, // Shows the blue dot for user location
-            myLocationButtonEnabled: true, // Adds a button to center location
-            markers: _markers, // Set markers for the map
+            myLocationEnabled: true,
+            myLocationButtonEnabled: true,
+            markers: _markers,
             onMapCreated: (GoogleMapController controller) {
               _mapController = controller;
               if (_currentLocation != null) {
@@ -301,7 +388,14 @@ class _GpsScreenState extends State<GpsScreen> {
           Topwidgets(
             inboxKey: inboxKey,
             settingsKey: settingsKey,
+            onCategorySelected: (selectedType) {
+              print('Selected Category: $selectedType');
+
+              _fetchNearbyPlaces(selectedType);
+            },
             onOverlayChange: (isVisible) {
+              print('Overlay state changed: $isVisible');
+
               setState(() {
                 if (isVisible) {
                   _showOverlay(context, OverlayPosition.top);
@@ -357,7 +451,8 @@ class _GpsScreenState extends State<GpsScreen> {
               border: Border.all(color: Colors.black, width: 1),
             ),
             child: Column(
-              children: [' Circle One', 'Circle Two', 'Circle Three'].map((option) {
+              children:
+                  [' Circle One', 'Circle Two', 'Circle Three'].map((option) {
                 return GestureDetector(
                   onTap: () {
                     debugPrint('$option selected');

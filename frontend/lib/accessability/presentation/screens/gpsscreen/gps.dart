@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:frontend/accessability/presentation/widgets/accessability_footer.dart';
@@ -35,22 +37,29 @@ class _GpsScreenState extends State<GpsScreen> {
    final List<Map<String, dynamic>> pwdFriendlyLocations = [
     {
       "name": "Dagupan City Hall",
-      "latitude": 16.0439,
-      "longitude": 120.3333,
+      "latitude": 16.04361106008402,
+      "longitude": 120.33531522527143,
       "details": "Wheelchair ramps, accessible restrooms, and reserved parking.",
     },
     {
       "name": "Nepo Mall Dagupan",
-      "latitude": 16.0486,
-      "longitude": 120.3398,
+      "latitude": 16.051224004022384,
+      "longitude": 120.34170650545146,
       "details": "Elevators, ramps, and PWD-friendly restrooms.",
     },
     {
       "name": "Dagupan Public Market",
-      "latitude": 16.0417,
-      "longitude": 120.3361,
+      "latitude": 16.043166316470707,
+      "longitude": 120.33608116388851,
       "details": "Wheelchair-friendly pathways and accessible stalls.",
     },
+
+    {
+      "name": "PHINMA University of Pangasinan",
+      "latitude": 16.047254394614715,
+      "longitude":  120.34250043932526,
+      "details": "Wheelchair accessible entrances and parking lots."
+    }
   ];
 
   @override
@@ -76,15 +85,15 @@ class _GpsScreenState extends State<GpsScreen> {
   }
 
   Future<BitmapDescriptor> _getCustomIcon() async {
-  return await BitmapDescriptor.fromAssetImage(
-    const ImageConfiguration(size: Size(5, 5)),
-    'assets/images/others/accessabilitylogo.png', // Path to your custom icon
-  );
-}
+    return await BitmapDescriptor.fromAssetImage(
+      const ImageConfiguration(size: Size(24, 24)), // Match the resized image dimensions
+      'assets/images/others/accessabilitylogo.png',
+    );
+  }
 
 
 
-   Future<Set<Marker>> _createMarkers() async {
+    Future<Set<Marker>> _createMarkers() async {
     final customIcon = await _getCustomIcon();
     return pwdFriendlyLocations.map((location) {
       return Marker(
@@ -94,11 +103,12 @@ class _GpsScreenState extends State<GpsScreen> {
           title: location["name"],
           snippet: location["details"],
         ),
-        icon: customIcon, // Green for PWD-friendly
+        icon: customIcon,
         onTap: () => _onMarkerTapped(MarkerId(location["name"])),
       );
     }).toSet();
   }
+
 
    void _onMarkerTapped(MarkerId markerId) {
     final location = pwdFriendlyLocations.firstWhere(
@@ -121,6 +131,36 @@ class _GpsScreenState extends State<GpsScreen> {
       },
     );
   }
+
+   Set<Polygon> _createPolygons() {
+    final Set<Polygon> polygons = {};
+
+    for (var location in pwdFriendlyLocations) {
+      final LatLng center = LatLng(location["latitude"], location["longitude"]);
+
+      // Create a small circular area around the location
+      final List<LatLng> points = [];
+      for (double angle = 0; angle <= 360; angle += 10) {
+        final double radians = angle * (3.141592653589793 / 180);
+        final double latOffset = 0.0005 * cos(radians); // Adjust for size
+        final double lngOffset = 0.0005 * sin(radians); // Adjust for size
+        points.add(LatLng(center.latitude + latOffset, center.longitude + lngOffset));
+      }
+
+      polygons.add(
+        Polygon(
+          polygonId: PolygonId(location["name"]),
+          points: points,
+          strokeColor: Colors.green,
+          fillColor: Colors.green.withOpacity(0.2),
+          strokeWidth: 2,
+        ),
+      );
+    }
+
+    return polygons;
+  }
+
 
   Future<void> _fetchNearbyPlaces(String placeType) async {
     if (_currentLocation == null) {
@@ -453,6 +493,7 @@ class _GpsScreenState extends State<GpsScreen> {
             myLocationButtonEnabled: true,
             markers: _markers,
             onMapCreated: _onMapCreated,
+            polygons: _createPolygons(),
           ),
           Topwidgets(
             inboxKey: inboxKey,

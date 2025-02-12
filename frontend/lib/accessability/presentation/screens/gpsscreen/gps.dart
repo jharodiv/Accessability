@@ -181,7 +181,7 @@ class _GpsScreenState extends State<GpsScreen> {
 
     switch (placeType) {
       case 'Hotel':
-        type = 'hotel';
+        type = 'hotels';
         color = Colors.pink;
         iconPath = 'assets/images/others/hotel.png';
         break;
@@ -255,7 +255,7 @@ class _GpsScreenState extends State<GpsScreen> {
           Circle(
             circleId: CircleId(name),
             center: position,
-            radius: 20, // Adjust size as needed
+            radius: 30, // Adjust size as needed
             strokeWidth: 2,
             strokeColor: color, // Custom stroke color
             fillColor: color.withOpacity(0.5), // Transparent effect

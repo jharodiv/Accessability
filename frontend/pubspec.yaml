@@ -82,6 +82,8 @@ flutter:
     - assets/images/others/
     - assets/images/onboarding/
     - assets/images/settings/
+    - assets/images/others/biometricslogo.png
+    - assets/images/others/accessabilitylogo.png
     - .env
 
   fonts:

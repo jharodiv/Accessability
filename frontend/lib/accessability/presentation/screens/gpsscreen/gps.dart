@@ -75,7 +75,17 @@ class _GpsScreenState extends State<GpsScreen> {
     _mapController = controller;
   }
 
-   Set<Marker> _createMarkers() {
+  Future<BitmapDescriptor> _getCustomIcon() async {
+  return await BitmapDescriptor.fromAssetImage(
+    const ImageConfiguration(size: Size(5, 5)),
+    'assets/images/others/accessabilitylogo.png', // Path to your custom icon
+  );
+}
+
+
+
+   Future<Set<Marker>> _createMarkers() async {
+    final customIcon = await _getCustomIcon();
     return pwdFriendlyLocations.map((location) {
       return Marker(
         markerId: MarkerId(location["name"]),
@@ -84,7 +94,7 @@ class _GpsScreenState extends State<GpsScreen> {
           title: location["name"],
           snippet: location["details"],
         ),
-        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen), // Green for PWD-friendly
+        icon: customIcon, // Green for PWD-friendly
         onTap: () => _onMarkerTapped(MarkerId(location["name"])),
       );
     }).toSet();
@@ -414,7 +424,11 @@ class _GpsScreenState extends State<GpsScreen> {
       );
 
       // Add PWD-friendly markers
-      _markers.addAll(_createMarkers());
+      _createMarkers().then((markers) {
+        setState(() {
+          _markers.addAll(markers);
+        });
+      });
     });
 
     if (_mapController != null && _currentLocation != null) {

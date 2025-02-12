@@ -75,13 +75,6 @@ class _GpsScreenState extends State<GpsScreen> {
     _mapController = controller;
   }
 
-  Future<BitmapDescriptor> _getCustomIcon() async {
-  return await BitmapDescriptor.fromAssetImage(
-    const ImageConfiguration(size: Size(48, 48)),
-    'assets/images/pwd_icon.png', // Path to your custom icon
-  );
-}
-
    Set<Marker> _createMarkers() {
     return pwdFriendlyLocations.map((location) {
       return Marker(
@@ -92,12 +85,32 @@ class _GpsScreenState extends State<GpsScreen> {
           snippet: location["details"],
         ),
         icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen), // Green for PWD-friendly
-        onTap: () => {},
+        onTap: () => _onMarkerTapped(MarkerId(location["name"])),
       );
     }).toSet();
   }
 
-   
+   void _onMarkerTapped(MarkerId markerId) {
+    final location = pwdFriendlyLocations.firstWhere(
+      (loc) => loc["name"] == markerId.value,
+    );
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text(location["name"]),
+          content: Text(location["details"]),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text("Close"),
+            ),
+          ],
+        );
+      },
+    );
+  }
 
   Future<void> _fetchNearbyPlaces(String placeType) async {
     if (_currentLocation == null) {

@@ -1,7 +1,6 @@
 import 'package:animated_splash_screen/animated_splash_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:frontend/accessability/firebaseServices/auth/auth_gate.dart';
-import 'package:frontend/accessability/presentation/screens/authScreens/login_screen.dart';
 import 'package:lottie/lottie.dart';
 
 class SplashScreen extends StatelessWidget {

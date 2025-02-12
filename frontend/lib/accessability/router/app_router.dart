@@ -25,7 +25,7 @@ class AppRouter {
       case '/login':
         return _buildRoute(const LoginScreen(), clearStack: true);
       case '/uploadProfilePicture':
-        return _buildRoute(UploadProfileScreen(), clearStack: true);
+        return _buildRoute(const UploadProfileScreen(), clearStack: true);
       case '/onboarding':
         return _buildRoute(const OnboardingScreen(), clearStack: true);
       case '/homescreen':

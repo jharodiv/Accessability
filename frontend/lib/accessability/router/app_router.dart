@@ -19,7 +19,7 @@ class AppRouter {
   Route<dynamic>? onGenerateRoute(RouteSettings routeSettings) {
     switch (routeSettings.name) {
       case '/':
-        return _buildRoute(const Splashscreen(), clearStack: true);
+        return _buildRoute(const SplashScreen(), clearStack: true);
       case SignupScreen.routeName:
         return _buildRoute(const SignupScreen());
       case '/login':

@@ -1,5 +1,3 @@
-import 'package:frontend/accessability/logic/bloc/auth/auth_state.dart';
-
 abstract class AuthEvent {}
 
 class LoginEvent extends AuthEvent {
@@ -9,13 +7,6 @@ class LoginEvent extends AuthEvent {
   LoginEvent({required this.email, required this.password});
 }
 
+class CheckAuthStatus extends AuthEvent {} // Add this event
+
 class CompleteOnboardingEvent extends AuthEvent {}
-
-class AuthSuccess extends AuthState {
-  final String message;
-
-  const AuthSuccess(this.message);
-
-  @override
-  List<Object> get props => [message];
-}

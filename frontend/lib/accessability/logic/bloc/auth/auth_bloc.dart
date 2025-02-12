@@ -1,4 +1,5 @@
 import 'package:bloc/bloc.dart';
+import 'package:frontend/accessability/data/model/login_model.dart';
 import 'package:frontend/accessability/data/repositories/auth_repository.dart';
 import 'package:frontend/accessability/logic/bloc/auth/auth_event.dart';
 import 'package:frontend/accessability/logic/bloc/auth/auth_state.dart';
@@ -15,32 +16,49 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       emit(AuthLoading());
       try {
         final loginModel = await authRepository.login(event.email, event.password);
-        
         emit(AuthenticatedLogin(loginModel, hasCompletedOnboarding: loginModel.hasCompletedOnboarding));
-        
-        // Dispatch FetchUserData event to UserBloc
-        userBloc.add(FetchUserData());
+        userBloc.add(FetchUserData()); // Fetch user data after login
       } catch (e) {
         emit(AuthError('Login failed: ${e.toString()}'));
       }
     });
 
-   on<CompleteOnboardingEvent>((event, emit) async {
-  emit(AuthLoading());
-  try {
-    final user = await authRepository.getCachedUser();
-    if (user != null) {
-      print('AuthBloc: Completing onboarding for user ${user.uid}');
-      await authRepository.completeOnboarding(user.uid);
-      emit(const AuthSuccess('Onboarding completed successfully'));
-    } else {
-      print('AuthBloc: User not found');
-      emit(const AuthError('User not found'));
-    }
-  } catch (e) {
-    print('AuthBloc: Error completing onboarding - ${e.toString()}');
-    emit(AuthError('Failed to complete onboarding: ${e.toString()}'));
-  }
-});
+    on<CheckAuthStatus>((event, emit) async {
+      emit(AuthLoading());
+      try {
+        final user = await authRepository.getCachedUser();
+        if (user != null) {
+          emit(AuthenticatedLogin(
+            LoginModel(
+              token: user.uid,
+              userId: user.uid,
+              hasCompletedOnboarding: user.hasCompletedOnboarding,
+              user: user,
+            ),
+            hasCompletedOnboarding: user.hasCompletedOnboarding,
+          ));
+          userBloc.add(FetchUserData()); // Fetch user data if authenticated
+        } else {
+          emit(AuthInitial()); // No user is logged in
+        }
+      } catch (e) {
+        emit(AuthError('Failed to check auth status: ${e.toString()}'));
+      }
+    });
+
+    on<CompleteOnboardingEvent>((event, emit) async {
+      emit(AuthLoading());
+      try {
+        final user = await authRepository.getCachedUser();
+        if (user != null) {
+          await authRepository.completeOnboarding(user.uid);
+          emit(const AuthSuccess('Onboarding completed successfully'));
+        } else {
+          emit(const AuthError('User not found'));
+        }
+      } catch (e) {
+        emit(AuthError('Failed to complete onboarding: ${e.toString()}'));
+      }
+    });
   }
 }

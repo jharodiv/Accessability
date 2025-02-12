@@ -87,6 +87,29 @@ void initState() {
   });
 }
 
+Future<bool> _onWillPop() async {
+    // Show confirmation dialog
+    return await showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Confirm Exit'),
+          content: const Text('Do you really want to exit?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false), // Do not exit
+              child: const Text('No'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(true), // Exit
+              child: const Text('Yes'),
+            ),
+          ],
+        );
+      },
+    ) ?? false; // Return false if dialog is dismissed
+  }
+
   void _onMapCreated(GoogleMapController controller) {
     _mapController = controller;
   }
@@ -493,55 +516,58 @@ void initState() {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: Stack(
-        children: [
-          GoogleMap(
-            initialCameraPosition: CameraPosition(
-              target: _currentLocation ?? const LatLng(16.0430, 120.3333),
-              zoom: 14,
+    return WillPopScope(
+      onWillPop: _onWillPop,
+      child: Scaffold(
+        body: Stack(
+          children: [
+            GoogleMap(
+              initialCameraPosition: CameraPosition(
+                target: _currentLocation ?? const LatLng(16.0430, 120.3333),
+                zoom: 14,
+              ),
+              myLocationEnabled: true,
+              myLocationButtonEnabled: true,
+              markers: _markers,
+              onMapCreated: _onMapCreated,
+              polygons: _createPolygons(),
             ),
-            myLocationEnabled: true,
-            myLocationButtonEnabled: true,
-            markers: _markers,
-            onMapCreated: _onMapCreated,
-            polygons: _createPolygons(),
-          ),
-          Topwidgets(
-            inboxKey: inboxKey,
-            settingsKey: settingsKey,
-            onCategorySelected: (selectedType) {
-              print('Selected Category: $selectedType');
-
-              _fetchNearbyPlaces(selectedType);
-            },
-            onOverlayChange: (isVisible) {
-              print('Overlay state changed: $isVisible');
-
-              setState(() {
-                if (isVisible) {
-                  _showOverlay(context, OverlayPosition.top);
-                } else {
-                  _removeOverlay();
-                }
-              });
-            },
-          ),
-        ],
-      ),
-      bottomNavigationBar: Accessabilityfooter(
-        securityKey: securityKey,
-        locationKey: locationKey,
-        youKey: youKey,
-        onOverlayChange: (isVisible) {
-          setState(() {
-            if (isVisible) {
-              _showOverlay(context, OverlayPosition.bottom);
-            } else {
-              _removeOverlay();
-            }
-          });
-        },
+            Topwidgets(
+              inboxKey: inboxKey,
+              settingsKey: settingsKey,
+              onCategorySelected: (selectedType) {
+                print('Selected Category: $selectedType');
+      
+                _fetchNearbyPlaces(selectedType);
+              },
+              onOverlayChange: (isVisible) {
+                print('Overlay state changed: $isVisible');
+      
+                setState(() {
+                  if (isVisible) {
+                    _showOverlay(context, OverlayPosition.top);
+                  } else {
+                    _removeOverlay();
+                  }
+                });
+              },
+            ),
+          ],
+        ),
+        bottomNavigationBar: Accessabilityfooter(
+          securityKey: securityKey,
+          locationKey: locationKey,
+          youKey: youKey,
+          onOverlayChange: (isVisible) {
+            setState(() {
+              if (isVisible) {
+                _showOverlay(context, OverlayPosition.bottom);
+              } else {
+                _removeOverlay();
+              }
+            });
+          },
+        ),
       ),
     );
   }

@@ -32,6 +32,27 @@ class _GpsScreenState extends State<GpsScreen> {
   GlobalKey securityKey = GlobalKey();
   final String _apiKey = dotenv.env["GOOGLE_API_KEY"] ?? '';
 
+   final List<Map<String, dynamic>> pwdFriendlyLocations = [
+    {
+      "name": "Dagupan City Hall",
+      "latitude": 16.0439,
+      "longitude": 120.3333,
+      "details": "Wheelchair ramps, accessible restrooms, and reserved parking.",
+    },
+    {
+      "name": "Nepo Mall Dagupan",
+      "latitude": 16.0486,
+      "longitude": 120.3398,
+      "details": "Elevators, ramps, and PWD-friendly restrooms.",
+    },
+    {
+      "name": "Dagupan Public Market",
+      "latitude": 16.0417,
+      "longitude": 120.3361,
+      "details": "Wheelchair-friendly pathways and accessible stalls.",
+    },
+  ];
+
   @override
   void initState() {
     super.initState();
@@ -53,6 +74,30 @@ class _GpsScreenState extends State<GpsScreen> {
   void _onMapCreated(GoogleMapController controller) {
     _mapController = controller;
   }
+
+  Future<BitmapDescriptor> _getCustomIcon() async {
+  return await BitmapDescriptor.fromAssetImage(
+    const ImageConfiguration(size: Size(48, 48)),
+    'assets/images/pwd_icon.png', // Path to your custom icon
+  );
+}
+
+   Set<Marker> _createMarkers() {
+    return pwdFriendlyLocations.map((location) {
+      return Marker(
+        markerId: MarkerId(location["name"]),
+        position: LatLng(location["latitude"], location["longitude"]),
+        infoWindow: InfoWindow(
+          title: location["name"],
+          snippet: location["details"],
+        ),
+        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen), // Green for PWD-friendly
+        onTap: () => {},
+      );
+    }).toSet();
+  }
+
+   
 
   Future<void> _fetchNearbyPlaces(String placeType) async {
     if (_currentLocation == null) {
@@ -322,7 +367,7 @@ class _GpsScreenState extends State<GpsScreen> {
     ).show(context: context);
   }
 
-  // Get User Location
+   // Get user location
   Future<void> _getUserLocation() async {
     bool serviceEnabled;
     PermissionStatus permissionGranted;
@@ -344,25 +389,28 @@ class _GpsScreenState extends State<GpsScreen> {
     // Get location
     final locationData = await _location.getLocation();
     setState(() {
-      _currentLocation = const LatLng(16.043, 120.3333); // Dagupan City
+      _currentLocation = LatLng(locationData.latitude!, locationData.longitude!);
 
       // Add a marker at the current location
       _markers.add(
         Marker(
           markerId: const MarkerId('user_location'),
           position: _currentLocation!,
-          icon:
-              BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure),
+          icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure),
         ),
       );
+
+      // Add PWD-friendly markers
+      _markers.addAll(_createMarkers());
     });
 
     if (_mapController != null && _currentLocation != null) {
       _mapController!.animateCamera(
-        CameraUpdate.newLatLngZoom(_currentLocation!, 17),
+        CameraUpdate.newLatLngZoom(_currentLocation!, 14),
       );
     }
   }
+
 
   @override
   Widget build(BuildContext context) {
@@ -377,14 +425,7 @@ class _GpsScreenState extends State<GpsScreen> {
             myLocationEnabled: true,
             myLocationButtonEnabled: true,
             markers: _markers,
-            onMapCreated: (GoogleMapController controller) {
-              _mapController = controller;
-              if (_currentLocation != null) {
-                _mapController!.animateCamera(
-                  CameraUpdate.newLatLngZoom(_currentLocation!, 17),
-                );
-              }
-            },
+            onMapCreated: _onMapCreated,
           ),
           Topwidgets(
             inboxKey: inboxKey,

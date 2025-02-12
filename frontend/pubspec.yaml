@@ -53,6 +53,7 @@ dependencies:
   shimmer: ^3.0.0
   logging: ^1.3.0
   flutter_google_maps_webservices: ^1.1.1
+  flutter_dotenv: ^5.2.1
 
 dev_dependencies:
   flutter_test:
@@ -81,6 +82,7 @@ flutter:
     - assets/images/others/
     - assets/images/onboarding/
     - assets/images/settings/
+    - .env
 
   fonts:
     - family: HelveticaNeue

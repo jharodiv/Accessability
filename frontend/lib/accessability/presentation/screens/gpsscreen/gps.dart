@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:frontend/accessability/presentation/widgets/accessability_footer.dart';
 import 'package:frontend/accessability/presentation/widgets/homepagewidgets/top_widgets.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
@@ -29,7 +30,7 @@ class _GpsScreenState extends State<GpsScreen> {
   GlobalKey youKey = GlobalKey();
   GlobalKey locationKey = GlobalKey();
   GlobalKey securityKey = GlobalKey();
-  final String _apiKey = "AIzaSyBNU2l5pZ__ZjAfuv7SZRPkeexEcakrDJs";
+  final String _apiKey = dotenv.env["GOOGLE_API_KEY"] ?? '';
 
   @override
   void initState() {

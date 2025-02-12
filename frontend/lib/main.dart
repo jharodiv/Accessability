@@ -2,6 +2,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:frontend/accessability/data/repositories/auth_repository.dart';
 import 'package:frontend/accessability/data/repositories/user_repository.dart';
 import 'package:frontend/accessability/logic/bloc/auth/auth_bloc.dart';
@@ -12,6 +13,7 @@ import 'package:frontend/accessability/themes/theme_provider.dart';
 import 'package:frontend/firebase_options.dart';
 import 'package:frontend/accessability/firebaseServices/auth/auth_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:io';
 
 void main() async {
   // Ensure Flutter bindings are initialized
@@ -23,6 +25,12 @@ void main() async {
   // Initialize SharedPreferences
   final SharedPreferences sharedPreferences = await SharedPreferences.getInstance();
 
+   try {
+    await dotenv.load(fileName: '.env'); // Use absolute path for testing
+    print("Loaded API Key: ${dotenv.env['GOOGLE_API_KEY']}");
+  } catch (e) {
+    print("Error loading .env file: $e");
+  }
   // Initialize ThemeProvider
   runApp(
     ChangeNotifierProvider(

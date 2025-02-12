@@ -33,13 +33,15 @@ class _GpsScreenState extends State<GpsScreen> {
   GlobalKey locationKey = GlobalKey();
   GlobalKey securityKey = GlobalKey();
   final String _apiKey = dotenv.env["GOOGLE_API_KEY"] ?? '';
+  Set<Circle> _circles = {};
 
-   final List<Map<String, dynamic>> pwdFriendlyLocations = [
+  final List<Map<String, dynamic>> pwdFriendlyLocations = [
     {
       "name": "Dagupan City Hall",
       "latitude": 16.04361106008402,
       "longitude": 120.33531522527143,
-      "details": "Wheelchair ramps, accessible restrooms, and reserved parking.",
+      "details":
+          "Wheelchair ramps, accessible restrooms, and reserved parking.",
     },
     {
       "name": "Nepo Mall Dagupan",
@@ -53,39 +55,38 @@ class _GpsScreenState extends State<GpsScreen> {
       "longitude": 120.33608116388851,
       "details": "Wheelchair-friendly pathways and accessible stalls.",
     },
-
     {
       "name": "PHINMA University of Pangasinan",
       "latitude": 16.047254394614715,
-      "longitude":  120.34250043932526,
+      "longitude": 120.34250043932526,
       "details": "Wheelchair accessible entrances and parking lots."
     }
   ];
 
- @override
-void initState() {
-  super.initState();
-  _getUserLocation();
+  @override
+  void initState() {
+    super.initState();
+    _getUserLocation();
 
-  // Add PWD-friendly markers
-  _createMarkers().then((markers) {
-    setState(() {
-      _markers.addAll(markers);
+    // Add PWD-friendly markers
+    _createMarkers().then((markers) {
+      setState(() {
+        _markers.addAll(markers);
+      });
     });
-  });
 
     // Check if onboarding is completed before showing the tutorial
-  WidgetsBinding.instance.addPostFrameCallback((_) {
-    final authBloc = context.read<AuthBloc>();
-    final hasCompletedOnboarding = authBloc.state is AuthenticatedLogin
-        ? (authBloc.state as AuthenticatedLogin).hasCompletedOnboarding
-        : false;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final authBloc = context.read<AuthBloc>();
+      final hasCompletedOnboarding = authBloc.state is AuthenticatedLogin
+          ? (authBloc.state as AuthenticatedLogin).hasCompletedOnboarding
+          : false;
 
-    if (!hasCompletedOnboarding) {
-      _showTutorial();
-    }
-  });
-}
+      if (!hasCompletedOnboarding) {
+        _showTutorial();
+      }
+    });
+  }
 
   void _onMapCreated(GoogleMapController controller) {
     _mapController = controller;
@@ -93,30 +94,30 @@ void initState() {
 
   Future<BitmapDescriptor> _getCustomIcon() async {
     return await BitmapDescriptor.fromAssetImage(
-      const ImageConfiguration(size: Size(24, 24)), // Match the resized image dimensions
+      const ImageConfiguration(
+          size: Size(24, 24)), // Match the resized image dimensions
       'assets/images/others/accessabilitylogo.png',
     );
   }
 
+  Future<Set<Marker>> _createMarkers() async {
+    final customIcon = await _getCustomIcon();
+    return pwdFriendlyLocations.map((location) {
+      return Marker(
+        markerId: MarkerId(
+            "pwd_${location["name"]}"), // Add prefix for PWD-friendly markers
+        position: LatLng(location["latitude"], location["longitude"]),
+        infoWindow: InfoWindow(
+          title: location["name"],
+          snippet: location["details"],
+        ),
+        icon: customIcon,
+        onTap: () => _onMarkerTapped(MarkerId("pwd_${location["name"]}")),
+      );
+    }).toSet();
+  }
 
-
-   Future<Set<Marker>> _createMarkers() async {
-  final customIcon = await _getCustomIcon();
-  return pwdFriendlyLocations.map((location) {
-    return Marker(
-      markerId: MarkerId("pwd_${location["name"]}"), // Add prefix for PWD-friendly markers
-      position: LatLng(location["latitude"], location["longitude"]),
-      infoWindow: InfoWindow(
-        title: location["name"],
-        snippet: location["details"],
-      ),
-      icon: customIcon,
-      onTap: () => _onMarkerTapped(MarkerId("pwd_${location["name"]}")),
-    );
-  }).toSet();
-}
-
-   void _onMarkerTapped(MarkerId markerId) {
+  void _onMarkerTapped(MarkerId markerId) {
     final location = pwdFriendlyLocations.firstWhere(
       (loc) => loc["name"] == markerId.value,
     );
@@ -138,7 +139,7 @@ void initState() {
     );
   }
 
-   Set<Polygon> _createPolygons() {
+  Set<Polygon> _createPolygons() {
     final Set<Polygon> polygons = {};
 
     for (var location in pwdFriendlyLocations) {
@@ -150,7 +151,8 @@ void initState() {
         final double radians = angle * (3.141592653589793 / 180);
         final double latOffset = 0.0005 * cos(radians); // Adjust for size
         final double lngOffset = 0.0005 * sin(radians); // Adjust for size
-        points.add(LatLng(center.latitude + latOffset, center.longitude + lngOffset));
+        points.add(
+            LatLng(center.latitude + latOffset, center.longitude + lngOffset));
       }
 
       polygons.add(
@@ -167,92 +169,151 @@ void initState() {
     return polygons;
   }
 
-
   Future<void> _fetchNearbyPlaces(String placeType) async {
-  if (_currentLocation == null) {
-    print("🚨 Current position is null, cannot fetch nearby places.");
-    return;
-  }
-
-  final String url =
-      "https://maps.googleapis.com/maps/api/place/nearbysearch/json?"
-      "location=${_currentLocation!.latitude},${_currentLocation!.longitude}"
-      "&radius=1500&type=$placeType&key=$_apiKey";
-
-  print("🔵 Fetching nearby places: $url");
-
-  final response = await http.get(Uri.parse(url));
-
-  if (response.statusCode == 200) {
-    final data = json.decode(response.body);
-    print("🟢 API Response: ${data.toString()}"); // Log full response
-
-    final List<dynamic> places = data["results"];
-
-    // Create a new set for nearby places markers
-    final Set<Marker> nearbyMarkers = {};
-
-    for (var place in places) {
-      final lat = place["geometry"]["location"]["lat"];
-      final lng = place["geometry"]["location"]["lng"];
-      final name = place["name"];
-      LatLng position = LatLng(lat, lng);
-
-      nearbyMarkers.add(
-        Marker(
-          markerId: MarkerId(name),
-          position: position,
-          infoWindow: InfoWindow(title: name),
-        ),
-      );
-
-      print("📍 Added Nearby Marker: $name at ($lat, $lng)");
+    if (_currentLocation == null) {
+      print("🚨 Current position is null, cannot fetch nearby places.");
+      return;
     }
 
-    // Combine PWD-friendly markers and nearby markers
-    final Set<Marker> allMarkers = {};
-    allMarkers.addAll(_markers.where((marker) => marker.markerId.value.startsWith("pwd_"))); // Preserve PWD-friendly markers
-    allMarkers.addAll(nearbyMarkers); // Add nearby places markers
+    String type;
+    Color color;
+    String iconPath;
 
-    setState(() {
-      _markers.clear();
-      _markers.addAll(allMarkers); // Update the map with all markers
-    });
+    switch (placeType) {
+      case 'Hotel':
+        type = 'hotel';
+        color = Colors.pink;
+        iconPath = 'assets/images/others/hotel.png';
+        break;
+      case 'Restaurant':
+        type = 'restaurant';
+        color = Colors.blue;
+        iconPath = 'assets/images/others/restaurant.png';
+        break;
+      case 'Bus':
+        type = 'bus_station';
+        color = Colors.blue;
+        iconPath = 'assets/images/others/bus-school.png';
+        break;
+      case 'Shopping':
+        type = 'shopping_mall';
+        color = Colors.yellow;
+        iconPath = 'assets/images/others/shopping-mall.png';
+        break;
+      case 'Groceries':
+        type = 'grocery_or_supermarket';
+        color = Colors.orange;
+        iconPath = 'assets/images/others/grocery.png';
+        break;
+      default:
+        print("⚠️ Selected category is not recognized.");
+        return;
+    }
 
-    // Adjust the camera to fit all markers
-    if (_mapController != null && allMarkers.isNotEmpty) {
-      final bounds = _getLatLngBounds(allMarkers.map((marker) => marker.position).toList());
-      _mapController!.animateCamera(CameraUpdate.newLatLngBounds(bounds, 100));
-      print("🎯 Adjusted camera to fit ${allMarkers.length} markers.");
+    final String url =
+        "https://maps.googleapis.com/maps/api/place/nearbysearch/json?"
+        "location=${_currentLocation!.latitude},${_currentLocation!.longitude}"
+        "&radius=1500&type=$type&key=$_apiKey"; // Use the appropriate type
+
+    print("🔵 Fetching nearby $placeType: $url");
+
+    final response = await http.get(Uri.parse(url));
+
+    if (response.statusCode == 200) {
+      final data = json.decode(response.body);
+      print("🟢 API Response: ${data.toString()}");
+
+      final List<dynamic> places = data["results"];
+
+      final Set<Marker> nearbyMarkers = {};
+      final Set<Circle> nearbyCircles = {};
+
+      for (var place in places) {
+        final lat = place["geometry"]["location"]["lat"];
+        final lng = place["geometry"]["location"]["lng"];
+        final name = place["name"];
+        LatLng position = LatLng(lat, lng);
+
+        // Add Marker with custom icon
+        BitmapDescriptor icon = await BitmapDescriptor.fromAssetImage(
+          const ImageConfiguration(size: Size(24, 24)),
+          iconPath,
+        );
+
+        // Add Marker
+        nearbyMarkers.add(
+          Marker(
+            markerId: MarkerId(name),
+            position: position,
+            infoWindow: InfoWindow(title: name),
+            icon: icon,
+          ),
+        );
+
+        // Add Circle with custom color
+        nearbyCircles.add(
+          Circle(
+            circleId: CircleId(name),
+            center: position,
+            radius: 20, // Adjust size as needed
+            strokeWidth: 2,
+            strokeColor: color, // Custom stroke color
+            fillColor: color.withOpacity(0.5), // Transparent effect
+          ),
+        );
+
+        print("📍 Added Marker & Circle for: $name at ($lat, $lng)");
+      }
+
+      // Preserve existing PWD markers
+      final Set<Marker> allMarkers = {};
+      allMarkers.addAll(
+          _markers.where((marker) => marker.markerId.value.startsWith("pwd_")));
+      allMarkers.addAll(nearbyMarkers);
+
+      setState(() {
+        _markers.clear();
+        _markers.addAll(allMarkers);
+        _circles.clear();
+        _circles.addAll(nearbyCircles);
+      });
+
+      // Adjust the camera to fit all markers
+      if (_mapController != null && allMarkers.isNotEmpty) {
+        final bounds = _getLatLngBounds(
+            allMarkers.map((marker) => marker.position).toList());
+        _mapController!
+            .animateCamera(CameraUpdate.newLatLngBounds(bounds, 100));
+        print("🎯 Adjusted camera to fit ${allMarkers.length} markers.");
+      } else {
+        print("⚠️ No bounds to adjust camera.");
+      }
     } else {
-      print("⚠️ No bounds to adjust camera.");
+      print("❌ HTTP Request Failed: ${response.statusCode}");
     }
-  } else {
-    print("❌ HTTP Request Failed: ${response.statusCode}");
   }
-}
 
 // Helper function to calculate bounds
- LatLngBounds _getLatLngBounds(List<LatLng> locations) {
-  double south = locations.first.latitude;
-  double north = locations.first.latitude;
-  double west = locations.first.longitude;
-  double east = locations.first.longitude;
+  LatLngBounds _getLatLngBounds(List<LatLng> locations) {
+    double south = locations.first.latitude;
+    double north = locations.first.latitude;
+    double west = locations.first.longitude;
+    double east = locations.first.longitude;
 
-  for (var loc in locations) {
-    if (loc.latitude < south) south = loc.latitude;
-    if (loc.latitude > north) north = loc.latitude;
-    if (loc.longitude < west) west = loc.longitude;
-    if (loc.longitude > east) east = loc.longitude;
+    for (var loc in locations) {
+      if (loc.latitude < south) south = loc.latitude;
+      if (loc.latitude > north) north = loc.latitude;
+      if (loc.longitude < west) west = loc.longitude;
+      if (loc.longitude > east) east = loc.longitude;
+    }
+
+    print("📌 Camera Bounds: SW($south, $west) - NE($north, $east)");
+
+    return LatLngBounds(
+      southwest: LatLng(south, west),
+      northeast: LatLng(north, east),
+    );
   }
-
-  print("📌 Camera Bounds: SW($south, $west) - NE($north, $east)");
-
-  return LatLngBounds(
-    southwest: LatLng(south, west),
-    northeast: LatLng(north, east),
-  );
-}
 
   void _showTutorial() {
     List<TargetFocus> targets = [];
@@ -442,7 +503,7 @@ void initState() {
     ).show(context: context);
   }
 
-   // Get user location
+  // Get user location
   Future<void> _getUserLocation() async {
     bool serviceEnabled;
     PermissionStatus permissionGranted;
@@ -464,14 +525,17 @@ void initState() {
     // Get location
     final locationData = await _location.getLocation();
     setState(() {
-      _currentLocation = LatLng(locationData.latitude!, locationData.longitude!);
+      // _currentLocation =
+      //     LatLng(locationData.latitude!, locationData.longitude!);
+      _currentLocation = const LatLng(16.0430, 120.3333); // Dagupan coordinates
 
       // Add a marker at the current location
       _markers.add(
         Marker(
           markerId: const MarkerId('user_location'),
           position: _currentLocation!,
-          icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure),
+          icon:
+              BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure),
         ),
       );
 
@@ -490,7 +554,6 @@ void initState() {
     }
   }
 
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -504,6 +567,8 @@ void initState() {
             myLocationEnabled: true,
             myLocationButtonEnabled: true,
             markers: _markers,
+            circles: _circles, // ✅ This ensures circles are displayed
+
             onMapCreated: _onMapCreated,
             polygons: _createPolygons(),
           ),

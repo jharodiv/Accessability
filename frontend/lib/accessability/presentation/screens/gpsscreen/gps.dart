@@ -514,7 +514,7 @@ Future<bool> _onWillPop() async {
   }
 
 
-  @override
+@override
   Widget build(BuildContext context) {
     return WillPopScope(
       onWillPop: _onWillPop,
@@ -532,24 +532,74 @@ Future<bool> _onWillPop() async {
               onMapCreated: _onMapCreated,
               polygons: _createPolygons(),
             ),
-            Topwidgets(
-              inboxKey: inboxKey,
-              settingsKey: settingsKey,
-              onCategorySelected: (selectedType) {
-                print('Selected Category: $selectedType');
-      
-                _fetchNearbyPlaces(selectedType);
-              },
-              onOverlayChange: (isVisible) {
-                print('Overlay state changed: $isVisible');
-      
-                setState(() {
-                  if (isVisible) {
-                    _showOverlay(context, OverlayPosition.top);
-                  } else {
-                    _removeOverlay();
-                  }
-                });
+             Topwidgets(
+                inboxKey: inboxKey,
+                settingsKey: settingsKey,
+                onCategorySelected: (selectedType) {
+                  print('Selected Category: $selectedType');
+        
+                  _fetchNearbyPlaces(selectedType);
+                },
+                onOverlayChange: (isVisible) {
+                  print('Overlay state changed: $isVisible');
+        
+                  setState(() {
+                    if (isVisible) {
+                    } else {
+                    }
+                  });
+                },
+              ),
+            // DraggableScrollableSheet with search bar and add person button
+            DraggableScrollableSheet(
+              initialChildSize: 0.1,
+              minChildSize: 0.1,
+              maxChildSize: 0.8,
+              builder: (BuildContext context, ScrollController scrollController) {
+                return Container(
+                  decoration: const BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.all(Radius.circular(20)),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black26,
+                        blurRadius: 10,
+                        offset: Offset(0, -5),
+                      ),
+                    ],
+                  ),
+                  child: SingleChildScrollView(
+                    controller: scrollController,
+                    child: Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Column(
+                        children: [
+                          // Search bar
+                          TextField(
+                            decoration: const InputDecoration(
+                              labelText: "Search Location",
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.all(Radius.circular(20))
+                                
+                              ),
+                            ),
+                            onChanged: (value) {
+                              // Handle search logic here
+                            },
+                          ),
+                          const SizedBox(height: 20),
+                          // Add person section
+                          ElevatedButton(
+                            onPressed: () {
+                              // Handle add person action here
+                            },
+                            child: const Text("Add Person"),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                );
               },
             ),
           ],
@@ -561,9 +611,7 @@ Future<bool> _onWillPop() async {
           onOverlayChange: (isVisible) {
             setState(() {
               if (isVisible) {
-                _showOverlay(context, OverlayPosition.bottom);
               } else {
-                _removeOverlay();
               }
             });
           },
@@ -571,59 +619,7 @@ Future<bool> _onWillPop() async {
       ),
     );
   }
-
-  void _showOverlay(BuildContext context, OverlayPosition position) {
-    _overlayEntry = _createOverlayEntry(position);
-    Overlay.of(context).insert(_overlayEntry!);
-  }
-
-  void _removeOverlay() {
-    _overlayEntry?.remove();
-    _overlayEntry = null;
-  }
-
-  OverlayEntry _createOverlayEntry(OverlayPosition position) {
-    return OverlayEntry(
-      builder: (context) => Positioned(
-        top: position == OverlayPosition.top ? 70 : null,
-        bottom: position == OverlayPosition.bottom ? 70 : null,
-        left: 20,
-        right: 20,
-        child: Material(
-          color: Colors.transparent,
-          child: Container(
-            padding: const EdgeInsets.all(8.0),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: Colors.black, width: 1),
-            ),
-            child: Column(
-              children:
-                  [' Circle One', 'Circle Two', 'Circle Three'].map((option) {
-                return GestureDetector(
-                  onTap: () {
-                    debugPrint('$option selected');
-                    _removeOverlay();
-                  },
-                  child: Padding(
-                    padding: const EdgeInsets.all(10.0),
-                    child: Text(
-                      option,
-                      style: const TextStyle(
-                        color: Color(0xFF6750A4),
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                );
-              }).toList(),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
 }
+
 
 enum OverlayPosition { top, bottom }

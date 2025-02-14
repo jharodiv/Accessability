@@ -14,7 +14,7 @@ class AuthRepository {
   }
 
   // Initialize SharedPreferences
-  Future<void> _initSharedPrefs() async {
+   Future<void> _initSharedPrefs() async {
     _sharedPrefs = await SharedPreferences.getInstance();
     print('SharedPreferences initialized');
   }
@@ -78,7 +78,7 @@ class AuthRepository {
   }
 
   // Get Cached User Data
-  Future<UserModel?> getCachedUser() async {
+   Future<UserModel?> getCachedUser() async {
     if (_cachedUser != null) {
       return _cachedUser;
     }

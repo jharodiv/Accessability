@@ -13,7 +13,6 @@ import 'package:frontend/accessability/themes/theme_provider.dart';
 import 'package:frontend/firebase_options.dart';
 import 'package:frontend/accessability/firebaseServices/auth/auth_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'dart:io';
 
 void main() async {
   // Ensure Flutter bindings are initialized

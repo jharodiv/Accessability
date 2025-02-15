@@ -84,6 +84,11 @@ flutter:
     - assets/images/settings/
     - assets/images/others/biometricslogo.png
     - assets/images/others/accessabilitylogo.png
+    - assets/images/others/hotel.png
+    - assets/images/others/grocery.png
+    - assets/images/others/restaurant.png
+    - assets/images/others/bus-school.png
+    - assets/images/others/shopping-mall.png
     - .env
 
   fonts:

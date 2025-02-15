@@ -82,11 +82,20 @@ class AdditionalDataRights extends StatelessWidget {
             const SizedBox(
               height: 20,
             ),
-            ListTile(
-              onTap: () {},
-              title: const Text(
-                'Delete Account',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+            Container(
+              color: Colors.red, // Set the background color to red
+              child: ListTile(
+                onTap: () {
+                  // Add your onTap functionality here
+                },
+                title: const Text(
+                  'Delete Account',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                    color: Colors.white, // Set the text color to white
+                  ),
+                ),
               ),
             ),
             const Divider(),

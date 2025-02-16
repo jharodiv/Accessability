@@ -1,66 +1,76 @@
 import 'package:flutter/material.dart';
 
-class Bottomwidgets extends StatelessWidget {
-  const Bottomwidgets({super.key});
+class BottomWidgets extends StatelessWidget {
+  final Function(String) onCategorySelected;
+  final ScrollController scrollController;
+
+  BottomWidgets({
+    required this.onCategorySelected,
+    required this.scrollController,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: Stack(
-        children: [
-          Container(
-            color: Colors.blueAccent,
-            child: const Center(
-              child: Text(
-                'Main Body',
-                style: TextStyle(color: Colors.white, fontSize: 24),
-              ),
-            ),
+    final screenHeight = MediaQuery.of(context).size.height;
+    final screenWidth = MediaQuery.of(context).size.width;
+    return Container(
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black26,
+            blurRadius: 10,
+            offset: Offset(0, -5),
           ),
-          DraggableScrollableSheet(
-              initialChildSize: 0.2,
-              minChildSize: 0.2,
-              maxChildSize: 0.8,
-              builder:
-                  (BuildContext context, ScrollController scrollController) {
-                return Container(
-                  decoration: const BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.vertical(
-                      top: Radius.circular(20),
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black26,
-                        blurRadius: 10,
-                        offset: Offset(0, -5),
-                      ),
-                    ],
-                  ),
-                  child: SingleChildScrollView(
-                    controller: scrollController,
-                    child: ConstrainedBox(
-                      constraints: BoxConstraints(
-                          minHeight: MediaQuery.of(context).size.height * 0.8),
-                      child: Column(
-                        children: [
-                          Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 8.0),
-                            child: Container(
-                              width: 90,
-                              height: 5,
-                              decoration: BoxDecoration(
-                                  color: Colors.grey,
-                                  borderRadius: BorderRadius.circular(10)),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                );
-              })
         ],
+      ),
+      child: SingleChildScrollView(
+        controller: scrollController,
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            
+            children: [
+              // Search bar
+              TextField(
+                decoration: const InputDecoration(
+                  labelText: "Search Location",
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.all(Radius.circular(20)),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 15),
+              // The 3 category buttons
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  ElevatedButton(
+                    onPressed: () => onCategorySelected("Category 1"),
+                    child: Text("Category 1"),
+                  ),
+                  ElevatedButton(
+                    onPressed: () => onCategorySelected("Category 2"),
+                    child: Text("Category 2"),
+                  ),
+                  ElevatedButton(
+                    onPressed: () => onCategorySelected("Category 3"),
+                    child: Text("Category 3"),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 20),
+              // Add person button
+              ElevatedButton(
+                onPressed: () {
+                  // Handle add person action here
+                },
+                child: const Text("Add Person"),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

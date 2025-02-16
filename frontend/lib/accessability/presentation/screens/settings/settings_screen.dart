@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:frontend/accessability/data/repositories/auth_repository.dart';
 import 'package:frontend/accessability/firebaseServices/auth/auth_service.dart';
+import 'package:frontend/accessability/logic/bloc/auth/auth_bloc.dart';
+import 'package:frontend/accessability/logic/bloc/auth/auth_event.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -11,10 +15,13 @@ class SettingsScreen extends StatefulWidget {
 class _SettingsScreenState extends State<SettingsScreen> {
   bool isNotificationEnabled = false;
 
-  Future<void> logout() async {
+  Future<void> logout(BuildContext context) async {
     final authService = AuthService();
+    final authBloc = context.read<AuthBloc>();
+    
     try {
-      await authService.signOut();
+      await authService.signOut();  
+      authBloc.add(LogoutEvent());
 
       Navigator.pushReplacementNamed(context, '/login');
     } catch (e) {
@@ -135,7 +142,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               'Log out',
               style: TextStyle(fontWeight: FontWeight.bold),
             ),
-            onTap: logout, // Call the logout function here
+            onTap: () => logout(context), // Call the logout function here
           ),
         ],
       ),

@@ -118,8 +118,12 @@ class AuthRepository {
     return null;
   }
 
+  
+
+  
+
   // Clear Cache
-  void clearUserCache() {
+  Future<void> clearUserCache() async {
     _cachedUser = null;
     _sharedPrefs?.remove('user_userId');
     _sharedPrefs?.remove('user_userName');

@@ -28,6 +28,8 @@ class AuthGate extends StatelessWidget {
         } else if (authState is AuthenticatedLogin) {
           // Fetch user data when authenticated
           userBloc.add(FetchUserData());
+
+          // Wait for UserBloc to emit UserLoaded
           return BlocBuilder<UserBloc, UserState>(
             builder: (context, userState) {
               if (userState is UserLoading) {
@@ -42,12 +44,13 @@ class AuthGate extends StatelessWidget {
               }
             },
           );
-        } else if (authState is AuthSuccess) {
-          // Handle AuthSuccess state (e.g., show a success message)
-          return Center(child: Text(authState.message));
-        } else {
+        } else if (authState is AuthInitial) {
           // Navigate to LoginScreen if not authenticated
           return const LoginScreen();
+        } else if (authState is AuthError) {
+          return Center(child: Text(authState.message));
+        } else {
+          return const Center(child: Text('Something went wrong'));
         }
       },
     );

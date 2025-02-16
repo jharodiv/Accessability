@@ -3,6 +3,9 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:frontend/accessability/logic/bloc/auth/auth_bloc.dart';
 import 'package:frontend/accessability/logic/bloc/auth/auth_event.dart';
 import 'package:frontend/accessability/logic/bloc/auth/auth_state.dart';
+import 'package:frontend/accessability/logic/bloc/user/user_bloc.dart';
+import 'package:frontend/accessability/logic/bloc/user/user_event.dart';
+import 'package:frontend/accessability/logic/bloc/user/user_state.dart';
 import 'package:frontend/accessability/presentation/screens/authScreens/forgot_password_screen.dart';
 import 'package:frontend/accessability/presentation/screens/authScreens/signup_screen.dart';
 
@@ -32,43 +35,56 @@ class _LoginFormState extends State<LoginForm> {
 
   @override
   Widget build(BuildContext context) {
-    return BlocListener<AuthBloc, AuthState>(
-      listener: (context, state) {
-        if (state is AuthLoading) {
-          showDialog(
-            context: context,
-            barrierDismissible: false,
-            builder: (context) =>
-                const Center(child: CircularProgressIndicator()),
-          );
-        } else if (state is AuthenticatedLogin) {
-          Navigator.pop(context); // Dismiss loading indicator
+    return MultiBlocListener(
+      listeners: [
+        BlocListener<AuthBloc, AuthState>(
+          listener: (context, state) {
+            if (state is AuthLoading) {
+              showDialog(
+                context: context,
+                barrierDismissible: false,
+                builder: (context) => const Center(child: CircularProgressIndicator()),
+              );
+            } else if (state is AuthenticatedLogin) {
+              print("AuthBloc: User logged in, transitioning...");
 
-          // Check if onboarding is completed
-          if (state.hasCompletedOnboarding) {
-            // Navigate to home screen
-            Navigator.pushReplacementNamed(context, '/homescreen');
-          } else {
-            // Navigate to onboarding screen
-            Navigator.pushReplacementNamed(context, '/onboarding');
-          }
-        } else if (state is AuthError) {
-          Navigator.pop(context); // Dismiss loading indicator
-          showDialog(
-            context: context,
-            builder: (context) => AlertDialog(
-              title: const Text('Login Failed'),
-              content: Text(state.message),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text('OK'),
+              Navigator.pop(context); // Dismiss loading dialog
+              context.read<UserBloc>().add(FetchUserData());
+            } else if (state is AuthError) {
+              Navigator.pop(context); // Dismiss loading dialog
+              showDialog(
+                context: context,
+                builder: (context) => AlertDialog(
+                  title: const Text('Login Failed'),
+                  content: Text(state.message),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text('OK'),
+                    ),
+                  ],
                 ),
-              ],
-            ),
-          );
-        }
-      },
+              );
+            }
+          },
+        ),
+        BlocListener<UserBloc, UserState>(
+          listener: (context, userState) {
+            if (userState is UserLoaded) {
+              final authState = context.read<AuthBloc>().state;
+              Future.microtask(() {
+                if (authState is AuthenticatedLogin) {
+                  if (authState.hasCompletedOnboarding) {
+                    Navigator.pushReplacementNamed(context, '/homescreen');
+                  } else {
+                    Navigator.pushReplacementNamed(context, '/onboarding');
+                  }
+                }
+              });
+            }
+          },
+        ),
+      ],
       child: Center(
         child: SizedBox(
           width: MediaQuery.of(context).size.width * 0.8,
@@ -108,8 +124,7 @@ class _LoginFormState extends State<LoginForm> {
                       onPressed: () => Navigator.push(
                           context,
                           MaterialPageRoute(
-                              builder: (context) =>
-                                  const ForgotPasswordScreen())),
+                              builder: (context) => const ForgotPasswordScreen())),
                       child: const Text(
                         'Forgot Password?',
                         style: TextStyle(

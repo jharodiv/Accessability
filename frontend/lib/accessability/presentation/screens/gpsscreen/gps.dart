@@ -2,6 +2,8 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:frontend/accessability/logic/bloc/user/user_bloc.dart';
+import 'package:frontend/accessability/logic/bloc/user/user_state.dart';
 import 'package:frontend/accessability/presentation/widgets/accessability_footer.dart';
 import 'package:frontend/accessability/presentation/widgets/homepagewidgets/top_widgets.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
@@ -580,112 +582,118 @@ class _GpsScreenState extends State<GpsScreen> {
   }
 
 
-@override
-  Widget build(BuildContext context) {
-    return WillPopScope(
-      onWillPop: _onWillPop,
-      child: Scaffold(
-        body: Stack(
-          children: [
-            GoogleMap(
-              initialCameraPosition: CameraPosition(
-                target: _currentLocation ?? const LatLng(16.0430, 120.3333),
-                zoom: 14,
-              ),
-              myLocationEnabled: true,
-              myLocationButtonEnabled: true,
-              markers: _markers,
-              onMapCreated: _onMapCreated,
-              polygons: _createPolygons(),
-            ),
-             Topwidgets(
-                inboxKey: inboxKey,
-                settingsKey: settingsKey,
-                onCategorySelected: (selectedType) {
-                  print('Selected Category: $selectedType');
-        
-                  _fetchNearbyPlaces(selectedType);
-                },
-                onOverlayChange: (isVisible) {
-                  print('Overlay state changed: $isVisible');
-        
-                  setState(() {
-                    if (isVisible) {
-                    } else {
-                    }
-                  });
-                },
-              ),
-            // DraggableScrollableSheet with search bar and add person button
-            DraggableScrollableSheet(
-              initialChildSize: 0.1,
-              minChildSize: 0.1,
-              maxChildSize: 0.8,
-              builder: (BuildContext context, ScrollController scrollController) {
-                return Container(
-                  decoration: const BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.all(Radius.circular(20)),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black26,
-                        blurRadius: 10,
-                        offset: Offset(0, -5),
-                      ),
-                    ],
+ @override
+Widget build(BuildContext context) {
+  return BlocBuilder<UserBloc, UserState>(
+    builder: (context, userState) {
+      if (userState is UserLoading) {
+        return Center(child: CircularProgressIndicator());
+      } else if (userState is UserLoaded) {
+        print('state: $userState');
+        // Display the GPS screen with user data
+        return WillPopScope(
+          onWillPop: _onWillPop,
+          child: Scaffold(
+            body: Stack(
+              children: [
+                GoogleMap(
+                  initialCameraPosition: CameraPosition(
+                    target: _currentLocation ?? const LatLng(16.0430, 120.3333),
+                    zoom: 14,
                   ),
-                  child: SingleChildScrollView(
-                    controller: scrollController,
-                    child: Padding(
-                      padding: const EdgeInsets.all(16.0),
-                      child: Column(
-                        children: [
-                          // Search bar
-                          TextField(
-                            decoration: const InputDecoration(
-                              labelText: "Search Location",
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.all(Radius.circular(20))
-                                
-                              ),
-                            ),
-                            onChanged: (value) {
-                              // Handle search logic here
-                            },
-                          ),
-                          const SizedBox(height: 20),
-                          // Add person section
-                          ElevatedButton(
-                            onPressed: () {
-                              // Handle add person action here
-                            },
-                            child: const Text("Add Person"),
+                  myLocationEnabled: true,
+                  myLocationButtonEnabled: true,
+                  markers: _markers,
+                  onMapCreated: _onMapCreated,
+                  polygons: _createPolygons(),
+                ),
+                Topwidgets(
+                  inboxKey: inboxKey,
+                  settingsKey: settingsKey,
+                  onCategorySelected: (selectedType) {
+                    print('Selected Category: $selectedType');
+                    _fetchNearbyPlaces(selectedType);
+                  },
+                  onOverlayChange: (isVisible) {
+                    print('Overlay state changed: $isVisible');
+                    setState(() {
+                      if (isVisible) {
+                      } else {
+                      }
+                    });
+                  },
+                ),
+                DraggableScrollableSheet(
+                  initialChildSize: 0.1,
+                  minChildSize: 0.1,
+                  maxChildSize: 0.8,
+                  builder: (BuildContext context, ScrollController scrollController) {
+                    return Container(
+                      decoration: const BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.all(Radius.circular(20)),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black26,
+                            blurRadius: 10,
+                            offset: Offset(0, -5),
                           ),
                         ],
                       ),
-                    ),
-                  ),
-                );
+                      child: SingleChildScrollView(
+                        controller: scrollController,
+                        child: Padding(
+                          padding: const EdgeInsets.all(16.0),
+                          child: Column(
+                            children: [
+                              TextField(
+                                decoration: const InputDecoration(
+                                  labelText: "Search Location",
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.all(Radius.circular(20))),
+                                  ),
+                                onChanged: (value) {
+                                  // Handle search logic here
+                                },
+                              ),
+                              const SizedBox(height: 20),
+                              ElevatedButton(
+                                onPressed: () {
+                                  // Handle add person action here
+                                },
+                                child: const Text("Add Person"),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ],
+            ),
+            bottomNavigationBar: Accessabilityfooter(
+              securityKey: securityKey,
+              locationKey: locationKey,
+              youKey: youKey,
+              onOverlayChange: (isVisible) {
+                setState(() {
+                  if (isVisible) {
+                  } else {
+                  }
+                });
               },
             ),
-          ],
-        ),
-        bottomNavigationBar: Accessabilityfooter(
-          securityKey: securityKey,
-          locationKey: locationKey,
-          youKey: youKey,
-          onOverlayChange: (isVisible) {
-            setState(() {
-              if (isVisible) {
-              } else {
-              }
-            });
-          },
-        ),
-      ),
-    );
-  }
+          ),
+        );
+      } else if (userState is UserError) {
+        return Center(child: Text(userState.message));
+      } else {
+        return const Center(child: Text('No user data available'));
+      }
+    },
+  );
 }
-
+}
 
 enum OverlayPosition { top, bottom }

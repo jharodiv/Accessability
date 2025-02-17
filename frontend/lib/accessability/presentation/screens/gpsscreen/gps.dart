@@ -597,8 +597,6 @@ Widget build(BuildContext context) {
       if (userState is UserLoading) {
         return Center(child: CircularProgressIndicator());
       } else if (userState is UserLoaded) {
-        print('state: $userState');
-        // Display the GPS screen with user data
         return WillPopScope(
           onWillPop: _onWillPop,
           child: Scaffold(
@@ -630,12 +628,12 @@ Widget build(BuildContext context) {
                       }
                     });
                   },
-                  onSpaceSelected: _updateActiveSpaceId,
+                  onSpaceSelected: _updateActiveSpaceId, // Pass the callback
                 ),
-                // Use the new DraggableBottomSheetWidget
                 BottomWidgets(
-                  scrollController: ScrollController(), 
-                  activeSpaceId: _activeSpaceId,
+                  key: ValueKey(_activeSpaceId), // Force rebuild when _activeSpaceId changes
+                  scrollController: ScrollController(),
+                  activeSpaceId: _activeSpaceId, // Pass the active space ID
                 ),
               ],
             ),

@@ -38,7 +38,7 @@ class _TopwidgetsState extends State<Topwidgets> {
     _fetchSpaces();
   }
 
-  // Fetch spaces from Firestore
+   // Fetch spaces from Firestore
   Future<void> _fetchSpaces() async {
     final user = _auth.currentUser;
     if (user == null) return;
@@ -56,21 +56,18 @@ class _TopwidgetsState extends State<Topwidgets> {
           'creator': doc['creator'],
         };
       }).toList();
-
-      if (_spaces.isNotEmpty) {
-        _activeSpaceId = _spaces.first['id'];
-        _activeSpaceName = _spaces.first['name'];
-      }
     });
   }
 
-   // When a space is selected, call the callback
-  void _selectSpace(String spaceId) {
-    widget.onSpaceSelected(spaceId); // Call the callback
+    // When a space is selected, update the active space
+  void _selectSpace(String spaceId, String spaceName) {
+    widget.onSpaceSelected(spaceId); // Notify parent about the selected space
     setState(() {
+      _activeSpaceName = spaceName;
       _isDropdownOpen = false;
     });
   }
+
 
   // Create a new space
   Future<void> _createSpace() async {
@@ -238,7 +235,7 @@ class _TopwidgetsState extends State<Topwidgets> {
                           Padding(
                             padding: const EdgeInsets.only(left: 10),
                             child: Text(
-                              _spaces.isEmpty ? 'Create Space' : 'My Space',
+                              _activeSpaceName,
                               style: const TextStyle(
                                 color: Color(0xFF6750A4),
                                 fontWeight: FontWeight.bold,
@@ -302,7 +299,7 @@ class _TopwidgetsState extends State<Topwidgets> {
                         return ListTile(
                           title: Text(space['name']),
                           subtitle: Text('Created by ${space['creator']}'),
-                          onTap: () => _selectSpace(space['id']), // Call _selectSpace
+                          onTap: () => _selectSpace(space['id'], space['name']), // Update active space
                         );
                       }).toList(),
                     ],

@@ -8,9 +8,10 @@ import 'package:frontend/accessability/firebaseServices/chat/chat_service.dart';
 class BottomWidgets extends StatefulWidget {
   final ScrollController scrollController;
   final String activeSpaceId;
+  final Key? key;
 
   const BottomWidgets({
-    Key? key,
+    this.key,
     required this.scrollController,
     required this.activeSpaceId,
   }) : super(key: key);
@@ -24,21 +25,44 @@ class _BottomWidgetsState extends State<BottomWidgets> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final ChatService _chatService = ChatService(); // Initialize ChatService
-  List<String> _members = []; // List of members in the space
-
+  List<Map<String, dynamic>> _members = []; // List of members in the space
+  String? _creatorId; // ID of the space creator
+  
   @override
   void initState() {
     super.initState();
     _fetchMembers();
   }
 
+  @override
+  void didUpdateWidget(BottomWidgets oldWidget) {
+  super.didUpdateWidget(oldWidget);
+  if (widget.activeSpaceId != oldWidget.activeSpaceId) {
+    _fetchMembers(); // Fetch members for the new space
+  }
+}
+
   // Fetch members in the active space
-  Future<void> _fetchMembers() async {
+   Future<void> _fetchMembers() async {
     if (widget.activeSpaceId.isEmpty) return;
 
     final snapshot = await _firestore.collection('Spaces').doc(widget.activeSpaceId).get();
+    final members = List<String>.from(snapshot['members']);
+    final creatorId = snapshot['creator'];
+
+    final usersSnapshot = await _firestore
+        .collection('Users')
+        .where('uid', whereIn: members)
+        .get();
+
     setState(() {
-      _members = List<String>.from(snapshot['members']);
+      _members = usersSnapshot.docs.map((doc) {
+        return {
+          'uid': doc['uid'],
+          'username': doc['username'],
+        };
+      }).toList();
+      _creatorId = creatorId;
     });
   }
 
@@ -149,7 +173,7 @@ class _BottomWidgetsState extends State<BottomWidgets> {
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.all(Radius.circular(20)),
                       ),
-                    ),
+                      ),
                     onChanged: (value) {
                       // Handle search logic here
                     },
@@ -165,7 +189,7 @@ class _BottomWidgetsState extends State<BottomWidgets> {
                   ),
                   const SizedBox(height: 20),
                   _buildContent(),
-                  if (widget.activeSpaceId.isNotEmpty)
+                  if (_creatorId == _auth.currentUser?.uid) // Only show if creator
                     ElevatedButton(
                       onPressed: _addPerson,
                       child: const Text('Add Person'),
@@ -178,6 +202,7 @@ class _BottomWidgetsState extends State<BottomWidgets> {
       },
     );
   }
+
 
   Widget _buildButton(IconData icon, int index) {
     bool isActive = _activeIndex == index;
@@ -204,20 +229,37 @@ class _BottomWidgetsState extends State<BottomWidgets> {
     );
   }
 
-  Widget _buildContent() {
-    switch (_activeIndex) {
-      case 0:
-        return Column(
-          children: _members.map((member) => ListTile(
-            title: Text(member),
-          )).toList(),
-        );
-      case 1:
-        return const Text("Buildings Content");
-      case 2:
-        return const Text("Map Content");
-      default:
-        return const SizedBox.shrink();
-    }
+ Widget _buildContent() {
+  switch (_activeIndex) {
+    case 0:
+      return Column(
+        children: _members
+            .where((member) => member['uid'] != _auth.currentUser?.uid) // Exclude current user
+            .map((member) => ListTile(
+                  title: Text(member['username']),
+                  trailing: IconButton(
+                    icon: const Icon(Icons.chat),
+                    onPressed: () {
+                      // Navigate to chat with the member
+                      Navigator.pushNamed(
+                        context,
+                        '/chatconvo',
+                        arguments: {
+                          'receiverEmail': member['username'],
+                          'receiverID': member['uid'],
+                        },
+                      );
+                    },
+                  ),
+                ))
+            .toList(),
+      );
+    case 1:
+      return const Text("Buildings Content");
+    case 2:
+      return const Text("Map Content");
+    default:
+      return const SizedBox.shrink();
   }
+}
 }

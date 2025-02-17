@@ -1,5 +1,8 @@
+import 'dart:async';
 import 'dart:math';
 
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:frontend/accessability/logic/bloc/user/user_bloc.dart';
@@ -30,7 +33,9 @@ class _GpsScreenState extends State<GpsScreen> {
   final Location _location = Location();
   LatLng? _currentLocation;
   String _activeSpaceId = '';
-  final Set<Marker> _markers = {}; // Set of markers for the map
+  StreamSubscription? _locationUpdatesSubscription;
+  LocationData? _lastLocation;
+  Set<Marker> _markers = {};
   GlobalKey inboxKey = GlobalKey();
   GlobalKey settingsKey = GlobalKey();
   GlobalKey youKey = GlobalKey();
@@ -38,7 +43,7 @@ class _GpsScreenState extends State<GpsScreen> {
   GlobalKey securityKey = GlobalKey();
   final String _apiKey = dotenv.env["GOOGLE_API_KEY"] ?? '';
   Set<Circle> _circles = {};
-
+  
   final List<Map<String, dynamic>> pwdFriendlyLocations = [
     {
       "name": "Dagupan City Hall",
@@ -67,7 +72,7 @@ class _GpsScreenState extends State<GpsScreen> {
     }
   ];
 
-  @override
+   @override
   void initState() {
     super.initState();
     _getUserLocation();
@@ -79,8 +84,16 @@ class _GpsScreenState extends State<GpsScreen> {
       });
     });
 
-    // Check if onboarding is completed before showing the tutorial
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    
+  @override
+  void dispose() {
+    _locationUpdatesSubscription?.cancel();
+    super.dispose();
+  }
+
+
+
+      WidgetsBinding.instance.addPostFrameCallback((_) {
       final authBloc = context.read<AuthBloc>();
       final hasCompletedOnboarding = authBloc.state is AuthenticatedLogin
           ? (authBloc.state as AuthenticatedLogin).hasCompletedOnboarding
@@ -91,6 +104,76 @@ class _GpsScreenState extends State<GpsScreen> {
       }
     });
   }
+
+
+
+  // Update user location in Firestore
+  Future<void> _updateUserLocation(LatLng location) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    await FirebaseFirestore.instance
+        .collection('UserLocations')
+        .doc(user.uid)
+        .set({
+      'latitude': location.latitude,
+      'longitude': location.longitude,
+      'timestamp': DateTime.now(),
+    });
+  }
+
+  // Listen for real-time location updates from other users in the space
+   void _listenForLocationUpdates() {
+    if (_activeSpaceId.isEmpty) {
+      print("⚠️ Active space ID is empty. Cannot listen for location updates.");
+      return;
+    }
+
+    _locationUpdatesSubscription?.cancel(); // Cancel existing listener
+    _locationUpdatesSubscription = _getSpaceMembersLocations(_activeSpaceId).listen((snapshot) {
+      final updatedMarkers = <Marker>{};
+      for (final doc in snapshot.docs) {
+        final data = doc.data() as Map<String, dynamic>;
+        final lat = data['latitude'];
+        final lng = data['longitude'];
+        final userId = doc.id;
+
+        updatedMarkers.add(
+          Marker(
+            markerId: MarkerId(userId),
+            position: LatLng(lat, lng),
+            infoWindow: InfoWindow(title: 'User $userId'),
+          ),
+        );
+      }
+
+      setState(() {
+        _markers = updatedMarkers;
+      });
+    });
+  }
+
+
+  // Fetch real-time location updates for members in the active space
+ Stream<QuerySnapshot> _getSpaceMembersLocations(String spaceId) {
+    if (spaceId.isEmpty) {
+      return const Stream.empty(); // Return an empty stream if spaceId is empty
+    }
+
+    return FirebaseFirestore.instance
+        .collection('Spaces')
+        .doc(spaceId)
+        .snapshots()
+        .asyncMap((spaceSnapshot) async {
+      final members = List<String>.from(spaceSnapshot['members']);
+      return FirebaseFirestore.instance
+          .collection('UserLocations')
+          .where(FieldPath.documentId, whereIn: members)
+          .snapshots();
+    }).asyncExpand((event) => event);
+  }
+
+
 
   Future<bool> _onWillPop() async {
     // Show confirmation dialog
@@ -532,7 +615,8 @@ class _GpsScreenState extends State<GpsScreen> {
     ).show(context: context);
   }
 
-  // Get user location
+  
+  // Get user location and update it in Firestore
   Future<void> _getUserLocation() async {
     bool serviceEnabled;
     PermissionStatus permissionGranted;
@@ -552,113 +636,109 @@ class _GpsScreenState extends State<GpsScreen> {
     }
 
     // Get location
-    final locationData = await _location.getLocation();
-    setState(() {
-      // _currentLocation =
-      //     LatLng(locationData.latitude!, locationData.longitude!);
-      _currentLocation = const LatLng(16.0430, 120.3333); // Dagupan coordinates
+    _location.onLocationChanged.listen((LocationData locationData) {
+      final newLocation = LatLng(locationData.latitude!, locationData.longitude!);
 
-      // Add a marker at the current location
-      _markers.add(
-        Marker(
-          markerId: const MarkerId('user_location'),
-          position: _currentLocation!,
-          icon:
-              BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure),
-        ),
-      );
-
-      // Add PWD-friendly markers
-      _createMarkers().then((markers) {
+      // Only update if the location has changed significantly
+      if (_lastLocation == null ||
+          _lastLocation!.latitude != locationData.latitude ||
+          _lastLocation!.longitude != locationData.longitude) {
         setState(() {
-          _markers.addAll(markers);
+          _currentLocation = newLocation;
         });
-      });
-    });
 
-    if (_mapController != null && _currentLocation != null) {
-      _mapController!.animateCamera(
-        CameraUpdate.newLatLngZoom(_currentLocation!, 14),
-      );
-    }
+        // Update the user's location in Firestore
+        _updateUserLocation(newLocation);
+        _lastLocation = locationData; // Store LocationData directly
+      }
+    });
   }
 
-// Update the active space ID
+
+ // Update the active space ID
   void _updateActiveSpaceId(String spaceId) {
+    if (spaceId.isEmpty) {
+      print("⚠️ Cannot update active space ID: spaceId is empty.");
+      return;
+    }
+
     setState(() {
       _activeSpaceId = spaceId;
     });
+
+    // Start listening for location updates for the new space
+    _listenForLocationUpdates();
   }
 
 @override
-Widget build(BuildContext context) {
-  return BlocBuilder<UserBloc, UserState>(
-    builder: (context, userState) {
-      if (userState is UserLoading) {
-        return Center(child: CircularProgressIndicator());
-      } else if (userState is UserLoaded) {
-        return WillPopScope(
-          onWillPop: _onWillPop,
-          child: Scaffold(
-            body: Stack(
-              children: [
-                GoogleMap(
-                  initialCameraPosition: CameraPosition(
-                    target: _currentLocation ?? const LatLng(16.0430, 120.3333),
-                    zoom: 14,
+  Widget build(BuildContext context) {
+    return BlocBuilder<UserBloc, UserState>(
+      builder: (context, userState) {
+        if (userState is UserLoading) {
+          return Center(child: CircularProgressIndicator());
+        } else if (userState is UserLoaded) {
+          return WillPopScope(
+            onWillPop: _onWillPop,
+            child: Scaffold(
+              body: Stack(
+                children: [
+                  GoogleMap(
+                    initialCameraPosition: CameraPosition(
+                      target: _currentLocation ?? const LatLng(16.0430, 120.3333),
+                      zoom: 14,
+                    ),
+                    myLocationEnabled: true,
+                    myLocationButtonEnabled: true,
+                    markers: _markers,
+                    onMapCreated: _onMapCreated,
+                    polygons: _createPolygons(),
                   ),
-                  myLocationEnabled: true,
-                  myLocationButtonEnabled: true,
-                  markers: _markers,
-                  onMapCreated: _onMapCreated,
-                  polygons: _createPolygons(),
-                ),
-                Topwidgets(
-                  inboxKey: inboxKey,
-                  settingsKey: settingsKey,
-                  onCategorySelected: (selectedType) {
-                    print('Selected Category: $selectedType');
-                    _fetchNearbyPlaces(selectedType);
-                  },
-                  onOverlayChange: (isVisible) {
-                    print('Overlay state changed: $isVisible');
-                    setState(() {
-                      if (isVisible) {
-                      } else {
-                      }
-                    });
-                  },
-                  onSpaceSelected: _updateActiveSpaceId, // Pass the callback
-                ),
-                BottomWidgets(
-                  key: ValueKey(_activeSpaceId), // Force rebuild when _activeSpaceId changes
-                  scrollController: ScrollController(),
-                  activeSpaceId: _activeSpaceId, // Pass the active space ID
-                ),
-              ],
+                  Topwidgets(
+                    inboxKey: inboxKey,
+                    settingsKey: settingsKey,
+                    onCategorySelected: (selectedType) {
+                      print('Selected Category: $selectedType');
+                      _fetchNearbyPlaces(selectedType);
+                    },
+                    onOverlayChange: (isVisible) {
+                      print('Overlay state changed: $isVisible');
+                      setState(() {
+                        if (isVisible) {
+                        } else {
+                        }
+                      });
+                    },
+                    onSpaceSelected: _updateActiveSpaceId, // Pass the callback
+                  ),
+                  BottomWidgets(
+                    key: ValueKey(_activeSpaceId), // Force rebuild when _activeSpaceId changes
+                    scrollController: ScrollController(),
+                    activeSpaceId: _activeSpaceId, // Pass the active space ID
+                  ),
+                ],
+              ),
+              bottomNavigationBar: Accessabilityfooter(
+                securityKey: securityKey,
+                locationKey: locationKey,
+                youKey: youKey,
+                onOverlayChange: (isVisible) {
+                  setState(() {
+                    if (isVisible) {
+                    } else {
+                    }
+                  });
+                },
+              ),
             ),
-            bottomNavigationBar: Accessabilityfooter(
-              securityKey: securityKey,
-              locationKey: locationKey,
-              youKey: youKey,
-              onOverlayChange: (isVisible) {
-                setState(() {
-                  if (isVisible) {
-                  } else {
-                  }
-                });
-              },
-            ),
-          ),
-        );
-      } else if (userState is UserError) {
-        return Center(child: Text(userState.message));
-      } else {
-        return const Center(child: Text('No user data available'));
-      }
-    },
-  );
-}
+          );
+        } else if (userState is UserError) {
+          return Center(child: Text(userState.message));
+        } else {
+          return const Center(child: Text('No user data available'));
+        }
+      },
+    );
+  }
 }
 
 enum OverlayPosition { top, bottom }

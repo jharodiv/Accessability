@@ -91,11 +91,12 @@ class _BottomWidgetsState extends State<BottomWidgets> {
 
     // Generate a random verification code
     final verificationCode = _generateVerificationCode();
+    
 
     // Send the verification code via chat
     await _chatService.sendMessage(
       receiverID,
-      'Your verification code is: $verificationCode (Expires in 10 minutes)',
+      'Join My Space! \n Your verification code is: $verificationCode (Expires in 10 minutes)',
     );
 
     // Update the space with the verification code

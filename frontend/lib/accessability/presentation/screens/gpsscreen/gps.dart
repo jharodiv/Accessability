@@ -29,6 +29,7 @@ class _GpsScreenState extends State<GpsScreen> {
   GoogleMapController? _mapController;
   final Location _location = Location();
   LatLng? _currentLocation;
+  String _activeSpaceId = '';
   final Set<Marker> _markers = {}; // Set of markers for the map
   GlobalKey inboxKey = GlobalKey();
   GlobalKey settingsKey = GlobalKey();
@@ -582,6 +583,12 @@ class _GpsScreenState extends State<GpsScreen> {
     }
   }
 
+// Update the active space ID
+  void _updateActiveSpaceId(String spaceId) {
+    setState(() {
+      _activeSpaceId = spaceId;
+    });
+  }
 
 @override
 Widget build(BuildContext context) {
@@ -623,9 +630,13 @@ Widget build(BuildContext context) {
                       }
                     });
                   },
+                  onSpaceSelected: _updateActiveSpaceId,
                 ),
                 // Use the new DraggableBottomSheetWidget
-                BottomWidgets(scrollController: ScrollController()),
+                BottomWidgets(
+                  scrollController: ScrollController(), 
+                  activeSpaceId: _activeSpaceId,
+                ),
               ],
             ),
             bottomNavigationBar: Accessabilityfooter(

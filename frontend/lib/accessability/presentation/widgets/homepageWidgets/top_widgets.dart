@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -7,6 +9,7 @@ class Topwidgets extends StatefulWidget {
   final Function(String) onCategorySelected;
   final GlobalKey inboxKey;
   final GlobalKey settingsKey;
+  final Function(String) onSpaceSelected;
 
   const Topwidgets({
     super.key,
@@ -14,6 +17,7 @@ class Topwidgets extends StatefulWidget {
     required this.onOverlayChange,
     required this.inboxKey,
     required this.settingsKey,
+    required this.onSpaceSelected, 
   });
 
   @override
@@ -22,9 +26,11 @@ class Topwidgets extends StatefulWidget {
 
 class _TopwidgetsState extends State<Topwidgets> {
   bool _isDropdownOpen = false;
-  List<String> _spaces = []; // List of spaces
+  List<Map<String, dynamic>> _spaces = []; // List of spaces
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
+  String _activeSpaceId = ''; // ID of the active space
+  String _activeSpaceName = 'Create Space'; // Name of the active space
 
   @override
   void initState() {
@@ -37,9 +43,32 @@ class _TopwidgetsState extends State<Topwidgets> {
     final user = _auth.currentUser;
     if (user == null) return;
 
-    final snapshot = await _firestore.collection('Spaces').where('members', arrayContains: user.uid).get();
+    final snapshot = await _firestore
+        .collection('Spaces')
+        .where('members', arrayContains: user.uid)
+        .get();
+
     setState(() {
-      _spaces = snapshot.docs.map((doc) => doc['name'] as String).toList();
+      _spaces = snapshot.docs.map((doc) {
+        return {
+          'id': doc.id,
+          'name': doc['name'],
+          'creator': doc['creator'],
+        };
+      }).toList();
+
+      if (_spaces.isNotEmpty) {
+        _activeSpaceId = _spaces.first['id'];
+        _activeSpaceName = _spaces.first['name'];
+      }
+    });
+  }
+
+   // When a space is selected, call the callback
+  void _selectSpace(String spaceId) {
+    widget.onSpaceSelected(spaceId); // Call the callback
+    setState(() {
+      _isDropdownOpen = false;
     });
   }
 
@@ -51,14 +80,24 @@ class _TopwidgetsState extends State<Topwidgets> {
     final spaceName = await _showCreateSpaceDialog();
     if (spaceName == null || spaceName.isEmpty) return;
 
+    // Generate a random verification code
+    final verificationCode = _generateVerificationCode();
+
     await _firestore.collection('Spaces').add({
       'name': spaceName,
       'creator': user.uid,
       'members': [user.uid],
+      'verificationCode': verificationCode,
       'createdAt': DateTime.now(),
     });
 
     _fetchSpaces(); // Refresh the list of spaces
+  }
+
+  // Generate a random 6-digit verification code
+  String _generateVerificationCode() {
+    final random = Random();
+    return (100000 + random.nextInt(900000)).toString();
   }
 
   // Show a dialog to create a space
@@ -87,6 +126,61 @@ class _TopwidgetsState extends State<Topwidgets> {
       },
     );
     return spaceName;
+  }
+
+  // Join a space using a verification code
+  Future<void> _joinSpace() async {
+    final user = _auth.currentUser;
+    if (user == null) return;
+
+    final verificationCode = await _showJoinSpaceDialog();
+    if (verificationCode == null || verificationCode.isEmpty) return;
+
+    final snapshot = await _firestore
+        .collection('Spaces')
+        .where('verificationCode', isEqualTo: verificationCode)
+        .get();
+
+    if (snapshot.docs.isNotEmpty) {
+      final spaceId = snapshot.docs.first.id;
+      await _firestore.collection('Spaces').doc(spaceId).update({
+        'members': FieldValue.arrayUnion([user.uid]),
+      });
+
+      _fetchSpaces(); // Refresh the list of spaces
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Invalid verification code')),
+      );
+    }
+  }
+
+  // Show a dialog to join a space
+  Future<String?> _showJoinSpaceDialog() async {
+    String? verificationCode;
+    await showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Join Space'),
+          content: TextField(
+            decoration: const InputDecoration(labelText: 'Verification Code'),
+            onChanged: (value) => verificationCode = value,
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Join'),
+            ),
+          ],
+        );
+      },
+    );
+    return verificationCode;
   }
 
   @override
@@ -192,25 +286,27 @@ class _TopwidgetsState extends State<Topwidgets> {
                       ),
                     ],
                   ),
-                  child: _spaces.isEmpty
-                      ? ListTile(
-                          title: const Text('No spaces yet'),
-                          trailing: const Icon(Icons.add),
-                          onTap: _createSpace,
-                        )
-                      : Column(
-                          children: _spaces.map((space) {
-                            return ListTile(
-                              title: Text(space),
-                              onTap: () {
-                                // Handle space selection
-                                setState(() {
-                                  _isDropdownOpen = false;
-                                });
-                              },
-                            );
-                          }).toList(),
-                        ),
+                  child: Column(
+                    children: [
+                      ListTile(
+                        title: const Text('Create Space +'),
+                        trailing: const Icon(Icons.add),
+                        onTap: _createSpace,
+                      ),
+                      ListTile(
+                        title: const Text('Join Space'),
+                        trailing: const Icon(Icons.group_add),
+                        onTap: _joinSpace,
+                      ),
+                      ..._spaces.map((space) {
+                        return ListTile(
+                          title: Text(space['name']),
+                          subtitle: Text('Created by ${space['creator']}'),
+                          onTap: () => _selectSpace(space['id']), // Call _selectSpace
+                        );
+                      }).toList(),
+                    ],
+                  ),
                 ),
               // Horizontally Scrollable List of Categories
               SingleChildScrollView(

@@ -43,6 +43,8 @@ class _GpsScreenState extends State<GpsScreen> {
   GlobalKey securityKey = GlobalKey();
   final String _apiKey = dotenv.env["GOOGLE_API_KEY"] ?? '';
   Set<Circle> _circles = {};
+  bool _isNavigating = false;
+
   
   final List<Map<String, dynamic>> pwdFriendlyLocations = [
     {
@@ -72,7 +74,7 @@ class _GpsScreenState extends State<GpsScreen> {
     }
   ];
 
-   @override
+    @override
   void initState() {
     super.initState();
     _getUserLocation();
@@ -105,6 +107,17 @@ class _GpsScreenState extends State<GpsScreen> {
     });
   }
 
+void _navigateToSettings() {
+    print("Navigating to settings...");
+
+  if (_isNavigating) return; // Prevent duplicate navigation
+  _isNavigating = true;
+
+  Navigator.pushNamed(context, '/settings').then((_) {
+     print("Returned from settings.");
+    _isNavigating = false; // Re-enable navigation after the route is popped
+  });
+}
 
 
   // Update user location in Firestore
@@ -123,39 +136,51 @@ class _GpsScreenState extends State<GpsScreen> {
   }
 
   // Listen for real-time location updates from other users in the space
-   void _listenForLocationUpdates() {
+  void _listenForLocationUpdates() {
     if (_activeSpaceId.isEmpty) {
       print("⚠️ Active space ID is empty. Cannot listen for location updates.");
       return;
     }
 
     _locationUpdatesSubscription?.cancel(); // Cancel existing listener
-    _locationUpdatesSubscription = _getSpaceMembersLocations(_activeSpaceId).listen((snapshot) {
+    _locationUpdatesSubscription = _getSpaceMembersLocations(_activeSpaceId).listen((snapshot) async {
       final updatedMarkers = <Marker>{};
+
+      // Preserve existing PWD-friendly and nearby places markers
+      final existingMarkers = _markers.where((marker) =>
+          !marker.markerId.value.startsWith('user_'));
+
       for (final doc in snapshot.docs) {
         final data = doc.data() as Map<String, dynamic>;
         final lat = data['latitude'];
         final lng = data['longitude'];
         final userId = doc.id;
 
+        // Fetch the username for the user
+        final userDoc = await FirebaseFirestore.instance
+            .collection('Users')
+            .doc(userId)
+            .get();
+        final username = userDoc['username'];
+
         updatedMarkers.add(
           Marker(
-            markerId: MarkerId(userId),
+            markerId: MarkerId('user_$userId'),
             position: LatLng(lat, lng),
-            infoWindow: InfoWindow(title: 'User $userId'),
+            infoWindow: InfoWindow(title: username),
           ),
         );
       }
 
       setState(() {
-        _markers = updatedMarkers;
+        _markers = existingMarkers.toSet().union(updatedMarkers);
       });
     });
   }
 
 
-  // Fetch real-time location updates for members in the active space
- Stream<QuerySnapshot> _getSpaceMembersLocations(String spaceId) {
+ // Fetch real-time location updates for members in the active space
+  Stream<QuerySnapshot> _getSpaceMembersLocations(String spaceId) {
     if (spaceId.isEmpty) {
       return const Stream.empty(); // Return an empty stream if spaceId is empty
     }
@@ -172,6 +197,7 @@ class _GpsScreenState extends State<GpsScreen> {
           .snapshots();
     }).asyncExpand((event) => event);
   }
+
 
 
 
@@ -428,8 +454,8 @@ class _GpsScreenState extends State<GpsScreen> {
   }
 
   void _showTutorial() {
+  WidgetsBinding.instance.addPostFrameCallback((_) {
     List<TargetFocus> targets = [];
-
     targets.add(TargetFocus(
       identify: "inboxTarget",
       keyTarget: inboxKey,
@@ -613,6 +639,7 @@ class _GpsScreenState extends State<GpsScreen> {
         return true; // Return a boolean value
       },
     ).show(context: context);
+  });
   }
 
   
@@ -670,7 +697,7 @@ class _GpsScreenState extends State<GpsScreen> {
     _listenForLocationUpdates();
   }
 
-@override
+ @override
   Widget build(BuildContext context) {
     return BlocBuilder<UserBloc, UserState>(
       builder: (context, userState) {
@@ -740,5 +767,4 @@ class _GpsScreenState extends State<GpsScreen> {
     );
   }
 }
-
 enum OverlayPosition { top, bottom }

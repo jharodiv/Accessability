@@ -40,11 +40,7 @@ class _LoginFormState extends State<LoginForm> {
         BlocListener<AuthBloc, AuthState>(
           listener: (context, state) {
             if (state is AuthLoading) {
-              showDialog(
-                context: context,
-                barrierDismissible: false,
-                builder: (context) => const Center(child: CircularProgressIndicator()),
-              );
+              const Text('yuh');
             } else if (state is AuthenticatedLogin) {
               print("AuthBloc: User logged in, transitioning...");
 

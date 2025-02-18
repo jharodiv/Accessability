@@ -180,7 +180,7 @@ class _TopwidgetsState extends State<Topwidgets> {
     return verificationCode;
   }
 
-  @override
+   @override
   Widget build(BuildContext context) {
     return Positioned(
       top: 0,
@@ -298,7 +298,6 @@ class _TopwidgetsState extends State<Topwidgets> {
                       ..._spaces.map((space) {
                         return ListTile(
                           title: Text(space['name']),
-                          subtitle: Text('Created by ${space['creator']}'),
                           onTap: () => _selectSpace(space['id'], space['name']), // Update active space
                         );
                       }).toList(),

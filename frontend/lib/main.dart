@@ -6,6 +6,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:frontend/accessability/data/repositories/auth_repository.dart';
 import 'package:frontend/accessability/data/repositories/user_repository.dart';
 import 'package:frontend/accessability/logic/bloc/auth/auth_bloc.dart';
+import 'package:frontend/accessability/logic/bloc/auth/auth_event.dart';
 import 'package:frontend/accessability/logic/bloc/user/user_bloc.dart';
 import 'package:provider/provider.dart';
 import 'package:frontend/accessability/router/app_router.dart';
@@ -45,27 +46,32 @@ class MyApp extends StatelessWidget {
 
   MyApp({super.key, required this.sharedPreferences});
 
-  @override
+   @override
   Widget build(BuildContext context) {
     return MultiBlocProvider(
       providers: [
-        // Provide UserBloc first
         BlocProvider<UserBloc>(
           create: (context) => UserBloc(UserRepository(sharedPreferences)),
         ),
-        // Provide AuthBloc with AuthRepository and UserBloc
         BlocProvider(
           create: (context) => AuthBloc(
             AuthRepository(AuthService()),
-            context.read<UserBloc>(), // Pass UserBloc to AuthBloc
+            context.read<UserBloc>(),
           ),
         ),
       ],
       child: MaterialApp(
         debugShowCheckedModeBanner: false,
         initialRoute: '/',
-        theme: Provider.of<ThemeProvider>(context).themeData,
         onGenerateRoute: _appRouter.onGenerateRoute,
+        builder: (context, child) {
+          // Ensure the navigation stack is properly initialized
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            final authBloc = context.read<AuthBloc>();
+            authBloc.add(CheckAuthStatus());
+          });
+          return child!;
+        },
       ),
     );
   }

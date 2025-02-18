@@ -74,7 +74,7 @@ class _GpsScreenState extends State<GpsScreen> {
     }
   ];
 
-    @override
+  @override
   void initState() {
     super.initState();
     _getUserLocation();
@@ -95,7 +95,9 @@ class _GpsScreenState extends State<GpsScreen> {
 
 
 
-      WidgetsBinding.instance.addPostFrameCallback((_) {
+
+  // Check if onboarding is completed before showing the tutorial
+    WidgetsBinding.instance.addPostFrameCallback((_) {
       final authBloc = context.read<AuthBloc>();
       final hasCompletedOnboarding = authBloc.state is AuthenticatedLogin
           ? (authBloc.state as AuthenticatedLogin).hasCompletedOnboarding
@@ -107,17 +109,20 @@ class _GpsScreenState extends State<GpsScreen> {
     });
   }
 
-void _navigateToSettings() {
+ void _navigateToSettings() {
     print("Navigating to settings...");
 
-  if (_isNavigating) return; // Prevent duplicate navigation
-  _isNavigating = true;
+    if (_isNavigating) return; // Prevent duplicate navigation
+    _isNavigating = true;
 
-  Navigator.pushNamed(context, '/settings').then((_) {
-     print("Returned from settings.");
-    _isNavigating = false; // Re-enable navigation after the route is popped
-  });
-}
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Navigator.pushNamed(context, '/settings').then((_) {
+        print("Returned from settings.");
+        _isNavigating = false; // Re-enable navigation after the route is popped
+      });
+    });
+  }
+
 
 
   // Update user location in Firestore
@@ -173,7 +178,7 @@ void _navigateToSettings() {
       }
 
       setState(() {
-        _markers = existingMarkers.toSet().union(updatedMarkers);
+        _markers = existingMarkers.toSet().union(updatedMarkers); // Fix: Convert to Set and use union
       });
     });
   }
@@ -643,7 +648,7 @@ void _navigateToSettings() {
   }
 
   
-  // Get user location and update it in Firestore
+    // Get user location and update it in Firestore
   Future<void> _getUserLocation() async {
     bool serviceEnabled;
     PermissionStatus permissionGranted;
@@ -697,7 +702,7 @@ void _navigateToSettings() {
     _listenForLocationUpdates();
   }
 
- @override
+    @override
   Widget build(BuildContext context) {
     return BlocBuilder<UserBloc, UserState>(
       builder: (context, userState) {

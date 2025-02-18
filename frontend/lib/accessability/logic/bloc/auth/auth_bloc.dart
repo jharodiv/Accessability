@@ -36,7 +36,8 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         ),
         hasCompletedOnboarding: user.hasCompletedOnboarding,
       ));
-      userBloc.add(FetchUserData()); // Fetch user data if authenticated
+
+      // userBloc.add(FetchUserData()); // Fetch user data if authenticated
     } else {
       emit(AuthInitial()); // No user is logged in
     }

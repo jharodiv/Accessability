@@ -9,21 +9,20 @@ class UserBloc extends Bloc<UserEvent, UserState> {
 
   UserBloc(this.userRepository) : super(UserInitial()) {
     on<FetchUserData>((event, emit) async {
-      emit(UserLoading());
-      try {
-        print("UserBloc: Fetching user data...");
-
-        final user = await userRepository.getCachedUser();
-        if (user != null) {
-          emit(UserLoaded(user));
-          print("UserBloc: User fetched successfully: ${user.toJson()}");
-
-        } else {
-          emit(UserError('User not found'));
-          
+      if (state is! UserLoaded) { // Only fetch if not already loaded
+        emit(UserLoading());
+        try {
+          print("UserBloc: Fetching user data...");
+          final user = await userRepository.getCachedUser();
+          if (user != null) {
+            emit(UserLoaded(user));
+            print("UserBloc: User fetched successfully: ${user.toJson()}");
+          } else {
+            emit(UserError('User not found'));
+          }
+        } catch (e) {
+          emit(UserError('Failed to fetch user data: ${e.toString()}'));
         }
-      } catch (e) {
-        emit(UserError('Failed to fetch user data: ${e.toString()}'));
       }
     });
 

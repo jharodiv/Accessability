@@ -19,6 +19,7 @@ class LoginForm extends StatefulWidget {
 class _LoginFormState extends State<LoginForm> {
   final TextEditingController emailController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
+  bool _hasNavigated = false; // Add this flag
 
   @override
   void dispose() {
@@ -43,7 +44,6 @@ class _LoginFormState extends State<LoginForm> {
               const Text('yuh');
             } else if (state is AuthenticatedLogin) {
               print("AuthBloc: User logged in, transitioning...");
-
               Navigator.pop(context); // Dismiss loading dialog
               context.read<UserBloc>().add(FetchUserData());
             } else if (state is AuthError) {
@@ -68,8 +68,9 @@ class _LoginFormState extends State<LoginForm> {
           listener: (context, userState) {
             if (userState is UserLoaded) {
               final authState = context.read<AuthBloc>().state;
-              Future.microtask(() {
-                if (authState is AuthenticatedLogin) {
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (mounted && authState is AuthenticatedLogin && !_hasNavigated) {
+                  _hasNavigated = true; // Prevent multiple navigations
                   if (authState.hasCompletedOnboarding) {
                     Navigator.pushReplacementNamed(context, '/homescreen');
                   } else {

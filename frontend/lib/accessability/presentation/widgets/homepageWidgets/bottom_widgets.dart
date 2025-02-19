@@ -27,7 +27,7 @@ class _BottomWidgetsState extends State<BottomWidgets> {
   final ChatService _chatService = ChatService(); // Initialize ChatService
   List<Map<String, dynamic>> _members = []; // List of members in the space
   String? _creatorId; // ID of the space creator
-  
+
   @override
   void initState() {
     super.initState();
@@ -36,17 +36,18 @@ class _BottomWidgetsState extends State<BottomWidgets> {
 
   @override
   void didUpdateWidget(BottomWidgets oldWidget) {
-  super.didUpdateWidget(oldWidget);
-  if (widget.activeSpaceId != oldWidget.activeSpaceId) {
-    _fetchMembers(); // Fetch members for the new space
+    super.didUpdateWidget(oldWidget);
+    if (widget.activeSpaceId != oldWidget.activeSpaceId) {
+      _fetchMembers(); // Fetch members for the new space
+    }
   }
-}
 
   // Fetch members in the active space
-   Future<void> _fetchMembers() async {
+  Future<void> _fetchMembers() async {
     if (widget.activeSpaceId.isEmpty) return;
 
-    final snapshot = await _firestore.collection('Spaces').doc(widget.activeSpaceId).get();
+    final snapshot =
+        await _firestore.collection('Spaces').doc(widget.activeSpaceId).get();
     final members = List<String>.from(snapshot['members']);
     final creatorId = snapshot['creator'];
 
@@ -91,7 +92,6 @@ class _BottomWidgetsState extends State<BottomWidgets> {
 
     // Generate a random verification code
     final verificationCode = _generateVerificationCode();
-    
 
     // Send the verification code via chat
     await _chatService.sendMessage(
@@ -153,7 +153,10 @@ class _BottomWidgetsState extends State<BottomWidgets> {
         return Container(
           decoration: const BoxDecoration(
             color: Colors.white,
-            borderRadius: BorderRadius.all(Radius.circular(20)),
+            borderRadius: BorderRadius.only(
+              topLeft: Radius.circular(20),
+              topRight: Radius.circular(20),
+            ),
             boxShadow: [
               BoxShadow(
                 color: Colors.black26,
@@ -174,7 +177,7 @@ class _BottomWidgetsState extends State<BottomWidgets> {
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.all(Radius.circular(20)),
                       ),
-                      ),
+                    ),
                     onChanged: (value) {
                       // Handle search logic here
                     },
@@ -190,7 +193,8 @@ class _BottomWidgetsState extends State<BottomWidgets> {
                   ),
                   const SizedBox(height: 20),
                   _buildContent(),
-                  if (_creatorId == _auth.currentUser?.uid) // Only show if creator
+                  if (_creatorId ==
+                      _auth.currentUser?.uid) // Only show if creator
                     ElevatedButton(
                       onPressed: _addPerson,
                       child: const Text('Add Person'),
@@ -203,7 +207,6 @@ class _BottomWidgetsState extends State<BottomWidgets> {
       },
     );
   }
-
 
   Widget _buildButton(IconData icon, int index) {
     bool isActive = _activeIndex == index;
@@ -230,37 +233,39 @@ class _BottomWidgetsState extends State<BottomWidgets> {
     );
   }
 
- Widget _buildContent() {
-  switch (_activeIndex) {
-    case 0:
-      return Column(
-        children: _members
-            .where((member) => member['uid'] != _auth.currentUser?.uid) // Exclude current user
-            .map((member) => ListTile(
-                  title: Text(member['username']),
-                  trailing: IconButton(
-                    icon: const Icon(Icons.chat),
-                    onPressed: () {
-                      // Navigate to chat with the member
-                      Navigator.pushNamed(
-                        context,
-                        '/chatconvo',
-                        arguments: {
-                          'receiverEmail': member['username'],
-                          'receiverID': member['uid'],
-                        },
-                      );
-                    },
-                  ),
-                ))
-            .toList(),
-      );
-    case 1:
-      return const Text("Buildings Content");
-    case 2:
-      return const Text("Map Content");
-    default:
-      return const SizedBox.shrink();
+  Widget _buildContent() {
+    switch (_activeIndex) {
+      case 0:
+        return Column(
+          children: _members
+              .where((member) =>
+                  member['uid'] !=
+                  _auth.currentUser?.uid) // Exclude current user
+              .map((member) => ListTile(
+                    title: Text(member['username']),
+                    trailing: IconButton(
+                      icon: const Icon(Icons.chat),
+                      onPressed: () {
+                        // Navigate to chat with the member
+                        Navigator.pushNamed(
+                          context,
+                          '/chatconvo',
+                          arguments: {
+                            'receiverEmail': member['username'],
+                            'receiverID': member['uid'],
+                          },
+                        );
+                      },
+                    ),
+                  ))
+              .toList(),
+        );
+      case 1:
+        return const Text("Buildings Content");
+      case 2:
+        return const Text("Map Content");
+      default:
+        return const SizedBox.shrink();
+    }
   }
-}
 }

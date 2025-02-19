@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:frontend/accessability/data/data_provider/auth_data_provider.dart';
 import 'package:frontend/accessability/data/repositories/auth_repository.dart';
 import 'package:frontend/accessability/data/repositories/user_repository.dart';
 import 'package:frontend/accessability/logic/bloc/auth/auth_bloc.dart';
@@ -23,9 +24,10 @@ void main() async {
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
   // Initialize SharedPreferences
-  final SharedPreferences sharedPreferences = await SharedPreferences.getInstance();
+  final SharedPreferences sharedPreferences =
+      await SharedPreferences.getInstance();
 
-   try {
+  try {
     await dotenv.load(fileName: '.env'); // Use absolute path for testing
     print("Loaded API Key: ${dotenv.env['GOOGLE_API_KEY']}");
   } catch (e) {
@@ -46,7 +48,7 @@ class MyApp extends StatelessWidget {
 
   MyApp({super.key, required this.sharedPreferences});
 
-   @override
+  @override
   Widget build(BuildContext context) {
     return MultiBlocProvider(
       providers: [
@@ -55,22 +57,30 @@ class MyApp extends StatelessWidget {
         ),
         BlocProvider(
           create: (context) => AuthBloc(
-            AuthRepository(AuthService()),
+            AuthRepository(AuthService(), AuthDataProvider()),
             context.read<UserBloc>(),
           ),
         ),
       ],
-      child: MaterialApp(
-        debugShowCheckedModeBanner: false,
-        initialRoute: '/',
-        onGenerateRoute: _appRouter.onGenerateRoute,
-        builder: (context, child) {
-          // Ensure the navigation stack is properly initialized
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            final authBloc = context.read<AuthBloc>();
-            authBloc.add(CheckAuthStatus());
-          });
-          return child!;
+      child: Consumer<ThemeProvider>(
+        builder: (context, themeProvider, child) {
+          return MaterialApp(
+            debugShowCheckedModeBanner: false,
+            theme: _buildLightTheme(context),
+            darkTheme: _buildDarkTheme(context),
+            themeMode:
+                themeProvider.isDarkMode ? ThemeMode.dark : ThemeMode.light,
+            initialRoute: '/',
+            onGenerateRoute: _appRouter.onGenerateRoute,
+            builder: (context, child) {
+              // Ensure the navigation stack is properly initialized
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                final authBloc = context.read<AuthBloc>();
+                authBloc.add(CheckAuthStatus());
+              });
+              return child!;
+            },
+          );
         },
       ),
     );

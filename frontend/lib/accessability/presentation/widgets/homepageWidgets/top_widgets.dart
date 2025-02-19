@@ -216,7 +216,7 @@ class _TopwidgetsState extends State<Topwidgets> {
                       widget.onOverlayChange(_isDropdownOpen);
                     },
                     child: Container(
-                      width: 150,
+                      width: 175,
                       height: 30,
                       decoration: BoxDecoration(
                         color: Colors.white,
@@ -233,9 +233,11 @@ class _TopwidgetsState extends State<Topwidgets> {
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Padding(
-                            padding: const EdgeInsets.only(left: 10),
+                            padding: const EdgeInsets.only(left: 20),
                             child: Text(
-                              _activeSpaceName,
+                              _activeSpaceName.length > 8
+                                  ? '${_activeSpaceName.substring(0, 8)}...'
+                                  : _activeSpaceName,
                               style: const TextStyle(
                                 color: Color(0xFF6750A4),
                                 fontWeight: FontWeight.bold,
@@ -243,7 +245,7 @@ class _TopwidgetsState extends State<Topwidgets> {
                             ),
                           ),
                           Padding(
-                            padding: const EdgeInsets.only(right: 10),
+                            padding: const EdgeInsets.only(right: 15),
                             child: Icon(
                               _isDropdownOpen
                                   ? Icons.arrow_drop_up

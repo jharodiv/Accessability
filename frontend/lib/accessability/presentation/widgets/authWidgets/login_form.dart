@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:frontend/accessability/logic/bloc/auth/auth_bloc.dart';
 import 'package:frontend/accessability/logic/bloc/auth/auth_event.dart';
@@ -20,9 +21,23 @@ class LoginForm extends StatefulWidget {
 class _LoginFormState extends State<LoginForm> {
   final TextEditingController emailController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
-  final LocalAuthentication _localAuth = LocalAuthentication();
   bool _hasNavigated = false;
   bool isBiometricEnabled = true; // Replace this with actual settings value
+  late final LocalAuthentication _localAuth;
+  bool _supportState = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _localAuth = LocalAuthentication();
+    _localAuth.isDeviceSupported().then(
+          (bool isSupported) => setState(
+            () {
+              _supportState = isSupported;
+            },
+          ),
+        );
+  }
 
   @override
   void dispose() {
@@ -205,7 +220,7 @@ class _LoginFormState extends State<LoginForm> {
                   ),
                   const SizedBox(height: 50),
                   GestureDetector(
-                    onTap: _authenticateWithBiometrics,
+                    onTap: _authenthicate,
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
@@ -229,5 +244,19 @@ class _LoginFormState extends State<LoginForm> {
         ),
       ),
     );
+  }
+
+  Future<void> _authenthicate() async {
+    try {
+      bool authenticated = await _localAuth.authenticate(
+        localizedReason: 'Try',
+        options: const AuthenticationOptions(
+          stickyAuth: true,
+          biometricOnly: true,
+        ),
+      );
+    } on PlatformException catch (e) {
+      print(e);
+    }
   }
 }

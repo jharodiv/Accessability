@@ -1,6 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
-import 'package:frontend/accessability/data/model/signup_model.dart';
+import 'package:frontend/accessability/data/model/mongodb_signup_model.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
@@ -40,7 +40,8 @@ class AuthDataProvider {
   }
 
   //! Register
-  Future<Map<String, dynamic>> register(SignUpModel model, File? image) async {
+  Future<Map<String, dynamic>> register(
+      MongodbSignupModel model, File? image) async {
     final request = http.MultipartRequest(
         'POST', Uri.parse('$_baseUrl/auth/signup'))
       ..headers['Content-Type'] = 'application/json'
@@ -94,6 +95,21 @@ class AuthDataProvider {
 
     final data = await _handleResponse(response);
     print('Verification Code Sent: ${data['message']}');
+  }
+
+  //! Verify Code
+  Future<void> verifyCode(String email, String verificationCode) async {
+    final response = await http.post(
+      Uri.parse('$_baseUrl/verifyCode'),
+      headers: {'Content-Type': 'application/json'},
+      body: json.encode({
+        'email': email,
+        'verificationCode': verificationCode,
+      }),
+    );
+
+    final data = await _handleResponse(response);
+    print('Verification Code Verified: ${data['message']}');
   }
 
   //! Update User Onboarding

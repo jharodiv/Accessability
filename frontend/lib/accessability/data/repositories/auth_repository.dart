@@ -1,5 +1,7 @@
 import 'dart:io';
 
+import 'package:frontend/accessability/data/data_provider/auth_data_provider.dart';
+import 'package:frontend/accessability/data/model/mongodb_signup_model.dart';
 import 'package:frontend/accessability/logic/firebase_logic/SignupModel.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:frontend/accessability/firebaseServices/auth/auth_service.dart';
@@ -10,10 +12,11 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 class AuthRepository {
   SharedPreferences? _sharedPrefs;
   final AuthService authService;
+  final AuthDataProvider dataProvider;
 
   UserModel? _cachedUser;
 
-  AuthRepository(this.authService) {
+  AuthRepository(this.authService, this.dataProvider) {
     _initSharedPrefs(); // Initialize SharedPreferences when the repository is created
   }
 
@@ -23,17 +26,35 @@ class AuthRepository {
     print('SharedPreferences initialized');
   }
 
-  // //! Register
-  // Future<UserModel> register(
-  //     SignUpModel signUpModel, File? profilePicture) async {
-  //   try {
-  //     final data = await dataProvider.register(signUpModel, profilePicture);
-  //     return UserModel.fromJson(
-  //         data); // Assuming the response contains user data
-  //   } catch (e) {
-  //     throw Exception(e.toString());
-  //   }
-  // }
+  //! Register
+  Future<UserModel> register(
+      MongodbSignupModel signUpModel, File? profilePicture) async {
+    try {
+      final data = await dataProvider.register(signUpModel, profilePicture);
+      return UserModel.fromJson(
+          data); // Assuming the response contains user data
+    } catch (e) {
+      throw Exception(e.toString());
+    }
+  }
+
+  //! Send Verification Code
+  Future<void> sendVerificationCode(String email) async {
+    try {
+      await dataProvider.sendVerificationCode(email);
+    } catch (e) {
+      throw Exception(e.toString());
+    }
+  }
+
+  //! Verify Code
+  Future<void> verifyCode(String email, String verificationCode) async {
+    try {
+      await dataProvider.verifyCode(email, verificationCode);
+    } catch (e) {
+      throw Exception(e.toString());
+    }
+  }
 
   // Login
   Future<LoginModel> login(String email, String password) async {

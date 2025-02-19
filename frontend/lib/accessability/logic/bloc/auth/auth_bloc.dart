@@ -24,6 +24,45 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       }
     });
 
+    on<RegisterEvent>((event, emit) async {
+      emit(AuthLoading());
+      try {
+        final userModel = await authRepository.register(
+            event.signUpModel, event.profilePicture);
+        emit(AuthenticatedLogin(
+          LoginModel(
+            token: userModel.uid,
+            userId: userModel.uid,
+            hasCompletedOnboarding: userModel.hasCompletedOnboarding,
+            user: userModel,
+          ),
+          hasCompletedOnboarding: userModel.hasCompletedOnboarding,
+        ));
+      } catch (e) {
+        emit(AuthError('Registration failed: ${e.toString()}'));
+      }
+    });
+
+    on<SendVerificationCodeEvent>((event, emit) async {
+      emit(AuthLoading());
+      try {
+        await authRepository.sendVerificationCode(event.email);
+        emit(AuthSuccess('Verification code sent successfully.'));
+      } catch (e) {
+        emit(AuthError('Failed to send verification code: ${e.toString()}'));
+      }
+    });
+
+    on<VerifyCodeEvent>((event, emit) async {
+      emit(AuthLoading());
+      try {
+        await authRepository.verifyCode(event.email, event.verificationCode);
+        emit(AuthSuccess('Verification code verified successfully.'));
+      } catch (e) {
+        emit(AuthError('Verification failed: ${e.toString()}'));
+      }
+    });
+
     on<CheckAuthStatus>((event, emit) async {
       emit(AuthLoading());
       try {

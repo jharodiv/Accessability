@@ -256,7 +256,9 @@ class _BottomWidgetsState extends State<BottomWidgets> {
   Widget _buildServiceButton(IconData icon, String label) {
     return GestureDetector(
       onTap: () {
-        // You can add functionality here later if needed
+        if (label == 'SOS') {
+          Navigator.pushNamed(context, '/sos');
+        }
       },
       child: Container(
         margin: const EdgeInsets.only(right: 10),

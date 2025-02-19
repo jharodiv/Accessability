@@ -146,7 +146,7 @@ class _BottomWidgetsState extends State<BottomWidgets> {
   @override
   Widget build(BuildContext context) {
     return DraggableScrollableSheet(
-      initialChildSize: 0.1,
+      initialChildSize: 0.2,
       minChildSize: 0.1,
       maxChildSize: 0.8,
       builder: (BuildContext context, ScrollController scrollController) {
@@ -171,16 +171,42 @@ class _BottomWidgetsState extends State<BottomWidgets> {
               padding: const EdgeInsets.all(16.0),
               child: Column(
                 children: [
-                  TextField(
-                    decoration: const InputDecoration(
-                      labelText: "Search Location",
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.all(Radius.circular(20)),
-                      ),
+                  Container(
+                    width: 100, // Adjust width as needed
+                    height: 2, // Thin line
+                    color: Colors.grey.shade700, // Dark grey color
+                    margin: const EdgeInsets.only(
+                        bottom: 8), // Space below the line
+                  ),
+                  const SizedBox(
+                    height: 5,
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    height: 50, // Adjust height
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade200, // Light gray background
+                      borderRadius: BorderRadius.circular(25), // Rounded edges
                     ),
-                    onChanged: (value) {
-                      // Handle search logic here
-                    },
+                    child: const Row(
+                      children: [
+                        // Placeholder text
+                        Expanded(
+                          child: Text(
+                            "Text to Speech, Speech to Text",
+                            style: TextStyle(
+                              color: Color(0xFF6750A4), // Updated color
+                              fontSize: 16,
+                            ),
+                          ),
+                        ),
+                        // Microphone icon
+                        Icon(
+                          Icons.mic, // Microphone icon
+                          color: Color(0xFF6750A4), // Updated color
+                        ),
+                      ],
+                    ),
                   ),
                   const SizedBox(height: 20),
                   Row(

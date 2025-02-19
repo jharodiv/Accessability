@@ -25,7 +25,16 @@ class AppRouter {
       case '/login':
         return _buildRoute(const LoginScreen(), clearStack: true);
       case '/uploadProfilePicture':
-        return _buildRoute(const UploadProfileScreen(), clearStack: true);
+        final args = routeSettings.arguments as Map<String, dynamic>? ?? {};
+        return _buildRoute(
+            UploadProfileScreen(
+              name: args['name'] ?? 'Guest',
+              email: args['email'] ?? '',
+              profile: args['profile'] ?? '',
+              phoneNumber: args['phoneNumber'] ?? '',
+            ),
+            clearStack: true);
+
       case '/onboarding':
         return _buildRoute(const OnboardingScreen(), clearStack: true);
       case '/homescreen':

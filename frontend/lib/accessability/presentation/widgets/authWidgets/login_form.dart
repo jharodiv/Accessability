@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:frontend/accessability/logic/bloc/auth/auth_bloc.dart';
 import 'package:frontend/accessability/logic/bloc/auth/auth_event.dart';
@@ -8,6 +9,7 @@ import 'package:frontend/accessability/logic/bloc/user/user_event.dart';
 import 'package:frontend/accessability/logic/bloc/user/user_state.dart';
 import 'package:frontend/accessability/presentation/screens/authScreens/forgot_password_screen.dart';
 import 'package:frontend/accessability/presentation/screens/authScreens/signup_screen.dart';
+import 'package:local_auth/local_auth.dart';
 
 class LoginForm extends StatefulWidget {
   const LoginForm({super.key});
@@ -19,7 +21,23 @@ class LoginForm extends StatefulWidget {
 class _LoginFormState extends State<LoginForm> {
   final TextEditingController emailController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
-  bool _hasNavigated = false; // Add this flag
+  bool _hasNavigated = false;
+  bool isBiometricEnabled = true; // Replace this with actual settings value
+  late final LocalAuthentication _localAuth;
+  bool _supportState = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _localAuth = LocalAuthentication();
+    _localAuth.isDeviceSupported().then(
+          (bool isSupported) => setState(
+            () {
+              _supportState = isSupported;
+            },
+          ),
+        );
+  }
 
   @override
   void dispose() {
@@ -34,20 +52,45 @@ class _LoginFormState extends State<LoginForm> {
     context.read<AuthBloc>().add(LoginEvent(email: email, password: password));
   }
 
+  Future<void> _authenticateWithBiometrics() async {
+    try {
+      bool isAvailable = await _localAuth.canCheckBiometrics;
+      bool didAuthenticate = false;
+
+      if (isAvailable) {
+        didAuthenticate = await _localAuth.authenticate(
+          localizedReason: 'Authenticate to login',
+          options: const AuthenticationOptions(
+            biometricOnly: true,
+            useErrorDialogs: true,
+            stickyAuth: true,
+          ),
+        );
+
+        if (didAuthenticate) {
+          // Simulate successful login
+          context.read<AuthBloc>().add(LoginWithBiometricEvent());
+        }
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+              content: Text('Biometric authentication not available')),
+        );
+      }
+    } catch (e) {
+      print('Error using biometrics: $e');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return MultiBlocListener(
       listeners: [
         BlocListener<AuthBloc, AuthState>(
           listener: (context, state) {
-            if (state is AuthLoading) {
-              const Text('yuh');
-            } else if (state is AuthenticatedLogin) {
-              print("AuthBloc: User logged in, transitioning...");
-              Navigator.pop(context); // Dismiss loading dialog
+            if (state is AuthenticatedLogin) {
               context.read<UserBloc>().add(FetchUserData());
             } else if (state is AuthError) {
-              Navigator.pop(context); // Dismiss loading dialog
               showDialog(
                 context: context,
                 builder: (context) => AlertDialog(
@@ -69,8 +112,10 @@ class _LoginFormState extends State<LoginForm> {
             if (userState is UserLoaded) {
               final authState = context.read<AuthBloc>().state;
               WidgetsBinding.instance.addPostFrameCallback((_) {
-                if (mounted && authState is AuthenticatedLogin && !_hasNavigated) {
-                  _hasNavigated = true; // Prevent multiple navigations
+                if (mounted &&
+                    authState is AuthenticatedLogin &&
+                    !_hasNavigated) {
+                  _hasNavigated = true;
                   if (authState.hasCompletedOnboarding) {
                     Navigator.pushReplacementNamed(context, '/homescreen');
                   } else {
@@ -119,9 +164,11 @@ class _LoginFormState extends State<LoginForm> {
                     alignment: Alignment.centerRight,
                     child: TextButton(
                       onPressed: () => Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                              builder: (context) => const ForgotPasswordScreen())),
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const ForgotPasswordScreen(),
+                        ),
+                      ),
                       child: const Text(
                         'Forgot Password?',
                         style: TextStyle(
@@ -157,9 +204,10 @@ class _LoginFormState extends State<LoginForm> {
                               fontSize: 17, fontWeight: FontWeight.w700)),
                       TextButton(
                         onPressed: () => Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                                builder: (context) => const SignupScreen())),
+                          context,
+                          MaterialPageRoute(
+                              builder: (context) => const SignupScreen()),
+                        ),
                         child: const Text(
                           'Sign Up',
                           style: TextStyle(
@@ -170,6 +218,25 @@ class _LoginFormState extends State<LoginForm> {
                       ),
                     ],
                   ),
+                  const SizedBox(height: 50),
+                  GestureDetector(
+                    onTap: _authenthicate,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.fingerprint,
+                            size: 30, color: Color(0xFF6750A4)),
+                        const SizedBox(width: 8),
+                        Text(
+                          isBiometricEnabled
+                              ? 'Biometric Login Enabled'
+                              : 'Login with Biometrics',
+                          style: const TextStyle(
+                              fontSize: 15, fontWeight: FontWeight.w600),
+                        ),
+                      ],
+                    ),
+                  )
                 ],
               ),
             ),
@@ -177,5 +244,19 @@ class _LoginFormState extends State<LoginForm> {
         ),
       ),
     );
+  }
+
+  Future<void> _authenthicate() async {
+    try {
+      bool authenticated = await _localAuth.authenticate(
+        localizedReason: 'Try',
+        options: const AuthenticationOptions(
+          stickyAuth: true,
+          biometricOnly: true,
+        ),
+      );
+    } on PlatformException catch (e) {
+      print(e);
+    }
   }
 }

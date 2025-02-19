@@ -1,7 +1,17 @@
 import 'package:flutter/material.dart';
 
 class UploadProfileScreen extends StatefulWidget {
-  const UploadProfileScreen({super.key});
+  final String name;
+  final String email;
+  final String profile;
+  final String phoneNumber;
+  const UploadProfileScreen({
+    super.key,
+    required this.name,
+    required this.email,
+    required this.profile,
+    required this.phoneNumber,
+  });
 
   @override
   State<UploadProfileScreen> createState() => _UploadPictureScreenState();

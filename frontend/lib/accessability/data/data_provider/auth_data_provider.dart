@@ -66,6 +66,18 @@ class AuthDataProvider {
     return data;
   }
 
+  //! Send Verification Code
+  Future<void> sendVerificationCode(String email) async {
+    final response = await http.post(
+      Uri.parse('$_baseUrl/sendVerificationCode'),
+      headers: {'Content-Type': 'application/json'},
+      body: json.encode({'email': email}),
+    );
+
+    final data = await _handleResponse(response);
+    print('Verification Code Sent: ${data['message']}');
+  }
+
   //! Update User Onboarding
   Future<void> completeOnboarding() async {
     final token = await _getToken();

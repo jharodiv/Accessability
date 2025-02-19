@@ -3,6 +3,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:frontend/accessability/presentation/widgets/homepageWidgets/category_item.dart';
 
 class Topwidgets extends StatefulWidget {
   final Function(bool) onOverlayChange;
@@ -187,7 +188,7 @@ class _TopwidgetsState extends State<Topwidgets> {
       right: 0,
       child: SafeArea(
         child: Container(
-          padding: const EdgeInsets.only(top: 20.0, left: 20.0, right: 20.0),
+          padding: const EdgeInsets.only(top: 15.0, left: 20.0, right: 20.0),
           color: Colors.transparent,
           child: Column(
             children: [
@@ -313,55 +314,37 @@ class _TopwidgetsState extends State<Topwidgets> {
                   padding: const EdgeInsets.symmetric(vertical: 10),
                   child: Row(
                     children: [
-                      _buildCategoryItem('Hotel', Icons.hotel),
-                      _buildCategoryItem('Restaurant', Icons.restaurant),
-                      _buildCategoryItem('Bus', Icons.directions_bus),
-                      _buildCategoryItem('Shopping', Icons.shopping_cart),
-                      _buildCategoryItem(
-                          'Groceries', Icons.local_grocery_store),
+                      CategoryItem(
+                        title: 'Hotel',
+                        icon: Icons.hotel,
+                        onCategorySelected: widget.onCategorySelected,
+                      ),
+                      CategoryItem(
+                        title: 'Restaurant',
+                        icon: Icons.restaurant,
+                        onCategorySelected: widget.onCategorySelected,
+                      ),
+                      CategoryItem(
+                        title: 'Bus',
+                        icon: Icons.directions_bus,
+                        onCategorySelected: widget.onCategorySelected,
+                      ),
+                      CategoryItem(
+                        title: 'Shopping',
+                        icon: Icons.shop_2,
+                        onCategorySelected: widget.onCategorySelected,
+                      ),
+                      CategoryItem(
+                        title: 'Groceries',
+                        icon: Icons.shopping_cart,
+                        onCategorySelected: widget.onCategorySelected,
+                      ),
                     ],
                   ),
                 ),
               ),
             ],
           ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildCategoryItem(String title, IconData icon) {
-    return GestureDetector(
-      onTap: () => widget.onCategorySelected(title),
-      child: Container(
-        margin: const EdgeInsets.only(right: 10),
-        padding: const EdgeInsets.symmetric(
-            horizontal: 12, vertical: 4), // Increased vertical padding
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(20),
-          boxShadow: const [
-            BoxShadow(
-              color: Colors.black26,
-              blurRadius: 4,
-              offset: Offset(2, 2),
-            ),
-          ],
-        ),
-        child: Row(
-          children: [
-            Icon(icon,
-                color:
-                    const Color(0xFF6750A4)), // Icon with the specified color
-            const SizedBox(width: 5), // Space between icon and text
-            Text(
-              title,
-              style: const TextStyle(
-                color: Color(0xFF6750A4),
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ],
         ),
       ),
     );

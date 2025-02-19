@@ -36,3 +36,5 @@ class VerifyCodeEvent extends AuthEvent {
 
   VerifyCodeEvent(this.email, this.verificationCode);
 }
+
+class LoginWithBiometricEvent extends AuthEvent {}

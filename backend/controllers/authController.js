@@ -306,7 +306,7 @@ exports.verifyCode = catchAsync(async (req, res, next) => {
     .update(verificationCode)
     .digest('hex');
 
-  if (hashedCode !== user.verificationCode) {
+  if (hashedCode !== user.settings.verificationCode) {
     return next(new AppError('Invalid verification code.', 400));
   }
 

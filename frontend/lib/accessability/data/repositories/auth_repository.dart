@@ -1,3 +1,6 @@
+import 'dart:io';
+
+import 'package:frontend/accessability/logic/firebase_logic/SignupModel.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:frontend/accessability/firebaseServices/auth/auth_service.dart';
 import 'package:frontend/accessability/data/model/login_model.dart';
@@ -7,6 +10,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 class AuthRepository {
   SharedPreferences? _sharedPrefs;
   final AuthService authService;
+
   UserModel? _cachedUser;
 
   AuthRepository(this.authService) {
@@ -14,21 +18,37 @@ class AuthRepository {
   }
 
   // Initialize SharedPreferences
-   Future<void> _initSharedPrefs() async {
+  Future<void> _initSharedPrefs() async {
     _sharedPrefs = await SharedPreferences.getInstance();
     print('SharedPreferences initialized');
   }
 
+  // //! Register
+  // Future<UserModel> register(
+  //     SignUpModel signUpModel, File? profilePicture) async {
+  //   try {
+  //     final data = await dataProvider.register(signUpModel, profilePicture);
+  //     return UserModel.fromJson(
+  //         data); // Assuming the response contains user data
+  //   } catch (e) {
+  //     throw Exception(e.toString());
+  //   }
+  // }
+
   // Login
   Future<LoginModel> login(String email, String password) async {
     try {
-      final userCredential = await authService.signInWithEmailPassword(email, password);
+      final userCredential =
+          await authService.signInWithEmailPassword(email, password);
       final user = userCredential.user;
       if (user == null) {
         throw Exception('Login failed: User is null');
       }
 
-      final userDoc = await FirebaseFirestore.instance.collection('Users').doc(user.uid).get();
+      final userDoc = await FirebaseFirestore.instance
+          .collection('Users')
+          .doc(user.uid)
+          .get();
       if (!userDoc.exists) {
         throw Exception('Login failed: User data not found');
       }
@@ -39,12 +59,10 @@ class AuthRepository {
 
       print('AuthRepository: User logged in with UID ${user.uid}');
       return LoginModel(
-        token: user.uid, // Use Firebase UID as the token
-        userId: user.uid, // Use Firebase UID as the userId
-        hasCompletedOnboarding: userData['hasCompletedOnboarding'] ?? false,
-        user: userModel
-
-      );
+          token: user.uid, // Use Firebase UID as the token
+          userId: user.uid, // Use Firebase UID as the userId
+          hasCompletedOnboarding: userData['hasCompletedOnboarding'] ?? false,
+          user: userModel);
     } catch (e) {
       print('AuthRepository: Login failed - ${e.toString()}');
       throw Exception('Login failed: ${e.toString()}');
@@ -62,7 +80,8 @@ class AuthRepository {
       });
       print('AuthRepository: Onboarding status updated for user $uid');
     } catch (e) {
-      print('AuthRepository: Error updating onboarding status - ${e.toString()}');
+      print(
+          'AuthRepository: Error updating onboarding status - ${e.toString()}');
       throw Exception('Failed to update onboarding status: ${e.toString()}');
     }
   }
@@ -73,12 +92,13 @@ class AuthRepository {
     _sharedPrefs?.setString('user_userId', user.uid);
     _sharedPrefs?.setString('user_userName', user.username);
     _sharedPrefs?.setString('user_userEmail', user.email);
-    _sharedPrefs?.setBool('user_hasCompletedOnboarding', user.hasCompletedOnboarding);
+    _sharedPrefs?.setBool(
+        'user_hasCompletedOnboarding', user.hasCompletedOnboarding);
     print('AuthRepository: User cached with UID ${user.uid}');
   }
 
   // Get Cached User Data
-   Future<UserModel?> getCachedUser() async {
+  Future<UserModel?> getCachedUser() async {
     if (_cachedUser != null) {
       return _cachedUser;
     }
@@ -86,7 +106,8 @@ class AuthRepository {
     final userId = _sharedPrefs?.getString('user_userId');
     final userName = _sharedPrefs?.getString('user_userName');
     final userEmail = _sharedPrefs?.getString('user_userEmail');
-    final hasCompletedOnboarding = _sharedPrefs?.getBool('user_hasCompletedOnboarding');
+    final hasCompletedOnboarding =
+        _sharedPrefs?.getBool('user_hasCompletedOnboarding');
 
     if (userId != null && userName != null && userEmail != null) {
       print('AuthRepository: Retrieved cached user with UID $userId');
@@ -94,33 +115,36 @@ class AuthRepository {
         uid: userId,
         username: userName,
         email: userEmail,
-        contactNumber: _sharedPrefs?.getString('user_contactNumber'), // Optional field
+        contactNumber:
+            _sharedPrefs?.getString('user_contactNumber'), // Optional field
         details: UserDetails(
           address: _sharedPrefs?.getString('user_address') ?? '',
           phoneNumber: _sharedPrefs?.getString('user_phoneNumber') ?? '',
           profilePicture: _sharedPrefs?.getString('user_profilePicture') ?? '',
         ),
         settings: UserSettings(
-          verificationCode: _sharedPrefs?.getString('user_verificationCode') ?? '',
+          verificationCode:
+              _sharedPrefs?.getString('user_verificationCode') ?? '',
           codeExpiresAt: _sharedPrefs?.getString('user_codeExpiresAt') ?? '',
           verified: _sharedPrefs?.getBool('user_verified') ?? false,
-          passwordChangedAt: _sharedPrefs?.getString('user_passwordChangedAt') ?? '',
-          passwordResetToken: _sharedPrefs?.getString('user_passwordResetToken') ?? '',
-          passwordResetExpiresAt: _sharedPrefs?.getString('user_passwordResetExpiresAt') ?? '',
+          passwordChangedAt:
+              _sharedPrefs?.getString('user_passwordChangedAt') ?? '',
+          passwordResetToken:
+              _sharedPrefs?.getString('user_passwordResetToken') ?? '',
+          passwordResetExpiresAt:
+              _sharedPrefs?.getString('user_passwordResetExpiresAt') ?? '',
           active: _sharedPrefs?.getBool('user_active') ?? true,
         ),
-        createdAt: DateTime.parse(_sharedPrefs?.getString('user_createdAt') ?? DateTime.now().toIso8601String()),
-        updatedAt: DateTime.parse(_sharedPrefs?.getString('user_updatedAt') ?? DateTime.now().toIso8601String()),
+        createdAt: DateTime.parse(_sharedPrefs?.getString('user_createdAt') ??
+            DateTime.now().toIso8601String()),
+        updatedAt: DateTime.parse(_sharedPrefs?.getString('user_updatedAt') ??
+            DateTime.now().toIso8601String()),
         hasCompletedOnboarding: hasCompletedOnboarding ?? false,
       );
     }
     print('AuthRepository: No cached user found');
     return null;
   }
-
-  
-
-  
 
   // Clear Cache
   Future<void> clearUserCache() async {

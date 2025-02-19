@@ -62,17 +62,25 @@ class MyApp extends StatelessWidget {
           ),
         ),
       ],
-      child: MaterialApp(
-        debugShowCheckedModeBanner: false,
-        initialRoute: '/',
-        onGenerateRoute: _appRouter.onGenerateRoute,
-        builder: (context, child) {
-          // Ensure the navigation stack is properly initialized
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            final authBloc = context.read<AuthBloc>();
-            authBloc.add(CheckAuthStatus());
-          });
-          return child!;
+      child: Consumer<ThemeProvider>(
+        builder: (context, themeProvider, child) {
+          return MaterialApp(
+            debugShowCheckedModeBanner: false,
+            theme: _buildLightTheme(context),
+            darkTheme: _buildDarkTheme(context),
+            themeMode:
+                themeProvider.isDarkMode ? ThemeMode.dark : ThemeMode.light,
+            initialRoute: '/',
+            onGenerateRoute: _appRouter.onGenerateRoute,
+            builder: (context, child) {
+              // Ensure the navigation stack is properly initialized
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                final authBloc = context.read<AuthBloc>();
+                authBloc.add(CheckAuthStatus());
+              });
+              return child!;
+            },
+          );
         },
       ),
     );

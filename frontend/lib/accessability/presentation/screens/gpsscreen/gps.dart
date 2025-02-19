@@ -45,7 +45,6 @@ class _GpsScreenState extends State<GpsScreen> {
   Set<Circle> _circles = {};
   bool _isNavigating = false;
 
-  
   final List<Map<String, dynamic>> pwdFriendlyLocations = [
     {
       "name": "Dagupan City Hall",
@@ -86,17 +85,13 @@ class _GpsScreenState extends State<GpsScreen> {
       });
     });
 
-    
-  @override
-  void dispose() {
-    _locationUpdatesSubscription?.cancel();
-    super.dispose();
-  }
+    @override
+    void dispose() {
+      _locationUpdatesSubscription?.cancel();
+      super.dispose();
+    }
 
-
-
-
-  // Check if onboarding is completed before showing the tutorial
+    // Check if onboarding is completed before showing the tutorial
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final authBloc = context.read<AuthBloc>();
       final hasCompletedOnboarding = authBloc.state is AuthenticatedLogin
@@ -109,7 +104,7 @@ class _GpsScreenState extends State<GpsScreen> {
     });
   }
 
- void _navigateToSettings() {
+  void _navigateToSettings() {
     print("Navigating to settings...");
 
     if (_isNavigating) return; // Prevent duplicate navigation
@@ -122,8 +117,6 @@ class _GpsScreenState extends State<GpsScreen> {
       });
     });
   }
-
-
 
   // Update user location in Firestore
   Future<void> _updateUserLocation(LatLng location) async {
@@ -148,12 +141,13 @@ class _GpsScreenState extends State<GpsScreen> {
     }
 
     _locationUpdatesSubscription?.cancel(); // Cancel existing listener
-    _locationUpdatesSubscription = _getSpaceMembersLocations(_activeSpaceId).listen((snapshot) async {
+    _locationUpdatesSubscription =
+        _getSpaceMembersLocations(_activeSpaceId).listen((snapshot) async {
       final updatedMarkers = <Marker>{};
 
       // Preserve existing PWD-friendly and nearby places markers
-      final existingMarkers = _markers.where((marker) =>
-          !marker.markerId.value.startsWith('user_'));
+      final existingMarkers = _markers
+          .where((marker) => !marker.markerId.value.startsWith('user_'));
 
       for (final doc in snapshot.docs) {
         final data = doc.data() as Map<String, dynamic>;
@@ -178,13 +172,14 @@ class _GpsScreenState extends State<GpsScreen> {
       }
 
       setState(() {
-        _markers = existingMarkers.toSet().union(updatedMarkers); // Fix: Convert to Set and use union
+        _markers = existingMarkers
+            .toSet()
+            .union(updatedMarkers); // Fix: Convert to Set and use union
       });
     });
   }
 
-
- // Fetch real-time location updates for members in the active space
+  // Fetch real-time location updates for members in the active space
   Stream<QuerySnapshot> _getSpaceMembersLocations(String spaceId) {
     if (spaceId.isEmpty) {
       return const Stream.empty(); // Return an empty stream if spaceId is empty
@@ -202,9 +197,6 @@ class _GpsScreenState extends State<GpsScreen> {
           .snapshots();
     }).asyncExpand((event) => event);
   }
-
-
-
 
   Future<bool> _onWillPop() async {
     // Show confirmation dialog
@@ -459,196 +451,195 @@ class _GpsScreenState extends State<GpsScreen> {
   }
 
   void _showTutorial() {
-  WidgetsBinding.instance.addPostFrameCallback((_) {
-    List<TargetFocus> targets = [];
-    targets.add(TargetFocus(
-      identify: "inboxTarget",
-      keyTarget: inboxKey,
-      contents: [
-        TargetContent(
-          align: ContentAlign.bottom,
-          child: Container(
-            color: Colors.transparent, // Set a background color
-            child: const Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  "This is your inbox.",
-                  style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 20.0,
-                      color: Colors.white),
-                ),
-                Padding(
-                  padding: EdgeInsets.only(top: 10.0),
-                  child: Text(
-                    "Tap here to view your messages.",
-                    style: TextStyle(color: Colors.white),
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      List<TargetFocus> targets = [];
+      targets.add(TargetFocus(
+        identify: "inboxTarget",
+        keyTarget: inboxKey,
+        contents: [
+          TargetContent(
+            align: ContentAlign.bottom,
+            child: Container(
+              color: Colors.transparent, // Set a background color
+              child: const Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    "This is your inbox.",
+                    style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 20.0,
+                        color: Colors.white),
                   ),
-                ),
-              ],
+                  Padding(
+                    padding: EdgeInsets.only(top: 10.0),
+                    child: Text(
+                      "Tap here to view your messages.",
+                      style: TextStyle(color: Colors.white),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
-        ),
-      ],
-    ));
+        ],
+      ));
 
-    targets.add(TargetFocus(
-      identify: "settingsTarget",
-      keyTarget: settingsKey,
-      contents: [
-        TargetContent(
-          align: ContentAlign.bottom,
-          child: Container(
-            color: Colors.transparent, // Set a background color
-            child: const Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  "This is the settings button.",
-                  style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 20.0,
-                      color: Colors.white),
-                ),
-                Padding(
-                  padding: EdgeInsets.only(top: 10.0),
-                  child: Text(
-                    "Tap here to access settings.",
-                    style: TextStyle(color: Colors.white),
+      targets.add(TargetFocus(
+        identify: "settingsTarget",
+        keyTarget: settingsKey,
+        contents: [
+          TargetContent(
+            align: ContentAlign.bottom,
+            child: Container(
+              color: Colors.transparent, // Set a background color
+              child: const Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    "This is the settings button.",
+                    style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 20.0,
+                        color: Colors.white),
                   ),
-                ),
-              ],
+                  Padding(
+                    padding: EdgeInsets.only(top: 10.0),
+                    child: Text(
+                      "Tap here to access settings.",
+                      style: TextStyle(color: Colors.white),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
-        ),
-      ],
-    ));
+        ],
+      ));
 
-    targets.add(TargetFocus(
-      identify: "locationTarget",
-      keyTarget: locationKey,
-      contents: [
-        TargetContent(
-          align: ContentAlign.top,
-          child: Container(
-            color: Colors.transparent,
-            child: const Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  "This is the location button.",
-                  style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 20.0,
-                      color: Colors.white),
-                ),
-                Padding(
-                  padding: EdgeInsets.only(top: 10.0),
-                  child: Text(
-                    "Tap here to view your location.",
-                    style: TextStyle(color: Colors.white),
+      targets.add(TargetFocus(
+        identify: "locationTarget",
+        keyTarget: locationKey,
+        contents: [
+          TargetContent(
+            align: ContentAlign.top,
+            child: Container(
+              color: Colors.transparent,
+              child: const Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    "This is the location button.",
+                    style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 20.0,
+                        color: Colors.white),
                   ),
-                ),
-              ],
+                  Padding(
+                    padding: EdgeInsets.only(top: 10.0),
+                    child: Text(
+                      "Tap here to view your location.",
+                      style: TextStyle(color: Colors.white),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
-        ),
-      ],
-    ));
+        ],
+      ));
 
-    targets.add(TargetFocus(
-      identify: "youTarget",
-      keyTarget: youKey,
-      contents: [
-        TargetContent(
-          align: ContentAlign.top,
-          child: Container(
-            color: Colors.transparent,
-            child: const Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  "This is the 'You' button.",
-                  style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 20.0,
-                      color: Colors.white),
-                ),
-                Padding(
-                  padding: EdgeInsets.only(top: 10.0),
-                  child: Text(
-                    "Tap here to view your profile.",
-                    style: TextStyle(color: Colors.white),
+      targets.add(TargetFocus(
+        identify: "youTarget",
+        keyTarget: youKey,
+        contents: [
+          TargetContent(
+            align: ContentAlign.top,
+            child: Container(
+              color: Colors.transparent,
+              child: const Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    "This is the 'You' button.",
+                    style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 20.0,
+                        color: Colors.white),
                   ),
-                ),
-              ],
+                  Padding(
+                    padding: EdgeInsets.only(top: 10.0),
+                    child: Text(
+                      "Tap here to view your profile.",
+                      style: TextStyle(color: Colors.white),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
-        ),
-      ],
-    ));
+        ],
+      ));
 
-    // Security Target
-    targets.add(TargetFocus(
-      identify: "securityTarget",
-      keyTarget: securityKey,
-      contents: [
-        TargetContent(
-          align: ContentAlign.top,
-          child: Container(
-            color: Colors.transparent,
-            child: const Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  "This is the security button.",
-                  style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 20.0,
-                      color: Colors.white),
-                ),
-                Padding(
-                  padding: EdgeInsets.only(top: 10.0),
-                  child: Text(
-                    "Tap here to view security settings.",
-                    style: TextStyle(color: Colors.white),
+      // Security Target
+      targets.add(TargetFocus(
+        identify: "securityTarget",
+        keyTarget: securityKey,
+        contents: [
+          TargetContent(
+            align: ContentAlign.top,
+            child: Container(
+              color: Colors.transparent,
+              child: const Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    "This is the security button.",
+                    style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 20.0,
+                        color: Colors.white),
                   ),
-                ),
-              ],
+                  Padding(
+                    padding: EdgeInsets.only(top: 10.0),
+                    child: Text(
+                      "Tap here to view security settings.",
+                      style: TextStyle(color: Colors.white),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
-        ),
-      ],
-    ));
+        ],
+      ));
 
-    TutorialCoachMark(
-      targets: targets,
-      colorShadow: Colors.black,
-      textSkip: "SKIP",
-      paddingFocus: 10,
-      opacityShadow: 0.8,
-      onFinish: () {
-        print("Tutorial finished");
-      },
-      onClickTarget: (target) {
-        print('Clicked on target: $target');
-      },
-      onSkip: () {
-        print("Tutorial skipped");
-        return true; // Return a boolean value
-      },
-    ).show(context: context);
-  });
+      TutorialCoachMark(
+        targets: targets,
+        colorShadow: Colors.black,
+        textSkip: "SKIP",
+        paddingFocus: 10,
+        opacityShadow: 0.8,
+        onFinish: () {
+          print("Tutorial finished");
+        },
+        onClickTarget: (target) {
+          print('Clicked on target: $target');
+        },
+        onSkip: () {
+          print("Tutorial skipped");
+          return true; // Return a boolean value
+        },
+      ).show(context: context);
+    });
   }
 
-  
-    // Get user location and update it in Firestore
+  // Get user location and update it in Firestore
   Future<void> _getUserLocation() async {
     bool serviceEnabled;
     PermissionStatus permissionGranted;
@@ -669,7 +660,8 @@ class _GpsScreenState extends State<GpsScreen> {
 
     // Get location
     _location.onLocationChanged.listen((LocationData locationData) {
-      final newLocation = LatLng(locationData.latitude!, locationData.longitude!);
+      final newLocation =
+          LatLng(locationData.latitude!, locationData.longitude!);
 
       // Only update if the location has changed significantly
       if (_lastLocation == null ||
@@ -686,8 +678,7 @@ class _GpsScreenState extends State<GpsScreen> {
     });
   }
 
-
- // Update the active space ID
+  // Update the active space ID
   void _updateActiveSpaceId(String spaceId) {
     if (spaceId.isEmpty) {
       print("⚠️ Cannot update active space ID: spaceId is empty.");
@@ -702,7 +693,7 @@ class _GpsScreenState extends State<GpsScreen> {
     _listenForLocationUpdates();
   }
 
-    @override
+  @override
   Widget build(BuildContext context) {
     return BlocBuilder<UserBloc, UserState>(
       builder: (context, userState) {
@@ -716,7 +707,8 @@ class _GpsScreenState extends State<GpsScreen> {
                 children: [
                   GoogleMap(
                     initialCameraPosition: CameraPosition(
-                      target: _currentLocation ?? const LatLng(16.0430, 120.3333),
+                      target:
+                          _currentLocation ?? const LatLng(16.0430, 120.3333),
                       zoom: 14,
                     ),
                     myLocationEnabled: true,
@@ -725,6 +717,32 @@ class _GpsScreenState extends State<GpsScreen> {
                     onMapCreated: _onMapCreated,
                     polygons: _createPolygons(),
                   ),
+                  // Positioned(
+                  //   top:
+                  //       200, // Adjust this value to move the controls higher or lower
+                  //   right: 16, // Position from the right
+                  //   child: Column(
+                  //     children: [
+                  //       FloatingActionButton(
+                  //         onPressed: () {
+                  //           _mapController?.animateCamera(
+                  //             CameraUpdate.zoomIn(),
+                  //           );
+                  //         },
+                  //         child: const Icon(Icons.add),
+                  //       ),
+                  //       const SizedBox(height: 8), // Space between buttons
+                  //       FloatingActionButton(
+                  //         onPressed: () {
+                  //           _mapController?.animateCamera(
+                  //             CameraUpdate.zoomOut(),
+                  //           );
+                  //         },
+                  //         child: const Icon(Icons.remove),
+                  //       ),
+                  //     ],
+                  //   ),
+                  // ),
                   Topwidgets(
                     inboxKey: inboxKey,
                     settingsKey: settingsKey,
@@ -736,14 +754,14 @@ class _GpsScreenState extends State<GpsScreen> {
                       print('Overlay state changed: $isVisible');
                       setState(() {
                         if (isVisible) {
-                        } else {
-                        }
+                        } else {}
                       });
                     },
                     onSpaceSelected: _updateActiveSpaceId, // Pass the callback
                   ),
                   BottomWidgets(
-                    key: ValueKey(_activeSpaceId), // Force rebuild when _activeSpaceId changes
+                    key: ValueKey(
+                        _activeSpaceId), // Force rebuild when _activeSpaceId changes
                     scrollController: ScrollController(),
                     activeSpaceId: _activeSpaceId, // Pass the active space ID
                   ),
@@ -756,8 +774,7 @@ class _GpsScreenState extends State<GpsScreen> {
                 onOverlayChange: (isVisible) {
                   setState(() {
                     if (isVisible) {
-                    } else {
-                    }
+                    } else {}
                   });
                 },
               ),
@@ -772,4 +789,5 @@ class _GpsScreenState extends State<GpsScreen> {
     );
   }
 }
+
 enum OverlayPosition { top, bottom }

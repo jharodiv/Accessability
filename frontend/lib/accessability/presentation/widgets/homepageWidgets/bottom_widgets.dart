@@ -260,7 +260,7 @@ class _BottomWidgetsState extends State<BottomWidgets> {
       },
       child: Container(
         margin: const EdgeInsets.only(right: 10),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(20),
@@ -279,7 +279,7 @@ class _BottomWidgetsState extends State<BottomWidgets> {
               color: const Color(0xFF6750A4),
               size: 18, // Reduced icon size
             ),
-            const SizedBox(width: 5), // Space between icon and text
+            const SizedBox(width: 10), // Space between icon and text
             Text(
               label,
               style: const TextStyle(

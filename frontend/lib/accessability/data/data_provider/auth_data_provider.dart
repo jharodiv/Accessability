@@ -1,4 +1,6 @@
 import 'dart:convert';
+import 'dart:io';
+import 'package:frontend/accessability/data/model/signup_model.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
@@ -37,7 +39,23 @@ class AuthDataProvider {
     }
   }
 
-//! Login
+  //! Register
+  Future<Map<String, dynamic>> register(SignUpModel model, File? image) async {
+    final request = http.MultipartRequest(
+        'POST', Uri.parse('$_baseUrl/auth/signup'))
+      ..headers['Content-Type'] = 'application/json'
+      ..fields.addAll(
+          model.toJson().map((key, value) => MapEntry(key, value.toString())));
+
+    if (image != null) {
+      request.files.add(await http.MultipartFile.fromPath('image', image.path));
+    }
+
+    final response = await request.send();
+    return await _handleResponse(await http.Response.fromStream(response));
+  }
+
+  //! Login
   Future<Map<String, dynamic>> login(String email, String password) async {
     final response = await http.post(
       Uri.parse('$_baseUrl/login'),

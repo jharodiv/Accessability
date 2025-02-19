@@ -17,7 +17,7 @@ class Topwidgets extends StatefulWidget {
     required this.onOverlayChange,
     required this.inboxKey,
     required this.settingsKey,
-    required this.onSpaceSelected, 
+    required this.onSpaceSelected,
   });
 
   @override
@@ -38,7 +38,7 @@ class _TopwidgetsState extends State<Topwidgets> {
     _fetchSpaces();
   }
 
-   // Fetch spaces from Firestore
+  // Fetch spaces from Firestore
   Future<void> _fetchSpaces() async {
     final user = _auth.currentUser;
     if (user == null) return;
@@ -59,7 +59,7 @@ class _TopwidgetsState extends State<Topwidgets> {
     });
   }
 
-    // When a space is selected, update the active space
+  // When a space is selected, update the active space
   void _selectSpace(String spaceId, String spaceName) {
     widget.onSpaceSelected(spaceId); // Notify parent about the selected space
     setState(() {
@@ -67,7 +67,6 @@ class _TopwidgetsState extends State<Topwidgets> {
       _isDropdownOpen = false;
     });
   }
-
 
   // Create a new space
   Future<void> _createSpace() async {
@@ -180,7 +179,7 @@ class _TopwidgetsState extends State<Topwidgets> {
     return verificationCode;
   }
 
-   @override
+  @override
   Widget build(BuildContext context) {
     return Positioned(
       top: 0,
@@ -245,7 +244,9 @@ class _TopwidgetsState extends State<Topwidgets> {
                           Padding(
                             padding: const EdgeInsets.only(right: 10),
                             child: Icon(
-                              _isDropdownOpen ? Icons.arrow_drop_up : Icons.arrow_drop_down,
+                              _isDropdownOpen
+                                  ? Icons.arrow_drop_up
+                                  : Icons.arrow_drop_down,
                               color: Colors.black,
                             ),
                           ),
@@ -298,7 +299,8 @@ class _TopwidgetsState extends State<Topwidgets> {
                       ..._spaces.map((space) {
                         return ListTile(
                           title: Text(space['name']),
-                          onTap: () => _selectSpace(space['id'], space['name']), // Update active space
+                          onTap: () => _selectSpace(space['id'],
+                              space['name']), // Update active space
                         );
                       }).toList(),
                     ],
@@ -311,46 +313,55 @@ class _TopwidgetsState extends State<Topwidgets> {
                   padding: const EdgeInsets.symmetric(vertical: 10),
                   child: Row(
                     children: [
-                      'Hotel',
-                      'Restaurant',
-                      'Bus',
-                      'Shopping',
-                      'Groceries',
-                    ].map((item) {
-                      return GestureDetector(
-                        onTap: () => widget.onCategorySelected(item),
-                        child: Container(
-                          margin: const EdgeInsets.only(right: 10),
-                          padding: const EdgeInsets.symmetric(horizontal: 10),
-                          height: 30,
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(20),
-                            boxShadow: const [
-                              BoxShadow(
-                                color: Colors.black26,
-                                blurRadius: 4,
-                                offset: Offset(2, 2),
-                              ),
-                            ],
-                          ),
-                          child: Center(
-                            child: Text(
-                              item,
-                              style: const TextStyle(
-                                color: Color(0xFF6750A4),
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                        ),
-                      );
-                    }).toList(),
+                      _buildCategoryItem('Hotel', Icons.hotel),
+                      _buildCategoryItem('Restaurant', Icons.restaurant),
+                      _buildCategoryItem('Bus', Icons.directions_bus),
+                      _buildCategoryItem('Shopping', Icons.shopping_cart),
+                      _buildCategoryItem(
+                          'Groceries', Icons.local_grocery_store),
+                    ],
                   ),
                 ),
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCategoryItem(String title, IconData icon) {
+    return GestureDetector(
+      onTap: () => widget.onCategorySelected(title),
+      child: Container(
+        margin: const EdgeInsets.only(right: 10),
+        padding: const EdgeInsets.symmetric(
+            horizontal: 12, vertical: 4), // Increased vertical padding
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: const [
+            BoxShadow(
+              color: Colors.black26,
+              blurRadius: 4,
+              offset: Offset(2, 2),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Icon(icon,
+                color:
+                    const Color(0xFF6750A4)), // Icon with the specified color
+            const SizedBox(width: 5), // Space between icon and text
+            Text(
+              title,
+              style: const TextStyle(
+                color: Color(0xFF6750A4),
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
         ),
       ),
     );

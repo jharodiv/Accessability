@@ -18,8 +18,7 @@ class CategoryItem extends StatelessWidget {
       onTap: () => onCategorySelected(title),
       child: Container(
         margin: const EdgeInsets.only(right: 10),
-        padding: const EdgeInsets.symmetric(
-            horizontal: 12, vertical: 4), // Increased vertical padding
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(20),
@@ -33,9 +32,11 @@ class CategoryItem extends StatelessWidget {
         ),
         child: Row(
           children: [
-            Icon(icon,
-                color:
-                    const Color(0xFF6750A4)), // Icon with the specified color
+            Icon(
+              icon,
+              color: const Color(0xFF6750A4),
+              size: 20, // Reduced icon size
+            ),
             const SizedBox(width: 5), // Space between icon and text
             Text(
               title,

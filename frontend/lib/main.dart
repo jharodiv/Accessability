@@ -5,6 +5,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:frontend/accessability/data/repositories/auth_repository.dart';
 import 'package:frontend/accessability/data/repositories/user_repository.dart';
+import 'package:frontend/accessability/firebaseServices/chat/fcm_service.dart';
 import 'package:frontend/accessability/logic/bloc/auth/auth_bloc.dart';
 import 'package:frontend/accessability/logic/bloc/auth/auth_event.dart';
 import 'package:frontend/accessability/logic/bloc/user/user_bloc.dart';
@@ -14,16 +15,21 @@ import 'package:frontend/accessability/themes/theme_provider.dart';
 import 'package:frontend/firebase_options.dart';
 import 'package:frontend/accessability/firebaseServices/auth/auth_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:intl/date_symbol_data_local.dart';
 
+final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 void main() async {
   // Ensure Flutter bindings are initialized
   WidgetsFlutterBinding.ensureInitialized();
+  
 
   // Initialize Firebase
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
   // Initialize SharedPreferences
   final SharedPreferences sharedPreferences = await SharedPreferences.getInstance();
+  
 
    try {
     await dotenv.load(fileName: '.env'); // Use absolute path for testing
@@ -31,20 +37,29 @@ void main() async {
   } catch (e) {
     print("Error loading .env file: $e");
   }
+
+  await initializeDateFormatting();
+
+  final FCMService fcmService = FCMService(navigatorKey: navigatorKey);
+    fcmService.initializeFCMListeners(); // Pass the navigatorKey
+
   // Initialize ThemeProvider
   runApp(
     ChangeNotifierProvider(
       create: (context) => ThemeProvider(),
-      child: MyApp(sharedPreferences: sharedPreferences),
+      child: MyApp(sharedPreferences: sharedPreferences,
+      navigatorKey: navigatorKey),
     ),
+    
   );
 }
 
 class MyApp extends StatelessWidget {
   final AppRouter _appRouter = AppRouter();
   final SharedPreferences sharedPreferences;
+    final GlobalKey<NavigatorState> navigatorKey;
 
-  MyApp({super.key, required this.sharedPreferences});
+  MyApp({super.key, required this.sharedPreferences, required this.navigatorKey});
 
    @override
   Widget build(BuildContext context) {
@@ -56,12 +71,13 @@ class MyApp extends StatelessWidget {
         BlocProvider(
           create: (context) => AuthBloc(
             AuthRepository(AuthService()),
-            context.read<UserBloc>(),
+            context.read<UserBloc>(), AuthService()
           ),
         ),
       ],
       child: MaterialApp(
         debugShowCheckedModeBanner: false,
+        navigatorKey: navigatorKey,
         initialRoute: '/',
         onGenerateRoute: _appRouter.onGenerateRoute,
         builder: (context, child) {

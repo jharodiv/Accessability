@@ -1,6 +1,7 @@
 import 'package:bloc/bloc.dart';
 import 'package:frontend/accessability/data/model/login_model.dart';
 import 'package:frontend/accessability/data/repositories/auth_repository.dart';
+import 'package:frontend/accessability/firebaseServices/auth/auth_service.dart';
 import 'package:frontend/accessability/logic/bloc/auth/auth_event.dart';
 import 'package:frontend/accessability/logic/bloc/auth/auth_state.dart';
 import 'package:frontend/accessability/logic/bloc/user/user_bloc.dart';
@@ -9,18 +10,21 @@ import 'package:frontend/accessability/logic/bloc/user/user_event.dart';
 class AuthBloc extends Bloc<AuthEvent, AuthState> {
   final AuthRepository authRepository;
   final UserBloc userBloc;
+  final AuthService authService;
 
-  AuthBloc(this.authRepository, this.userBloc) : super(AuthInitial()) {
+  AuthBloc(this.authRepository, this.userBloc, this.authService) : super(AuthInitial()) {
+    
       on<LoginEvent>((event, emit) async {
-        emit(AuthLoading());
-        try {
-          final loginModel = await authRepository.login(event.email, event.password);
-          emit(AuthenticatedLogin(loginModel, hasCompletedOnboarding: loginModel.hasCompletedOnboarding));
-          userBloc.add(FetchUserData()); // Fetch user data after login
-        } catch (e) {
-          emit(AuthError('Login failed: ${e.toString()}'));
-        }
-      });
+      emit(AuthLoading());
+      try {
+        final loginModel = await authRepository.login(event.email, event.password);
+        await authService.saveFCMToken(loginModel.userId); // Save FCM token
+        emit(AuthenticatedLogin(loginModel, hasCompletedOnboarding: loginModel.hasCompletedOnboarding));
+        userBloc.add(FetchUserData()); // Fetch user data after login
+      } catch (e) {
+        emit(AuthError('Login failed: ${e.toString()}'));
+      }
+    });
 
    on<CheckAuthStatus>((event, emit) async {
   emit(AuthLoading());

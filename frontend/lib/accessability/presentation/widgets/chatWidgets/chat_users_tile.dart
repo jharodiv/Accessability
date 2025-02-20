@@ -1,32 +1,34 @@
 import 'package:flutter/material.dart';
 
 class ChatUsersTile extends StatelessWidget {
+  final String email;
+  final String lastMessage;
+  final String lastMessageTime;
+  final VoidCallback onTap;
+
   const ChatUsersTile({
     super.key,
-    required this.text,
+    required this.email,
+    required this.lastMessage,
+    required this.lastMessageTime,
     required this.onTap,
   });
 
-  final String text;
-  final void Function()? onTap;
-
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-          decoration: BoxDecoration(
-            color: Theme.of(context).colorScheme.secondary,
-            borderRadius: BorderRadius.circular(12),
-          ),
-          margin: const EdgeInsets.symmetric(vertical: 5, horizontal: 25),
-          padding: const EdgeInsets.all(20),
-          child: Row(
-            children: [
-              const Icon(Icons.person),
-              Text(text),
-            ],
-          )),
+    return Column(
+      children: [
+        Divider(
+          color: Colors.grey[300],
+          thickness: 1,
+        ),
+        ListTile(
+          title: Text(email),
+          subtitle: Text(lastMessage),
+          trailing: Text(lastMessageTime),
+          onTap: onTap,
+        ),
+      ],
     );
   }
 }

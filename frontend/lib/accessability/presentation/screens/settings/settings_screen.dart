@@ -4,6 +4,7 @@ import 'package:frontend/accessability/data/repositories/auth_repository.dart';
 import 'package:frontend/accessability/firebaseServices/auth/auth_service.dart';
 import 'package:frontend/accessability/logic/bloc/auth/auth_bloc.dart';
 import 'package:frontend/accessability/logic/bloc/auth/auth_event.dart';
+import 'package:frontend/main.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});

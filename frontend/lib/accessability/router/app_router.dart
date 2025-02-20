@@ -14,6 +14,7 @@ import 'package:frontend/accessability/presentation/screens/settings/settingsScr
 import 'package:frontend/accessability/presentation/screens/settings/settingsScreens/privacy_security_screen.dart';
 import 'package:frontend/accessability/presentation/screens/settings/settingsScreens/about_screen.dart';
 import 'package:frontend/accessability/presentation/widgets/chatWidgets/chat_convo_screen.dart';
+import 'package:frontend/main.dart';
 
 class AppRouter {
   Route<dynamic>? onGenerateRoute(RouteSettings routeSettings) {
@@ -43,7 +44,7 @@ class AppRouter {
       case '/settings':
         return _buildRoute(const SettingsScreen());
       case '/inbox':
-        return _buildRoute(const Inbox());
+        return _buildRoute(const InboxScreen());
       case '/about':
         return _buildRoute(const AboutScreen());
       case '/chatconvo':

@@ -36,7 +36,7 @@ exports.sendMessageNotification = functions.firestore
       // Prepare the notification payload
       const payload = {
         notification: {
-          title: `${receiverName}`,
+          title: `${senderName}`,
           body: `${message}`,
         },
         data: {

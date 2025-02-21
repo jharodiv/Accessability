@@ -1,23 +1,22 @@
-import 'dart:io';
 
-import 'package:frontend/accessability/data/data_provider/auth_data_provider.dart';
-import 'package:frontend/accessability/data/model/mongodb_signup_model.dart';
 import 'package:frontend/accessability/logic/firebase_logic/SignupModel.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:frontend/accessability/firebaseServices/auth/auth_service.dart';
 import 'package:frontend/accessability/data/model/login_model.dart';
 import 'package:frontend/accessability/data/model/user_model.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:image_picker/image_picker.dart';
+  
 
 class AuthRepository {
   SharedPreferences? _sharedPrefs;
   final AuthService authService;
-  final AuthDataProvider dataProvider;
+ 
 
   UserModel? _cachedUser;
 
-  AuthRepository(this.authService, this.dataProvider) {
-    _initSharedPrefs(); // Initialize SharedPreferences when the repository is created
+  AuthRepository(this.authService) {
+      _initSharedPrefs();
   }
 
   // Initialize SharedPreferences
@@ -26,35 +25,64 @@ class AuthRepository {
     print('SharedPreferences initialized');
   }
 
-  //! Register
+
+    // Register with profile picture
   Future<UserModel> register(
-      MongodbSignupModel signUpModel, File? profilePicture) async {
+    SignUpModel signUpModel,
+    XFile? profilePicture, // Pass the profile picture file
+  ) async {
     try {
-      final data = await dataProvider.register(signUpModel, profilePicture);
-      return UserModel.fromJson(
-          data); // Assuming the response contains user data
+      // Step 1: Sign up the user and upload the profile picture
+      final userCredential = await authService.signUpWithEmailAndPassword(
+        signUpModel.email,
+        signUpModel.password,
+        signUpModel.username,
+        signUpModel.contactNumber,
+        profilePicture, // Pass the profile picture
+      );
+
+      final user = userCredential.user;
+      if (user == null) {
+        throw Exception('Registration failed: User is null');
+      }
+
+      // Step 2: Fetch user data from Firestore
+      final userDoc = await FirebaseFirestore.instance
+          .collection('Users')
+          .doc(user.uid)
+          .get();
+
+      if (!userDoc.exists) {
+        throw Exception('Registration failed: User data not found');
+      }
+
+      final userData = userDoc.data() as Map<String, dynamic>;
+      final userModel = UserModel.fromJson(userData);
+      return userModel;
     } catch (e) {
-      throw Exception(e.toString());
+      print('AuthRepository: Registration failed - ${e.toString()}');
+      throw Exception('Registration failed: ${e.toString()}');
     }
   }
 
-  //! Send Verification Code
-  Future<void> sendVerificationCode(String email) async {
-    try {
-      await dataProvider.sendVerificationCode(email);
-    } catch (e) {
-      throw Exception(e.toString());
-    }
-  }
 
-  //! Verify Code
-  Future<void> verifyCode(String email, String verificationCode) async {
-    try {
-      await dataProvider.verifyCode(email, verificationCode);
-    } catch (e) {
-      throw Exception(e.toString());
-    }
-  }
+  // //! Send Verification Code
+  // Future<void> sendVerificationCode(String email) async {
+  //   try {
+  //     await dataProvider.sendVerificationCode(email);
+  //   } catch (e) {
+  //     throw Exception(e.toString());
+  //   }
+  // }
+
+  // //! Verify Code
+  // Future<void> verifyCode(String email, String verificationCode) async {
+  //   try {
+  //     await dataProvider.verifyCode(email, verificationCode);
+  //   } catch (e) {
+  //     throw Exception(e.toString());
+  //   }
+  // }
 
   // Login
   Future<LoginModel> login(String email, String password) async {
@@ -113,6 +141,7 @@ class AuthRepository {
     _sharedPrefs?.setString('user_userId', user.uid);
     _sharedPrefs?.setString('user_userName', user.username);
     _sharedPrefs?.setString('user_userEmail', user.email);
+    _sharedPrefs?.setString('user_profilePicture', user.profilePicture);
     _sharedPrefs?.setBool(
         'user_hasCompletedOnboarding', user.hasCompletedOnboarding);
     print('AuthRepository: User cached with UID ${user.uid}');
@@ -127,6 +156,7 @@ class AuthRepository {
     final userId = _sharedPrefs?.getString('user_userId');
     final userName = _sharedPrefs?.getString('user_userName');
     final userEmail = _sharedPrefs?.getString('user_userEmail');
+    final profilePicture = _sharedPrefs?.getString('user_profilePicture') ?? '';
     final hasCompletedOnboarding =
         _sharedPrefs?.getBool('user_hasCompletedOnboarding');
 
@@ -136,12 +166,12 @@ class AuthRepository {
         uid: userId,
         username: userName,
         email: userEmail,
+        profilePicture: profilePicture,
         contactNumber:
             _sharedPrefs?.getString('user_contactNumber'), // Optional field
         details: UserDetails(
           address: _sharedPrefs?.getString('user_address') ?? '',
           phoneNumber: _sharedPrefs?.getString('user_phoneNumber') ?? '',
-          profilePicture: _sharedPrefs?.getString('user_profilePicture') ?? '',
         ),
         settings: UserSettings(
           verificationCode:
@@ -174,6 +204,7 @@ class AuthRepository {
     _sharedPrefs?.remove('user_userName');
     _sharedPrefs?.remove('user_userEmail');
     _sharedPrefs?.remove('user_hasCompletedOnboarding');
+    _sharedPrefs?.remove('user_profilePicture');
     print('AuthRepository: User cache cleared');
   }
 }

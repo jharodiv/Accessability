@@ -3,6 +3,7 @@ class UserModel {
   final String username;
   final String email;
   final String? contactNumber; // Optional field
+  final String profilePicture;
   final UserDetails details;
   final UserSettings settings;
   final DateTime createdAt;
@@ -14,6 +15,7 @@ class UserModel {
     required this.username,
     required this.email,
     this.contactNumber,
+    required this.profilePicture,
     required this.details,
     required this.settings,
     required this.createdAt,
@@ -27,6 +29,7 @@ class UserModel {
     String? username,
     String? email,
     String? contactNumber,
+    String? profilePicture,
     UserDetails? details,
     UserSettings? settings,
     DateTime? createdAt,
@@ -38,6 +41,7 @@ class UserModel {
       username: username ?? this.username,
       email: email ?? this.email,
       contactNumber: contactNumber ?? this.contactNumber,
+      profilePicture: profilePicture ?? this.profilePicture,
       details: details ?? this.details,
       settings: settings ?? this.settings,
       createdAt: createdAt ?? this.createdAt,
@@ -53,6 +57,7 @@ class UserModel {
       username: json['username'] ?? 'Unknown', // Fallback to 'Unknown' if null
       email: json['email'] ?? '', // Fallback to empty string if null
       contactNumber: json['contactNumber'], // Optional field
+      profilePicture: json['profilePicture'] ?? '',
       details: UserDetails.fromJson(
           json['details'] ?? {}), // Fallback to empty map if null
       settings: UserSettings.fromJson(

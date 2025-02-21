@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:frontend/accessability/logic/firebase_logic/SignupModel.dart';
 import 'package:frontend/accessability/presentation/screens/authScreens/login_screen.dart';
 import 'package:frontend/accessability/presentation/screens/authScreens/signup_screen.dart';
 import 'package:frontend/accessability/presentation/screens/authScreens/onboarding_screen.dart';
@@ -27,14 +28,9 @@ class AppRouter {
       case '/login':
         return _buildRoute(const LoginScreen(), clearStack: true);
       case '/uploadProfilePicture':
-        final args = routeSettings.arguments as Map<String, dynamic>? ?? {};
+        final args = routeSettings.arguments as SignUpModel;
         return _buildRoute(
-            UploadProfileScreen(
-              name: args['name'] ?? 'Guest',
-              email: args['email'] ?? '',
-              profile: args['profile'] ?? '',
-              phoneNumber: args['phoneNumber'] ?? '',
-            ),
+             UploadProfileScreen(signUpModel: args),
             clearStack: true);
 
       case '/onboarding':

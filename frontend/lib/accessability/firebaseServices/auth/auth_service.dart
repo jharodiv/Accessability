@@ -1,49 +1,77 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:frontend/accessability/firebaseServices/chat/fcm_service.dart';
 import 'package:frontend/main.dart';
+import 'package:image_picker/image_picker.dart';
+import 'dart:io';
 
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   late FCMService _fcmService;
+  final FirebaseStorage _firebaseStorage = FirebaseStorage.instance;
+ 
+
 
   User? getCurrentUser() {
     return _auth.currentUser;
   }
 
-  // Register
+    // Register with profile picture
   Future<UserCredential> signUpWithEmailAndPassword(
-      String email, String password, String username, String contactNumber) async {
+    String email,
+    String password,
+    String username,
+    String contactNumber,
+    XFile? profilePicture, // Pass the profile picture file
+  ) async {
     try {
-      UserCredential userCredential = await _auth
-          .createUserWithEmailAndPassword(email: email, password: password);
+      // Step 1: Create the user
+      UserCredential userCredential = await _auth.createUserWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
 
-      if (userCredential.user == null) {
+      final user = userCredential.user;
+      if (user == null) {
         throw Exception("User creation failed");
       }
 
-      String uid = userCredential.user!.uid;
-      String? fcmToken = await _fcmService.getFCMToken();
+      // Step 2: Upload the profile picture (if provided)
+      String? profilePictureUrl;
+      if (profilePicture != null) {
+        profilePictureUrl = await uploadProfilePicture(user.uid, profilePicture);
+      }
 
-      await _firestore.collection('Users').doc(uid).set({
-        'uid': uid,
+      // Step 3: Save user data in Firestore
+      await _firestore.collection('Users').doc(user.uid).set({
+        'uid': user.uid,
         'email': email,
         'username': username,
         'contactNumber': contactNumber,
+        'profilePicture': profilePictureUrl ?? '', // Save profile picture URL
         'hasCompletedOnboarding': false,
       });
-
-      if (fcmToken != null) {
-        await _firestore.collection('Users').doc(uid).update({
-          'fcmToken': fcmToken,
-        });
-      }
 
       return userCredential;
     } on FirebaseAuthException catch (e) {
       throw Exception(e.code);
+    }
+  }
+
+  // Upload profile picture to Firebase Storage
+  Future<String?> uploadProfilePicture(String uid, XFile imageFile) async {
+    try {
+      Reference storageReference =
+          _firebaseStorage.ref().child('profile_pictures/$uid.jpg');
+      await storageReference.putFile(File(imageFile.path));
+      String downloadURL = await storageReference.getDownloadURL();
+      return downloadURL;
+    } catch (e) {
+      print('Error uploading profile picture: $e');
+      return null;
     }
   }
 

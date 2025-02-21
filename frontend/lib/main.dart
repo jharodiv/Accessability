@@ -47,7 +47,7 @@ void main() async {
     ChangeNotifierProvider(
       create: (context) => ThemeProvider(),
       child: MyApp(sharedPreferences: sharedPreferences,
-      navigatorKey: navigatorKey),
+      navigatorKey: navigatorKey, fcmService: fcmService),
     ),
     
   );
@@ -56,9 +56,10 @@ void main() async {
 class MyApp extends StatelessWidget {
   final AppRouter _appRouter = AppRouter();
   final SharedPreferences sharedPreferences;
-    final GlobalKey<NavigatorState> navigatorKey;
+  final GlobalKey<NavigatorState> navigatorKey;
+  final FCMService fcmService;
 
-  MyApp({super.key, required this.sharedPreferences, required this.navigatorKey});
+  MyApp({super.key, required this.sharedPreferences, required this.navigatorKey, required this.fcmService});
 
   @override
   Widget build(BuildContext context) {
@@ -69,8 +70,11 @@ class MyApp extends StatelessWidget {
         ),
         BlocProvider(
           create: (context) => AuthBloc(
-            AuthRepository(AuthService(), AuthDataProvider()),
-            context.read<UserBloc>(), AuthService()
+            AuthRepository(
+              AuthService(), // Initialize FCMService in AuthService
+            ),
+            context.read<UserBloc>(),
+            AuthService(),
           ),
         ),
       ],

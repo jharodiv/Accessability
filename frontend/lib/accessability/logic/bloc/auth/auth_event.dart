@@ -1,6 +1,7 @@
 import 'dart:io';
 
-import 'package:frontend/accessability/data/model/mongodb_signup_model.dart';
+import 'package:frontend/accessability/logic/firebase_logic/SignupModel.dart';
+import 'package:image_picker/image_picker.dart';
 
 abstract class AuthEvent {}
 
@@ -18,10 +19,10 @@ class CheckAuthStatus extends AuthEvent {} // Add this event
 class CompleteOnboardingEvent extends AuthEvent {}
 
 class RegisterEvent extends AuthEvent {
-  final MongodbSignupModel signUpModel;
-  final File? profilePicture;
+  final SignUpModel signUpModel;
+  final XFile? profilePicture;
 
-  RegisterEvent(this.signUpModel, this.profilePicture);
+  RegisterEvent({required this.signUpModel, this.profilePicture});
 }
 
 class SendVerificationCodeEvent extends AuthEvent {

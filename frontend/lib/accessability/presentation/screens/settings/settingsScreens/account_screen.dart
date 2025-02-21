@@ -29,10 +29,12 @@ class AccountScreen extends StatelessWidget {
                     Center(
                       child: Column(
                         children: [
-                          const CircleAvatar(
+                          CircleAvatar(
                             radius: 50,
-                            backgroundImage:
-                                AssetImage('assets/images/others/profile.jpg'),
+                            backgroundImage: user.profilePicture.isNotEmpty
+                                ? NetworkImage(user.profilePicture)
+                                : const AssetImage('assets/images/others/profile.jpg')
+                                    as ImageProvider,
                           ),
                           const SizedBox(height: 10),
                           Text(

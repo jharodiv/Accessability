@@ -37,6 +37,7 @@ class UserRepository {
     _sharedPrefs?.setString('user_userName', user.username);
     _sharedPrefs?.setString('user_userEmail', user.email);
     _sharedPrefs?.setBool('user_hasCompletedOnboarding', user.hasCompletedOnboarding);
+    _sharedPrefs?.setString('user_profilePicture', user.profilePicture);
     print('User cached: ${user.uid}, ${user.username}, ${user.email}');
   }
 
@@ -47,15 +48,16 @@ class UserRepository {
     final userName = _sharedPrefs?.getString('user_userName');
     final userEmail = _sharedPrefs?.getString('user_userEmail');
     final hasCompletedOnboarding = _sharedPrefs?.getBool('user_hasCompletedOnboarding');
+    final profilePicture = _sharedPrefs?.getString('user_profilePicture') ?? '';
     if (userId != null && userName != null && userEmail != null) {
       return UserModel(
         uid: userId,
         username: userName,
         email: userEmail,
+        profilePicture: profilePicture,
         details: UserDetails(
           address: _sharedPrefs?.getString('user_address') ?? '', 
           phoneNumber: _sharedPrefs?.getString('user_phoneNumber') ?? '',
-          profilePicture: _sharedPrefs?.getString('user_profilePicture') ?? '',
         ),
         settings: UserSettings(
           verificationCode: _sharedPrefs?.getString('user_verificationCode') ?? '',

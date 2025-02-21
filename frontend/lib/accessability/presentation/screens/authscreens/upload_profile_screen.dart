@@ -1,146 +1,123 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:frontend/accessability/logic/bloc/auth/auth_state.dart';
+import 'package:frontend/accessability/logic/firebase_logic/SignupModel.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:frontend/accessability/logic/bloc/auth/auth_bloc.dart';
+import 'package:frontend/accessability/logic/bloc/auth/auth_event.dart';
 
 class UploadProfileScreen extends StatefulWidget {
-  final String name;
-  final String email;
-  final String profile;
-  final String phoneNumber;
+  final SignUpModel signUpModel;
+
   const UploadProfileScreen({
     super.key,
-    required this.name,
-    required this.email,
-    required this.profile,
-    required this.phoneNumber,
+    required this.signUpModel,
   });
 
   @override
-  State<UploadProfileScreen> createState() => _UploadPictureScreenState();
+  State<UploadProfileScreen> createState() => _UploadProfileScreenState();
 }
 
-class _UploadPictureScreenState extends State<UploadProfileScreen> {
-  @override
-  Widget build(BuildContext context) {
-    double screenHeight = MediaQuery.of(context).size.height;
-    double screenWidth = MediaQuery.of(context).size.width;
+class _UploadProfileScreenState extends State<UploadProfileScreen> {
+  XFile? _imageFile;
 
-    return Scaffold(
-      body: Column(
-        children: [
-          Expanded(
-            child: SingleChildScrollView(
-              child: Container(
-                color: Colors.white,
-                child: Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.start,
-                    children: [
-                      SizedBox(height: screenHeight * 0.08),
-                      Text(
-                        'ACCESSABILITY',
-                        style: TextStyle(
-                          color: const Color(0xFF6750A4),
-                          fontSize: screenHeight *
-                              0.035, // Larger font size for accessibility
-                          fontWeight: FontWeight.bold,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                      SizedBox(height: screenHeight * 0.25),
-                      Padding(
-                        padding:
-                            EdgeInsets.symmetric(horizontal: screenWidth * 0.1),
-                        child: Text(
-                          'Please upload your profile picture.',
-                          style: TextStyle(
-                            color: Colors.black,
-                            fontSize:
-                                screenHeight * 0.02, // Slightly larger text
-                            fontWeight: FontWeight.w400,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                      ),
-                      SizedBox(height: screenHeight * 0.05),
-                      _buildProfilePicture(screenHeight),
-                      SizedBox(height: screenHeight * 0.03),
-                      SizedBox(
-                        width: screenWidth * 0.8,
-                        height: screenHeight * 0.07,
-                        child: ElevatedButton(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF6750A4),
-                          ),
-                          onPressed: () {},
-                          child: const Text(
-                            'Upload Picture',
-                            style: TextStyle(
-                              color: Colors.white, // Use Colors.white directly
-                              fontSize: 18,
-                              fontWeight:
-                                  FontWeight.w600, // Improved font weight
-                            ),
-                          ),
-                        ),
-                      ),
-                      SizedBox(height: screenHeight * 0.03),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                TextButton(
-                  onPressed: () {},
-                  child: const Text(
-                    'Skip',
-                    style: TextStyle(
-                      fontSize: 18,
-                      color: Colors.grey,
-                      fontWeight:
-                          FontWeight.w500, // Font weight for better readability
-                    ),
-                  ),
-                ),
-                ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF6750A4),
-                  ),
-                  onPressed: () {},
-                  child: const Text(
-                    'Finish',
-                    style: TextStyle(
-                      color: Colors.white, // Use Colors.white directly
+  Future<void> _pickImage() async {
+    final picker = ImagePicker();
+    final pickedFile = await picker.pickImage(source: ImageSource.gallery);
+    setState(() {
+      _imageFile = pickedFile;
+    });
+  }
 
-                      fontSize: 18,
-                      fontWeight: FontWeight.w600, // Improved font weight
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
+  void _finishSignup() {
+    final authBloc = BlocProvider.of<AuthBloc>(context);
+    authBloc.add(
+      RegisterEvent(
+        signUpModel: widget.signUpModel,
+        profilePicture: _imageFile,
       ),
     );
   }
 
-  Widget _buildProfilePicture(double screenHeight) {
-    return Container(
-      width: screenHeight * 0.18,
-      height: screenHeight * 0.18,
-      decoration: const BoxDecoration(
-        shape: BoxShape.circle,
-        color: Color(0xFF6750A4), // Updated color
-      ),
-      child: Icon(
-        Icons.person,
-        size: screenHeight * 0.1,
-        color: Colors.white, // Set the icon color to white for visibility
+  @override
+  Widget build(BuildContext context) {
+    return BlocListener<AuthBloc, AuthState>(
+      listener: (context, state) {
+        if (state is RegistrationSuccess) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text("Successfully signed up!"),
+              backgroundColor: Colors.lightGreen,
+            ),
+          );
+          // Navigate back to the login screen after successful registration
+          Navigator.of(context).pushReplacementNamed('/login');
+        } else if (state is AuthError) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text("Error: ${state.message}")),
+          );
+        }
+      },
+      child: Scaffold(
+        body: BlocBuilder<AuthBloc, AuthState>(
+          builder: (context, state) {
+            if (state is AuthLoading) {
+              // Show a loading indicator
+              return const Center(
+                child: CircularProgressIndicator(),
+              );
+            }
+
+            return Column(
+              children: [
+                Expanded(
+                  child: Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        GestureDetector(
+                          onTap: _pickImage,
+                          child: CircleAvatar(
+                            radius: 50,
+                            backgroundImage: _imageFile != null
+                                ? FileImage(File(_imageFile!.path))
+                                : null,
+                            child: _imageFile == null
+                                ? const Icon(Icons.person, size: 50)
+                                : null,
+                          ),
+                        ),
+                        const SizedBox(height: 20),
+                        ElevatedButton(
+                          onPressed: _pickImage,
+                          child: const Text("Upload Picture"),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.all(20.0),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      TextButton(
+                        onPressed: state is AuthLoading ? null : () => _finishSignup(),
+                        child: const Text("Skip"),
+                      ),
+                      ElevatedButton(
+                        onPressed: state is AuthLoading ? null : () => _finishSignup(),
+                        child: const Text("Finish"),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            );
+          },
+        ),
       ),
     );
   }

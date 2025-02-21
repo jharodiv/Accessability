@@ -8,7 +8,7 @@ class AuthenticationImage extends StatelessWidget {
     double screenWidth = MediaQuery.of(context).size.width;
     double screenHeight = MediaQuery.of(context).size.height;
 
-    double imageHeight = screenHeight * 0.5;
+    double imageHeight = screenHeight * 0.42;
     double imageHeight2 = screenHeight * 0.4;
     double imageWidth = screenWidth * 0.8;
 

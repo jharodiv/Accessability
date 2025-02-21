@@ -27,7 +27,7 @@ class _BottomWidgetsState extends State<BottomWidgets> {
   final ChatService _chatService = ChatService(); // Initialize ChatService
   List<Map<String, dynamic>> _members = []; // List of members in the space
   String? _creatorId; // ID of the space creator
-  
+
   @override
   void initState() {
     super.initState();
@@ -36,17 +36,18 @@ class _BottomWidgetsState extends State<BottomWidgets> {
 
   @override
   void didUpdateWidget(BottomWidgets oldWidget) {
-  super.didUpdateWidget(oldWidget);
-  if (widget.activeSpaceId != oldWidget.activeSpaceId) {
-    _fetchMembers(); // Fetch members for the new space
+    super.didUpdateWidget(oldWidget);
+    if (widget.activeSpaceId != oldWidget.activeSpaceId) {
+      _fetchMembers(); // Fetch members for the new space
+    }
   }
-}
 
   // Fetch members in the active space
-   Future<void> _fetchMembers() async {
+  Future<void> _fetchMembers() async {
     if (widget.activeSpaceId.isEmpty) return;
 
-    final snapshot = await _firestore.collection('Spaces').doc(widget.activeSpaceId).get();
+    final snapshot =
+        await _firestore.collection('Spaces').doc(widget.activeSpaceId).get();
     final members = List<String>.from(snapshot['members']);
     final creatorId = snapshot['creator'];
 
@@ -91,7 +92,6 @@ class _BottomWidgetsState extends State<BottomWidgets> {
 
     // Generate a random verification code
     final verificationCode = _generateVerificationCode();
-    
 
     // Send the verification code via chat
     await _chatService.sendMessage(
@@ -146,64 +146,154 @@ class _BottomWidgetsState extends State<BottomWidgets> {
   @override
   Widget build(BuildContext context) {
     return DraggableScrollableSheet(
-      initialChildSize: 0.1,
-      minChildSize: 0.1,
+      initialChildSize: 0.15,
+      minChildSize: 0.15,
       maxChildSize: 0.8,
       builder: (BuildContext context, ScrollController scrollController) {
-        return Container(
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.all(Radius.circular(20)),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black26,
-                blurRadius: 10,
-                offset: Offset(0, -5),
-              ),
-            ],
-          ),
-          child: SingleChildScrollView(
-            controller: scrollController,
-            child: Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                children: [
-                  TextField(
-                    decoration: const InputDecoration(
-                      labelText: "Search Location",
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.all(Radius.circular(20)),
-                      ),
-                      ),
-                    onChanged: (value) {
-                      // Handle search logic here
-                    },
+        return Column(
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                _buildServiceButton(Icons.check_circle, 'Check-in'),
+                _buildServiceButton(Icons.warning, 'SOS'),
+                _buildServiceButton(Icons.accessibility, 'PWD'),
+              ],
+            ),
+            const SizedBox(
+              height: 10,
+            ),
+            Expanded(
+              child: Container(
+                decoration: const BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.only(
+                    topLeft: Radius.circular(20),
+                    topRight: Radius.circular(20),
                   ),
-                  const SizedBox(height: 20),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    children: [
-                      _buildButton(Icons.people, 0),
-                      _buildButton(Icons.business, 1),
-                      _buildButton(Icons.map, 2),
-                    ],
-                  ),
-                  const SizedBox(height: 20),
-                  _buildContent(),
-                  if (_creatorId == _auth.currentUser?.uid) // Only show if creator
-                    ElevatedButton(
-                      onPressed: _addPerson,
-                      child: const Text('Add Person'),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black26,
+                      blurRadius: 10,
+                      offset: Offset(0, -5),
                     ),
-                ],
+                  ],
+                ),
+                child: SingleChildScrollView(
+                  controller: scrollController,
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Column(
+                      children: [
+                        Container(
+                          width: 100, // Adjust width as needed
+                          height: 2, // Thin line
+                          color: Colors.grey.shade700, // Dark grey color
+                          margin: const EdgeInsets.only(
+                              bottom: 8), // Space below the line
+                        ),
+                        const SizedBox(
+                          height: 5,
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          height: 50, // Adjust height
+                          decoration: BoxDecoration(
+                            color:
+                                Colors.grey.shade200, // Light gray background
+                            borderRadius:
+                                BorderRadius.circular(25), // Rounded edges
+                          ),
+                          child: const Row(
+                            children: [
+                              // Placeholder text
+                              Expanded(
+                                child: Text(
+                                  "Text to Speech, Speech to Text",
+                                  style: TextStyle(
+                                    color: Color(0xFF6750A4), // Updated color
+                                    fontSize: 16,
+                                  ),
+                                ),
+                              ),
+                              // Microphone icon
+                              Icon(
+                                Icons.mic, // Microphone icon
+                                color: Color(0xFF6750A4), // Updated color
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 20),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                          children: [
+                            _buildButton(Icons.people, 0),
+                            _buildButton(Icons.business, 1),
+                            _buildButton(Icons.map, 2),
+                          ],
+                        ),
+                        const SizedBox(height: 20),
+                        _buildContent(),
+                        if (_creatorId ==
+                            _auth.currentUser?.uid) // Only show if creator
+                          ElevatedButton(
+                            onPressed: _addPerson,
+                            child: const Text('Add Person'),
+                          ),
+                      ],
+                    ),
+                  ),
+                ),
               ),
             ),
-          ),
+          ],
         );
       },
     );
   }
 
+  Widget _buildServiceButton(IconData icon, String label) {
+    return GestureDetector(
+      onTap: () {
+        if (label == 'SOS') {
+          Navigator.pushNamed(context, '/sos');
+        }
+      },
+      child: Container(
+        margin: const EdgeInsets.only(right: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: const [
+            BoxShadow(
+              color: Colors.black26,
+              blurRadius: 4,
+              offset: Offset(2, 2),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Icon(
+              icon,
+              color: const Color(0xFF6750A4),
+              size: 18, // Reduced icon size
+            ),
+            const SizedBox(width: 10), // Space between icon and text
+            Text(
+              label,
+              style: const TextStyle(
+                color: Color(0xFF6750A4),
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
   Widget _buildButton(IconData icon, int index) {
     bool isActive = _activeIndex == index;
@@ -230,37 +320,39 @@ class _BottomWidgetsState extends State<BottomWidgets> {
     );
   }
 
- Widget _buildContent() {
-  switch (_activeIndex) {
-    case 0:
-      return Column(
-        children: _members
-            .where((member) => member['uid'] != _auth.currentUser?.uid) // Exclude current user
-            .map((member) => ListTile(
-                  title: Text(member['username']),
-                  trailing: IconButton(
-                    icon: const Icon(Icons.chat),
-                    onPressed: () {
-                      // Navigate to chat with the member
-                      Navigator.pushNamed(
-                        context,
-                        '/chatconvo',
-                        arguments: {
-                          'receiverEmail': member['username'],
-                          'receiverID': member['uid'],
-                        },
-                      );
-                    },
-                  ),
-                ))
-            .toList(),
-      );
-    case 1:
-      return const Text("Buildings Content");
-    case 2:
-      return const Text("Map Content");
-    default:
-      return const SizedBox.shrink();
+  Widget _buildContent() {
+    switch (_activeIndex) {
+      case 0:
+        return Column(
+          children: _members
+              .where((member) =>
+                  member['uid'] !=
+                  _auth.currentUser?.uid) // Exclude current user
+              .map((member) => ListTile(
+                    title: Text(member['username']),
+                    trailing: IconButton(
+                      icon: const Icon(Icons.chat),
+                      onPressed: () {
+                        // Navigate to chat with the member
+                        Navigator.pushNamed(
+                          context,
+                          '/chatconvo',
+                          arguments: {
+                            'receiverEmail': member['username'],
+                            'receiverID': member['uid'],
+                          },
+                        );
+                      },
+                    ),
+                  ))
+              .toList(),
+        );
+      case 1:
+        return const Text("Buildings Content");
+      case 2:
+        return const Text("Map Content");
+      default:
+        return const SizedBox.shrink();
+    }
   }
-}
 }

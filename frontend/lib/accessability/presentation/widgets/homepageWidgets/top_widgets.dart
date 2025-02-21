@@ -3,6 +3,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:frontend/accessability/presentation/widgets/homepageWidgets/category_item.dart';
 
 class Topwidgets extends StatefulWidget {
   final Function(bool) onOverlayChange;
@@ -17,7 +18,7 @@ class Topwidgets extends StatefulWidget {
     required this.onOverlayChange,
     required this.inboxKey,
     required this.settingsKey,
-    required this.onSpaceSelected, 
+    required this.onSpaceSelected,
   });
 
   @override
@@ -38,7 +39,7 @@ class _TopwidgetsState extends State<Topwidgets> {
     _fetchSpaces();
   }
 
-   // Fetch spaces from Firestore
+  // Fetch spaces from Firestore
   Future<void> _fetchSpaces() async {
     final user = _auth.currentUser;
     if (user == null) return;
@@ -59,7 +60,7 @@ class _TopwidgetsState extends State<Topwidgets> {
     });
   }
 
-    // When a space is selected, update the active space
+  // When a space is selected, update the active space
   void _selectSpace(String spaceId, String spaceName) {
     widget.onSpaceSelected(spaceId); // Notify parent about the selected space
     setState(() {
@@ -67,7 +68,6 @@ class _TopwidgetsState extends State<Topwidgets> {
       _isDropdownOpen = false;
     });
   }
-
 
   // Create a new space
   Future<void> _createSpace() async {
@@ -180,7 +180,7 @@ class _TopwidgetsState extends State<Topwidgets> {
     return verificationCode;
   }
 
-   @override
+  @override
   Widget build(BuildContext context) {
     return Positioned(
       top: 0,
@@ -188,7 +188,7 @@ class _TopwidgetsState extends State<Topwidgets> {
       right: 0,
       child: SafeArea(
         child: Container(
-          padding: const EdgeInsets.only(top: 20.0, left: 20.0, right: 20.0),
+          padding: const EdgeInsets.only(top: 15.0, left: 20.0, right: 20.0),
           color: Colors.transparent,
           child: Column(
             children: [
@@ -216,7 +216,7 @@ class _TopwidgetsState extends State<Topwidgets> {
                       widget.onOverlayChange(_isDropdownOpen);
                     },
                     child: Container(
-                      width: 150,
+                      width: 175,
                       height: 30,
                       decoration: BoxDecoration(
                         color: Colors.white,
@@ -233,9 +233,11 @@ class _TopwidgetsState extends State<Topwidgets> {
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Padding(
-                            padding: const EdgeInsets.only(left: 10),
+                            padding: const EdgeInsets.only(left: 20),
                             child: Text(
-                              _activeSpaceName,
+                              _activeSpaceName.length > 8
+                                  ? '${_activeSpaceName.substring(0, 8)}...'
+                                  : _activeSpaceName,
                               style: const TextStyle(
                                 color: Color(0xFF6750A4),
                                 fontWeight: FontWeight.bold,
@@ -243,9 +245,11 @@ class _TopwidgetsState extends State<Topwidgets> {
                             ),
                           ),
                           Padding(
-                            padding: const EdgeInsets.only(right: 10),
+                            padding: const EdgeInsets.only(right: 15),
                             child: Icon(
-                              _isDropdownOpen ? Icons.arrow_drop_up : Icons.arrow_drop_down,
+                              _isDropdownOpen
+                                  ? Icons.arrow_drop_up
+                                  : Icons.arrow_drop_down,
                               color: Colors.black,
                             ),
                           ),
@@ -298,7 +302,8 @@ class _TopwidgetsState extends State<Topwidgets> {
                       ..._spaces.map((space) {
                         return ListTile(
                           title: Text(space['name']),
-                          onTap: () => _selectSpace(space['id'], space['name']), // Update active space
+                          onTap: () => _selectSpace(space['id'],
+                              space['name']), // Update active space
                         );
                       }).toList(),
                     ],
@@ -311,41 +316,32 @@ class _TopwidgetsState extends State<Topwidgets> {
                   padding: const EdgeInsets.symmetric(vertical: 10),
                   child: Row(
                     children: [
-                      'Hotel',
-                      'Restaurant',
-                      'Bus',
-                      'Shopping',
-                      'Groceries',
-                    ].map((item) {
-                      return GestureDetector(
-                        onTap: () => widget.onCategorySelected(item),
-                        child: Container(
-                          margin: const EdgeInsets.only(right: 10),
-                          padding: const EdgeInsets.symmetric(horizontal: 10),
-                          height: 30,
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(20),
-                            boxShadow: const [
-                              BoxShadow(
-                                color: Colors.black26,
-                                blurRadius: 4,
-                                offset: Offset(2, 2),
-                              ),
-                            ],
-                          ),
-                          child: Center(
-                            child: Text(
-                              item,
-                              style: const TextStyle(
-                                color: Color(0xFF6750A4),
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                        ),
-                      );
-                    }).toList(),
+                      CategoryItem(
+                        title: 'Hotel',
+                        icon: Icons.hotel,
+                        onCategorySelected: widget.onCategorySelected,
+                      ),
+                      CategoryItem(
+                        title: 'Restaurant',
+                        icon: Icons.restaurant,
+                        onCategorySelected: widget.onCategorySelected,
+                      ),
+                      CategoryItem(
+                        title: 'Bus',
+                        icon: Icons.directions_bus,
+                        onCategorySelected: widget.onCategorySelected,
+                      ),
+                      CategoryItem(
+                        title: 'Shopping',
+                        icon: Icons.shop_2,
+                        onCategorySelected: widget.onCategorySelected,
+                      ),
+                      CategoryItem(
+                        title: 'Groceries',
+                        icon: Icons.shopping_cart,
+                        onCategorySelected: widget.onCategorySelected,
+                      ),
+                    ],
                   ),
                 ),
               ),

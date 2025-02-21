@@ -24,6 +24,7 @@ class AccessabilityfooterState extends State<Accessabilityfooter> {
   @override
   Widget build(BuildContext context) {
     return BottomNavigationBar(
+      backgroundColor: Colors.white, // Set background to white
       currentIndex: currentIndex,
       onTap: (index) {
         setState(() {

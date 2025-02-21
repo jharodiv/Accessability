@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:frontend/accessability/data/data_provider/auth_data_provider.dart';
 import 'package:frontend/accessability/data/repositories/auth_repository.dart';
 import 'package:frontend/accessability/data/repositories/user_repository.dart';
 import 'package:frontend/accessability/firebaseServices/chat/fcm_service.dart';
@@ -15,7 +16,6 @@ import 'package:frontend/accessability/themes/theme_provider.dart';
 import 'package:frontend/firebase_options.dart';
 import 'package:frontend/accessability/firebaseServices/auth/auth_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:intl/date_symbol_data_local.dart';
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
@@ -29,9 +29,8 @@ void main() async {
 
   // Initialize SharedPreferences
   final SharedPreferences sharedPreferences = await SharedPreferences.getInstance();
-  
 
-   try {
+  try {
     await dotenv.load(fileName: '.env'); // Use absolute path for testing
     print("Loaded API Key: ${dotenv.env['GOOGLE_API_KEY']}");
   } catch (e) {
@@ -61,7 +60,7 @@ class MyApp extends StatelessWidget {
 
   MyApp({super.key, required this.sharedPreferences, required this.navigatorKey});
 
-   @override
+  @override
   Widget build(BuildContext context) {
     return MultiBlocProvider(
       providers: [
@@ -70,23 +69,31 @@ class MyApp extends StatelessWidget {
         ),
         BlocProvider(
           create: (context) => AuthBloc(
-            AuthRepository(AuthService()),
+            AuthRepository(AuthService(), AuthDataProvider()),
             context.read<UserBloc>(), AuthService()
           ),
         ),
       ],
-      child: MaterialApp(
-        debugShowCheckedModeBanner: false,
-        navigatorKey: navigatorKey,
-        initialRoute: '/',
-        onGenerateRoute: _appRouter.onGenerateRoute,
-        builder: (context, child) {
-          // Ensure the navigation stack is properly initialized
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            final authBloc = context.read<AuthBloc>();
-            authBloc.add(CheckAuthStatus());
-          });
-          return child!;
+      child: Consumer<ThemeProvider>(
+        builder: (context, themeProvider, child) {
+          return MaterialApp(
+            navigatorKey: navigatorKey,
+            debugShowCheckedModeBanner: false,
+            theme: _buildLightTheme(context),
+            darkTheme: _buildDarkTheme(context),
+            themeMode:
+                themeProvider.isDarkMode ? ThemeMode.dark : ThemeMode.light,
+            initialRoute: '/',
+            onGenerateRoute: _appRouter.onGenerateRoute,
+            builder: (context, child) {
+              // Ensure the navigation stack is properly initialized
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                final authBloc = context.read<AuthBloc>();
+                authBloc.add(CheckAuthStatus());
+              });
+              return child!;
+            },
+          );
         },
       ),
     );

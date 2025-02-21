@@ -6,6 +6,7 @@ import 'package:frontend/accessability/presentation/screens/authscreens/upload_p
 import 'package:frontend/accessability/presentation/screens/chat_system/inbox_screen.dart';
 import 'package:frontend/accessability/presentation/screens/gpsScreen/gps.dart';
 import 'package:frontend/accessability/presentation/screens/settings/settings_screen.dart';
+import 'package:frontend/accessability/presentation/screens/sos/sos_screen.dart';
 import 'package:frontend/accessability/presentation/screens/splash_screen.dart';
 import 'package:frontend/accessability/presentation/screens/settings/settingsScreens/account_screen.dart';
 import 'package:frontend/accessability/presentation/screens/settings/settingsScreens/biometric_screen.dart';
@@ -26,7 +27,16 @@ class AppRouter {
       case '/login':
         return _buildRoute(const LoginScreen(), clearStack: true);
       case '/uploadProfilePicture':
-        return _buildRoute(const UploadProfileScreen(), clearStack: true);
+        final args = routeSettings.arguments as Map<String, dynamic>? ?? {};
+        return _buildRoute(
+            UploadProfileScreen(
+              name: args['name'] ?? 'Guest',
+              email: args['email'] ?? '',
+              profile: args['profile'] ?? '',
+              phoneNumber: args['phoneNumber'] ?? '',
+            ),
+            clearStack: true);
+
       case '/onboarding':
         return _buildRoute(const OnboardingScreen(), clearStack: true);
       case '/homescreen':
@@ -45,6 +55,8 @@ class AppRouter {
         return _buildRoute(const SettingsScreen());
       case '/inbox':
         return _buildRoute(const InboxScreen());
+      case '/sos':
+        return _buildRoute(SOSScreen());
       case '/about':
         return _buildRoute(const AboutScreen());
       case '/chatconvo':

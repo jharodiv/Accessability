@@ -169,6 +169,7 @@ ThemeData _buildDarkTheme(BuildContext context) {
         statusBarIconBrightness: Brightness.light,
       ),
       backgroundColor: Colors.black,
+      foregroundColor: Colors.white, // Ensure text/icons are visible
     ),
     textTheme: _buildHelveticaTextTheme(),
   );

@@ -62,21 +62,34 @@ class _BiometricLoginState extends State<BiometricLogin> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        leading: IconButton(
-          onPressed: () {
-            Navigator.of(context).pop();
-          },
-          icon: const Icon(Icons.arrow_back),
+      appBar: PreferredSize(
+        preferredSize: const Size.fromHeight(65),
+        child: Container(
+          decoration: const BoxDecoration(
+            color: Colors.white, // AppBar background color
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black26, // Shadow color
+                offset: Offset(0, 1), // Horizontal & vertical offset
+                blurRadius: 2, // Shadow blur
+              ),
+            ],
+          ),
+          child: AppBar(
+            elevation: 0, // Remove default elevation
+            leading: IconButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              icon: const Icon(Icons.arrow_back),
+            ),
+            title: const Text(
+              'Biometric Login',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+            centerTitle: true,
+          ),
         ),
-        title: const Text(
-          'Biometric Login',
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
-        centerTitle: true,
-        elevation: 2,
-        shadowColor: Colors.black,
       ),
       body: Stack(
         children: [

@@ -45,14 +45,14 @@ class AccessabilityfooterState extends State<Accessabilityfooter> {
         BottomNavigationBarItem(
           icon: GestureDetector(
             key: widget.youKey, // Assign the key here
-            child: const Icon(Icons.favorite),
+            child: const Icon(Icons.bookmark),
           ),
           label: 'Favorite',
         ),
         BottomNavigationBarItem(
           icon: GestureDetector(
             key: widget.securityKey, // Assign the key here
-            child: const Icon(Icons.safety_check_sharp),
+            child: const Icon(Icons.safety_check),
           ),
           label: 'Safety',
         ),

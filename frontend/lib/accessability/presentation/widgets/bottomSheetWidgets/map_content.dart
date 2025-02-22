@@ -8,7 +8,7 @@ class MapContent extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min, // Centers vertically as well
         children: [
-          Align(
+          const Align(
             alignment: Alignment.centerLeft,
             child: Text(
               'Map Content',
@@ -18,7 +18,7 @@ class MapContent extends StatelessWidget {
               ),
             ),
           ),
-          SizedBox(height: 10),
+          const SizedBox(height: 10),
           Wrap(
             spacing: 10,
             runSpacing: 10,

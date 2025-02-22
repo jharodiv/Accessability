@@ -100,7 +100,7 @@ class _AddPlaceFormState extends State<AddPlaceForm> {
         children: [
           TextField(
             controller: _controller,
-            decoration: InputDecoration(
+            decoration: const InputDecoration(
               labelText: "Search address or location name",
               prefixIcon: Icon(Icons.place),
             ),

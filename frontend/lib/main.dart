@@ -22,13 +22,13 @@ final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 void main() async {
   // Ensure Flutter bindings are initialized
   WidgetsFlutterBinding.ensureInitialized();
-  
 
   // Initialize Firebase
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
   // Initialize SharedPreferences
-  final SharedPreferences sharedPreferences = await SharedPreferences.getInstance();
+  final SharedPreferences sharedPreferences =
+      await SharedPreferences.getInstance();
 
   try {
     await dotenv.load(fileName: '.env'); // Use absolute path for testing
@@ -40,16 +40,17 @@ void main() async {
   await initializeDateFormatting();
 
   final FCMService fcmService = FCMService(navigatorKey: navigatorKey);
-    fcmService.initializeFCMListeners(); // Pass the navigatorKey
+  fcmService.initializeFCMListeners(); // Pass the navigatorKey
 
   // Initialize ThemeProvider
   runApp(
     ChangeNotifierProvider(
       create: (context) => ThemeProvider(),
-      child: MyApp(sharedPreferences: sharedPreferences,
-      navigatorKey: navigatorKey, fcmService: fcmService),
+      child: MyApp(
+          sharedPreferences: sharedPreferences,
+          navigatorKey: navigatorKey,
+          fcmService: fcmService),
     ),
-    
   );
 }
 
@@ -59,7 +60,11 @@ class MyApp extends StatelessWidget {
   final GlobalKey<NavigatorState> navigatorKey;
   final FCMService fcmService;
 
-  MyApp({super.key, required this.sharedPreferences, required this.navigatorKey, required this.fcmService});
+  MyApp(
+      {super.key,
+      required this.sharedPreferences,
+      required this.navigatorKey,
+      required this.fcmService});
 
   @override
   Widget build(BuildContext context) {

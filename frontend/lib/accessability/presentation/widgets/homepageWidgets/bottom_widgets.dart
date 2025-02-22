@@ -312,7 +312,9 @@ class _BottomWidgetsState extends State<BottomWidgets> {
           color: isActive ? Colors.white : const Color(0xFF6750A4),
         ),
         style: ElevatedButton.styleFrom(
-          backgroundColor: isActive ? const Color(0xFF6750A4) : Colors.white,
+          backgroundColor: isActive
+              ? const Color(0xFF6750A4)
+              : Color.fromARGB(255, 211, 198, 248),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(20),
           ),

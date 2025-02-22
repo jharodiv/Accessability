@@ -220,7 +220,7 @@ class _LoginFormState extends State<LoginForm> {
                   ),
                   const SizedBox(height: 50),
                   GestureDetector(
-                    onTap: _authenthicate,
+                    onTap: _authenticateWithBiometrics,
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
@@ -246,17 +246,17 @@ class _LoginFormState extends State<LoginForm> {
     );
   }
 
-  Future<void> _authenthicate() async {
-    try {
-      bool authenticated = await _localAuth.authenticate(
-        localizedReason: 'Try',
-        options: const AuthenticationOptions(
-          stickyAuth: true,
-          biometricOnly: true,
-        ),
-      );
-    } on PlatformException catch (e) {
-      print(e);
-    }
-  }
+  // Future<void> _authenthicate() async {
+  //   try {
+  //     bool authenticated = await _localAuth.authenticate(
+  //       localizedReason: 'Try',
+  //       options: const AuthenticationOptions(
+  //         stickyAuth: true,
+  //         biometricOnly: true,
+  //       ),
+  //     );
+  //   } on PlatformException catch (e) {
+  //     print(e);
+  //   }
+  // }
 }

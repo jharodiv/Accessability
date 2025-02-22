@@ -80,7 +80,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
       body: ListView(
         children: [
           ListTile(
-            leading: const Icon(Icons.person, color: Color(0xFF6750A4)),
+            leading:
+                const Icon(Icons.person_2_outlined, color: Color(0xFF6750A4)),
             title: const Text('Account',
                 style: TextStyle(fontWeight: FontWeight.bold)),
             onTap: () {
@@ -98,10 +99,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           const Divider(),
           ListTile(
-            leading: const Icon(Icons.notifications, color: Color(0xFF6750A4)),
+            leading: const Icon(Icons.notifications_active_outlined,
+                color: Color(0xFF6750A4)),
             title: const Text('Notification',
                 style: TextStyle(fontWeight: FontWeight.bold)),
             trailing: Switch(
+              activeColor: Color(0xFF6750A4),
               value: isNotificationEnabled,
               onChanged: (bool value) {
                 setState(
@@ -114,7 +117,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           const Divider(),
           ListTile(
-            leading: const Icon(Icons.security, color: Color(0xFF6750A4)),
+            leading:
+                const Icon(Icons.security_outlined, color: Color(0xFF6750A4)),
             title: const Text('Privacy & Security',
                 style: TextStyle(fontWeight: FontWeight.bold)),
             onTap: () {
@@ -123,7 +127,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           const Divider(),
           ListTile(
-            leading: const Icon(Icons.chat, color: Color(0xFF6750A4)),
+            leading: const Icon(Icons.chat_outlined, color: Color(0xFF6750A4)),
             title: const Text('Chat and Support',
                 style: TextStyle(fontWeight: FontWeight.bold)),
             onTap: () {
@@ -141,7 +145,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           const Divider(),
           ListTile(
-            leading: const Icon(Icons.info, color: Color(0xFF6750A4)),
+            leading: const Icon(Icons.info_outline, color: Color(0xFF6750A4)),
             title: const Text('About',
                 style: TextStyle(fontWeight: FontWeight.bold)),
             onTap: () {

@@ -79,16 +79,6 @@ class _BiometricLoginState extends State<BiometricLogin> {
       ),
       body: Stack(
         children: [
-          if (_supportState)
-            const Text("This Device is supported")
-          else
-            const Text('This device is not supported'),
-          Divider(
-            height: 100,
-          ),
-          ElevatedButton(
-              onPressed: _getAvaialbleBiometrics,
-              child: const Text("Get Available biometries")),
           Positioned(
             top: 20,
             left: 0,
@@ -167,17 +157,6 @@ class _BiometricLoginState extends State<BiometricLogin> {
               ),
             ),
           ),
-          Positioned(
-            bottom: 100,
-            left: 0,
-            right: 0,
-            child: Center(
-              child: ElevatedButton(
-                onPressed: _authenticateWithBiometrics,
-                child: const Text('Login with Biometrics'),
-              ),
-            ),
-          ),
         ],
       ),
     );
@@ -186,7 +165,7 @@ class _BiometricLoginState extends State<BiometricLogin> {
   Future<void> _getAvaialbleBiometrics() async {
     List<BiometricType> availableBiometrics =
         await _localAuth.getAvailableBiometrics();
-    print("List of avaialbleBiometrics: $availableBiometrics");
+    print("List of avaialbleBiometrics:  $availableBiometrics");
 
     if (!mounted) {
       return;

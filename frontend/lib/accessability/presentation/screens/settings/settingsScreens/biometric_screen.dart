@@ -62,20 +62,34 @@ class _BiometricLoginState extends State<BiometricLogin> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        leading: IconButton(
-          onPressed: () {
-            Navigator.of(context).pop();
-          },
-          icon: const Icon(Icons.arrow_back),
+      appBar: PreferredSize(
+        preferredSize: const Size.fromHeight(65),
+        child: Container(
+          decoration: const BoxDecoration(
+            color: Colors.white, // AppBar background color
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black26, // Shadow color
+                offset: Offset(0, 1), // Horizontal & vertical offset
+                blurRadius: 2, // Shadow blur
+              ),
+            ],
+          ),
+          child: AppBar(
+            elevation: 0, // Remove default elevation
+            leading: IconButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              icon: const Icon(Icons.arrow_back),
+            ),
+            title: const Text(
+              'Biometric Login',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+            centerTitle: true,
+          ),
         ),
-        title: const Text(
-          'Biometric Login',
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
-        centerTitle: true,
-        elevation: 2,
-        shadowColor: Colors.black,
       ),
       body: Stack(
         children: [
@@ -99,7 +113,7 @@ class _BiometricLoginState extends State<BiometricLogin> {
               'Biometric Login',
               textAlign: TextAlign.center,
               style: TextStyle(
-                fontSize: 18,
+                fontSize: 25,
                 fontWeight: FontWeight.bold,
                 color: Colors.black,
               ),
@@ -109,13 +123,16 @@ class _BiometricLoginState extends State<BiometricLogin> {
             top: 350,
             left: 0,
             right: 0,
-            child: Text(
-              'Sign in to your account faster using Biometrics \n login',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.bold,
-                color: Colors.black,
+            child: Padding(
+              padding: EdgeInsets.only(top: 8),
+              child: Text(
+                'Sign in to your account faster using Biometrics \n login',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black,
+                ),
               ),
             ),
           ),
@@ -123,18 +140,23 @@ class _BiometricLoginState extends State<BiometricLogin> {
             top: 440,
             left: 0,
             right: 0,
-            child: ListTile(
-              title: const Text(
-                'Enable Biometric Login',
-                style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
-              ),
-              trailing: Switch(
-                value: isBiometricEnabled,
-                onChanged: (bool value) {
-                  setState(() {
-                    isBiometricEnabled = value; // Toggle the switch state
-                  });
-                },
+            child: Padding(
+              padding: EdgeInsets.only(left: 8, right: 8),
+              child: ListTile(
+                title: const Text(
+                  'Enable Biometric Login',
+                  style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
+                ),
+                trailing: Switch(
+                  value: isBiometricEnabled,
+                  onChanged: (bool value) {
+                    setState(() {
+                      isBiometricEnabled = value; // Toggle the switch state
+                    });
+                  },
+                  activeColor:
+                      const Color(0xFF6750A4), // Set the active color to purple
+                ),
               ),
             ),
           ),
@@ -146,12 +168,15 @@ class _BiometricLoginState extends State<BiometricLogin> {
             child: Padding(
               padding: EdgeInsets.symmetric(horizontal: 20),
               child: Center(
-                child: Text(
-                  'By enabling biometrics login, you will allow Accessability to access your saved biometrics data in your device to create and save data in Accessability that shall be used for securing your login. The data will not be used for any other purposes.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 10,
-                    color: Colors.black54,
+                child: Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 20),
+                  child: Text(
+                    'By enabling biometrics login, you will allow Accessability to access your saved biometrics data in your device to create and save data in Accessability that shall be used for securing your login. The data will not be used for any other purposes.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.black54,
+                    ),
                   ),
                 ),
               ),

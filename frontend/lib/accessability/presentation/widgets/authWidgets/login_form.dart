@@ -22,7 +22,7 @@ class _LoginFormState extends State<LoginForm> {
   final TextEditingController emailController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
   bool _hasNavigated = false;
-  bool isBiometricEnabled = true; // Replace this with actual settings value
+  bool isBiometricEnabled = false;
   late final LocalAuthentication _localAuth;
   bool _supportState = false;
 
@@ -37,6 +37,18 @@ class _LoginFormState extends State<LoginForm> {
             },
           ),
         );
+
+    // Check if biometric authentication is available
+    _checkBiometricAvailability();
+  }
+
+  Future<void> _checkBiometricAvailability() async {
+    try {
+      isBiometricEnabled = await _localAuth.canCheckBiometrics;
+      setState(() {}); // Update the UI
+    } on PlatformException catch (e) {
+      print('Error checking biometric availability: $e');
+    }
   }
 
   @override
@@ -229,8 +241,8 @@ class _LoginFormState extends State<LoginForm> {
                         const SizedBox(width: 8),
                         Text(
                           isBiometricEnabled
-                              ? 'Biometric Login Enabled'
-                              : 'Login with Biometrics',
+                              ? 'Login with Biometrics Enabled'
+                              : 'Biometric login disabled',
                           style: const TextStyle(
                               fontSize: 15, fontWeight: FontWeight.w600),
                         ),
@@ -245,18 +257,4 @@ class _LoginFormState extends State<LoginForm> {
       ),
     );
   }
-
-  // Future<void> _authenthicate() async {
-  //   try {
-  //     bool authenticated = await _localAuth.authenticate(
-  //       localizedReason: 'Try',
-  //       options: const AuthenticationOptions(
-  //         stickyAuth: true,
-  //         biometricOnly: true,
-  //       ),
-  //     );
-  //   } on PlatformException catch (e) {
-  //     print(e);
-  //   }
-  // }
 }

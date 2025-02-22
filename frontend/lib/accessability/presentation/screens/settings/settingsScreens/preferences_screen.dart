@@ -12,25 +12,39 @@ class PreferencesScreen extends StatefulWidget {
 class _PreferencesScreenState extends State<PreferencesScreen> {
   bool isColorblindmode = false;
   String selectedLanguage = 'English'; //Default Language
-  
 
   @override
   Widget build(BuildContext context) {
     final themeProvider = Provider.of<ThemeProvider>(context);
     return Scaffold(
-        appBar: AppBar(
-          leading: IconButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
-              icon: const Icon(Icons.arrow_back)),
-          title: const Text(
-            'Preference',
-            style: TextStyle(fontWeight: FontWeight.bold),
+        appBar: PreferredSize(
+          preferredSize: const Size.fromHeight(65),
+          child: Container(
+            decoration: const BoxDecoration(
+              color: Colors.white, // AppBar background color
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black26, // Shadow color
+                  offset: Offset(0, 1), // Horizontal & vertical offset
+                  blurRadius: 2, // Shadow blur
+                ),
+              ],
+            ),
+            child: AppBar(
+              elevation: 0, // Remove default elevation
+              leading: IconButton(
+                onPressed: () {
+                  Navigator.of(context).pop();
+                },
+                icon: const Icon(Icons.arrow_back),
+              ),
+              title: const Text(
+                'Preference',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              centerTitle: true,
+            ),
           ),
-          centerTitle: true,
-          elevation: 2,
-          shadowColor: Colors.black,
         ),
         body: Center(
           child: Padding(
@@ -47,11 +61,13 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
                     style: TextStyle(fontWeight: FontWeight.bold),
                   ),
                   trailing: Switch(
-                      value: themeProvider.isDarkMode,
-                      onChanged: (value) {
-                        themeProvider.toggleTheme();
-                      },  
-                      ),
+                    activeColor: const Color(0xFF6750A4), // Set active color
+
+                    value: themeProvider.isDarkMode,
+                    onChanged: (value) {
+                      themeProvider.toggleTheme();
+                    },
+                  ),
                 ),
                 const Divider(),
                 ListTile(
@@ -65,6 +81,8 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
                   ),
                   trailing: Switch(
                       value: isColorblindmode,
+                      activeColor: const Color(0xFF6750A4), // Set active color
+
                       onChanged: (bool value) {
                         setState(() {
                           isColorblindmode = value;

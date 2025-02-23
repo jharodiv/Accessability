@@ -66,12 +66,12 @@ class _BiometricLoginState extends State<BiometricLogin> {
         preferredSize: const Size.fromHeight(65),
         child: Container(
           decoration: const BoxDecoration(
-            color: Colors.white, // AppBar background color
+            color: Colors.white, // Set the AppBar background color
             boxShadow: [
               BoxShadow(
                 color: Colors.black26, // Shadow color
-                offset: Offset(0, 1), // Horizontal & vertical offset
-                blurRadius: 2, // Shadow blur
+                offset: Offset(0, 1), // Horizontal and Vertical offset
+                blurRadius: 2, // How much to blur the shadow
               ),
             ],
           ),
@@ -82,6 +82,7 @@ class _BiometricLoginState extends State<BiometricLogin> {
                 Navigator.of(context).pop();
               },
               icon: const Icon(Icons.arrow_back),
+              color: const Color(0xFF6750A4),
             ),
             title: const Text(
               'Biometric Login',

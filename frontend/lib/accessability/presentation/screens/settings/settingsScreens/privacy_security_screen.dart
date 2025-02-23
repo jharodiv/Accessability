@@ -9,15 +9,34 @@ class PrivacySecurity extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        leading: IconButton(
-            onPressed: () {
-              Navigator.of(context).pop();
-            },
-            icon: const Icon(Icons.arrow_back)),
-        title: const Text(
-          'Privacy & Security',
-          style: TextStyle(fontWeight: FontWeight.bold),
+      appBar: PreferredSize(
+        preferredSize: const Size.fromHeight(65),
+        child: Container(
+          decoration: const BoxDecoration(
+            color: Colors.white, // Set the AppBar background color
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black26, // Shadow color
+                offset: Offset(0, 1), // Horizontal and Vertical offset
+                blurRadius: 2, // How much to blur the shadow
+              ),
+            ],
+          ),
+          child: AppBar(
+            elevation: 0, // Remove default elevation
+            leading: IconButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              icon: const Icon(Icons.arrow_back),
+              color: const Color(0xFF6750A4),
+            ),
+            title: const Text(
+              'Privacy & Security',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+            centerTitle: true,
+          ),
         ),
       ),
       body: Container(
@@ -57,8 +76,8 @@ class PrivacySecurity extends StatelessWidget {
                           )),
                       const Expanded(
                           child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        crossAxisAlignment: CrossAxisAlignment.center,
+                        mainAxisAlignment: MainAxisAlignment.start,
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
                             'Your privacy is our priority',

@@ -8,21 +8,32 @@ class DataSecurity extends StatelessWidget {
     return Scaffold(
       appBar: PreferredSize(
         preferredSize: const Size.fromHeight(65),
-        child: AppBar(
-          leading: IconButton(
-            onPressed: () {
-              Navigator.of(context).pop();
-            },
-            icon: const Icon(Icons.arrow_back),
-            color: const Color(0xFF6750A4),
+        child: Container(
+          decoration: const BoxDecoration(
+            color: Colors.white, // Set the AppBar background color
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black26, // Shadow color
+                offset: Offset(0, 1), // Horizontal and Vertical offset
+                blurRadius: 2, // How much to blur the shadow
+              ),
+            ],
           ),
-          title: const Text(
-            'Privacy & Security',
-            style: TextStyle(fontWeight: FontWeight.bold),
+          child: AppBar(
+            elevation: 0, // Remove default elevation
+            leading: IconButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              icon: const Icon(Icons.arrow_back),
+              color: const Color(0xFF6750A4),
+            ),
+            title: const Text(
+              'Data & Security',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+            centerTitle: true,
           ),
-          centerTitle: true,
-          elevation: 2,
-          shadowColor: Colors.black,
         ),
       ),
       body: Padding(

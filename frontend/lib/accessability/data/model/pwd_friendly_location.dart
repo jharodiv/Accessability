@@ -1,3 +1,5 @@
+// pwd_friendly_location.dart
+
 class PwdFriendlyLocation {
   final String name;
   final double latitude;

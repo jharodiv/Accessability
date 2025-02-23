@@ -9,6 +9,7 @@ import 'package:frontend/accessability/logic/bloc/user/user_bloc.dart';
 import 'package:frontend/accessability/logic/bloc/user/user_state.dart';
 import 'package:frontend/accessability/presentation/widgets/accessability_footer.dart';
 import 'package:frontend/accessability/presentation/widgets/bottomSheetWidgets/favorite_widget.dart';
+import 'package:frontend/accessability/presentation/widgets/bottomSheetWidgets/safety_assist_widget.dart';
 import 'package:frontend/accessability/presentation/widgets/homepageWidgets/bottom_widgets.dart';
 import 'package:frontend/accessability/presentation/widgets/homepagewidgets/top_widgets.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
@@ -743,7 +744,8 @@ class _GpsScreenState extends State<GpsScreen> {
                       scrollController: ScrollController(),
                       activeSpaceId: _activeSpaceId, // Pass the active space ID
                     ),
-                  if (_currentIndex == 1) FavoriteWidget(),
+                  if (_currentIndex == 1) const FavoriteWidget(),
+                  if (_currentIndex == 2) const SafetyAssistWidget(),
                 ],
               ),
               bottomNavigationBar: Accessabilityfooter(

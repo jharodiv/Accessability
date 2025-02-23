@@ -5,6 +5,7 @@ class Accessabilityfooter extends StatefulWidget {
   final GlobalKey locationKey;
   final GlobalKey youKey;
   final GlobalKey securityKey;
+  final Function(int) onTap; // Add this line
 
   const Accessabilityfooter({
     super.key,
@@ -12,6 +13,7 @@ class Accessabilityfooter extends StatefulWidget {
     required this.locationKey,
     required this.youKey,
     required this.securityKey,
+    required this.onTap, // Add this line
   });
 
   @override
@@ -24,11 +26,12 @@ class AccessabilityfooterState extends State<Accessabilityfooter> {
   @override
   Widget build(BuildContext context) {
     return BottomNavigationBar(
-      backgroundColor: Colors.white, // Set background to white
+      backgroundColor: Colors.white,
       currentIndex: currentIndex,
       onTap: (index) {
         setState(() {
           currentIndex = index;
+          widget.onTap(index); // Notify parent widget of the selected index
           widget.onOverlayChange(true); // Show overlay
         });
       },
@@ -37,21 +40,21 @@ class AccessabilityfooterState extends State<Accessabilityfooter> {
       items: [
         BottomNavigationBarItem(
           icon: GestureDetector(
-            key: widget.locationKey, // Assign the key here
+            key: widget.locationKey,
             child: const Icon(Icons.location_on),
           ),
           label: 'Location',
         ),
         BottomNavigationBarItem(
           icon: GestureDetector(
-            key: widget.youKey, // Assign the key here
+            key: widget.youKey,
             child: const Icon(Icons.bookmark),
           ),
           label: 'Favorite',
         ),
         BottomNavigationBarItem(
           icon: GestureDetector(
-            key: widget.securityKey, // Assign the key here
+            key: widget.securityKey,
             child: const Icon(Icons.security_outlined),
           ),
           label: 'Safety',

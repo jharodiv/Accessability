@@ -8,6 +8,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:frontend/accessability/logic/bloc/user/user_bloc.dart';
 import 'package:frontend/accessability/logic/bloc/user/user_state.dart';
 import 'package:frontend/accessability/presentation/widgets/accessability_footer.dart';
+import 'package:frontend/accessability/presentation/widgets/bottomSheetWidgets/favorite_widget.dart';
 import 'package:frontend/accessability/presentation/widgets/homepageWidgets/bottom_widgets.dart';
 import 'package:frontend/accessability/presentation/widgets/homepagewidgets/top_widgets.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
@@ -44,6 +45,8 @@ class _GpsScreenState extends State<GpsScreen> {
   final String _apiKey = dotenv.env["GOOGLE_API_KEY"] ?? '';
   Set<Circle> _circles = {};
   bool _isNavigating = false;
+  int _currentIndex = 0; // Track the current index of the BottomNavigationBar
+  bool _showBottomWidgets = false; // Track whether to show BottomWidgets
 
   final List<Map<String, dynamic>> pwdFriendlyLocations = [
     {
@@ -717,32 +720,6 @@ class _GpsScreenState extends State<GpsScreen> {
                     onMapCreated: _onMapCreated,
                     polygons: _createPolygons(),
                   ),
-                  // Positioned(
-                  //   top:
-                  //       200, // Adjust this value to move the controls higher or lower
-                  //   right: 16, // Position from the right
-                  //   child: Column(
-                  //     children: [
-                  //       FloatingActionButton(
-                  //         onPressed: () {
-                  //           _mapController?.animateCamera(
-                  //             CameraUpdate.zoomIn(),
-                  //           );
-                  //         },
-                  //         child: const Icon(Icons.add),
-                  //       ),
-                  //       const SizedBox(height: 8), // Space between buttons
-                  //       FloatingActionButton(
-                  //         onPressed: () {
-                  //           _mapController?.animateCamera(
-                  //             CameraUpdate.zoomOut(),
-                  //           );
-                  //         },
-                  //         child: const Icon(Icons.remove),
-                  //       ),
-                  //     ],
-                  //   ),
-                  // ),
                   Topwidgets(
                     inboxKey: inboxKey,
                     settingsKey: settingsKey,
@@ -759,12 +736,14 @@ class _GpsScreenState extends State<GpsScreen> {
                     },
                     onSpaceSelected: _updateActiveSpaceId, // Pass the callback
                   ),
-                  BottomWidgets(
-                    key: ValueKey(
-                        _activeSpaceId), // Force rebuild when _activeSpaceId changes
-                    scrollController: ScrollController(),
-                    activeSpaceId: _activeSpaceId, // Pass the active space ID
-                  ),
+                  if (_currentIndex == 0)
+                    BottomWidgets(
+                      key: ValueKey(
+                          _activeSpaceId), // Force rebuild when _activeSpaceId changes
+                      scrollController: ScrollController(),
+                      activeSpaceId: _activeSpaceId, // Pass the active space ID
+                    ),
+                  if (_currentIndex == 1) FavoriteWidget(),
                 ],
               ),
               bottomNavigationBar: Accessabilityfooter(
@@ -773,8 +752,12 @@ class _GpsScreenState extends State<GpsScreen> {
                 youKey: youKey,
                 onOverlayChange: (isVisible) {
                   setState(() {
-                    if (isVisible) {
-                    } else {}
+                    // Handle overlay visibility if needed
+                  });
+                },
+                onTap: (index) {
+                  setState(() {
+                    _currentIndex = index; // Update the current index
                   });
                 },
               ),

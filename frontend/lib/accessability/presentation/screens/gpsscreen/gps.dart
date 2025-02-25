@@ -90,24 +90,23 @@ class _GpsScreenState extends State<GpsScreen> {
       });
     });
 
+    @override
+    void didChangeDependencies() {
+      super.didChangeDependencies();
+      print('GPS Screen didChangeDependencies called');
+    }
 
-@override
-void didChangeDependencies() {
-  super.didChangeDependencies();
-  print('GPS Screen didChangeDependencies called');
-}
+    @override
+    void didUpdateWidget(GpsScreen oldWidget) {
+      super.didUpdateWidget(oldWidget);
+      print('GPS Screen didUpdateWidget called');
+    }
 
-@override
-void didUpdateWidget(GpsScreen oldWidget) {
-  super.didUpdateWidget(oldWidget);
-  print('GPS Screen didUpdateWidget called');
-}
-
-   @override
-void dispose() {
-  _locationUpdatesSubscription?.cancel(); // Cancel location updates
-  super.dispose();
-}
+    @override
+    void dispose() {
+      _locationUpdatesSubscription?.cancel(); // Cancel location updates
+      super.dispose();
+    }
 
     // Check if onboarding is completed before showing the tutorial
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -153,73 +152,74 @@ void dispose() {
 
   // Listen for real-time location updates from other users in the space
   void _listenForLocationUpdates() {
-  if (_activeSpaceId.isEmpty) {
-    print("⚠️ Active space ID is empty. Cannot listen for location updates.");
-    return;
-  }
+    if (_activeSpaceId.isEmpty) {
+      print("⚠️ Active space ID is empty. Cannot listen for location updates.");
+      return;
+    }
 
-  _locationUpdatesSubscription?.cancel(); // Cancel existing listener
-  _locationUpdatesSubscription =
-      _getSpaceMembersLocations(_activeSpaceId).listen((snapshot) async {
-    final updatedMarkers = <Marker>{};
+    _locationUpdatesSubscription?.cancel(); // Cancel existing listener
+    _locationUpdatesSubscription =
+        _getSpaceMembersLocations(_activeSpaceId).listen((snapshot) async {
+      final updatedMarkers = <Marker>{};
 
-    // Preserve existing PWD-friendly and nearby places markers
-    final existingMarkers = _markers
-        .where((marker) => !marker.markerId.value.startsWith('user_'));
+      // Preserve existing PWD-friendly and nearby places markers
+      final existingMarkers = _markers
+          .where((marker) => !marker.markerId.value.startsWith('user_'));
 
-    for (final doc in snapshot.docs) {
-      final data = doc.data() as Map<String, dynamic>;
-      final lat = data['latitude'];
-      final lng = data['longitude'];
-      final userId = doc.id;
+      for (final doc in snapshot.docs) {
+        final data = doc.data() as Map<String, dynamic>;
+        final lat = data['latitude'];
+        final lng = data['longitude'];
+        final userId = doc.id;
 
-      // Fetch the user's profile data
-      final userDoc = await FirebaseFirestore.instance
-          .collection('Users')
-          .doc(userId)
-          .get();
-      final username = userDoc['username'];
-      final profilePictureUrl = userDoc.data()?['profilePicture'] ?? ''; // Handle missing field
+        // Fetch the user's profile data
+        final userDoc = await FirebaseFirestore.instance
+            .collection('Users')
+            .doc(userId)
+            .get();
+        final username = userDoc['username'];
+        final profilePictureUrl =
+            userDoc.data()?['profilePicture'] ?? ''; // Handle missing field
 
-      print("🟢 Fetched user data for $username: $profilePictureUrl");
+        print("🟢 Fetched user data for $username: $profilePictureUrl");
 
-      // Create a custom marker icon with the profile picture
-      BitmapDescriptor customIcon;
-      if (profilePictureUrl != null && profilePictureUrl.isNotEmpty) {
-        try {
-          customIcon = await _createCustomMarkerIcon(profilePictureUrl);
-        } catch (e) {
-          print("❌ Error creating custom marker for $username: $e");
+        // Create a custom marker icon with the profile picture
+        BitmapDescriptor customIcon;
+        if (profilePictureUrl != null && profilePictureUrl.isNotEmpty) {
+          try {
+            customIcon = await _createCustomMarkerIcon(profilePictureUrl);
+          } catch (e) {
+            print("❌ Error creating custom marker for $username: $e");
+            customIcon = await BitmapDescriptor.fromAssetImage(
+              const ImageConfiguration(size: Size(24, 24)),
+              'assets/images/others/default_profile.png',
+            );
+          }
+        } else {
+          // Use a default icon if no profile picture is available
           customIcon = await BitmapDescriptor.fromAssetImage(
             const ImageConfiguration(size: Size(24, 24)),
             'assets/images/others/default_profile.png',
           );
         }
-      } else {
-        // Use a default icon if no profile picture is available
-        customIcon = await BitmapDescriptor.fromAssetImage(
-          const ImageConfiguration(size: Size(24, 24)),
-          'assets/images/others/default_profile.png',
+
+        // Add the custom marker
+        updatedMarkers.add(
+          Marker(
+            markerId: MarkerId('user_$userId'),
+            position: LatLng(lat, lng),
+            infoWindow: InfoWindow(title: username),
+            icon: customIcon,
+          ),
         );
       }
 
-      // Add the custom marker
-      updatedMarkers.add(
-        Marker(
-          markerId: MarkerId('user_$userId'),
-          position: LatLng(lat, lng),
-          infoWindow: InfoWindow(title: username),
-          icon: customIcon,
-        ),
-      );
-    }
-
-    print("🟢 Updated ${updatedMarkers.length} user markers.");
-    setState(() {
-      _markers = existingMarkers.toSet().union(updatedMarkers);
+      print("🟢 Updated ${updatedMarkers.length} user markers.");
+      setState(() {
+        _markers = existingMarkers.toSet().union(updatedMarkers);
+      });
     });
-  });
-}
+  }
 
   // Fetch real-time location updates for members in the active space
   Stream<QuerySnapshot> _getSpaceMembersLocations(String spaceId) {
@@ -241,62 +241,65 @@ void dispose() {
   }
 
   Future<BitmapDescriptor> _createCustomMarkerIcon(String imageUrl) async {
-  print("🟢 Creating custom marker icon for: $imageUrl");
+    print("🟢 Creating custom marker icon for: $imageUrl");
 
-  try {
-    // Fetch the profile picture
-    final response = await http.get(Uri.parse(imageUrl));
-    if (response.statusCode != 200) {
-      print("❌ Failed to load image: ${response.statusCode}");
-      throw Exception('Failed to load image');
+    try {
+      // Fetch the profile picture
+      final response = await http.get(Uri.parse(imageUrl));
+      if (response.statusCode != 200) {
+        print("❌ Failed to load image: ${response.statusCode}");
+        throw Exception('Failed to load image');
+      }
+
+      // Decode the image
+      final bytes = response.bodyBytes;
+      final codec = await ui.instantiateImageCodec(bytes);
+      final frame = await codec.getNextFrame();
+      final image = frame.image;
+
+      // Create a circular avatar
+      final pictureRecorder = ui.PictureRecorder();
+      final canvas = Canvas(pictureRecorder);
+      final paint = Paint()..color = Colors.white;
+      final radius = 50.0; // Adjust the size of the circle
+
+      // Draw the circle
+      canvas.drawCircle(Offset(radius, radius), radius, paint);
+
+      // Clip the image to a circle
+      final clipPath = Path()
+        ..addOval(
+            Rect.fromCircle(center: Offset(radius, radius), radius: radius));
+      canvas.clipPath(clipPath);
+
+      // Draw the image inside the circle
+      canvas.drawImageRect(
+        image,
+        Rect.fromLTWH(0, 0, image.width.toDouble(), image.height.toDouble()),
+        Rect.fromCircle(center: Offset(radius, radius), radius: radius),
+        Paint(),
+      );
+
+      // Convert the canvas to an image
+      final picture = pictureRecorder.endRecording();
+      final imageMarker =
+          await picture.toImage((radius * 2).toInt(), (radius * 2).toInt());
+      final byteData =
+          await imageMarker.toByteData(format: ui.ImageByteFormat.png);
+
+      if (byteData == null) {
+        print("❌ Failed to convert image to bytes");
+        throw Exception('Failed to convert image to bytes');
+      }
+
+      // Create the custom marker icon
+      print("🟢 Custom marker icon created successfully");
+      return BitmapDescriptor.fromBytes(byteData.buffer.asUint8List());
+    } catch (e) {
+      print("❌ Error creating custom marker icon: $e");
+      throw Exception('Failed to create custom marker icon: $e');
     }
-
-    // Decode the image
-    final bytes = response.bodyBytes;
-    final codec = await ui.instantiateImageCodec(bytes);
-    final frame = await codec.getNextFrame();
-    final image = frame.image;
-
-    // Create a circular avatar
-    final pictureRecorder = ui.PictureRecorder();
-    final canvas = Canvas(pictureRecorder);
-    final paint = Paint()..color = Colors.white;
-    final radius = 50.0; // Adjust the size of the circle
-
-    // Draw the circle
-    canvas.drawCircle(Offset(radius, radius), radius, paint);
-
-    // Clip the image to a circle
-    final clipPath = Path()
-      ..addOval(Rect.fromCircle(center: Offset(radius, radius), radius: radius));
-    canvas.clipPath(clipPath);
-
-    // Draw the image inside the circle
-    canvas.drawImageRect(
-      image,
-      Rect.fromLTWH(0, 0, image.width.toDouble(), image.height.toDouble()),
-      Rect.fromCircle(center: Offset(radius, radius), radius: radius),
-      Paint(),
-    );
-
-    // Convert the canvas to an image
-    final picture = pictureRecorder.endRecording();
-    final imageMarker = await picture.toImage((radius * 2).toInt(), (radius * 2).toInt());
-    final byteData = await imageMarker.toByteData(format: ui.ImageByteFormat.png);
-
-    if (byteData == null) {
-      print("❌ Failed to convert image to bytes");
-      throw Exception('Failed to convert image to bytes');
-    }
-
-    // Create the custom marker icon
-    print("🟢 Custom marker icon created successfully");
-    return BitmapDescriptor.fromBytes(byteData.buffer.asUint8List());
-  } catch (e) {
-    print("❌ Error creating custom marker icon: $e");
-    throw Exception('Failed to create custom marker icon: $e');
   }
-}
 
   Future<bool> _onWillPop() async {
     // Show confirmation dialog
@@ -665,7 +668,7 @@ void dispose() {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    "This is the 'You' button.",
+                    "This is the 'Favorite' button.",
                     style: TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 20.0,
@@ -674,7 +677,7 @@ void dispose() {
                   Padding(
                     padding: EdgeInsets.only(top: 10.0),
                     child: Text(
-                      "Tap here to view your profile.",
+                      "Tap here to view your favorites.",
                       style: TextStyle(color: Colors.white),
                     ),
                   ),
@@ -699,7 +702,7 @@ void dispose() {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    "This is the security button.",
+                    "This is the safety button.",
                     style: TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 20.0,
@@ -708,7 +711,7 @@ void dispose() {
                   Padding(
                     padding: EdgeInsets.only(top: 10.0),
                     child: Text(
-                      "Tap here to view security settings.",
+                      "Tap here to view safety settings.",
                       style: TextStyle(color: Colors.white),
                     ),
                   ),
@@ -741,42 +744,42 @@ void dispose() {
 
   // Get user location and update it in Firestore
   Future<void> _getUserLocation() async {
-  bool serviceEnabled;
-  PermissionStatus permissionGranted;
+    bool serviceEnabled;
+    PermissionStatus permissionGranted;
 
-  // Check if GPS is enabled
-  serviceEnabled = await _location.serviceEnabled();
-  if (!serviceEnabled) {
-    serviceEnabled = await _location.requestService();
-    if (!serviceEnabled) return;
-  }
-
-  // Check for permissions
-  permissionGranted = await _location.hasPermission();
-  if (permissionGranted == PermissionStatus.denied) {
-    permissionGranted = await _location.requestPermission();
-    if (permissionGranted != PermissionStatus.granted) return;
-  }
-
-  // Get location
-  _location.onLocationChanged.listen((LocationData locationData) {
-
-    final newLocation = LatLng(locationData.latitude!, locationData.longitude!);
-
-    // Only update if the location has changed significantly
-    if (_lastLocation == null ||
-        _lastLocation!.latitude != locationData.latitude ||
-        _lastLocation!.longitude != locationData.longitude) {
-      setState(() {
-        _currentLocation = newLocation;
-      });
-
-      // Update the user's location in Firestore
-      _updateUserLocation(newLocation);
-      _lastLocation = locationData; // Store LocationData directly
+    // Check if GPS is enabled
+    serviceEnabled = await _location.serviceEnabled();
+    if (!serviceEnabled) {
+      serviceEnabled = await _location.requestService();
+      if (!serviceEnabled) return;
     }
-  });
-}
+
+    // Check for permissions
+    permissionGranted = await _location.hasPermission();
+    if (permissionGranted == PermissionStatus.denied) {
+      permissionGranted = await _location.requestPermission();
+      if (permissionGranted != PermissionStatus.granted) return;
+    }
+
+    // Get location
+    _location.onLocationChanged.listen((LocationData locationData) {
+      final newLocation =
+          LatLng(locationData.latitude!, locationData.longitude!);
+
+      // Only update if the location has changed significantly
+      if (_lastLocation == null ||
+          _lastLocation!.latitude != locationData.latitude ||
+          _lastLocation!.longitude != locationData.longitude) {
+        setState(() {
+          _currentLocation = newLocation;
+        });
+
+        // Update the user's location in Firestore
+        _updateUserLocation(newLocation);
+        _lastLocation = locationData; // Store LocationData directly
+      }
+    });
+  }
 
   // Update the active space ID
   void _updateActiveSpaceId(String spaceId) {
@@ -793,94 +796,95 @@ void dispose() {
     _listenForLocationUpdates();
   }
 
-@override
-Widget build(BuildContext context) {
-  return BlocBuilder<UserBloc, UserState>(
-    builder: (context, userState) {
-      print('BlocBuilder triggered with state: $userState');
-      if (userState is UserLoading) {
-        print('Userstate is : ${userState}');
-        return Center(child: CircularProgressIndicator());
-      } else if (userState is UserError) {
-        print('Userstate is : ${userState}');
-        return Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text('Error: ${userState.message}'),
-              ElevatedButton(
-                onPressed: () {
-                  context.read<UserBloc>().add(FetchUserData()); // Retry
-                },
-                child: const Text('Retry'),
-              ),
-            ],
-          ),
-        );
-      } else if (userState is UserLoaded) {
-        print('Userstate is : ${userState}');
-        final user = userState.user;
-        return WillPopScope(
-          onWillPop: _onWillPop,
-          child: Scaffold(
-            body: Stack(
+  @override
+  Widget build(BuildContext context) {
+    return BlocBuilder<UserBloc, UserState>(
+      builder: (context, userState) {
+        print('BlocBuilder triggered with state: $userState');
+        if (userState is UserLoading) {
+          print('Userstate is : ${userState}');
+          return Center(child: CircularProgressIndicator());
+        } else if (userState is UserError) {
+          print('Userstate is : ${userState}');
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                GoogleMap(
-                  initialCameraPosition: CameraPosition(
-                    target: _currentLocation ?? const LatLng(16.0430, 120.3333),
-                    zoom: 14,
-                  ),
-                  myLocationEnabled: true,
-                  myLocationButtonEnabled: true,
-                  markers: _markers,
-                  onMapCreated: _onMapCreated,
-                  polygons: _createPolygons(),
-                ),
-                Topwidgets(
-                  inboxKey: inboxKey,
-                  settingsKey: settingsKey,
-                  onCategorySelected: (selectedType) {
-                    _fetchNearbyPlaces(selectedType);
+                Text('Error: ${userState.message}'),
+                ElevatedButton(
+                  onPressed: () {
+                    context.read<UserBloc>().add(FetchUserData()); // Retry
                   },
-                  onOverlayChange: (isVisible) {
-                    setState(() {
-                      if (isVisible) {}
-                    });
-                  },
-                  onSpaceSelected: _updateActiveSpaceId,
+                  child: const Text('Retry'),
                 ),
-                if (_currentIndex == 0)
-                  BottomWidgets(
-                    key: ValueKey(_activeSpaceId),
-                    scrollController: ScrollController(),
-                    activeSpaceId: _activeSpaceId,
-                  ),
-                if (_currentIndex == 1) const FavoriteWidget(),
-                if (_currentIndex == 2) const SafetyAssistWidget(),
               ],
             ),
-            bottomNavigationBar: Accessabilityfooter(
-              securityKey: securityKey,
-              locationKey: locationKey,
-              youKey: youKey,
-              onOverlayChange: (isVisible) {
-                setState(() {});
-              },
-              onTap: (index) {
-                setState(() {
-                  _currentIndex = index;
-                });
-              },
+          );
+        } else if (userState is UserLoaded) {
+          print('Userstate is : ${userState}');
+          final user = userState.user;
+          return WillPopScope(
+            onWillPop: _onWillPop,
+            child: Scaffold(
+              body: Stack(
+                children: [
+                  GoogleMap(
+                    initialCameraPosition: CameraPosition(
+                      target:
+                          _currentLocation ?? const LatLng(16.0430, 120.3333),
+                      zoom: 14,
+                    ),
+                    myLocationEnabled: true,
+                    myLocationButtonEnabled: true,
+                    markers: _markers,
+                    onMapCreated: _onMapCreated,
+                    polygons: _createPolygons(),
+                  ),
+                  Topwidgets(
+                    inboxKey: inboxKey,
+                    settingsKey: settingsKey,
+                    onCategorySelected: (selectedType) {
+                      _fetchNearbyPlaces(selectedType);
+                    },
+                    onOverlayChange: (isVisible) {
+                      setState(() {
+                        if (isVisible) {}
+                      });
+                    },
+                    onSpaceSelected: _updateActiveSpaceId,
+                  ),
+                  if (_currentIndex == 0)
+                    BottomWidgets(
+                      key: ValueKey(_activeSpaceId),
+                      scrollController: ScrollController(),
+                      activeSpaceId: _activeSpaceId,
+                    ),
+                  if (_currentIndex == 1) const FavoriteWidget(),
+                  if (_currentIndex == 2) const SafetyAssistWidget(),
+                ],
+              ),
+              bottomNavigationBar: Accessabilityfooter(
+                securityKey: securityKey,
+                locationKey: locationKey,
+                youKey: youKey,
+                onOverlayChange: (isVisible) {
+                  setState(() {});
+                },
+                onTap: (index) {
+                  setState(() {
+                    _currentIndex = index;
+                  });
+                },
+              ),
             ),
-          ),
-        );
-      } else {
-        print('Userstate is : ${userState}');
-        return const Center(child: Text('No user data available'));
-      }
-    },
-  );
-}
+          );
+        } else {
+          print('Userstate is : ${userState}');
+          return const Center(child: Text('No user data available'));
+        }
+      },
+    );
+  }
 }
 
 enum OverlayPosition { top, bottom }

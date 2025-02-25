@@ -47,8 +47,8 @@ class _UploadProfileScreenState extends State<UploadProfileScreen> {
       listener: (context, state) {
         if (state is RegistrationSuccess) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: const Text("Successfully signed up!"),
+            const SnackBar(
+              content: Text("Successfully signed up!"),
               backgroundColor: Colors.lightGreen,
             ),
           );
@@ -64,34 +64,63 @@ class _UploadProfileScreenState extends State<UploadProfileScreen> {
         body: BlocBuilder<AuthBloc, AuthState>(
           builder: (context, state) {
             if (state is AuthLoading) {
-              // Show a loading indicator
               return const Center(
                 child: CircularProgressIndicator(),
               );
             }
-
             return Column(
               children: [
+                SafeArea(
+                  child: Container(
+                    padding: const EdgeInsets.all(20.0),
+                    alignment: Alignment.center,
+                    child: const Text(
+                      "ACCESSABILITY",
+                      style: TextStyle(
+                        fontSize: 24, // Adjust font size as needed
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF6750A4),
+                      ),
+                    ),
+                  ),
+                ),
                 Expanded(
                   child: Center(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
+                        const Text(
+                          "Please upload your profile picture",
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w300,
+                          ),
+                        ),
+                        const SizedBox(height: 20),
                         GestureDetector(
                           onTap: _pickImage,
                           child: CircleAvatar(
-                            radius: 50,
+                            radius: 70,
+                            backgroundColor: const Color(
+                                0xFF6750A4), // Set the background color here
                             backgroundImage: _imageFile != null
                                 ? FileImage(File(_imageFile!.path))
                                 : null,
                             child: _imageFile == null
-                                ? const Icon(Icons.person, size: 50)
+                                ? const Icon(Icons.person,
+                                    size: 70,
+                                    color: Colors
+                                        .white) // Optional: Change icon color for better contrast
                                 : null,
                           ),
                         ),
                         const SizedBox(height: 20),
                         ElevatedButton(
                           onPressed: _pickImage,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF6750A4),
+                            minimumSize: const Size(250, 60), // Big button
+                          ),
                           child: const Text("Upload Picture"),
                         ),
                       ],
@@ -104,11 +133,22 @@ class _UploadProfileScreenState extends State<UploadProfileScreen> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       TextButton(
-                        onPressed: state is AuthLoading ? null : () => _finishSignup(),
-                        child: const Text("Skip"),
+                        onPressed:
+                            state is AuthLoading ? null : () => _finishSignup(),
+                        child: const Text(
+                          "Skip",
+                          style: TextStyle(
+                            color: Color(0xFF6750A4), // Set the text color here
+                          ),
+                        ),
                       ),
                       ElevatedButton(
-                        onPressed: state is AuthLoading ? null : () => _finishSignup(),
+                        onPressed:
+                            state is AuthLoading ? null : () => _finishSignup(),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF6750A4),
+                          minimumSize: const Size(100, 40), // Big button
+                        ),
                         child: const Text("Finish"),
                       ),
                     ],

@@ -4,6 +4,7 @@ import 'dart:ui' as ui;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:frontend/accessability/logic/bloc/user/user_bloc.dart';
 import 'package:frontend/accessability/logic/bloc/user/user_event.dart';
@@ -49,6 +50,7 @@ class _GpsScreenState extends State<GpsScreen> {
   bool _isNavigating = false;
   int _currentIndex = 0; // Track the current index of the BottomNavigationBar
   bool _showBottomWidgets = false; // Track whether to show BottomWidgets
+  String? _selectedUserId; // Track the selected user ID
 
   final List<Map<String, dynamic>> pwdFriendlyLocations = [
     {
@@ -183,11 +185,14 @@ void dispose() {
 
       print("🟢 Fetched user data for $username: $profilePictureUrl");
 
+      // Determine if this marker is selected
+      final isSelected = userId == _selectedUserId;
+
       // Create a custom marker icon with the profile picture
       BitmapDescriptor customIcon;
       if (profilePictureUrl != null && profilePictureUrl.isNotEmpty) {
         try {
-          customIcon = await _createCustomMarkerIcon(profilePictureUrl);
+          customIcon = await _createCustomMarkerIcon(profilePictureUrl, isSelected: isSelected);
         } catch (e) {
           print("❌ Error creating custom marker for $username: $e");
           customIcon = await BitmapDescriptor.fromAssetImage(
@@ -205,20 +210,53 @@ void dispose() {
 
       // Add the custom marker
       updatedMarkers.add(
-        Marker(
-          markerId: MarkerId('user_$userId'),
-          position: LatLng(lat, lng),
-          infoWindow: InfoWindow(title: username),
-          icon: customIcon,
-        ),
-      );
-    }
+  Marker(
+    markerId: MarkerId('user_$userId'),
+    position: LatLng(lat, lng),
+    infoWindow: InfoWindow(title: username),
+    icon: customIcon,
+    onTap: () => _onMarkerTapped(MarkerId('user_$userId')),
+  ),
+);
+}
 
     print("🟢 Updated ${updatedMarkers.length} user markers.");
     setState(() {
       _markers = existingMarkers.toSet().union(updatedMarkers);
     });
   });
+}
+
+void _onMarkerTapped(MarkerId markerId) {
+  if (markerId.value.startsWith('pwd_')) {
+    // Handle PWD-friendly location marker tap
+    final location = pwdFriendlyLocations.firstWhere(
+      (loc) => loc["name"] == markerId.value.replaceFirst('pwd_', ''),
+    );
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text(location["name"]),
+          content: Text(location["details"]),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text("Close"),
+            ),
+          ],
+        );
+      },
+    );
+  } else if (markerId.value.startsWith('user_')) {
+    // Handle user marker tap
+    final userId = markerId.value.replaceFirst('user_', ''); // Extract user ID from marker ID
+    setState(() {
+      _selectedUserId = userId; // Update the selected user ID
+    });
+    _listenForLocationUpdates(); // Refresh markers to update the selected state
+  }
 }
 
   // Fetch real-time location updates for members in the active space
@@ -240,8 +278,8 @@ void dispose() {
     }).asyncExpand((event) => event);
   }
 
-  Future<BitmapDescriptor> _createCustomMarkerIcon(String imageUrl) async {
-  print("🟢 Creating custom marker icon for: $imageUrl");
+  Future<BitmapDescriptor> _createCustomMarkerIcon(String imageUrl, {bool isSelected = false}) async {
+  print("🟢 Creating custom marker icon for: $imageUrl (isSelected: $isSelected)");
 
   try {
     // Fetch the profile picture
@@ -251,37 +289,58 @@ void dispose() {
       throw Exception('Failed to load image');
     }
 
-    // Decode the image
-    final bytes = response.bodyBytes;
-    final codec = await ui.instantiateImageCodec(bytes);
-    final frame = await codec.getNextFrame();
-    final image = frame.image;
+    // Decode the profile picture
+    final profileBytes = response.bodyBytes;
+    final profileCodec = await ui.instantiateImageCodec(profileBytes);
+    final profileFrame = await profileCodec.getNextFrame();
+    final profileImage = profileFrame.image;
 
-    // Create a circular avatar
+    // Load the appropriate marker shape asset
+    final markerShapeAsset = isSelected
+        ? 'assets/images/others/marker_shape_selected.png'
+        : 'assets/images/others/marker_shape.png';
+    final markerShapeBytes = await rootBundle.load(markerShapeAsset);
+    final markerShapeCodec = await ui.instantiateImageCodec(markerShapeBytes.buffer.asUint8List());
+    final markerShapeFrame = await markerShapeCodec.getNextFrame();
+    final markerShapeImage = markerShapeFrame.image;
+
+    // Create a canvas to draw the combined image
     final pictureRecorder = ui.PictureRecorder();
     final canvas = Canvas(pictureRecorder);
-    final paint = Paint()..color = Colors.white;
-    final radius = 50.0; // Adjust the size of the circle
 
-    // Draw the circle
-    canvas.drawCircle(Offset(radius, radius), radius, paint);
+    // Define the size of the marker
+    final markerWidth = markerShapeImage.width.toDouble();
+    final markerHeight = markerShapeImage.height.toDouble();
 
-    // Clip the image to a circle
+    // Draw the marker shape
+    canvas.drawImage(markerShapeImage, Offset.zero, Paint());
+
+    // Draw the profile picture inside the marker shape
+    final profileSize = 100.0; // Adjust the size of the profile picture
+    final profileOffset = Offset(
+      (markerWidth - profileSize) / 1.8, // Center horizontally
+      11, // Adjust vertical position
+    );
+
+    // Clip the profile picture to a circle
     final clipPath = Path()
-      ..addOval(Rect.fromCircle(center: Offset(radius, radius), radius: radius));
+      ..addOval(Rect.fromCircle(
+        center: Offset(profileOffset.dx + profileSize / 2, profileOffset.dy + profileSize / 2),
+        radius: profileSize / 2,
+      ));
     canvas.clipPath(clipPath);
 
-    // Draw the image inside the circle
+    // Draw the profile picture
     canvas.drawImageRect(
-      image,
-      Rect.fromLTWH(0, 0, image.width.toDouble(), image.height.toDouble()),
-      Rect.fromCircle(center: Offset(radius, radius), radius: radius),
+      profileImage,
+      Rect.fromLTWH(0, 0, profileImage.width.toDouble(), profileImage.height.toDouble()),
+      Rect.fromLTWH(profileOffset.dx, profileOffset.dy, profileSize, profileSize),
       Paint(),
     );
 
     // Convert the canvas to an image
     final picture = pictureRecorder.endRecording();
-    final imageMarker = await picture.toImage((radius * 2).toInt(), (radius * 2).toInt());
+    final imageMarker = await picture.toImage(markerWidth.toInt(), markerHeight.toInt());
     final byteData = await imageMarker.toByteData(format: ui.ImageByteFormat.png);
 
     if (byteData == null) {
@@ -336,43 +395,22 @@ void dispose() {
   }
 
   Future<Set<Marker>> _createMarkers() async {
-    final customIcon = await _getCustomIcon();
-    return pwdFriendlyLocations.map((location) {
-      return Marker(
-        markerId: MarkerId(
-            "pwd_${location["name"]}"), // Add prefix for PWD-friendly markers
-        position: LatLng(location["latitude"], location["longitude"]),
-        infoWindow: InfoWindow(
-          title: location["name"],
-          snippet: location["details"],
-        ),
-        icon: customIcon,
-        onTap: () => _onMarkerTapped(MarkerId("pwd_${location["name"]}")),
-      );
-    }).toSet();
-  }
-
-  void _onMarkerTapped(MarkerId markerId) {
-    final location = pwdFriendlyLocations.firstWhere(
-      (loc) => loc["name"] == markerId.value,
+  final customIcon = await _getCustomIcon();
+  return pwdFriendlyLocations.map((location) {
+    return Marker(
+      markerId: MarkerId("pwd_${location["name"]}"), // Add prefix for PWD-friendly markers
+      position: LatLng(location["latitude"], location["longitude"]),
+      infoWindow: InfoWindow(
+        title: location["name"],
+        snippet: location["details"],
+      ),
+      icon: customIcon,
+      onTap: () => _onMarkerTapped(MarkerId("pwd_${location["name"]}")),
     );
+  }).toSet();
+}
 
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: Text(location["name"]),
-          content: Text(location["details"]),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text("Close"),
-            ),
-          ],
-        );
-      },
-    );
-  }
+
 
   Set<Polygon> _createPolygons() {
     final Set<Polygon> polygons = {};

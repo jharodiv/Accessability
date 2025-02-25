@@ -99,9 +99,23 @@ class AuthService {
     }
   }
 
-  // Logout
+  // Logout and clear FCM token
   Future<void> signOut() async {
-    return await _auth.signOut();
+    try {
+      final user = _auth.currentUser;
+      if (user != null) {
+        // Clear the FCM token from Firestore
+        await _firestore.collection('Users').doc(user.uid).update({
+          'fcmToken': FieldValue.delete(), // Remove the FCM token
+        });
+      }
+
+      // Sign out the user
+      await _auth.signOut();
+    } catch (e) {
+      print('Error during logout: $e');
+      throw Exception('Failed to logout: $e');
+    }
   }
 
   // Complete Onboarding

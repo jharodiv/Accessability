@@ -117,6 +117,26 @@ class AuthService {
     }
   }
 
+   Future<String?> updateProfilePicture(String uid, XFile imageFile) async {
+    try {
+      // Upload the new profile picture to Firebase Storage
+      Reference storageReference =
+          _firebaseStorage.ref().child('profile_pictures/$uid.jpg');
+      await storageReference.putFile(File(imageFile.path));
+      String downloadURL = await storageReference.getDownloadURL();
+
+      // Update the user's profile picture URL in Firestore
+      await _firestore.collection('Users').doc(uid).update({
+        'profilePicture': downloadURL,
+      });
+
+      return downloadURL;
+    } catch (e) {
+      print('Error updating profile picture: $e');
+      return null;
+    }
+  }
+
    Future<void> saveFCMToken(String uid) async {
     String? fcmToken = await FirebaseMessaging.instance.getToken();
     if (fcmToken != null) {

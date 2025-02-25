@@ -1,5 +1,6 @@
 import 'package:equatable/equatable.dart';
 import 'package:frontend/accessability/data/model/login_model.dart';
+import 'package:frontend/accessability/data/model/user_model.dart';
 
 abstract class AuthState extends Equatable {
   const AuthState();
@@ -41,3 +42,9 @@ class AuthSuccess extends AuthState {
 }
 
 class RegistrationSuccess extends AuthState {}
+
+class ProfilePictureUpdated extends AuthState {
+  final UserModel user;
+
+  const ProfilePictureUpdated(this.user);
+}

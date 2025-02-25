@@ -6,6 +6,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:frontend/accessability/logic/bloc/user/user_bloc.dart';
+import 'package:frontend/accessability/logic/bloc/user/user_event.dart';
 import 'package:frontend/accessability/logic/bloc/user/user_state.dart';
 import 'package:frontend/accessability/presentation/widgets/accessability_footer.dart';
 import 'package:frontend/accessability/presentation/widgets/bottomSheetWidgets/favorite_widget.dart';
@@ -89,11 +90,24 @@ class _GpsScreenState extends State<GpsScreen> {
       });
     });
 
-    @override
-    void dispose() {
-      _locationUpdatesSubscription?.cancel();
-      super.dispose();
-    }
+
+@override
+void didChangeDependencies() {
+  super.didChangeDependencies();
+  print('GPS Screen didChangeDependencies called');
+}
+
+@override
+void didUpdateWidget(GpsScreen oldWidget) {
+  super.didUpdateWidget(oldWidget);
+  print('GPS Screen didUpdateWidget called');
+}
+
+   @override
+void dispose() {
+  _locationUpdatesSubscription?.cancel(); // Cancel location updates
+  super.dispose();
+}
 
     // Check if onboarding is completed before showing the tutorial
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -645,42 +659,43 @@ class _GpsScreenState extends State<GpsScreen> {
 
   // Get user location and update it in Firestore
   Future<void> _getUserLocation() async {
-    bool serviceEnabled;
-    PermissionStatus permissionGranted;
+  bool serviceEnabled;
+  PermissionStatus permissionGranted;
 
-    // Check if GPS is enabled
-    serviceEnabled = await _location.serviceEnabled();
-    if (!serviceEnabled) {
-      serviceEnabled = await _location.requestService();
-      if (!serviceEnabled) return;
-    }
-
-    // Check for permissions
-    permissionGranted = await _location.hasPermission();
-    if (permissionGranted == PermissionStatus.denied) {
-      permissionGranted = await _location.requestPermission();
-      if (permissionGranted != PermissionStatus.granted) return;
-    }
-
-    // Get location
-    _location.onLocationChanged.listen((LocationData locationData) {
-      final newLocation =
-          LatLng(locationData.latitude!, locationData.longitude!);
-
-      // Only update if the location has changed significantly
-      if (_lastLocation == null ||
-          _lastLocation!.latitude != locationData.latitude ||
-          _lastLocation!.longitude != locationData.longitude) {
-        setState(() {
-          _currentLocation = newLocation;
-        });
-
-        // Update the user's location in Firestore
-        _updateUserLocation(newLocation);
-        _lastLocation = locationData; // Store LocationData directly
-      }
-    });
+  // Check if GPS is enabled
+  serviceEnabled = await _location.serviceEnabled();
+  if (!serviceEnabled) {
+    serviceEnabled = await _location.requestService();
+    if (!serviceEnabled) return;
   }
+
+  // Check for permissions
+  permissionGranted = await _location.hasPermission();
+  if (permissionGranted == PermissionStatus.denied) {
+    permissionGranted = await _location.requestPermission();
+    if (permissionGranted != PermissionStatus.granted) return;
+  }
+
+  // Get location
+  _location.onLocationChanged.listen((LocationData locationData) {
+    if (!mounted) return; // Check if the widget is still mounted
+
+    final newLocation = LatLng(locationData.latitude!, locationData.longitude!);
+
+    // Only update if the location has changed significantly
+    if (_lastLocation == null ||
+        _lastLocation!.latitude != locationData.latitude ||
+        _lastLocation!.longitude != locationData.longitude) {
+      setState(() {
+        _currentLocation = newLocation;
+      });
+
+      // Update the user's location in Firestore
+      _updateUserLocation(newLocation);
+      _lastLocation = locationData; // Store LocationData directly
+    }
+  });
+}
 
   // Update the active space ID
   void _updateActiveSpaceId(String spaceId) {
@@ -697,82 +712,94 @@ class _GpsScreenState extends State<GpsScreen> {
     _listenForLocationUpdates();
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return BlocBuilder<UserBloc, UserState>(
-      builder: (context, userState) {
-        if (userState is UserLoading) {
-          return Center(child: CircularProgressIndicator());
-        } else if (userState is UserLoaded) {
-          return WillPopScope(
-            onWillPop: _onWillPop,
-            child: Scaffold(
-              body: Stack(
-                children: [
-                  GoogleMap(
-                    initialCameraPosition: CameraPosition(
-                      target:
-                          _currentLocation ?? const LatLng(16.0430, 120.3333),
-                      zoom: 14,
-                    ),
-                    myLocationEnabled: true,
-                    myLocationButtonEnabled: true,
-                    markers: _markers,
-                    onMapCreated: _onMapCreated,
-                    polygons: _createPolygons(),
-                  ),
-                  Topwidgets(
-                    inboxKey: inboxKey,
-                    settingsKey: settingsKey,
-                    onCategorySelected: (selectedType) {
-                      print('Selected Category: $selectedType');
-                      _fetchNearbyPlaces(selectedType);
-                    },
-                    onOverlayChange: (isVisible) {
-                      print('Overlay state changed: $isVisible');
-                      setState(() {
-                        if (isVisible) {
-                        } else {}
-                      });
-                    },
-                    onSpaceSelected: _updateActiveSpaceId, // Pass the callback
-                  ),
-                  if (_currentIndex == 0)
-                    BottomWidgets(
-                      key: ValueKey(
-                          _activeSpaceId), // Force rebuild when _activeSpaceId changes
-                      scrollController: ScrollController(),
-                      activeSpaceId: _activeSpaceId, // Pass the active space ID
-                    ),
-                  if (_currentIndex == 1) const FavoriteWidget(),
-                  if (_currentIndex == 2) const SafetyAssistWidget(),
-                ],
-              ),
-              bottomNavigationBar: Accessabilityfooter(
-                securityKey: securityKey,
-                locationKey: locationKey,
-                youKey: youKey,
-                onOverlayChange: (isVisible) {
-                  setState(() {
-                    // Handle overlay visibility if needed
-                  });
+@override
+Widget build(BuildContext context) {
+  return BlocBuilder<UserBloc, UserState>(
+    builder: (context, userState) {
+      print('BlocBuilder triggered with state: $userState');
+      if (userState is UserLoading) {
+        print('Userstate is : ${userState}');
+        return Center(child: CircularProgressIndicator());
+      } else if (userState is UserError) {
+        print('Userstate is : ${userState}');
+        return Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text('Error: ${userState.message}'),
+              ElevatedButton(
+                onPressed: () {
+                  context.read<UserBloc>().add(FetchUserData()); // Retry
                 },
-                onTap: (index) {
-                  setState(() {
-                    _currentIndex = index; // Update the current index
-                  });
-                },
+                child: const Text('Retry'),
               ),
+            ],
+          ),
+        );
+      } else if (userState is UserLoaded) {
+        print('Userstate is : ${userState}');
+        final user = userState.user;
+        return WillPopScope(
+          onWillPop: _onWillPop,
+          child: Scaffold(
+            body: Stack(
+              children: [
+                GoogleMap(
+                  initialCameraPosition: CameraPosition(
+                    target: _currentLocation ?? const LatLng(16.0430, 120.3333),
+                    zoom: 14,
+                  ),
+                  myLocationEnabled: true,
+                  myLocationButtonEnabled: true,
+                  markers: _markers,
+                  onMapCreated: _onMapCreated,
+                  polygons: _createPolygons(),
+                ),
+                Topwidgets(
+                  inboxKey: inboxKey,
+                  settingsKey: settingsKey,
+                  onCategorySelected: (selectedType) {
+                    _fetchNearbyPlaces(selectedType);
+                  },
+                  onOverlayChange: (isVisible) {
+                    setState(() {
+                      if (isVisible) {}
+                    });
+                  },
+                  onSpaceSelected: _updateActiveSpaceId,
+                ),
+                if (_currentIndex == 0)
+                  BottomWidgets(
+                    key: ValueKey(_activeSpaceId),
+                    scrollController: ScrollController(),
+                    activeSpaceId: _activeSpaceId,
+                  ),
+                if (_currentIndex == 1) const FavoriteWidget(),
+                if (_currentIndex == 2) const SafetyAssistWidget(),
+              ],
             ),
-          );
-        } else if (userState is UserError) {
-          return Center(child: Text(userState.message));
-        } else {
-          return const Center(child: Text('No user data available'));
-        }
-      },
-    );
-  }
+            bottomNavigationBar: Accessabilityfooter(
+              securityKey: securityKey,
+              locationKey: locationKey,
+              youKey: youKey,
+              onOverlayChange: (isVisible) {
+                setState(() {});
+              },
+              onTap: (index) {
+                setState(() {
+                  _currentIndex = index;
+                });
+              },
+            ),
+          ),
+        );
+      } else {
+        print('Userstate is : ${userState}');
+        return const Center(child: Text('No user data available'));
+      }
+    },
+  );
+}
 }
 
 enum OverlayPosition { top, bottom }

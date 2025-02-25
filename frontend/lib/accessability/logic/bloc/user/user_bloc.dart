@@ -7,27 +7,38 @@ import 'package:frontend/accessability/data/repositories/user_repository.dart';
 class UserBloc extends Bloc<UserEvent, UserState> {
   final UserRepository userRepository;
 
-  UserBloc(this.userRepository) : super(UserInitial()) {
-    on<FetchUserData>((event, emit) async {
-      if (state is! UserLoaded) { // Only fetch if not already loaded
-        emit(UserLoading());
-        try {
-          print("UserBloc: Fetching user data...");
-          final user = await userRepository.getCachedUser();
-          if (user != null) {
-            emit(UserLoaded(user));
-            print("UserBloc: User fetched successfully: ${user.toJson()}");
-          } else {
-            emit(UserError('User not found'));
-          }
-        } catch (e) {
-          emit(UserError('Failed to fetch user data: ${e.toString()}'));
-        }
-      }
-    });
+  UserBloc({required this.userRepository}) : super(UserInitial()) {
+    on<FetchUserData>(_onFetchUserData);
+    on<UploadProfilePictureEvent>(_onUploadProfilePictureEvent);
+  }
 
-    on<ResetUserState>((event, emit) {
-      emit(UserInitial()); // Reset to initial state
-    });
+  Future<void> _onFetchUserData(FetchUserData event, Emitter<UserState> emit) async {
+    emit(UserLoading());
+    try {
+      final user = await userRepository.getCachedUser();
+      if (user != null) {
+        emit(UserLoaded(user));
+      } else {
+        emit(UserError('No user data available'));
+      }
+    } catch (e) {
+      emit(UserError('Failed to fetch user data: ${e.toString()}'));
+    }
+  }
+
+  Future<void> _onUploadProfilePictureEvent(
+    UploadProfilePictureEvent event,
+    Emitter<UserState> emit,
+  ) async {
+    emit(UserLoading());
+    try {
+      final updatedUser = await userRepository.updateProfilePicture(
+        event.uid,
+        event.profilePicture,
+      );
+      emit(UserLoaded(updatedUser));
+    } catch (e) {
+      emit(UserError('Failed to update profile picture: ${e.toString()}'));
+    }
   }
 }

@@ -1,9 +1,9 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'package:frontend/accessability/data/data_provider/auth_data_provider.dart';
 import 'package:frontend/accessability/data/repositories/auth_repository.dart';
 import 'package:frontend/accessability/data/repositories/user_repository.dart';
 import 'package:frontend/accessability/firebaseServices/chat/fcm_service.dart';
@@ -19,6 +19,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:intl/date_symbol_data_local.dart';
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+
 void main() async {
   // Ensure Flutter bindings are initialized
   WidgetsFlutterBinding.ensureInitialized();
@@ -27,9 +28,9 @@ void main() async {
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
   // Initialize SharedPreferences
-  final SharedPreferences sharedPreferences =
-      await SharedPreferences.getInstance();
+  final SharedPreferences sharedPreferences = await SharedPreferences.getInstance();
 
+  // Load environment variables
   try {
     await dotenv.load(fileName: '.env'); // Use absolute path for testing
     print("Loaded API Key: ${dotenv.env['GOOGLE_API_KEY']}");
@@ -37,19 +38,28 @@ void main() async {
     print("Error loading .env file: $e");
   }
 
+  // Initialize date formatting
   await initializeDateFormatting();
 
+  
+
+  // Initialize FCMService
   final FCMService fcmService = FCMService(navigatorKey: navigatorKey);
   fcmService.initializeFCMListeners(); // Pass the navigatorKey
+
+  final AuthService authService = AuthService();
 
   // Initialize ThemeProvider
   runApp(
     ChangeNotifierProvider(
       create: (context) => ThemeProvider(),
       child: MyApp(
-          sharedPreferences: sharedPreferences,
-          navigatorKey: navigatorKey,
-          fcmService: fcmService),
+        sharedPreferences: sharedPreferences,
+        navigatorKey: navigatorKey,
+        fcmService: fcmService,
+        authService: authService,
+       
+      ),
     ),
   );
 }
@@ -59,27 +69,46 @@ class MyApp extends StatelessWidget {
   final SharedPreferences sharedPreferences;
   final GlobalKey<NavigatorState> navigatorKey;
   final FCMService fcmService;
+  final AuthService authService;
 
-  MyApp(
-      {super.key,
-      required this.sharedPreferences,
-      required this.navigatorKey,
-      required this.fcmService});
+  MyApp({
+    super.key,
+    required this.sharedPreferences,
+    required this.navigatorKey,
+    required this.fcmService,
+    required this.authService,
+  });
 
-  @override
+    @override
   Widget build(BuildContext context) {
     return MultiBlocProvider(
       providers: [
         BlocProvider<UserBloc>(
-          create: (context) => UserBloc(UserRepository(sharedPreferences)),
-        ),
-        BlocProvider(
-          create: (context) => AuthBloc(
-            AuthRepository(
-              AuthService(), // Initialize FCMService in AuthService
+          create: (context) => UserBloc(
+            userRepository: UserRepository(
+              FirebaseFirestore.instance,
+              sharedPreferences,
+              authService, // Use the passed AuthService
             ),
-            context.read<UserBloc>(),
-            AuthService(),
+          ),
+        ),
+        BlocProvider<AuthBloc>(
+          create: (context) => AuthBloc(
+            authRepository: AuthRepository(
+              authService, // Use the passed AuthService
+              UserRepository(
+                FirebaseFirestore.instance,
+                sharedPreferences,
+                authService, // Use the passed AuthService
+              ),
+            ),
+            userRepository: UserRepository(
+              FirebaseFirestore.instance,
+              sharedPreferences,
+              authService, // Use the passed AuthService
+            ),
+            userBloc: context.read<UserBloc>(),
+            authService: authService, // Use the passed AuthService
           ),
         ),
       ],
@@ -90,12 +119,10 @@ class MyApp extends StatelessWidget {
             debugShowCheckedModeBanner: false,
             theme: _buildLightTheme(context),
             darkTheme: _buildDarkTheme(context),
-            themeMode:
-                themeProvider.isDarkMode ? ThemeMode.dark : ThemeMode.light,
+            themeMode: themeProvider.isDarkMode ? ThemeMode.dark : ThemeMode.light,
             initialRoute: '/',
             onGenerateRoute: _appRouter.onGenerateRoute,
             builder: (context, child) {
-              // Ensure the navigation stack is properly initialized
               WidgetsBinding.instance.addPostFrameCallback((_) {
                 final authBloc = context.read<AuthBloc>();
                 authBloc.add(CheckAuthStatus());
@@ -175,6 +202,7 @@ ThemeData _buildDarkTheme(BuildContext context) {
   );
 }
 
+// Helvetica Text Theme
 TextTheme _buildHelveticaTextTheme() {
   return const TextTheme(
     displayLarge: TextStyle(

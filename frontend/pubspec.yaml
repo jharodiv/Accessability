@@ -96,6 +96,9 @@ flutter:
     - assets/images/others/restaurant.png
     - assets/images/others/bus-school.png
     - assets/images/others/shopping-mall.png
+    - assets/images/others/default_profile.png
+    - assets/images/others/marker_shape.png
+    - assets/images/others/marker_shape_selected.png
     - .env
 
   fonts:

@@ -1,6 +1,6 @@
 import 'dart:async';
 import 'dart:math';
-
+import 'dart:ui' as ui;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -153,49 +153,73 @@ void dispose() {
 
   // Listen for real-time location updates from other users in the space
   void _listenForLocationUpdates() {
-    if (_activeSpaceId.isEmpty) {
-      print("⚠️ Active space ID is empty. Cannot listen for location updates.");
-      return;
-    }
+  if (_activeSpaceId.isEmpty) {
+    print("⚠️ Active space ID is empty. Cannot listen for location updates.");
+    return;
+  }
 
-    _locationUpdatesSubscription?.cancel(); // Cancel existing listener
-    _locationUpdatesSubscription =
-        _getSpaceMembersLocations(_activeSpaceId).listen((snapshot) async {
-      final updatedMarkers = <Marker>{};
+  _locationUpdatesSubscription?.cancel(); // Cancel existing listener
+  _locationUpdatesSubscription =
+      _getSpaceMembersLocations(_activeSpaceId).listen((snapshot) async {
+    final updatedMarkers = <Marker>{};
 
-      // Preserve existing PWD-friendly and nearby places markers
-      final existingMarkers = _markers
-          .where((marker) => !marker.markerId.value.startsWith('user_'));
+    // Preserve existing PWD-friendly and nearby places markers
+    final existingMarkers = _markers
+        .where((marker) => !marker.markerId.value.startsWith('user_'));
 
-      for (final doc in snapshot.docs) {
-        final data = doc.data() as Map<String, dynamic>;
-        final lat = data['latitude'];
-        final lng = data['longitude'];
-        final userId = doc.id;
+    for (final doc in snapshot.docs) {
+      final data = doc.data() as Map<String, dynamic>;
+      final lat = data['latitude'];
+      final lng = data['longitude'];
+      final userId = doc.id;
 
-        // Fetch the username for the user
-        final userDoc = await FirebaseFirestore.instance
-            .collection('Users')
-            .doc(userId)
-            .get();
-        final username = userDoc['username'];
+      // Fetch the user's profile data
+      final userDoc = await FirebaseFirestore.instance
+          .collection('Users')
+          .doc(userId)
+          .get();
+      final username = userDoc['username'];
+      final profilePictureUrl = userDoc.data()?['profilePicture'] ?? ''; // Handle missing field
 
-        updatedMarkers.add(
-          Marker(
-            markerId: MarkerId('user_$userId'),
-            position: LatLng(lat, lng),
-            infoWindow: InfoWindow(title: username),
-          ),
+      print("🟢 Fetched user data for $username: $profilePictureUrl");
+
+      // Create a custom marker icon with the profile picture
+      BitmapDescriptor customIcon;
+      if (profilePictureUrl != null && profilePictureUrl.isNotEmpty) {
+        try {
+          customIcon = await _createCustomMarkerIcon(profilePictureUrl);
+        } catch (e) {
+          print("❌ Error creating custom marker for $username: $e");
+          customIcon = await BitmapDescriptor.fromAssetImage(
+            const ImageConfiguration(size: Size(24, 24)),
+            'assets/images/others/default_profile.png',
+          );
+        }
+      } else {
+        // Use a default icon if no profile picture is available
+        customIcon = await BitmapDescriptor.fromAssetImage(
+          const ImageConfiguration(size: Size(24, 24)),
+          'assets/images/others/default_profile.png',
         );
       }
 
-      setState(() {
-        _markers = existingMarkers
-            .toSet()
-            .union(updatedMarkers); // Fix: Convert to Set and use union
-      });
+      // Add the custom marker
+      updatedMarkers.add(
+        Marker(
+          markerId: MarkerId('user_$userId'),
+          position: LatLng(lat, lng),
+          infoWindow: InfoWindow(title: username),
+          icon: customIcon,
+        ),
+      );
+    }
+
+    print("🟢 Updated ${updatedMarkers.length} user markers.");
+    setState(() {
+      _markers = existingMarkers.toSet().union(updatedMarkers);
     });
-  }
+  });
+}
 
   // Fetch real-time location updates for members in the active space
   Stream<QuerySnapshot> _getSpaceMembersLocations(String spaceId) {
@@ -215,6 +239,64 @@ void dispose() {
           .snapshots();
     }).asyncExpand((event) => event);
   }
+
+  Future<BitmapDescriptor> _createCustomMarkerIcon(String imageUrl) async {
+  print("🟢 Creating custom marker icon for: $imageUrl");
+
+  try {
+    // Fetch the profile picture
+    final response = await http.get(Uri.parse(imageUrl));
+    if (response.statusCode != 200) {
+      print("❌ Failed to load image: ${response.statusCode}");
+      throw Exception('Failed to load image');
+    }
+
+    // Decode the image
+    final bytes = response.bodyBytes;
+    final codec = await ui.instantiateImageCodec(bytes);
+    final frame = await codec.getNextFrame();
+    final image = frame.image;
+
+    // Create a circular avatar
+    final pictureRecorder = ui.PictureRecorder();
+    final canvas = Canvas(pictureRecorder);
+    final paint = Paint()..color = Colors.white;
+    final radius = 50.0; // Adjust the size of the circle
+
+    // Draw the circle
+    canvas.drawCircle(Offset(radius, radius), radius, paint);
+
+    // Clip the image to a circle
+    final clipPath = Path()
+      ..addOval(Rect.fromCircle(center: Offset(radius, radius), radius: radius));
+    canvas.clipPath(clipPath);
+
+    // Draw the image inside the circle
+    canvas.drawImageRect(
+      image,
+      Rect.fromLTWH(0, 0, image.width.toDouble(), image.height.toDouble()),
+      Rect.fromCircle(center: Offset(radius, radius), radius: radius),
+      Paint(),
+    );
+
+    // Convert the canvas to an image
+    final picture = pictureRecorder.endRecording();
+    final imageMarker = await picture.toImage((radius * 2).toInt(), (radius * 2).toInt());
+    final byteData = await imageMarker.toByteData(format: ui.ImageByteFormat.png);
+
+    if (byteData == null) {
+      print("❌ Failed to convert image to bytes");
+      throw Exception('Failed to convert image to bytes');
+    }
+
+    // Create the custom marker icon
+    print("🟢 Custom marker icon created successfully");
+    return BitmapDescriptor.fromBytes(byteData.buffer.asUint8List());
+  } catch (e) {
+    print("❌ Error creating custom marker icon: $e");
+    throw Exception('Failed to create custom marker icon: $e');
+  }
+}
 
   Future<bool> _onWillPop() async {
     // Show confirmation dialog
@@ -678,7 +760,6 @@ void dispose() {
 
   // Get location
   _location.onLocationChanged.listen((LocationData locationData) {
-    if (!mounted) return; // Check if the widget is still mounted
 
     final newLocation = LatLng(locationData.latitude!, locationData.longitude!);
 

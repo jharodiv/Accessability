@@ -16,7 +16,8 @@ class AccountScreen extends StatefulWidget {
 
 class _AccountScreenState extends State<AccountScreen> {
   XFile? _imageFile;
-  bool _isUpdatingProfilePicture = false; // Track if profile picture is being updated
+  bool _isUpdatingProfilePicture =
+      false; // Track if profile picture is being updated
 
   Future<void> _pickImage() async {
     final picker = ImagePicker();
@@ -147,7 +148,8 @@ class _AccountScreenState extends State<AccountScreen> {
                                     : user.profilePicture.isNotEmpty
                                         ? NetworkImage(user.profilePicture)
                                         : null,
-                                child: _imageFile == null && user.profilePicture.isEmpty
+                                child: _imageFile == null &&
+                                        user.profilePicture.isEmpty
                                     ? Text(
                                         user.username[0].toUpperCase(),
                                         style: const TextStyle(
@@ -195,7 +197,11 @@ class _AccountScreenState extends State<AccountScreen> {
                           color: Color(0xFF6750A4)),
                       title: const Text('Phone Number'),
                       subtitle: Text(
-                        user.contactNumber ?? 'Not provided',
+                        (user.contactNumber != null &&
+                                user.contactNumber!.isNotEmpty)
+                            ? user
+                                .contactNumber! // Use the contact number directly
+                            : 'Not provided', // Fallback if contact number is null or empty
                         style: const TextStyle(fontWeight: FontWeight.bold),
                       ),
                     ),
@@ -211,7 +217,8 @@ class _AccountScreenState extends State<AccountScreen> {
                     ),
                     const Divider(),
                     const ListTile(
-                      leading: Icon(Icons.lock_outline, color: Color(0xFF6750A4)),
+                      leading:
+                          Icon(Icons.lock_outline, color: Color(0xFF6750A4)),
                       title: Text('Password'),
                       subtitle: Text(
                         '***********',
@@ -236,7 +243,8 @@ class _AccountScreenState extends State<AccountScreen> {
                       ),
                     ),
                     ListTile(
-                      leading: const Icon(Icons.delete, color: Colors.redAccent),
+                      leading:
+                          const Icon(Icons.delete, color: Colors.redAccent),
                       title: const Text(
                         'Delete Account',
                         style: TextStyle(color: Colors.redAccent),

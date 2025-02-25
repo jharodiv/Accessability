@@ -2,7 +2,7 @@ class UserModel {
   final String uid; // Use `uid` instead of `id` to match Firestore
   final String username;
   final String email;
-  final String? contactNumber; // Optional field
+  final String contactNumber; // Optional field
   final String profilePicture;
   final UserDetails details;
   final UserSettings settings;
@@ -14,7 +14,7 @@ class UserModel {
     required this.uid,
     required this.username,
     required this.email,
-    this.contactNumber,
+    required this.contactNumber,
     required this.profilePicture,
     required this.details,
     required this.settings,
@@ -100,8 +100,10 @@ class UserDetails {
   factory UserDetails.fromJson(Map<String, dynamic> json) {
     return UserDetails(
       address: json['address'] ?? '', // Fallback to empty string if null
-      phoneNumber: json['phoneNumber'] ?? '', // Fallback to empty string if null
-      profilePicture: json['profilePicture'] ?? '', // Fallback to empty string if null
+      phoneNumber:
+          json['phoneNumber'] ?? '', // Fallback to empty string if null
+      profilePicture:
+          json['profilePicture'] ?? '', // Fallback to empty string if null
     );
   }
 
@@ -135,12 +137,17 @@ class UserSettings {
 
   factory UserSettings.fromJson(Map<String, dynamic> json) {
     return UserSettings(
-      verificationCode: json['verificationCode'] ?? '', // Fallback to empty string if null
-      codeExpiresAt: json['codeExpiresAt'] ?? '', // Fallback to empty string if null
+      verificationCode:
+          json['verificationCode'] ?? '', // Fallback to empty string if null
+      codeExpiresAt:
+          json['codeExpiresAt'] ?? '', // Fallback to empty string if null
       verified: json['verified'] ?? false, // Fallback to false if null
-      passwordChangedAt: json['passwordChangedAt'] ?? '', // Fallback to empty string if null
-      passwordResetToken: json['passwordResetToken'] ?? '', // Fallback to empty string if null
-      passwordResetExpiresAt: json['passwordResetExpiresAt'] ?? '', // Fallback to empty string if null
+      passwordChangedAt:
+          json['passwordChangedAt'] ?? '', // Fallback to empty string if null
+      passwordResetToken:
+          json['passwordResetToken'] ?? '', // Fallback to empty string if null
+      passwordResetExpiresAt: json['passwordResetExpiresAt'] ??
+          '', // Fallback to empty string if null
       active: json['active'] ?? true, // Fallback to true if null
     );
   }

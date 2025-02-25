@@ -31,7 +31,8 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   Future<void> _onLoginEvent(LoginEvent event, Emitter<AuthState> emit) async {
     emit(AuthLoading());
     try {
-      final loginModel = await authRepository.login(event.email, event.password);
+      final loginModel =
+          await authRepository.login(event.email, event.password);
       await authService.saveFCMToken(loginModel.userId); // Save FCM token
       emit(AuthenticatedLogin(
         loginModel,
@@ -44,13 +45,10 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   }
 
   // Handle RegisterEvent
-  Future<void> _onRegisterEvent(RegisterEvent event, Emitter<AuthState> emit) async {
+  Future<void> _onRegisterEvent(
+      RegisterEvent event, Emitter<AuthState> emit) async {
     emit(AuthLoading());
     try {
-      final userModel = await authRepository.register(
-        event.signUpModel,
-        event.profilePicture,
-      );
       emit(RegistrationSuccess());
     } catch (e) {
       emit(AuthError('Registration failed: ${e.toString()}'));
@@ -58,7 +56,8 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   }
 
   // Handle CheckAuthStatus
-  Future<void> _onCheckAuthStatus(CheckAuthStatus event, Emitter<AuthState> emit) async {
+  Future<void> _onCheckAuthStatus(
+      CheckAuthStatus event, Emitter<AuthState> emit) async {
     emit(AuthLoading());
     try {
       final user = await userRepository.getCachedUser(); // Use UserRepository
@@ -100,7 +99,8 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   }
 
   // Handle LogoutEvent
-  Future<void> _onLogoutEvent(LogoutEvent event, Emitter<AuthState> emit) async {
+  Future<void> _onLogoutEvent(
+      LogoutEvent event, Emitter<AuthState> emit) async {
     emit(AuthLoading());
     try {
       await authRepository.logout(); // Clear cached user data

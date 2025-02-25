@@ -892,6 +892,7 @@ Widget build(BuildContext context) {
                     key: ValueKey(_activeSpaceId),
                     scrollController: ScrollController(),
                     activeSpaceId: _activeSpaceId,
+                    onCategorySelected: _fetchNearbyPlaces,
                   ),
                 if (_currentIndex == 1) const FavoriteWidget(),
                 if (_currentIndex == 2) const SafetyAssistWidget(),

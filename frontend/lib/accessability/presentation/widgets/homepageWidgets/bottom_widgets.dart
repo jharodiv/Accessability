@@ -10,12 +10,14 @@ import 'package:frontend/accessability/presentation/widgets/bottomSheetWidgets/m
 class BottomWidgets extends StatefulWidget {
   final ScrollController scrollController;
   final String activeSpaceId;
+  final Function(String) onCategorySelected; // Added callback
   final Key? key;
 
   const BottomWidgets({
     this.key,
     required this.scrollController,
     required this.activeSpaceId,
+    required this.onCategorySelected, // New parameter
   }) : super(key: key);
 
   @override
@@ -354,7 +356,10 @@ class _BottomWidgetsState extends State<BottomWidgets> {
       case 1:
         return AddPlaceWidget();
       case 2:
-        return MapContent();
+        return // Here we pass the onCategorySelected callback to MapContent.
+            MapContent(
+          onCategorySelected: widget.onCategorySelected,
+        );
       default:
         return const SizedBox.shrink();
     }

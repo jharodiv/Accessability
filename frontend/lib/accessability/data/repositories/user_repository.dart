@@ -40,7 +40,8 @@ class UserRepository {
     _sharedPrefs?.setString('user_userName', user.username);
     _sharedPrefs?.setString('user_userEmail', user.email);
     _sharedPrefs?.setString('user_profilePicture', user.profilePicture);
-    _sharedPrefs?.setBool('user_hasCompletedOnboarding', user.hasCompletedOnboarding);
+    _sharedPrefs?.setBool(
+        'user_hasCompletedOnboarding', user.hasCompletedOnboarding);
     print('User cached: ${user.uid}, ${user.username}, ${user.email}');
   }
 
@@ -50,31 +51,40 @@ class UserRepository {
     final userName = _sharedPrefs?.getString('user_userName');
     final userEmail = _sharedPrefs?.getString('user_userEmail');
     final profilePicture = _sharedPrefs?.getString('user_profilePicture') ?? '';
-    final hasCompletedOnboarding = _sharedPrefs?.getBool('user_hasCompletedOnboarding') ?? false;
+    final contactNumber = _sharedPrefs?.getString('user_contactNumber') ?? '';
+    final hasCompletedOnboarding =
+        _sharedPrefs?.getBool('user_hasCompletedOnboarding') ?? false;
 
     if (userId != null && userName != null && userEmail != null) {
       return UserModel(
         uid: userId,
         username: userName,
         email: userEmail,
+        contactNumber: contactNumber,
         profilePicture: profilePicture,
         hasCompletedOnboarding: hasCompletedOnboarding,
         details: UserDetails(
-          address: _sharedPrefs?.getString('user_address') ?? '', 
+          address: _sharedPrefs?.getString('user_address') ?? '',
           phoneNumber: _sharedPrefs?.getString('user_phoneNumber') ?? '',
         ),
         settings: UserSettings(
-          verificationCode: _sharedPrefs?.getString('user_verificationCode') ?? '',
+          verificationCode:
+              _sharedPrefs?.getString('user_verificationCode') ?? '',
           codeExpiresAt: _sharedPrefs?.getString('user_codeExpiresAt') ?? '',
           verified: _sharedPrefs?.getBool('user_verified') ?? false,
-          passwordChangedAt: _sharedPrefs?.getString('user_passwordChangedAt') ?? '',
-          passwordResetToken: _sharedPrefs?.getString('user_passwordResetToken') ?? '',
-          passwordResetExpiresAt: _sharedPrefs?.getString('user_passwordResetExpiresAt') ?? '',
+          passwordChangedAt:
+              _sharedPrefs?.getString('user_passwordChangedAt') ?? '',
+          passwordResetToken:
+              _sharedPrefs?.getString('user_passwordResetToken') ?? '',
+          passwordResetExpiresAt:
+              _sharedPrefs?.getString('user_passwordResetExpiresAt') ?? '',
           active: _sharedPrefs?.getBool('user_active') ?? true,
         ),
-        createdAt: DateTime.parse(_sharedPrefs?.getString('user_createdAt') ?? DateTime.now().toIso8601String()),
-        updatedAt: DateTime.parse(_sharedPrefs?.getString('user_updatedAt') ?? DateTime.now().toIso8601String()),
-        );
+        createdAt: DateTime.parse(_sharedPrefs?.getString('user_createdAt') ??
+            DateTime.now().toIso8601String()),
+        updatedAt: DateTime.parse(_sharedPrefs?.getString('user_updatedAt') ??
+            DateTime.now().toIso8601String()),
+      );
     }
     return null;
   }
@@ -90,28 +100,29 @@ class UserRepository {
   }
 
   Future<UserModel> updateProfilePicture(String uid, XFile imageFile) async {
-  try {
-    final profilePictureUrl = await authService.updateProfilePicture(uid, imageFile);
-    if (profilePictureUrl == null) {
-      throw Exception('Failed to upload profile picture');
+    try {
+      final profilePictureUrl =
+          await authService.updateProfilePicture(uid, imageFile);
+      if (profilePictureUrl == null) {
+        throw Exception('Failed to upload profile picture');
+      }
+
+      // Update profile picture URL in Firestore
+      await updateUserData(uid, {'profilePicture': profilePictureUrl});
+
+      // Fetch updated user data
+      final userModel = await fetchUserData(uid);
+      if (userModel == null) {
+        throw Exception('User data not found');
+      }
+
+      // Cache the updated user data
+      cacheUserData(userModel);
+
+      return userModel;
+    } catch (e) {
+      print('Failed to update profile picture: $e');
+      throw Exception('Failed to update profile picture: ${e.toString()}');
     }
-
-    // Update profile picture URL in Firestore
-    await updateUserData(uid, {'profilePicture': profilePictureUrl});
-
-    // Fetch updated user data
-    final userModel = await fetchUserData(uid);
-    if (userModel == null) {
-      throw Exception('User data not found');
-    }
-
-    // Cache the updated user data
-    cacheUserData(userModel);
-
-    return userModel;
-  } catch (e) {
-    print('Failed to update profile picture: $e');
-    throw Exception('Failed to update profile picture: ${e.toString()}');
   }
-}
 }

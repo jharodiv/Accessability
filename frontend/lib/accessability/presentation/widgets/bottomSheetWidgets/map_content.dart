@@ -1,12 +1,17 @@
 import 'package:flutter/material.dart';
 
 class MapContent extends StatelessWidget {
+  final Function(String) onCategorySelected; // New callback
+
+  const MapContent({Key? key, required this.onCategorySelected})
+      : super(key: key);
+
   @override
   Widget build(BuildContext context) {
     return Center(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min, // Centers vertically as well
+        mainAxisSize: MainAxisSize.min,
         children: [
           const Align(
             alignment: Alignment.centerLeft,
@@ -22,21 +27,21 @@ class MapContent extends StatelessWidget {
           Wrap(
             spacing: 10,
             runSpacing: 10,
-            alignment: WrapAlignment.center, // Centers horizontally
+            alignment: WrapAlignment.center,
             children: [
-              _buildLegendItem(Icons.hotel, 'Hotels'),
-              _buildLegendItem(Icons.restaurant, 'Restaurants'),
+              _buildLegendItem(Icons.hotel, 'Hotel'),
+              _buildLegendItem(Icons.restaurant, 'Restaurant'),
               _buildLegendItem(Icons.directions_bus, 'Bus'),
               _buildLegendItem(Icons.shopping_bag, 'Shopping'),
               _buildLegendItem(Icons.shopping_cart, 'Groceries'),
               _buildLegendItem(Icons.accessible, 'PWD Services'),
             ],
           ),
-          SizedBox(height: 20),
+          const SizedBox(height: 20),
           Align(
             alignment: Alignment.center,
             child: Row(
-              mainAxisSize: MainAxisSize.min, // Avoids stretching
+              mainAxisSize: MainAxisSize.min,
               children: [
                 const Text(
                   'Wheel Chair Friendly Route',
@@ -45,7 +50,7 @@ class MapContent extends StatelessWidget {
                     fontSize: 14,
                   ),
                 ),
-                SizedBox(width: 10),
+                const SizedBox(width: 10),
                 Container(
                   width: 30,
                   height: 10,
@@ -59,30 +64,37 @@ class MapContent extends StatelessWidget {
     );
   }
 
+  // Updated to wrap with GestureDetector and call onCategorySelected
   Widget _buildLegendItem(IconData icon, String label) {
-    return Container(
-      padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(
-        color: const Color(0xFF6750A4),
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            icon,
-            color: Colors.white,
-            size: 18,
-          ),
-          const SizedBox(width: 5),
-          Text(
-            label,
-            style: const TextStyle(
+    return GestureDetector(
+      onTap: () {
+        // Call the callback with the label, assuming label matches the category in fetch logic.
+        onCategorySelected(label);
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: const Color(0xFF6750A4),
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              icon,
               color: Colors.white,
-              fontSize: 14,
+              size: 18,
             ),
-          ),
-        ],
+            const SizedBox(width: 5),
+            Text(
+              label,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 14,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

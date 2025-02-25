@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -10,6 +11,7 @@ import 'package:frontend/accessability/firebaseServices/chat/fcm_service.dart';
 import 'package:frontend/accessability/logic/bloc/auth/auth_bloc.dart';
 import 'package:frontend/accessability/logic/bloc/auth/auth_event.dart';
 import 'package:frontend/accessability/logic/bloc/user/user_bloc.dart';
+import 'package:location/location.dart';
 import 'package:provider/provider.dart';
 import 'package:frontend/accessability/router/app_router.dart';
 import 'package:frontend/accessability/themes/theme_provider.dart';
@@ -17,8 +19,34 @@ import 'package:frontend/firebase_options.dart';
 import 'package:frontend/accessability/firebaseServices/auth/auth_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:intl/date_symbol_data_local.dart';
+import 'package:workmanager/workmanager.dart';
+
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+
+
+void callbackDispatcher() {
+  Workmanager().executeTask((task, inputData) async {
+    if (task == "locationUpdate") {
+      final location = Location();
+      final locationData = await location.getLocation();
+      final user = FirebaseAuth.instance.currentUser;
+
+      if (user != null) {
+        await FirebaseFirestore.instance
+            .collection('UserLocations')
+            .doc(user.uid)
+            .set({
+          'latitude': locationData.latitude,
+          'longitude': locationData.longitude,
+          'timestamp': DateTime.now(),
+        });
+      }
+    }
+    return Future.value(true);
+  });
+}
+
 
 void main() async {
   // Ensure Flutter bindings are initialized
@@ -40,6 +68,11 @@ void main() async {
 
   // Initialize date formatting
   await initializeDateFormatting();
+
+   Workmanager().initialize(
+    callbackDispatcher,
+    isInDebugMode: true,
+  );
 
   
 

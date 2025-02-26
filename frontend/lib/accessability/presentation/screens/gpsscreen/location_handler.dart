@@ -56,6 +56,52 @@ class LocationHandler {
     });
   }
 
+   Future<void> initializeUserMarker() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    // Fetch the user's profile data
+    final userDoc = await FirebaseFirestore.instance
+        .collection('Users')
+        .doc(user.uid)
+        .get();
+    final username = userDoc['username'];
+    final profilePictureUrl = userDoc.data()?['profilePicture'] ?? '';
+
+    // Create a custom marker icon with the profile picture
+    BitmapDescriptor customIcon;
+    if (profilePictureUrl.isNotEmpty) {
+      try {
+        customIcon = await _createCustomMarkerIcon(profilePictureUrl, isSelected: false);
+      } catch (e) {
+        print("❌ Error creating custom marker for $username: $e");
+        customIcon = await BitmapDescriptor.fromAssetImage(
+          const ImageConfiguration(size: Size(24, 24)),
+          'assets/images/others/default_profile.png',
+        );
+      }
+    } else {
+      // Use a default icon if no profile picture is available
+      customIcon = await BitmapDescriptor.fromAssetImage(
+        const ImageConfiguration(size: Size(24, 24)),
+        'assets/images/others/default_profile.png',
+      );
+    }
+
+    // Add the user's marker to the map
+    if (currentLocation != null) {
+      final userMarker = Marker(
+        markerId: const MarkerId('user_current'),
+        position: currentLocation!,
+        infoWindow: InfoWindow(title: 'You'),
+        icon: customIcon,
+      );
+
+      _markers.add(userMarker);
+      onMarkersUpdated(_markers); // Notify parent widget to update markers
+    }
+  }
+
   void showOverlay(BuildContext context, Widget overlayContent) {
     _overlayEntry = OverlayEntry(
       builder: (context) => overlayContent,

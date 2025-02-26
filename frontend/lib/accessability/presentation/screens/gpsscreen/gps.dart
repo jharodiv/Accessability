@@ -66,7 +66,16 @@ class _GpsScreenState extends State<GpsScreen> {
     );
 
     // Get user location
-    _locationHandler.getUserLocation();
+    _locationHandler.getUserLocation().then((_) {
+      // Animate the camera to the user's location once it's available
+      if (_locationHandler.currentLocation != null && _locationHandler.mapController != null) {
+        _locationHandler.mapController!.animateCamera(
+          CameraUpdate.newLatLng(_locationHandler.currentLocation!),
+        );
+      }
+
+      _locationHandler.initializeUserMarker();
+    });
 
     // Create markers for PWD-friendly locations
     _markerHandler.createMarkers(pwdFriendlyLocations).then((markers) {
@@ -129,16 +138,16 @@ class _GpsScreenState extends State<GpsScreen> {
   }
 
   void _onMemberPressed(LatLng location, String userId) {
-  if (_locationHandler.mapController != null) {
-    _locationHandler.mapController!.animateCamera(
-      CameraUpdate.newLatLng(location),
-    );
+    if (_locationHandler.mapController != null) {
+      _locationHandler.mapController!.animateCamera(
+        CameraUpdate.newLatLng(location),
+      );
 
-    // Trigger marker selection
-    _locationHandler.selectedUserId = userId;
-    _locationHandler.listenForLocationUpdates();
+      // Trigger marker selection
+      _locationHandler.selectedUserId = userId;
+      _locationHandler.listenForLocationUpdates();
+    }
   }
-}
 
   @override
   Widget build(BuildContext context) {
@@ -176,7 +185,16 @@ class _GpsScreenState extends State<GpsScreen> {
                     myLocationButtonEnabled: true,
                     markers: _markers,
                     circles: _circles,
-                    onMapCreated: _locationHandler.onMapCreated,
+                    onMapCreated: (controller) {
+                      _locationHandler.onMapCreated(controller);
+
+                      // Animate the camera to the user's location once the map is created
+                      if (_locationHandler.currentLocation != null) {
+                        controller.animateCamera(
+                          CameraUpdate.newLatLng(_locationHandler.currentLocation!),
+                        );
+                      }
+                    },
                     polygons: _markerHandler.createPolygons(pwdFriendlyLocations),
                     onTap: (LatLng position) {
                       // Handle map tap if needed

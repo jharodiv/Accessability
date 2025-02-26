@@ -95,76 +95,87 @@ class _LoginFormState extends State<LoginForm> {
   }
 
   @override
-  Widget build(BuildContext context) {
-    return MultiBlocListener(
-      listeners: [
-        BlocListener<AuthBloc, AuthState>(
-          listener: (context, state) {
-            if (state is AuthenticatedLogin) {
-              context.read<UserBloc>().add(FetchUserData());
-            } else if (state is AuthError) {
-              showDialog(
-                context: context,
-                builder: (context) => AlertDialog(
-                  title: const Text('Login Failed'),
-                  content: Text(state.message),
-                  actions: [
-                    TextButton(
-                      onPressed: () => Navigator.pop(context),
-                      child: const Text('OK'),
-                    ),
-                  ],
-                ),
-              );
-            }
-          },
-        ),
-        BlocListener<UserBloc, UserState>(
-          listener: (context, userState) {
-            if (userState is UserLoaded) {
-              final authState = context.read<AuthBloc>().state;
-              WidgetsBinding.instance.addPostFrameCallback((_) {
-                if (mounted &&
-                    authState is AuthenticatedLogin &&
-                    !_hasNavigated) {
-                  _hasNavigated = true;
-                  if (authState.hasCompletedOnboarding) {
-                    Navigator.pushReplacementNamed(context, '/homescreen');
-                  } else {
-                    Navigator.pushReplacementNamed(context, '/onboarding');
-                  }
+Widget build(BuildContext context) {
+  return MultiBlocListener(
+    listeners: [
+      BlocListener<AuthBloc, AuthState>(
+        listener: (context, state) {
+          if (state is AuthenticatedLogin) {
+            context.read<UserBloc>().add(FetchUserData());
+          } else if (state is AuthError) {
+            showDialog(
+              context: context,
+              builder: (context) => AlertDialog(
+                title: const Text('Login Failed'),
+                content: Text(state.message),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text('OK'),
+                  ),
+                ],
+              ),
+            );
+          }
+        },
+      ),
+      BlocListener<UserBloc, UserState>(
+        listener: (context, userState) {
+          if (userState is UserLoaded) {
+            final authState = context.read<AuthBloc>().state;
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (mounted &&
+                  authState is AuthenticatedLogin &&
+                  !_hasNavigated) {
+                _hasNavigated = true;
+                if (authState.hasCompletedOnboarding) {
+                  Navigator.pushReplacementNamed(context, '/homescreen');
+                } else {
+                  Navigator.pushReplacementNamed(context, '/onboarding');
                 }
-              });
-            }
-          },
-        ),
-      ],
+              }
+            });
+          }
+        },
+      ),
+    ],
+   child: SingleChildScrollView(
       child: Center(
-        child: SizedBox(
-          width: MediaQuery.of(context).size.width * 0.8,
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxWidth: MediaQuery.of(context).size.width * 0.8,
+          ),
           child: Padding(
             padding: const EdgeInsets.all(20.0),
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Text(
-                    'Login',
-                    style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 30,
-                        fontFamily: 'Inter'),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text(
+                  'Login',
+                  style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 30,
+                      fontFamily: 'Inter'),
+                ),
+                const SizedBox(height: 10),
+                ConstrainedBox(
+                  constraints: BoxConstraints(
+                    maxWidth: MediaQuery.of(context).size.width * 0.8,
                   ),
-                  const SizedBox(height: 10),
-                  TextField(
+                  child: TextField(
                     controller: emailController,
                     decoration: const InputDecoration(
                       labelText: 'Email',
                       border: OutlineInputBorder(),
                     ),
                   ),
-                  const SizedBox(height: 20),
-                  TextField(
+                ),
+                const SizedBox(height: 20),
+                ConstrainedBox(
+                  constraints: BoxConstraints(
+                    maxWidth: MediaQuery.of(context).size.width * 0.8,
+                  ),
+                  child: TextField(
                     controller: passwordController,
                     obscureText: true,
                     decoration: const InputDecoration(
@@ -172,89 +183,91 @@ class _LoginFormState extends State<LoginForm> {
                       border: OutlineInputBorder(),
                     ),
                   ),
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: TextButton(
+                ),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton(
+                    onPressed: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const ForgotPasswordScreen(),
+                      ),
+                    ),
+                    child: const Text(
+                      'Forgot Password?',
+                      style: TextStyle(
+                          color: Color(0xFF6750A4),
+                          fontSize: 17,
+                          fontWeight: FontWeight.w800),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 5),
+                ElevatedButton(
+                  onPressed: () => _login(context),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF6750A4),
+                    padding: const EdgeInsets.symmetric(vertical: 15),
+                    minimumSize: const Size(250, 50),
+                    textStyle: const TextStyle(fontSize: 20),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8)),
+                  ),
+                  child: const Text(
+                    'Login',
+                    style: TextStyle(
+                        color: Colors.white, fontWeight: FontWeight.bold),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Wrap(
+                  alignment: WrapAlignment.center,
+                  children: [
+                    const Text("Don't have an account?",
+                        style: TextStyle(
+                            fontSize: 17, fontWeight: FontWeight.w700)),
+                    TextButton(
                       onPressed: () => Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => const ForgotPasswordScreen(),
-                        ),
+                            builder: (context) => const SignupScreen()),
                       ),
                       child: const Text(
-                        'Forgot Password?',
+                        'Sign Up',
                         style: TextStyle(
                             color: Color(0xFF6750A4),
-                            fontSize: 17,
-                            fontWeight: FontWeight.w800),
+                            fontWeight: FontWeight.w800,
+                            fontSize: 17),
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 5),
-                  ElevatedButton(
-                    onPressed: () => _login(context),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF6750A4),
-                      padding: const EdgeInsets.symmetric(vertical: 15),
-                      minimumSize: const Size(250, 50),
-                      textStyle: const TextStyle(fontSize: 20),
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8)),
-                    ),
-                    child: const Text(
-                      'Login',
-                      style: TextStyle(
-                          color: Colors.white, fontWeight: FontWeight.bold),
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
+                  ],
+                ),
+                const SizedBox(height: 50),
+                GestureDetector(
+                  onTap: _authenticateWithBiometrics,
+                  child: Wrap(
+                    alignment: WrapAlignment.center,
+                    crossAxisAlignment: WrapCrossAlignment.center,
                     children: [
-                      const Text("Don't have an account?",
-                          style: TextStyle(
-                              fontSize: 17, fontWeight: FontWeight.w700)),
-                      TextButton(
-                        onPressed: () => Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                              builder: (context) => const SignupScreen()),
-                        ),
-                        child: const Text(
-                          'Sign Up',
-                          style: TextStyle(
-                              color: Color(0xFF6750A4),
-                              fontWeight: FontWeight.w800,
-                              fontSize: 17),
-                        ),
+                      const Icon(Icons.fingerprint,
+                          size: 30, color: Color(0xFF6750A4)),
+                      const SizedBox(width: 8),
+                      Text(
+                        isBiometricEnabled
+                            ? 'Login with Biometrics Enabled'
+                            : 'Biometric login disabled',
+                        style: const TextStyle(
+                            fontSize: 15, fontWeight: FontWeight.w600),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 50),
-                  GestureDetector(
-                    onTap: _authenticateWithBiometrics,
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(Icons.fingerprint,
-                            size: 30, color: Color(0xFF6750A4)),
-                        const SizedBox(width: 8),
-                        Text(
-                          isBiometricEnabled
-                              ? 'Login with Biometrics Enabled'
-                              : 'Biometric login disabled',
-                          style: const TextStyle(
-                              fontSize: 15, fontWeight: FontWeight.w600),
-                        ),
-                      ],
-                    ),
-                  )
-                ],
-              ),
+                )
+              ],
             ),
           ),
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 }

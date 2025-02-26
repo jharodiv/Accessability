@@ -100,84 +100,85 @@ class LocationHandler {
     _circles = newCircles;
   }
 
-  void _listenForLocationUpdates() {
-  if (activeSpaceId.isEmpty) return;
-  _locationUpdatesSubscription?.cancel();
-  _locationUpdatesSubscription = FirebaseFirestore.instance
-      .collection('Spaces')
-      .doc(activeSpaceId)
-      .snapshots()
-      .asyncMap((spaceSnapshot) async {
-    final members = List<String>.from(spaceSnapshot['members']);
-    return FirebaseFirestore.instance
-        .collection('UserLocations')
-        .where(FieldPath.documentId, whereIn: members)
-        .snapshots();
-  }).asyncExpand((snapshotStream) => snapshotStream).listen((snapshot) async {
-    final updatedMarkers = <Marker>{};
+   void _listenForLocationUpdates() {
+    if (activeSpaceId.isEmpty) return;
+    _locationUpdatesSubscription?.cancel();
+    _locationUpdatesSubscription = FirebaseFirestore.instance
+        .collection('Spaces')
+        .doc(activeSpaceId)
+        .snapshots()
+        .asyncMap((spaceSnapshot) async {
+      final members = List<String>.from(spaceSnapshot['members']);
+      return FirebaseFirestore.instance
+          .collection('UserLocations')
+          .where(FieldPath.documentId, whereIn: members)
+          .snapshots();
+    }).asyncExpand((snapshotStream) => snapshotStream).listen((snapshot) async {
+      final updatedMarkers = <Marker>{};
 
-    // Preserve existing PWD-friendly and nearby places markers
-    final existingMarkers = _markers
-        .where((marker) => !marker.markerId.value.startsWith('user_'));
+      // Preserve existing PWD-friendly and nearby places markers
+      final existingMarkers = _markers
+          .where((marker) => !marker.markerId.value.startsWith('user_'));
 
-    // Process the snapshot
-    for (final doc in snapshot.docs) {
-      final data = doc.data() as Map<String, dynamic>;
-      final lat = data['latitude'];
-      final lng = data['longitude'];
-      final userId = doc.id;
+      // Process the snapshot
+      for (final doc in snapshot.docs) {
+        final data = doc.data() as Map<String, dynamic>;
+        final lat = data['latitude'];
+        final lng = data['longitude'];
+        final userId = doc.id;
 
-      // Fetch the user's profile data
-      final userDoc = await FirebaseFirestore.instance
-          .collection('Users')
-          .doc(userId)
-          .get();
-      final username = userDoc['username'];
-      final profilePictureUrl = userDoc.data()?['profilePicture'] ?? '';
+        // Fetch the user's profile data
+        final userDoc = await FirebaseFirestore.instance
+            .collection('Users')
+            .doc(userId)
+            .get();
+        final username = userDoc['username'];
+        final profilePictureUrl = userDoc.data()?['profilePicture'] ?? '';
 
-      print("🟢 Fetched user data for $username: $profilePictureUrl");
+        print("🟢 Fetched user data for $username: $profilePictureUrl");
 
-      // Determine if this marker is selected
-      final isSelected = userId == _selectedUserId;
+        // Determine if this marker is selected
+        final isSelected = userId == _selectedUserId;
 
-      // Create a custom marker icon with the profile picture
-      BitmapDescriptor customIcon;
-      if (profilePictureUrl != null && profilePictureUrl.isNotEmpty) {
-        try {
-          customIcon = await _createCustomMarkerIcon(profilePictureUrl, isSelected: isSelected);
-        } catch (e) {
-          print("❌ Error creating custom marker for $username: $e");
+        // Create a custom marker icon with the profile picture
+        BitmapDescriptor customIcon;
+        if (profilePictureUrl != null && profilePictureUrl.isNotEmpty) {
+          try {
+            customIcon = await _createCustomMarkerIcon(profilePictureUrl, isSelected: isSelected);
+          } catch (e) {
+            print("❌ Error creating custom marker for $username: $e");
+            customIcon = await BitmapDescriptor.fromAssetImage(
+              const ImageConfiguration(size: Size(24, 24)),
+              'assets/images/others/default_profile.png',
+            );
+          }
+        } else {
+          // Use a default icon if no profile picture is available
           customIcon = await BitmapDescriptor.fromAssetImage(
             const ImageConfiguration(size: Size(24, 24)),
             'assets/images/others/default_profile.png',
           );
         }
-      } else {
-        // Use a default icon if no profile picture is available
-        customIcon = await BitmapDescriptor.fromAssetImage(
-          const ImageConfiguration(size: Size(24, 24)),
-          'assets/images/others/default_profile.png',
+
+        // Add the custom marker
+        updatedMarkers.add(
+          Marker(
+            markerId: MarkerId('user_$userId'),
+            position: LatLng(lat, lng),
+            infoWindow: InfoWindow(title: username),
+            icon: customIcon,
+            onTap: () => _onMarkerTapped(MarkerId('user_$userId')),
+          ),
         );
       }
 
-      // Add the custom marker
-      updatedMarkers.add(
-        Marker(
-          markerId: MarkerId('user_$userId'),
-          position: LatLng(lat, lng),
-          infoWindow: InfoWindow(title: username),
-          icon: customIcon,
-          onTap: () => _onMarkerTapped(MarkerId('user_$userId')),
-        ),
-      );
-    }
+      print("🟢 Updated ${updatedMarkers.length} user markers.");
+      _markers = existingMarkers.toSet().union(updatedMarkers);
+      onMarkersUpdated(_markers); // Notify parent widget to update markers
+    });
+  }
 
-    print("🟢 Updated ${updatedMarkers.length} user markers.");
-    _markers = existingMarkers.toSet().union(updatedMarkers);
-    onMarkersUpdated(_markers); // Notify parent widget to update markers
-  });
-}
-  void _onMarkerTapped(MarkerId markerId) {
+ void _onMarkerTapped(MarkerId markerId) {
   if (markerId.value.startsWith('user_')) {
     // Handle user marker tap
     final userId = markerId.value.replaceFirst('user_', ''); // Extract user ID from marker ID

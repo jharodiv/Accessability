@@ -1,23 +1,27 @@
 import 'dart:math';
 
+import 'package:AccessAbility/accessability/firebaseServices/place/geocoding_service.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:AccessAbility/accessability/firebaseServices/chat/chat_service.dart';
 import 'package:AccessAbility/accessability/presentation/widgets/bottomSheetWidgets/add_place.dart';
-import 'package:AccessAbility/accessability/presentation/widgets/bottomSheetWidgets/map_content.dart'; // Import your ChatService
+import 'package:AccessAbility/accessability/presentation/widgets/bottomSheetWidgets/map_content.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart'; // Import your ChatService
 
 class BottomWidgets extends StatefulWidget {
   final ScrollController scrollController;
   final String activeSpaceId;
   final Function(String) onCategorySelected; // Added callback
   final Key? key;
+  final Function(LatLng) onMemberPressed; // Callback for member press
 
   const BottomWidgets({
     this.key,
     required this.scrollController,
     required this.activeSpaceId,
     required this.onCategorySelected, // New parameter
+    required this.onMemberPressed, // New parameter
   }) : super(key: key);
 
   @override
@@ -31,6 +35,7 @@ class _BottomWidgetsState extends State<BottomWidgets> {
   final ChatService _chatService = ChatService(); // Initialize ChatService
   List<Map<String, dynamic>> _members = []; // List of members in the space
   String? _creatorId; // ID of the space creator
+  String? _selectedMemberId; // Track the selected member
 
   @override
   void initState() {
@@ -47,29 +52,49 @@ class _BottomWidgetsState extends State<BottomWidgets> {
   }
 
   // Fetch members in the active space
-  Future<void> _fetchMembers() async {
-    if (widget.activeSpaceId.isEmpty) return;
+ Future<void> _fetchMembers() async {
+  if (widget.activeSpaceId.isEmpty) return;
 
-    final snapshot =
-        await _firestore.collection('Spaces').doc(widget.activeSpaceId).get();
-    final members = List<String>.from(snapshot['members']);
-    final creatorId = snapshot['creator'];
+  print("🟢 Fetching members for space: ${widget.activeSpaceId}");
 
-    final usersSnapshot = await _firestore
-        .collection('Users')
-        .where('uid', whereIn: members)
-        .get();
-
-    setState(() {
-      _members = usersSnapshot.docs.map((doc) {
-        return {
-          'uid': doc['uid'],
-          'username': doc['username'],
-        };
-      }).toList();
-      _creatorId = creatorId;
-    });
+  final snapshot = await _firestore.collection('Spaces').doc(widget.activeSpaceId).get();
+  if (!snapshot.exists) {
+    print("🔴 Space document does not exist");
+    return;
   }
+
+  final members = snapshot['members'] != null ? List<String>.from(snapshot['members']) : [];
+  final creatorId = snapshot['creator'];
+
+  if (members.isEmpty) {
+    print("🟠 No members found in this space");
+    return;
+  }
+
+  print("🟢 Members in space: $members");
+
+  final usersSnapshot = await _firestore
+      .collection('Users')
+      .where('uid', whereIn: members)
+      .get();
+
+  print("🟢 Fetched ${usersSnapshot.docs.length} users");
+
+  setState(() {
+    _members = usersSnapshot.docs.map((doc) {
+      final data = doc.data() as Map<String, dynamic>;
+      print("🟢 User data: $data"); // Log user data
+      return {
+        'uid': doc['uid'],
+        'username': doc['username'] ?? 'Unknown',
+        'profilePicture': doc['profilePicture'] ?? 'https://firebasestorage.googleapis.com/v0/b/accessability-71ef7.firebasestorage.app/o/profile_pictures%2Fdefault_profile.png?alt=media&token=bc7a75a7-a78e-4460-b816-026a8fc341ba',
+      };
+    }).toList();
+    _creatorId = creatorId;
+  });
+
+  print("🟢 Updated _members: $_members");
+}
 
   // Add a person to the space
   Future<void> _addPerson() async {
@@ -240,7 +265,7 @@ class _BottomWidgetsState extends State<BottomWidgets> {
                         const SizedBox(height: 20),
                         _buildContent(),
                         if (_creatorId ==
-                            _auth.currentUser?.uid) // Only show if creator
+                            _auth.currentUser?.uid && _activeIndex == 0) // Only show if creator and in People tab
                           ElevatedButton(
                             onPressed: _addPerson,
                             child: const Text('Add Person'),
@@ -334,21 +359,56 @@ class _BottomWidgetsState extends State<BottomWidgets> {
               .where((member) =>
                   member['uid'] !=
                   _auth.currentUser?.uid) // Exclude current user
-              .map((member) => ListTile(
-                    title: Text(member['username']),
-                    trailing: IconButton(
-                      icon: const Icon(Icons.chat),
-                      onPressed: () {
-                        // Navigate to chat with the member
-                        Navigator.pushNamed(
-                          context,
-                          '/chatconvo',
-                          arguments: {
-                            'receiverEmail': member['username'],
-                            'receiverID': member['uid'],
+              .map((member) => GestureDetector(
+                    onTap: () async {
+                      setState(() {
+                        _selectedMemberId = member['uid'];
+                      });
+
+                      // Fetch the member's location
+                      final locationSnapshot = await _firestore
+                          .collection('UserLocations')
+                          .doc(member['uid'])
+                          .get();
+                      final locationData = locationSnapshot.data();
+                      if (locationData != null) {
+                        final lat = locationData['latitude'];
+                        final lng = locationData['longitude'];
+                        final address = await _getAddressFromLatLng(LatLng(lat, lng));
+
+                        setState(() {
+                          member['address'] = address;
+                        });
+
+                        // Pan the camera to the member's location
+                        widget.onMemberPressed(LatLng(lat, lng));
+                      }
+                    },
+                    child: Container(
+                      color: _selectedMemberId == member['uid'] ? Color(0xFF6750A4) : Colors.white,
+                      child: ListTile(
+                        leading: CircleAvatar(
+    backgroundImage: member['profilePicture'] != null && member['profilePicture'].startsWith('http')
+        ? NetworkImage(member['profilePicture']) // Use NetworkImage for web URLs
+        : AssetImage('assets/images/others/default_profile.png') as ImageProvider, // Use AssetImage for local assets
+  ),
+  title: Text(member['username']),
+  subtitle: Text('Current Location: ${member['address']}' ?? 'Fetching address...', style:TextStyle(fontSize: 12),),
+  trailing: IconButton(
+    icon: const Icon(Icons.chat),
+    onPressed: () {
+                            // Navigate to chat with the member
+                            Navigator.pushNamed(
+                              context,
+                              '/chatconvo',
+                              arguments: {
+                                'receiverEmail': member['username'],
+                                'receiverID': member['uid'],
+                              },
+                            );
                           },
-                        );
-                      },
+                        ),
+                      ),
                     ),
                   ))
               .toList(),
@@ -364,4 +424,17 @@ class _BottomWidgetsState extends State<BottomWidgets> {
         return const SizedBox.shrink();
     }
   }
+
+ Future<String> _getAddressFromLatLng(LatLng latLng) async {
+  try {
+    // Create an instance of GeocodingService
+    final geocodingService = GeocodingService();
+    // Call the instance method
+    final address = await geocodingService.getAddressFromLatLng(latLng);
+    return address;
+  } catch (e) {
+    print('Error fetching address: $e');
+    return 'Address unavailable';
+  }
+}
 }

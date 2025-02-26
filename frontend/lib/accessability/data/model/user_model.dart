@@ -2,13 +2,13 @@ class UserModel {
   final String uid; // Use `uid` instead of `id` to match Firestore
   final String username;
   final String email;
-  final String contactNumber; // Optional field
+  final String contactNumber;
   final String profilePicture;
   final UserDetails details;
   final UserSettings settings;
   final DateTime createdAt;
   final DateTime updatedAt;
-  final bool hasCompletedOnboarding; // Required (no longer nullable)
+  final bool hasCompletedOnboarding; 
 
   UserModel({
     required this.uid,
@@ -56,7 +56,7 @@ class UserModel {
       uid: json['uid'] ?? '', // Fallback to empty string if null
       username: json['username'] ?? 'Unknown', // Fallback to 'Unknown' if null
       email: json['email'] ?? '', // Fallback to empty string if null
-      contactNumber: json['contactNumber'], // Optional field
+      contactNumber: json['contactNumber'] ?? '',
       profilePicture: json['profilePicture'] ?? '',
       details: UserDetails.fromJson(
           json['details'] ?? {}), // Fallback to empty map if null

@@ -17,6 +17,7 @@ class UserRepository {
       final userDoc = await _firestore.collection('Users').doc(uid).get();
       if (userDoc.exists) {
         final userData = userDoc.data() as Map<String, dynamic>;
+        print(userData);
         return UserModel.fromJson(userData);
       }
       return null;
@@ -40,6 +41,8 @@ class UserRepository {
     _sharedPrefs?.setString('user_userName', user.username);
     _sharedPrefs?.setString('user_userEmail', user.email);
     _sharedPrefs?.setString('user_profilePicture', user.profilePicture);
+    _sharedPrefs?.setString('user_contactNumber', user.contactNumber);
+
     _sharedPrefs?.setBool(
         'user_hasCompletedOnboarding', user.hasCompletedOnboarding);
     print('User cached: ${user.uid}, ${user.username}, ${user.email}');
@@ -95,6 +98,7 @@ class UserRepository {
     _sharedPrefs?.remove('user_userName');
     _sharedPrefs?.remove('user_userEmail');
     _sharedPrefs?.remove('user_profilePicture');
+    _sharedPrefs?.remove('user_contactNumber');
     _sharedPrefs?.remove('user_hasCompletedOnboarding');
     print('User cache cleared');
   }

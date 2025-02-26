@@ -1,22 +1,23 @@
 import 'package:flutter/material.dart';
-import 'package:Accessability/accessability/logic/firebase_logic/SignupModel.dart';
-import 'package:Accessability/accessability/presentation/screens/authScreens/login_screen.dart';
-import 'package:Accessability/accessability/presentation/screens/authScreens/signup_screen.dart';
-import 'package:Accessability/accessability/presentation/screens/authScreens/onboarding_screen.dart';
-import 'package:Accessability/accessability/presentation/screens/authscreens/upload_profile_screen.dart';
-import 'package:Accessability/accessability/presentation/screens/chat_system/inbox_screen.dart';
-import 'package:Accessability/accessability/presentation/screens/gpsScreen/gps.dart';
-import 'package:Accessability/accessability/presentation/screens/settings/settings_screen.dart';
-import 'package:Accessability/accessability/presentation/screens/sos/sos_screen.dart';
-import 'package:Accessability/accessability/presentation/screens/splash_screen.dart';
-import 'package:Accessability/accessability/presentation/screens/settings/settingsScreens/account_screen.dart';
-import 'package:Accessability/accessability/presentation/screens/settings/settingsScreens/biometric_screen.dart';
-import 'package:Accessability/accessability/presentation/screens/settings/settingsScreens/chat_with_support_screen.dart';
-import 'package:Accessability/accessability/presentation/screens/settings/settingsScreens/preferences_screen.dart';
-import 'package:Accessability/accessability/presentation/screens/settings/settingsScreens/privacy_security_screen.dart';
-import 'package:Accessability/accessability/presentation/screens/settings/settingsScreens/about_screen.dart';
-import 'package:Accessability/accessability/presentation/widgets/chatWidgets/chat_convo_screen.dart';
-import 'package:Accessability/main.dart';
+import 'package:AccessAbility/accessability/logic/firebase_logic/SignupModel.dart';
+import 'package:AccessAbility/accessability/presentation/screens/authScreens/login_screen.dart';
+import 'package:AccessAbility/accessability/presentation/screens/authScreens/signup_screen.dart';
+import 'package:AccessAbility/accessability/presentation/screens/authScreens/onboarding_screen.dart';
+import 'package:AccessAbility/accessability/presentation/screens/authscreens/upload_profile_screen.dart';
+import 'package:AccessAbility/accessability/presentation/screens/chat_system/inbox_screen.dart';
+import 'package:AccessAbility/accessability/presentation/screens/gpsScreen/gps.dart';
+import 'package:AccessAbility/accessability/presentation/screens/gpsscreen/add_new_place.dart';
+import 'package:AccessAbility/accessability/presentation/screens/settings/settings_screen.dart';
+import 'package:AccessAbility/accessability/presentation/screens/sos/sos_screen.dart';
+import 'package:AccessAbility/accessability/presentation/screens/splash_screen.dart';
+import 'package:AccessAbility/accessability/presentation/screens/settings/settingsScreens/account_screen.dart';
+import 'package:AccessAbility/accessability/presentation/screens/settings/settingsScreens/biometric_screen.dart';
+import 'package:AccessAbility/accessability/presentation/screens/settings/settingsScreens/chat_with_support_screen.dart';
+import 'package:AccessAbility/accessability/presentation/screens/settings/settingsScreens/preferences_screen.dart';
+import 'package:AccessAbility/accessability/presentation/screens/settings/settingsScreens/privacy_security_screen.dart';
+import 'package:AccessAbility/accessability/presentation/screens/settings/settingsScreens/about_screen.dart';
+import 'package:AccessAbility/accessability/presentation/widgets/chatWidgets/chat_convo_screen.dart';
+import 'package:AccessAbility/main.dart';
 
 class AppRouter {
   Route<dynamic>? onGenerateRoute(RouteSettings routeSettings) {
@@ -29,10 +30,10 @@ class AppRouter {
         return _buildRoute(const LoginScreen(), clearStack: true);
       case '/uploadProfilePicture':
         final args = routeSettings.arguments as SignUpModel;
-        return _buildRoute(
-             UploadProfileScreen(signUpModel: args),
+        return _buildRoute(UploadProfileScreen(signUpModel: args),
             clearStack: true);
-
+      case '/addPlace':
+        return _buildRoute(const AddNewPlaceScreen());
       case '/onboarding':
         return _buildRoute(const OnboardingScreen(), clearStack: true);
       case '/homescreen':
@@ -67,13 +68,16 @@ class AppRouter {
     return null; // Handle unknown routes
   }
 
-  MaterialPageRoute _buildRoute(Widget child, {bool clearStack = false}) {
-    return MaterialPageRoute(
+  MaterialPageRoute<Map<String, dynamic>?> _buildRoute(Widget child,
+      {bool clearStack = false}) {
+    return MaterialPageRoute<Map<String, dynamic>?>(
       builder: (context) {
         if (clearStack) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
             Navigator.of(context).pushAndRemoveUntil(
-              MaterialPageRoute(builder: (_) => child),
+              MaterialPageRoute<Map<String, dynamic>?>(
+                builder: (_) => child,
+              ),
               (route) => false,
             );
           });

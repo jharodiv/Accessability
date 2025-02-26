@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:Accessability/accessability/data/repositories/auth_repository.dart';
-import 'package:Accessability/accessability/firebaseServices/auth/auth_service.dart';
-import 'package:Accessability/accessability/logic/bloc/auth/auth_bloc.dart';
-import 'package:Accessability/accessability/logic/bloc/auth/auth_event.dart';
-import 'package:Accessability/main.dart';
+import 'package:AccessAbility/accessability/data/repositories/auth_repository.dart';
+import 'package:AccessAbility/accessability/firebaseServices/auth/auth_service.dart';
+import 'package:AccessAbility/accessability/logic/bloc/auth/auth_bloc.dart';
+import 'package:AccessAbility/accessability/logic/bloc/auth/auth_event.dart';
+import 'package:AccessAbility/main.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});

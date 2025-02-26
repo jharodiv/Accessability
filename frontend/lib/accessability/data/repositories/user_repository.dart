@@ -1,15 +1,20 @@
+import 'package:AccessAbility/accessability/data/model/user_model.dart';
+import 'package:AccessAbility/accessability/firebaseServices/auth/auth_service.dart';
+import 'package:AccessAbility/accessability/firebaseServices/models/place.dart';
+import 'package:AccessAbility/accessability/firebaseServices/place/place_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:Accessability/accessability/data/model/user_model.dart';
-import 'package:Accessability/accessability/firebaseServices/auth/auth_service.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class UserRepository {
   final FirebaseFirestore _firestore;
   final SharedPreferences? _sharedPrefs;
   final AuthService authService;
+  final PlaceService placeService;
 
-  UserRepository(this._firestore, this._sharedPrefs, this.authService);
+  UserRepository(
+      this._firestore, this._sharedPrefs, this.authService, this.placeService);
 
   // Fetch user data from Firestore
   Future<UserModel?> fetchUserData(String uid) async {
@@ -127,6 +132,41 @@ class UserRepository {
     } catch (e) {
       print('Failed to update profile picture: $e');
       throw Exception('Failed to update profile picture: ${e.toString()}');
+    }
+  }
+
+  // Add a Place
+  Future<void> addPlace(
+    String name,
+    String category,
+    double latitude,
+    double longitude,
+  ) async {
+    try {
+      await placeService.addPlace(name, category, latitude, longitude);
+    } catch (e) {
+      print('AuthRepository: Failed to add place - ${e.toString()}');
+      throw Exception('Failed to add place: ${e.toString()}');
+    }
+  }
+
+  // Get Places by Category
+  Stream<List<Place>> getPlacesByCategory(String category) {
+    try {
+      return placeService.getPlacesByCategory(category);
+    } catch (e) {
+      print('AuthRepository: Failed to fetch places - ${e.toString()}');
+      throw Exception('Failed to fetch places: ${e.toString()}');
+    }
+  }
+
+  // Delete a Place
+  Future<void> deletePlace(String placeId) async {
+    try {
+      await placeService.deletePlace(placeId);
+    } catch (e) {
+      print('AuthRepository: Failed to delete place - ${e.toString()}');
+      throw Exception('Failed to delete place: ${e.toString()}');
     }
   }
 }

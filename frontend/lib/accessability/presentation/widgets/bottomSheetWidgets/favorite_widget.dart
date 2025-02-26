@@ -1,46 +1,71 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:AccessAbility/accessability/firebaseServices/models/place.dart';
+import 'package:AccessAbility/accessability/logic/bloc/user/user_bloc.dart';
+import 'package:AccessAbility/accessability/logic/bloc/user/user_event.dart';
+import 'package:AccessAbility/accessability/logic/bloc/user/user_state.dart';
 
 class FavoriteWidget extends StatefulWidget {
-  const FavoriteWidget({Key? key}) : super(key: key);
+  final VoidCallback? onPlaceAdded;
+
+  const FavoriteWidget({super.key, this.onPlaceAdded});
 
   @override
   State<FavoriteWidget> createState() => _FavoriteWidgetState();
 }
 
 class _FavoriteWidgetState extends State<FavoriteWidget> {
+  // Each list represents a category of places.
   final List<Map<String, dynamic>> lists = [
     {
       "icon": Icons.favorite_border,
       "title": "Favorites",
       "subtitle": "Private · 0 places",
-      "expanded": false
+      "expanded": false,
     },
     {
       "icon": Icons.outlined_flag,
       "title": "Want to go",
       "subtitle": "Private · 0 places",
-      "expanded": false
+      "expanded": false,
     },
     {
       "icon": Icons.navigation_outlined,
       "title": "Visited",
       "subtitle": "Private · 0 places",
-      "expanded": false
+      "expanded": false,
     },
   ];
 
+  /// When toggling expansion, collapse all other lists and,
+  /// if the tapped list is expanding, load its places.
   void toggleExpansion(int index) {
     setState(() {
-      lists[index]['expanded'] = !lists[index]['expanded'];
+      // Collapse all other lists.
+      for (int i = 0; i < lists.length; i++) {
+        if (i == index) {
+          lists[i]['expanded'] = !lists[i]['expanded'];
+        } else {
+          lists[i]['expanded'] = false;
+        }
+      }
     });
+
+    // If the list is expanded, trigger a load for its places.
+    if (lists[index]['expanded'] == true) {
+      final category = lists[index]['title'];
+      context
+          .read<UserBloc>()
+          .add(GetPlacesByCategoryEvent(category: category));
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return DraggableScrollableSheet(
-      initialChildSize: 0.5, // Adjust the initial size as needed
-      minChildSize: 0.5, // Minimum size of the sheet
-      maxChildSize: 0.8, // Maximum size of the sheet
+      initialChildSize: 0.3, // Adjust the initial size as needed
+      minChildSize: 0.3,
+      maxChildSize: 0.8,
       builder: (BuildContext context, ScrollController scrollController) {
         return Container(
           decoration: const BoxDecoration(
@@ -65,20 +90,38 @@ class _FavoriteWidgetState extends State<FavoriteWidget> {
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
                   Container(
-                    width: 100, // Adjust width as needed
-                    height: 2, // Thin line
-                    color: Colors.grey.shade700, // Dark grey color
-                    margin: const EdgeInsets.only(
-                        bottom: 8), // Space below the line
+                    width: 100,
+                    height: 2,
+                    color: Colors.grey.shade700,
+                    margin: const EdgeInsets.only(bottom: 8),
                   ),
-                  const SizedBox(
-                    height: 5,
-                  ),
+                  const SizedBox(height: 5),
                   Padding(
                     padding: const EdgeInsets.all(16),
                     child: ElevatedButton(
-                      onPressed: () {
-                        // Add new list action
+                      onPressed: () async {
+                        // Instead of showing a dialog, push a full-screen page.
+                        final newListData =
+                            await Navigator.pushNamed<Map<String, dynamic>>(
+                          context,
+                          '/addPlace',
+                        );
+                        print("Returned from /addPlace: $newListData");
+
+                        // If user returns data from that screen, update your list accordingly.
+                        if (newListData != null) {
+                          setState(() {
+                            lists.add({
+                              "icon": Icons.list,
+                              "title": newListData['title'] ?? "New List",
+                              "subtitle": "Private · 0 places",
+                              "expanded": false,
+                            });
+                          });
+                          if (widget.onPlaceAdded != null) {
+                            widget.onPlaceAdded!();
+                          }
+                        }
                       },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFFD8CFE8),
@@ -92,7 +135,6 @@ class _FavoriteWidgetState extends State<FavoriteWidget> {
                       child: const Center(child: Text("+ New List")),
                     ),
                   ),
-
                   // "Your lists" Title
                   const Row(
                     mainAxisAlignment: MainAxisAlignment.start,
@@ -108,8 +150,7 @@ class _FavoriteWidgetState extends State<FavoriteWidget> {
                       ),
                     ],
                   ),
-
-                  // List Items
+                  // Generate list items
                   ...List.generate(lists.length, (index) {
                     return Column(
                       children: [
@@ -135,18 +176,57 @@ class _FavoriteWidgetState extends State<FavoriteWidget> {
                           ),
                           onTap: () => toggleExpansion(index),
                         ),
-
-                        // Expandable Section (if needed)
+                        // Expanded Section: show places for the category.
                         if (lists[index]['expanded'])
-                          Padding(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 16, vertical: 8),
-                            child: Text(
-                              "Expanded content for ${lists[index]['title']}",
-                              style: TextStyle(color: Colors.grey.shade600),
-                            ),
+                          BlocBuilder<UserBloc, UserState>(
+                            builder: (context, state) {
+                              if (state is PlaceOperationLoading) {
+                                return const Padding(
+                                  padding: EdgeInsets.all(16.0),
+                                  child: Center(
+                                      child: CircularProgressIndicator()),
+                                );
+                              } else if (state is PlacesLoaded) {
+                                final places = state.places;
+                                // Update subtitle to show count
+                                lists[index]['subtitle'] =
+                                    "Private · ${places.length} places";
+                                return places.isEmpty
+                                    ? const Padding(
+                                        padding: EdgeInsets.all(16.0),
+                                        child: Text("No places available."),
+                                      )
+                                    : Column(
+                                        children: places.map((Place place) {
+                                          return ListTile(
+                                            title: Text(place.name),
+                                            trailing: IconButton(
+                                              icon: const Icon(Icons.delete,
+                                                  color: Colors.red),
+                                              onPressed: () {
+                                                // Dispatch delete event and refresh list.
+                                                context.read<UserBloc>().add(
+                                                    DeletePlaceEvent(
+                                                        placeId: place.id));
+                                                final category =
+                                                    lists[index]['title'];
+                                                context.read<UserBloc>().add(
+                                                    GetPlacesByCategoryEvent(
+                                                        category: category));
+                                              },
+                                            ),
+                                          );
+                                        }).toList(),
+                                      );
+                              } else if (state is PlaceOperationError) {
+                                return Padding(
+                                  padding: const EdgeInsets.all(16.0),
+                                  child: Text(state.message),
+                                );
+                              }
+                              return const SizedBox.shrink();
+                            },
                           ),
-
                         const Divider(indent: 16, endIndent: 16, height: 0),
                       ],
                     );

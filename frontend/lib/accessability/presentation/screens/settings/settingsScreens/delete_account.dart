@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:Accessability/accessability/presentation/screens/settings/settingsScreens/privacy_security_screen.dart';
+import 'package:AccessAbility/accessability/presentation/screens/settings/settingsScreens/privacy_security_screen.dart';
 
 class DeleteAccount extends StatefulWidget {
   const DeleteAccount({super.key});

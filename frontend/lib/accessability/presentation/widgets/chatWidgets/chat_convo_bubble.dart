@@ -1,8 +1,8 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
-import 'package:Accessability/accessability/themes/theme_provider.dart';
+import 'package:AccessAbility/accessability/themes/theme_provider.dart';
 import 'package:provider/provider.dart';
-import 'package:intl/intl.dart'; 
+import 'package:intl/intl.dart';
 import 'package:emoji_picker_flutter/emoji_picker_flutter.dart';
 
 class ChatConvoBubble extends StatefulWidget {
@@ -85,8 +85,10 @@ class _ChatConvoBubbleState extends State<ChatConvoBubble> {
 
   @override
   Widget build(BuildContext context) {
-    bool isDarkMode = Provider.of<ThemeProvider>(context, listen: false).isDarkMode;
-    String formattedTime = DateFormat('hh:mm a').format(widget.timestamp.toDate());
+    bool isDarkMode =
+        Provider.of<ThemeProvider>(context, listen: false).isDarkMode;
+    String formattedTime =
+        DateFormat('hh:mm a').format(widget.timestamp.toDate());
 
     return GestureDetector(
       onTap: () {
@@ -99,7 +101,9 @@ class _ChatConvoBubbleState extends State<ChatConvoBubble> {
         decoration: BoxDecoration(
           color: widget.isCurrentUser
               ? const Color(0xFF6750A4)
-              : (isDarkMode ? const Color.fromARGB(255, 65, 63, 71) : const Color.fromARGB(255, 145, 141, 141)),
+              : (isDarkMode
+                  ? const Color.fromARGB(255, 65, 63, 71)
+                  : const Color.fromARGB(255, 145, 141, 141)),
           borderRadius: BorderRadius.circular(12),
         ),
         padding: const EdgeInsets.all(16),
@@ -107,15 +111,21 @@ class _ChatConvoBubbleState extends State<ChatConvoBubble> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(widget.message, style: TextStyle(
-              color: widget.isCurrentUser ? Colors.white : (isDarkMode ? Colors.white : Colors.black)),
+            Text(
+              widget.message,
+              style: TextStyle(
+                  color: widget.isCurrentUser
+                      ? Colors.white
+                      : (isDarkMode ? Colors.white : Colors.black)),
             ),
             const SizedBox(height: 4),
             if (_showTimestamp)
-              Text(formattedTime, style: TextStyle(
-                color: widget.isCurrentUser ? Colors.white70 : Colors.black54,
-                fontSize: 12,
-              )),
+              Text(formattedTime,
+                  style: TextStyle(
+                    color:
+                        widget.isCurrentUser ? Colors.white70 : Colors.black54,
+                    fontSize: 12,
+                  )),
           ],
         ),
       ),

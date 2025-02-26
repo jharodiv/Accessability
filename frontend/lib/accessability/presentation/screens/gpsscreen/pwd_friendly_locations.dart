@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:Accessability/accessability/data/model/pwd_friendly_location.dart';
+import 'package:AccessAbility/accessability/data/model/pwd_friendly_location.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 class PwdFriendlyLocations extends StatelessWidget {

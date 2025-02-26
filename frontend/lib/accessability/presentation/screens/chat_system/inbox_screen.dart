@@ -1,6 +1,6 @@
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
-import 'package:Accessability/accessability/presentation/widgets/chatWidgets/chat_users_list.dart';
+import 'package:AccessAbility/accessability/presentation/widgets/chatWidgets/chat_users_list.dart';
 
 class InboxScreen extends StatefulWidget {
   const InboxScreen({super.key});
@@ -10,11 +10,9 @@ class InboxScreen extends StatefulWidget {
 }
 
 class _InboxScreenState extends State<InboxScreen> {
-
   @override
   void initState() {
     super.initState();
-   
 
     // Listen for new messages
     FirebaseMessaging.onMessage.listen((RemoteMessage message) {

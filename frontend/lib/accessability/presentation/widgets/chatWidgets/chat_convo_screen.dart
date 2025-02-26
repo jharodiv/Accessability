@@ -1,9 +1,9 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
-import 'package:Accessability/accessability/firebaseServices/auth/auth_service.dart';
-import 'package:Accessability/accessability/firebaseServices/chat/chat_service.dart';
-import 'package:Accessability/accessability/presentation/widgets/chatWidgets/chat_convo_bubble.dart';
-import 'package:Accessability/accessability/presentation/widgets/reusableWidgets/custom_text_field.dart';
+import 'package:AccessAbility/accessability/firebaseServices/auth/auth_service.dart';
+import 'package:AccessAbility/accessability/firebaseServices/chat/chat_service.dart';
+import 'package:AccessAbility/accessability/presentation/widgets/chatWidgets/chat_convo_bubble.dart';
+import 'package:AccessAbility/accessability/presentation/widgets/reusableWidgets/custom_text_field.dart';
 import 'package:intl/intl.dart';
 
 class ChatConvoScreen extends StatefulWidget {
@@ -11,7 +11,6 @@ class ChatConvoScreen extends StatefulWidget {
     super.key,
     required this.receiverEmail,
     required this.receiverID,
-
   });
 
   final String receiverEmail;
@@ -100,7 +99,10 @@ class _ChatConvoScreenState extends State<ChatConvoScreen> {
           // Check if we need to add a timestamp divider
           if (lastTimestamp != null) {
             final currentTimestamp = data['timestamp'] as Timestamp;
-            final difference = currentTimestamp.toDate().difference(lastTimestamp.toDate()).inMinutes;
+            final difference = currentTimestamp
+                .toDate()
+                .difference(lastTimestamp.toDate())
+                .inMinutes;
 
             if (difference >= 10) {
               messageWidgets.add(
@@ -141,11 +143,13 @@ class _ChatConvoScreenState extends State<ChatConvoScreen> {
   Widget _buildMessageItem(DocumentSnapshot doc) {
     Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
     bool isCurrentUser = data['senderID'] == authService.getCurrentUser()!.uid;
-    var alignment = isCurrentUser ? Alignment.centerRight : Alignment.centerLeft;
+    var alignment =
+        isCurrentUser ? Alignment.centerRight : Alignment.centerLeft;
     return Container(
       alignment: alignment,
       child: Column(
-        crossAxisAlignment: isCurrentUser ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+        crossAxisAlignment:
+            isCurrentUser ? CrossAxisAlignment.end : CrossAxisAlignment.start,
         children: [
           ChatConvoBubble(
             isCurrentUser: isCurrentUser,

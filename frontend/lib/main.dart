@@ -5,13 +5,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:frontend/accessability/backgroundServices/background_service.dart';
 import 'package:frontend/accessability/data/repositories/auth_repository.dart';
 import 'package:frontend/accessability/data/repositories/user_repository.dart';
 import 'package:frontend/accessability/firebaseServices/chat/fcm_service.dart';
 import 'package:frontend/accessability/logic/bloc/auth/auth_bloc.dart';
 import 'package:frontend/accessability/logic/bloc/auth/auth_event.dart';
 import 'package:frontend/accessability/logic/bloc/user/user_bloc.dart';
-import 'package:location/location.dart';
 import 'package:provider/provider.dart';
 import 'package:frontend/accessability/router/app_router.dart';
 import 'package:frontend/accessability/themes/theme_provider.dart';
@@ -19,34 +19,13 @@ import 'package:frontend/firebase_options.dart';
 import 'package:frontend/accessability/firebaseServices/auth/auth_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:intl/date_symbol_data_local.dart';
-import 'package:workmanager/workmanager.dart';
+import 'package:frontend/accessability/backgroundServices/location_notification_service.dart';
+
+
 
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
-
-
-void callbackDispatcher() {
-  Workmanager().executeTask((task, inputData) async {
-    if (task == "locationUpdate") {
-      final location = Location();
-      final locationData = await location.getLocation();
-      final user = FirebaseAuth.instance.currentUser;
-
-      if (user != null) {
-        await FirebaseFirestore.instance
-            .collection('UserLocations')
-            .doc(user.uid)
-            .set({
-          'latitude': locationData.latitude,
-          'longitude': locationData.longitude,
-          'timestamp': DateTime.now(),
-        });
-      }
-    }
-    return Future.value(true);
-  });
-}
-
+ 
 
 void main() async {
   // Ensure Flutter bindings are initialized
@@ -54,6 +33,11 @@ void main() async {
 
   // Initialize Firebase
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+
+
+  await createNotificationChannel();
+
+  await initializeService();
 
   // Initialize SharedPreferences
   final SharedPreferences sharedPreferences = await SharedPreferences.getInstance();
@@ -68,12 +52,6 @@ void main() async {
 
   // Initialize date formatting
   await initializeDateFormatting();
-
-   Workmanager().initialize(
-    callbackDispatcher,
-    isInDebugMode: true,
-  );
-
   
 
   // Initialize FCMService

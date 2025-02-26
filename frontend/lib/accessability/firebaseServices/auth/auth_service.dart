@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+import 'package:flutter_background_service/flutter_background_service.dart';
 import 'package:frontend/accessability/firebaseServices/chat/fcm_service.dart';
 import 'package:frontend/main.dart';
 import 'package:image_picker/image_picker.dart';
@@ -99,24 +100,35 @@ class AuthService {
     }
   }
 
-  // Logout and clear FCM token
+   //Logout and clear fcm token + stop background service
   Future<void> signOut() async {
-    try {
-      final user = _auth.currentUser;
-      if (user != null) {
-        // Clear the FCM token from Firestore
-        await _firestore.collection('Users').doc(user.uid).update({
-          'fcmToken': FieldValue.delete(), // Remove the FCM token
-        });
-      }
-
-      // Sign out the user
-      await _auth.signOut();
-    } catch (e) {
-      print('Error during logout: $e');
-      throw Exception('Failed to logout: $e');
+  try {
+    final user = _auth.currentUser;
+    if (user != null) {
+      // Clear the FCM token from Firestore
+      await _firestore.collection('Users').doc(user.uid).update({
+        'fcmToken': FieldValue.delete(), // Remove the FCM token
+      });
     }
+
+    // Stop the background service if it is running
+    final service = FlutterBackgroundService();
+    final isRunning = await service.isRunning();
+    if (isRunning) {
+      try {
+        service.invoke('stopService'); // Remove the `await` keyword
+      } catch (e) {
+        print('Error stopping background service: $e');
+      }
+    }
+
+    // Sign out the user
+    await _auth.signOut();
+  } catch (e) {
+    print('Error during logout: $e');
+    throw Exception('Failed to logout: $e');
   }
+}
 
   // Complete Onboarding
   Future<void> completeOnboarding(String uid) async {

@@ -7,6 +7,7 @@ class TutorialWidget {
   final GlobalKey youKey;
   final GlobalKey locationKey;
   final GlobalKey securityKey;
+  final VoidCallback? onTutorialComplete;
 
   TutorialWidget({
     required this.inboxKey,
@@ -14,6 +15,7 @@ class TutorialWidget {
     required this.youKey,
     required this.locationKey,
     required this.securityKey,
+    this.onTutorialComplete,
   });
 
   void showTutorial(BuildContext context) {
@@ -192,12 +194,14 @@ class TutorialWidget {
         paddingFocus: 10,
         opacityShadow: 0.8,
         onFinish: () {
+          onTutorialComplete?.call();
           print("Tutorial finished");
         },
         onClickTarget: (target) {
           print('Clicked on target: $target');
         },
         onSkip: () {
+          onTutorialComplete?.call();
           print("Tutorial skipped");
           return true;
         },

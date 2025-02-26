@@ -5,7 +5,6 @@ import 'package:AccessAbility/accessability/firebaseServices/place/place_service
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 
 class UserRepository {
   final FirebaseFirestore _firestore;

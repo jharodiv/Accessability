@@ -49,6 +49,10 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       RegisterEvent event, Emitter<AuthState> emit) async {
     emit(AuthLoading());
     try {
+       final userModel = await authRepository.register(
+        event.signUpModel,
+        event.profilePicture,
+      );
       emit(RegistrationSuccess());
     } catch (e) {
       emit(AuthError('Registration failed: ${e.toString()}'));
@@ -80,23 +84,43 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   }
 
   // Handle CompleteOnboardingEvent
-  Future<void> _onCompleteOnboardingEvent(
-    CompleteOnboardingEvent event,
-    Emitter<AuthState> emit,
-  ) async {
-    emit(AuthLoading());
-    try {
-      final user = await userRepository.getCachedUser(); // Use UserRepository
-      if (user != null) {
-        await authRepository.completeOnboarding(user.uid);
+Future<void> _onCompleteOnboardingEvent(
+  CompleteOnboardingEvent event,
+  Emitter<AuthState> emit,
+) async {
+  emit(AuthLoading());
+  try {
+    final user = await userRepository.getCachedUser();
+    if (user != null) {
+      await authRepository.completeOnboarding(user.uid);
+
+      // Fetch the updated user data
+      final updatedUser = await userRepository.fetchUserData(user.uid);
+      if (updatedUser != null) {
+        // Cache the updated user data
+        userRepository.cacheUserData(updatedUser);
+
+        emit(AuthenticatedLogin(
+          LoginModel(
+            token: updatedUser.uid,
+            userId: updatedUser.uid,
+            hasCompletedOnboarding: updatedUser.hasCompletedOnboarding,
+            user: updatedUser,
+          ),
+          hasCompletedOnboarding: updatedUser.hasCompletedOnboarding,
+        ));
+
         emit(const AuthSuccess('Onboarding completed successfully'));
       } else {
-        emit(const AuthError('User not found'));
+        emit(const AuthError('Failed to fetch updated user data'));
       }
-    } catch (e) {
-      emit(AuthError('Failed to complete onboarding: ${e.toString()}'));
+    } else {
+      emit(const AuthError('User not found'));
     }
+  } catch (e) {
+    emit(AuthError('Failed to complete onboarding: ${e.toString()}'));
   }
+}
 
   // Handle LogoutEvent
   Future<void> _onLogoutEvent(

@@ -8,6 +8,8 @@ import 'package:flutter_background_service/flutter_background_service.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 
+import 'package:shared_preferences/shared_preferences.dart';
+
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -52,7 +54,7 @@ class AuthService {
         'email': email,
         'username': username,
         'contactNumber': contactNumber,
-        'profilePicture': profilePictureUrl ?? '', // Save profile picture URL
+        'profilePicture': profilePictureUrl ?? 'https://firebasestorage.googleapis.com/v0/b/accessability-71ef7.firebasestorage.app/o/profile_pictures%2Fdefault_profile.png?alt=media&token=bc7a75a7-a78e-4460-b816-026a8fc341ba', // Save profile picture URL
         'hasCompletedOnboarding': false,
       });
 
@@ -136,17 +138,23 @@ class AuthService {
   }
 
   // Complete Onboarding
-  Future<void> completeOnboarding(String uid) async {
-    try {
-      await _firestore.collection('Users').doc(uid).update({
-        'hasCompletedOnboarding': true,
-      });
-      print('AuthService: Onboarding status updated for user $uid');
-    } catch (e) {
-      print('AuthService: Error updating onboarding status - ${e.toString()}');
-      throw Exception('Failed to update onboarding status: ${e.toString()}');
-    }
+ Future<void> completeOnboarding(String uid) async {
+  try {
+    // Update Firestore
+    await _firestore.collection('Users').doc(uid).update({
+      'hasCompletedOnboarding': true,
+    });
+    print('AuthService: Onboarding status updated for user $uid');
+
+    // Cache the updated status in SharedPreferences
+    final sharedPrefs = await SharedPreferences.getInstance();
+    await sharedPrefs.setBool('user_hasCompletedOnboarding', true);
+    print('Cached updated onboarding status for user $uid');
+  } catch (e) {
+    print('AuthService: Error updating onboarding status - ${e.toString()}');
+    throw Exception('Failed to update onboarding status: ${e.toString()}');
   }
+}
 
   Future<String?> updateProfilePicture(String uid, XFile imageFile) async {
     try {

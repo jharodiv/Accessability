@@ -38,64 +38,88 @@ class _GpsScreenState extends State<GpsScreen> {
   Set<Circle> _circles = {};
 
   @override
-  void initState() {
-    super.initState();
+void initState() {
+  super.initState();
 
-    // Initialize _tutorialWidget with keys
-    _tutorialWidget = TutorialWidget(
-      inboxKey: inboxKey,
-      settingsKey: settingsKey,
-      youKey: youKey,
-      locationKey: locationKey,
-      securityKey: securityKey,
-    );
+  // Initialize _tutorialWidget with keys
+  _tutorialWidget = TutorialWidget(
+    inboxKey: inboxKey,
+    settingsKey: settingsKey,
+    youKey: youKey,
+    locationKey: locationKey,
+    securityKey: securityKey,
+    onTutorialComplete: _onTutorialComplete, // Add this callback
+  );
 
-    // Initialize LocationHandler
-    _locationHandler = LocationHandler(
-      onMarkersUpdated: (markers) {
-        // Merge new markers with existing markers
-        final existingMarkers = _markers
-            .where((marker) => !marker.markerId.value.startsWith('user_'))
-            .toSet();
-        final updatedMarkers = existingMarkers.union(markers);
+  // Initialize LocationHandler
+  _locationHandler = LocationHandler(
+    onMarkersUpdated: (markers) {
+      // Merge new markers with existing markers
+      final existingMarkers = _markers
+          .where((marker) => !marker.markerId.value.startsWith('user_'))
+          .toSet();
+      final updatedMarkers = existingMarkers.union(markers);
 
-        setState(() {
-          _markers = updatedMarkers;
-        });
-      },
-    );
-
-    // Get user location
-    _locationHandler.getUserLocation().then((_) {
-      // Animate the camera to the user's location once it's available
-      if (_locationHandler.currentLocation != null && _locationHandler.mapController != null) {
-        _locationHandler.mapController!.animateCamera(
-          CameraUpdate.newLatLng(_locationHandler.currentLocation!),
-        );
-      }
-
-      _locationHandler.initializeUserMarker();
-    });
-
-    // Create markers for PWD-friendly locations
-    _markerHandler.createMarkers(pwdFriendlyLocations).then((markers) {
       setState(() {
-        _markers.addAll(markers);
+        _markers = updatedMarkers;
       });
-    });
+    },
+  );
 
-    // Check if onboarding is completed before showing the tutorial
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      final authBloc = context.read<AuthBloc>();
-      final hasCompletedOnboarding = authBloc.state is AuthenticatedLogin
-          ? (authBloc.state as AuthenticatedLogin).hasCompletedOnboarding
-          : false;
+  // Get user location
+  _locationHandler.getUserLocation().then((_) {
+    // Animate the camera to the user's location once it's available
+    if (_locationHandler.currentLocation != null && _locationHandler.mapController != null) {
+      _locationHandler.mapController!.animateCamera(
+        CameraUpdate.newLatLng(_locationHandler.currentLocation!),
+      );
+    }
 
-      if (!hasCompletedOnboarding) {
-        _tutorialWidget.showTutorial(context);
-      }
+    // Initialize the user's marker
+    _locationHandler.initializeUserMarker();
+  });
+
+  // Create markers for PWD-friendly locations
+  _markerHandler.createMarkers(pwdFriendlyLocations).then((markers) {
+    setState(() {
+      _markers.addAll(markers);
     });
-  }
+  });
+
+  // Check if onboarding is completed before showing the tutorial
+  WidgetsBinding.instance.addPostFrameCallback((_) {
+    final authBloc = context.read<AuthBloc>();
+    final hasCompletedOnboarding = authBloc.state is AuthenticatedLogin
+        ? (authBloc.state as AuthenticatedLogin).hasCompletedOnboarding
+        : false;
+
+    if (!hasCompletedOnboarding) {
+      _tutorialWidget.showTutorial(context);
+    }
+  });
+}
+
+// Callback when the tutorial is completed
+void _onTutorialComplete() {
+  // Re-trigger the map and marker initialization logic
+  _locationHandler.getUserLocation().then((_) {
+    if (_locationHandler.currentLocation != null && _locationHandler.mapController != null) {
+      _locationHandler.mapController!.animateCamera(
+        CameraUpdate.newLatLng(_locationHandler.currentLocation!),
+      );
+    }
+
+    // Re-initialize the user's marker
+    _locationHandler.initializeUserMarker();
+  });
+
+  // Re-create markers for PWD-friendly locations
+  _markerHandler.createMarkers(pwdFriendlyLocations).then((markers) {
+    setState(() {
+      _markers.addAll(markers);
+    });
+  });
+}
 
   Future<void> _fetchNearbyPlaces(String placeType) async {
     if (_locationHandler.currentLocation == null) {

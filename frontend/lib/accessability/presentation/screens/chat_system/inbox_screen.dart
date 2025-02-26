@@ -1,6 +1,6 @@
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
-import 'package:frontend/accessability/presentation/widgets/chatWidgets/chat_users_list.dart';
+import 'package:Accessability/accessability/presentation/widgets/chatWidgets/chat_users_list.dart';
 
 class InboxScreen extends StatefulWidget {
   const InboxScreen({super.key});

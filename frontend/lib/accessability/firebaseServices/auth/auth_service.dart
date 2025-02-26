@@ -3,8 +3,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter_background_service/flutter_background_service.dart';
-import 'package:frontend/accessability/firebaseServices/chat/fcm_service.dart';
-import 'package:frontend/main.dart';
+import 'package:Accessability/accessability/firebaseServices/chat/fcm_service.dart';
+import 'package:Accessability/main.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 

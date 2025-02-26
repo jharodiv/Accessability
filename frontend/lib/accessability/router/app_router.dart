@@ -1,22 +1,22 @@
 import 'package:flutter/material.dart';
-import 'package:frontend/accessability/logic/firebase_logic/SignupModel.dart';
-import 'package:frontend/accessability/presentation/screens/authScreens/login_screen.dart';
-import 'package:frontend/accessability/presentation/screens/authScreens/signup_screen.dart';
-import 'package:frontend/accessability/presentation/screens/authScreens/onboarding_screen.dart';
-import 'package:frontend/accessability/presentation/screens/authscreens/upload_profile_screen.dart';
-import 'package:frontend/accessability/presentation/screens/chat_system/inbox_screen.dart';
-import 'package:frontend/accessability/presentation/screens/gpsScreen/gps.dart';
-import 'package:frontend/accessability/presentation/screens/settings/settings_screen.dart';
-import 'package:frontend/accessability/presentation/screens/sos/sos_screen.dart';
-import 'package:frontend/accessability/presentation/screens/splash_screen.dart';
-import 'package:frontend/accessability/presentation/screens/settings/settingsScreens/account_screen.dart';
-import 'package:frontend/accessability/presentation/screens/settings/settingsScreens/biometric_screen.dart';
-import 'package:frontend/accessability/presentation/screens/settings/settingsScreens/chat_with_support_screen.dart';
-import 'package:frontend/accessability/presentation/screens/settings/settingsScreens/preferences_screen.dart';
-import 'package:frontend/accessability/presentation/screens/settings/settingsScreens/privacy_security_screen.dart';
-import 'package:frontend/accessability/presentation/screens/settings/settingsScreens/about_screen.dart';
-import 'package:frontend/accessability/presentation/widgets/chatWidgets/chat_convo_screen.dart';
-import 'package:frontend/main.dart';
+import 'package:Accessability/accessability/logic/firebase_logic/SignupModel.dart';
+import 'package:Accessability/accessability/presentation/screens/authScreens/login_screen.dart';
+import 'package:Accessability/accessability/presentation/screens/authScreens/signup_screen.dart';
+import 'package:Accessability/accessability/presentation/screens/authScreens/onboarding_screen.dart';
+import 'package:Accessability/accessability/presentation/screens/authscreens/upload_profile_screen.dart';
+import 'package:Accessability/accessability/presentation/screens/chat_system/inbox_screen.dart';
+import 'package:Accessability/accessability/presentation/screens/gpsScreen/gps.dart';
+import 'package:Accessability/accessability/presentation/screens/settings/settings_screen.dart';
+import 'package:Accessability/accessability/presentation/screens/sos/sos_screen.dart';
+import 'package:Accessability/accessability/presentation/screens/splash_screen.dart';
+import 'package:Accessability/accessability/presentation/screens/settings/settingsScreens/account_screen.dart';
+import 'package:Accessability/accessability/presentation/screens/settings/settingsScreens/biometric_screen.dart';
+import 'package:Accessability/accessability/presentation/screens/settings/settingsScreens/chat_with_support_screen.dart';
+import 'package:Accessability/accessability/presentation/screens/settings/settingsScreens/preferences_screen.dart';
+import 'package:Accessability/accessability/presentation/screens/settings/settingsScreens/privacy_security_screen.dart';
+import 'package:Accessability/accessability/presentation/screens/settings/settingsScreens/about_screen.dart';
+import 'package:Accessability/accessability/presentation/widgets/chatWidgets/chat_convo_screen.dart';
+import 'package:Accessability/main.dart';
 
 class AppRouter {
   Route<dynamic>? onGenerateRoute(RouteSettings routeSettings) {

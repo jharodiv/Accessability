@@ -1,4 +1,4 @@
-import 'package:frontend/accessability/data/model/user_model.dart';
+import 'package:Accessability/accessability/data/model/user_model.dart';
 abstract class UserState {}
 
 class UserInitial extends UserState {}

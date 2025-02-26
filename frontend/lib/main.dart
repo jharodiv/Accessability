@@ -5,21 +5,21 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'package:frontend/accessability/backgroundServices/background_service.dart';
-import 'package:frontend/accessability/data/repositories/auth_repository.dart';
-import 'package:frontend/accessability/data/repositories/user_repository.dart';
-import 'package:frontend/accessability/firebaseServices/chat/fcm_service.dart';
-import 'package:frontend/accessability/logic/bloc/auth/auth_bloc.dart';
-import 'package:frontend/accessability/logic/bloc/auth/auth_event.dart';
-import 'package:frontend/accessability/logic/bloc/user/user_bloc.dart';
+import 'package:Accessability/accessability/backgroundServices/background_service.dart';
+import 'package:Accessability/accessability/data/repositories/auth_repository.dart';
+import 'package:Accessability/accessability/data/repositories/user_repository.dart';
+import 'package:Accessability/accessability/firebaseServices/chat/fcm_service.dart';
+import 'package:Accessability/accessability/logic/bloc/auth/auth_bloc.dart';
+import 'package:Accessability/accessability/logic/bloc/auth/auth_event.dart';
+import 'package:Accessability/accessability/logic/bloc/user/user_bloc.dart';
 import 'package:provider/provider.dart';
-import 'package:frontend/accessability/router/app_router.dart';
-import 'package:frontend/accessability/themes/theme_provider.dart';
-import 'package:frontend/firebase_options.dart';
-import 'package:frontend/accessability/firebaseServices/auth/auth_service.dart';
+import 'package:Accessability/accessability/router/app_router.dart';
+import 'package:Accessability/accessability/themes/theme_provider.dart';
+import 'package:Accessability/firebase_options.dart';
+import 'package:Accessability/accessability/firebaseServices/auth/auth_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:intl/date_symbol_data_local.dart';
-import 'package:frontend/accessability/backgroundServices/location_notification_service.dart';
+import 'package:Accessability/accessability/backgroundServices/location_notification_service.dart';
 
 
 

@@ -1,9 +1,9 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
-import 'package:frontend/accessability/firebaseServices/auth/auth_service.dart';
-import 'package:frontend/accessability/firebaseServices/chat/chat_service.dart';
-import 'package:frontend/accessability/presentation/widgets/chatWidgets/chat_convo_bubble.dart';
-import 'package:frontend/accessability/presentation/widgets/reusableWidgets/custom_text_field.dart';
+import 'package:Accessability/accessability/firebaseServices/auth/auth_service.dart';
+import 'package:Accessability/accessability/firebaseServices/chat/chat_service.dart';
+import 'package:Accessability/accessability/presentation/widgets/chatWidgets/chat_convo_bubble.dart';
+import 'package:Accessability/accessability/presentation/widgets/reusableWidgets/custom_text_field.dart';
 import 'package:intl/intl.dart';
 
 class ChatConvoScreen extends StatefulWidget {

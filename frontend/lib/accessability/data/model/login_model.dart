@@ -1,4 +1,4 @@
-import 'package:frontend/accessability/data/model/user_model.dart';
+import 'package:Accessability/accessability/data/model/user_model.dart';
 class LoginModel {
   final String token;
   final String userId;

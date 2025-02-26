@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:frontend/accessability/themes/theme_provider.dart';
+import 'package:Accessability/accessability/themes/theme_provider.dart';
 import 'package:provider/provider.dart';
 
 class PreferencesScreen extends StatefulWidget {

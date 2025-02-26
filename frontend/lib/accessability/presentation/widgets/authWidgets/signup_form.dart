@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:frontend/accessability/logic/firebase_logic/SignupModel.dart';
-import 'package:frontend/accessability/presentation/screens/authScreens/upload_profile_screen.dart';
+import 'package:Accessability/accessability/logic/firebase_logic/SignupModel.dart';
+import 'package:Accessability/accessability/presentation/screens/authScreens/upload_profile_screen.dart';
 
 class SignupForm extends StatefulWidget {
   const SignupForm({super.key});

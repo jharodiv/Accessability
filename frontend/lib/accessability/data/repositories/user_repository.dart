@@ -1,6 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:frontend/accessability/data/model/user_model.dart';
-import 'package:frontend/accessability/firebaseServices/auth/auth_service.dart';
+import 'package:Accessability/accessability/data/model/user_model.dart';
+import 'package:Accessability/accessability/firebaseServices/auth/auth_service.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 

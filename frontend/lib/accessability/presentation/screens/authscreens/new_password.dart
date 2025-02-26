@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:frontend/accessability/presentation/widgets/accessability_header.dart';
-import 'package:frontend/accessability/presentation/widgets/authwidgets/new_password_form.dart';
+import 'package:Accessability/accessability/presentation/widgets/accessability_header.dart';
+import 'package:Accessability/accessability/presentation/widgets/authwidgets/new_password_form.dart';
 
 class Newpassword extends StatelessWidget {
   const Newpassword({super.key});

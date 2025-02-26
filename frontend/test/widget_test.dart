@@ -7,7 +7,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:frontend/accessability/presentation/screens/authScreens/signup_screen.dart';
+import 'package:Accessability/accessability/presentation/screens/authScreens/signup_screen.dart';
 
 //import 'package:frontend/main.dart';
 

@@ -1,6 +1,4 @@
-import 'dart:io';
-
-import 'package:frontend/accessability/logic/firebase_logic/SignupModel.dart';
+import 'package:Accessability/accessability/logic/firebase_logic/SignupModel.dart';
 import 'package:image_picker/image_picker.dart';
 
 abstract class AuthEvent {}

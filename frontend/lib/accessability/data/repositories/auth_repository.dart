@@ -1,10 +1,10 @@
 
-import 'package:frontend/accessability/data/repositories/user_repository.dart';
-import 'package:frontend/accessability/logic/firebase_logic/SignupModel.dart';
+import 'package:Accessability/accessability/data/repositories/user_repository.dart';
+import 'package:Accessability/accessability/logic/firebase_logic/SignupModel.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:frontend/accessability/firebaseServices/auth/auth_service.dart';
-import 'package:frontend/accessability/data/model/login_model.dart';
-import 'package:frontend/accessability/data/model/user_model.dart';
+import 'package:Accessability/accessability/firebaseServices/auth/auth_service.dart';
+import 'package:Accessability/accessability/data/model/login_model.dart';
+import 'package:Accessability/accessability/data/model/user_model.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:image_picker/image_picker.dart';
   

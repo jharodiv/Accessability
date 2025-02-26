@@ -3,9 +3,9 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:frontend/accessability/firebaseServices/chat/chat_service.dart';
-import 'package:frontend/accessability/presentation/widgets/bottomSheetWidgets/add_place.dart';
-import 'package:frontend/accessability/presentation/widgets/bottomSheetWidgets/map_content.dart'; // Import your ChatService
+import 'package:Accessability/accessability/firebaseServices/chat/chat_service.dart';
+import 'package:Accessability/accessability/presentation/widgets/bottomSheetWidgets/add_place.dart';
+import 'package:Accessability/accessability/presentation/widgets/bottomSheetWidgets/map_content.dart'; // Import your ChatService
 
 class BottomWidgets extends StatefulWidget {
   final ScrollController scrollController;

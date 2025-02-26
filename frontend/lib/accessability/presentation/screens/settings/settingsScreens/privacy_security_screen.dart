@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:frontend/accessability/presentation/screens/settings/settingsScreens/privacy_and_security/additional_data_rights.dart';
-import 'package:frontend/accessability/presentation/screens/settings/settingsScreens/privacy_and_security/data_security.dart';
-import 'package:frontend/accessability/presentation/screens/settings/settingsScreens/privacy_and_security/privacy_policy.dart';
+import 'package:Accessability/accessability/presentation/screens/settings/settingsScreens/privacy_and_security/additional_data_rights.dart';
+import 'package:Accessability/accessability/presentation/screens/settings/settingsScreens/privacy_and_security/data_security.dart';
+import 'package:Accessability/accessability/presentation/screens/settings/settingsScreens/privacy_and_security/privacy_policy.dart';
 
 class PrivacySecurity extends StatelessWidget {
   const PrivacySecurity({super.key});

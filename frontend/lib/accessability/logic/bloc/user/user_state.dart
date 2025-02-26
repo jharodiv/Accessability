@@ -1,4 +1,6 @@
-import 'package:Accessability/accessability/data/model/user_model.dart';
+import 'package:AccessAbility/accessability/data/model/user_model.dart';
+import 'package:AccessAbility/accessability/firebaseServices/models/place.dart';
+
 abstract class UserState {}
 
 class UserInitial extends UserState {}
@@ -15,4 +17,21 @@ class UserError extends UserState {
   final String message;
 
   UserError(this.message);
+}
+
+// New states for Place operations
+class PlaceOperationLoading extends UserState {}
+
+class PlaceOperationSuccess extends UserState {}
+
+class PlacesLoaded extends UserState {
+  final List<Place> places;
+
+  PlacesLoaded(this.places);
+}
+
+class PlaceOperationError extends UserState {
+  final String message;
+
+  PlaceOperationError(this.message);
 }

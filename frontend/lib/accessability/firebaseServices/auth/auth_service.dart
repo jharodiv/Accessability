@@ -1,10 +1,10 @@
+import 'package:AccessAbility/accessability/firebaseServices/chat/fcm_service.dart';
+import 'package:AccessAbility/main.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter_background_service/flutter_background_service.dart';
-import 'package:Accessability/accessability/firebaseServices/chat/fcm_service.dart';
-import 'package:Accessability/main.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 
@@ -13,14 +13,12 @@ class AuthService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   late FCMService _fcmService;
   final FirebaseStorage _firebaseStorage = FirebaseStorage.instance;
- 
-
 
   User? getCurrentUser() {
     return _auth.currentUser;
   }
 
-    // Register with profile picture
+  // Register with profile picture
   Future<UserCredential> signUpWithEmailAndPassword(
     String email,
     String password,
@@ -30,7 +28,8 @@ class AuthService {
   ) async {
     try {
       // Step 1: Create the user
-      UserCredential userCredential = await _auth.createUserWithEmailAndPassword(
+      UserCredential userCredential =
+          await _auth.createUserWithEmailAndPassword(
         email: email,
         password: password,
       );
@@ -43,7 +42,8 @@ class AuthService {
       // Step 2: Upload the profile picture (if provided)
       String? profilePictureUrl;
       if (profilePicture != null) {
-        profilePictureUrl = await uploadProfilePicture(user.uid, profilePicture);
+        profilePictureUrl =
+            await uploadProfilePicture(user.uid, profilePicture);
       }
 
       // Step 3: Save user data in Firestore
@@ -77,7 +77,8 @@ class AuthService {
   }
 
   // Login
-  Future<UserCredential> signInWithEmailPassword(String email, String password) async {
+  Future<UserCredential> signInWithEmailPassword(
+      String email, String password) async {
     try {
       UserCredential userCredential = await _auth.signInWithEmailAndPassword(
           email: email, password: password);
@@ -86,13 +87,17 @@ class AuthService {
         throw Exception("Login failed");
       }
 
-     // Save FCM token after login
-    String? fcmToken = await FCMService(navigatorKey: navigatorKey).getFCMToken();
-    if (fcmToken != null) {
-      await _firestore.collection('Users').doc(userCredential.user!.uid).update({
-        'fcmToken': fcmToken,
-      });
-    }
+      // Save FCM token after login
+      String? fcmToken =
+          await FCMService(navigatorKey: navigatorKey).getFCMToken();
+      if (fcmToken != null) {
+        await _firestore
+            .collection('Users')
+            .doc(userCredential.user!.uid)
+            .update({
+          'fcmToken': fcmToken,
+        });
+      }
 
       return userCredential;
     } on FirebaseAuthException catch (e) {
@@ -100,35 +105,35 @@ class AuthService {
     }
   }
 
-   //Logout and clear fcm token + stop background service
+  //Logout and clear fcm token + stop background service
   Future<void> signOut() async {
-  try {
-    final user = _auth.currentUser;
-    if (user != null) {
-      // Clear the FCM token from Firestore
-      await _firestore.collection('Users').doc(user.uid).update({
-        'fcmToken': FieldValue.delete(), // Remove the FCM token
-      });
-    }
-
-    // Stop the background service if it is running
-    final service = FlutterBackgroundService();
-    final isRunning = await service.isRunning();
-    if (isRunning) {
-      try {
-        service.invoke('stopService'); // Remove the `await` keyword
-      } catch (e) {
-        print('Error stopping background service: $e');
+    try {
+      final user = _auth.currentUser;
+      if (user != null) {
+        // Clear the FCM token from Firestore
+        await _firestore.collection('Users').doc(user.uid).update({
+          'fcmToken': FieldValue.delete(), // Remove the FCM token
+        });
       }
-    }
 
-    // Sign out the user
-    await _auth.signOut();
-  } catch (e) {
-    print('Error during logout: $e');
-    throw Exception('Failed to logout: $e');
+      // Stop the background service if it is running
+      final service = FlutterBackgroundService();
+      final isRunning = await service.isRunning();
+      if (isRunning) {
+        try {
+          service.invoke('stopService'); // Remove the `await` keyword
+        } catch (e) {
+          print('Error stopping background service: $e');
+        }
+      }
+
+      // Sign out the user
+      await _auth.signOut();
+    } catch (e) {
+      print('Error during logout: $e');
+      throw Exception('Failed to logout: $e');
+    }
   }
-}
 
   // Complete Onboarding
   Future<void> completeOnboarding(String uid) async {
@@ -143,7 +148,7 @@ class AuthService {
     }
   }
 
-   Future<String?> updateProfilePicture(String uid, XFile imageFile) async {
+  Future<String?> updateProfilePicture(String uid, XFile imageFile) async {
     try {
       // Upload the new profile picture to Firebase Storage
       Reference storageReference =
@@ -163,7 +168,7 @@ class AuthService {
     }
   }
 
-   Future<void> saveFCMToken(String uid) async {
+  Future<void> saveFCMToken(String uid) async {
     String? fcmToken = await FirebaseMessaging.instance.getToken();
     if (fcmToken != null) {
       await _firestore.collection('Users').doc(uid).update({

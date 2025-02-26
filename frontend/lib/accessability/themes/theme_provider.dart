@@ -1,6 +1,6 @@
-import 'package:Accessability/accessability/themes/light_mode.dart';
+import 'package:AccessAbility/accessability/themes/dark_mode.dart';
+import 'package:AccessAbility/accessability/themes/light_mode.dart';
 import 'package:flutter/material.dart';
-import 'package:Accessability/accessability/themes/dark_mode.dart';
 
 class ThemeProvider extends ChangeNotifier {
   ThemeData _themeData = lightMode;

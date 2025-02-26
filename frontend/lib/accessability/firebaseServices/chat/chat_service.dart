@@ -1,6 +1,6 @@
+import 'package:AccessAbility/accessability/firebaseServices/models/message.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:Accessability/accessability/firebaseServices/models/message.dart';
 
 class ChatService {
   final FirebaseFirestore firebaseFirestore = FirebaseFirestore.instance;
@@ -43,15 +43,15 @@ class ChatService {
 
   // Get messages for a chat room
   Stream<QuerySnapshot> getMessages(String userID, otherUserID) {
-  List<String> ids = [userID, otherUserID];
-  ids.sort();
-  String chatRoomID = ids.join('_');
+    List<String> ids = [userID, otherUserID];
+    ids.sort();
+    String chatRoomID = ids.join('_');
 
-  return firebaseFirestore
-      .collection('chat_rooms')
-      .doc(chatRoomID)
-      .collection('messages')
-      .orderBy('timestamp', descending: false) // Ensure ascending order
-      .snapshots();
-}
+    return firebaseFirestore
+        .collection('chat_rooms')
+        .doc(chatRoomID)
+        .collection('messages')
+        .orderBy('timestamp', descending: false) // Ensure ascending order
+        .snapshots();
+  }
 }

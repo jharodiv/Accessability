@@ -1,3 +1,4 @@
+import 'package:AccessAbility/accessability/firebaseServices/place/place_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -5,27 +6,23 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'package:Accessability/accessability/backgroundServices/background_service.dart';
-import 'package:Accessability/accessability/data/repositories/auth_repository.dart';
-import 'package:Accessability/accessability/data/repositories/user_repository.dart';
-import 'package:Accessability/accessability/firebaseServices/chat/fcm_service.dart';
-import 'package:Accessability/accessability/logic/bloc/auth/auth_bloc.dart';
-import 'package:Accessability/accessability/logic/bloc/auth/auth_event.dart';
-import 'package:Accessability/accessability/logic/bloc/user/user_bloc.dart';
+import 'package:AccessAbility/accessability/backgroundServices/background_service.dart';
+import 'package:AccessAbility/accessability/data/repositories/auth_repository.dart';
+import 'package:AccessAbility/accessability/data/repositories/user_repository.dart';
+import 'package:AccessAbility/accessability/firebaseServices/chat/fcm_service.dart';
+import 'package:AccessAbility/accessability/logic/bloc/auth/auth_bloc.dart';
+import 'package:AccessAbility/accessability/logic/bloc/auth/auth_event.dart';
+import 'package:AccessAbility/accessability/logic/bloc/user/user_bloc.dart';
 import 'package:provider/provider.dart';
-import 'package:Accessability/accessability/router/app_router.dart';
-import 'package:Accessability/accessability/themes/theme_provider.dart';
-import 'package:Accessability/firebase_options.dart';
-import 'package:Accessability/accessability/firebaseServices/auth/auth_service.dart';
+import 'package:AccessAbility/accessability/router/app_router.dart';
+import 'package:AccessAbility/accessability/themes/theme_provider.dart';
+import 'package:AccessAbility/firebase_options.dart';
+import 'package:AccessAbility/accessability/firebaseServices/auth/auth_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:intl/date_symbol_data_local.dart';
-import 'package:Accessability/accessability/backgroundServices/location_notification_service.dart';
-
-
-
+import 'package:AccessAbility/accessability/backgroundServices/location_notification_service.dart';
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
- 
 
 void main() async {
   // Ensure Flutter bindings are initialized
@@ -34,13 +31,17 @@ void main() async {
   // Initialize Firebase
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
+  await createNotificationChannel();
+
+  await initializeService();
 
   await createNotificationChannel();
 
   await initializeService();
 
   // Initialize SharedPreferences
-  final SharedPreferences sharedPreferences = await SharedPreferences.getInstance();
+  final SharedPreferences sharedPreferences =
+      await SharedPreferences.getInstance();
 
   // Load environment variables
   try {
@@ -52,13 +53,13 @@ void main() async {
 
   // Initialize date formatting
   await initializeDateFormatting();
-  
 
   // Initialize FCMService
   final FCMService fcmService = FCMService(navigatorKey: navigatorKey);
   fcmService.initializeFCMListeners(); // Pass the navigatorKey
 
   final AuthService authService = AuthService();
+  final PlaceService placeService = PlaceService(); // Initialize PlaceService
 
   // Initialize ThemeProvider
   runApp(
@@ -69,7 +70,7 @@ void main() async {
         navigatorKey: navigatorKey,
         fcmService: fcmService,
         authService: authService,
-       
+        placeService: placeService, // Pass PlaceService
       ),
     ),
   );
@@ -81,6 +82,7 @@ class MyApp extends StatelessWidget {
   final GlobalKey<NavigatorState> navigatorKey;
   final FCMService fcmService;
   final AuthService authService;
+  final PlaceService placeService; // Add this
 
   MyApp({
     super.key,
@@ -88,36 +90,37 @@ class MyApp extends StatelessWidget {
     required this.navigatorKey,
     required this.fcmService,
     required this.authService,
+    required this.placeService, // Initialize it
   });
 
-    @override
+  @override
   Widget build(BuildContext context) {
     return MultiBlocProvider(
       providers: [
         BlocProvider<UserBloc>(
           create: (context) => UserBloc(
             userRepository: UserRepository(
-              FirebaseFirestore.instance,
-              sharedPreferences,
-              authService, // Use the passed AuthService
-            ),
+                FirebaseFirestore.instance,
+                sharedPreferences,
+                authService,
+                placeService // Use the passed AuthService
+                ),
           ),
         ),
         BlocProvider<AuthBloc>(
           create: (context) => AuthBloc(
             authRepository: AuthRepository(
               authService, // Use the passed AuthService
-              UserRepository(
-                FirebaseFirestore.instance,
-                sharedPreferences,
-                authService, // Use the passed AuthService
-              ),
+              UserRepository(FirebaseFirestore.instance, sharedPreferences,
+                  authService, placeService // Use the passed AuthService
+                  ),
             ),
             userRepository: UserRepository(
-              FirebaseFirestore.instance,
-              sharedPreferences,
-              authService, // Use the passed AuthService
-            ),
+                FirebaseFirestore.instance,
+                sharedPreferences,
+                authService,
+                placeService // Use the passed AuthService
+                ),
             userBloc: context.read<UserBloc>(),
             authService: authService, // Use the passed AuthService
           ),
@@ -130,7 +133,8 @@ class MyApp extends StatelessWidget {
             debugShowCheckedModeBanner: false,
             theme: _buildLightTheme(context),
             darkTheme: _buildDarkTheme(context),
-            themeMode: themeProvider.isDarkMode ? ThemeMode.dark : ThemeMode.light,
+            themeMode:
+                themeProvider.isDarkMode ? ThemeMode.dark : ThemeMode.light,
             initialRoute: '/',
             onGenerateRoute: _appRouter.onGenerateRoute,
             builder: (context, child) {

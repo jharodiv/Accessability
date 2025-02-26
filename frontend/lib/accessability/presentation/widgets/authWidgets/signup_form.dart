@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:Accessability/accessability/logic/firebase_logic/SignupModel.dart';
-import 'package:Accessability/accessability/presentation/screens/authScreens/upload_profile_screen.dart';
+import 'package:AccessAbility/accessability/logic/firebase_logic/SignupModel.dart';
+import 'package:AccessAbility/accessability/presentation/screens/authScreens/upload_profile_screen.dart';
 
 class SignupForm extends StatefulWidget {
   const SignupForm({super.key});
@@ -14,7 +14,8 @@ class _SignupFormState extends State<SignupForm> {
   final TextEditingController emailController = TextEditingController();
   final TextEditingController contactNumberController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
-  final TextEditingController confirmPasswordController = TextEditingController();
+  final TextEditingController confirmPasswordController =
+      TextEditingController();
 
   @override
   void dispose() {

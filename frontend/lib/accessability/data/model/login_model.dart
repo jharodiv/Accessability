@@ -1,4 +1,5 @@
-import 'package:Accessability/accessability/data/model/user_model.dart';
+import 'package:AccessAbility/accessability/data/model/user_model.dart';
+
 class LoginModel {
   final String token;
   final String userId;
@@ -17,7 +18,8 @@ class LoginModel {
       token: json['uid'], // Use Firebase UID as the token
       userId: json['uid'], // Use Firebase UID as the userId
       hasCompletedOnboarding: json['hasCompletedOnboarding'] ?? false,
-      user: UserModel.fromJson(json['user']), // Assuming you have a UserModel.fromJson method
+      user: UserModel.fromJson(
+          json['user']), // Assuming you have a UserModel.fromJson method
     );
   }
 }

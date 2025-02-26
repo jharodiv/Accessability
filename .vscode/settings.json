@@ -9,5 +9,6 @@
     "Loginform",
     "Prefs",
     "signupscreen"
-  ]
+  ],
+  "cmake.sourceDirectory": "D:/HackathonRepository/3Y2AAPWD/frontend/linux"
 }

@@ -1,13 +1,13 @@
+import 'package:AccessAbility/accessability/logic/bloc/auth/auth_bloc.dart';
+import 'package:AccessAbility/accessability/logic/bloc/auth/auth_event.dart';
+import 'package:AccessAbility/accessability/logic/bloc/auth/auth_state.dart';
+import 'package:AccessAbility/accessability/logic/bloc/user/user_bloc.dart';
+import 'package:AccessAbility/accessability/logic/bloc/user/user_event.dart';
+import 'package:AccessAbility/accessability/logic/bloc/user/user_state.dart';
+import 'package:AccessAbility/accessability/presentation/screens/authscreens/login_screen.dart';
+import 'package:AccessAbility/accessability/presentation/screens/gpsscreen/gps.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:Accessability/accessability/logic/bloc/auth/auth_bloc.dart';
-import 'package:Accessability/accessability/logic/bloc/auth/auth_event.dart';
-import 'package:Accessability/accessability/logic/bloc/auth/auth_state.dart';
-import 'package:Accessability/accessability/logic/bloc/user/user_bloc.dart';
-import 'package:Accessability/accessability/logic/bloc/user/user_event.dart';
-import 'package:Accessability/accessability/logic/bloc/user/user_state.dart';
-import 'package:Accessability/accessability/presentation/screens/authScreens/login_screen.dart';
-import 'package:Accessability/accessability/presentation/screens/gpsScreen/gps.dart';
 
 class AuthGate extends StatelessWidget {
   const AuthGate({super.key});

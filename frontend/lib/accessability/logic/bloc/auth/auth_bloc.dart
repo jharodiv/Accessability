@@ -1,12 +1,12 @@
+import 'package:AccessAbility/accessability/data/model/login_model.dart';
+import 'package:AccessAbility/accessability/data/repositories/auth_repository.dart';
+import 'package:AccessAbility/accessability/data/repositories/user_repository.dart';
+import 'package:AccessAbility/accessability/firebaseServices/auth/auth_service.dart';
+import 'package:AccessAbility/accessability/logic/bloc/auth/auth_event.dart';
+import 'package:AccessAbility/accessability/logic/bloc/auth/auth_state.dart';
+import 'package:AccessAbility/accessability/logic/bloc/user/user_bloc.dart';
+import 'package:AccessAbility/accessability/logic/bloc/user/user_event.dart';
 import 'package:bloc/bloc.dart';
-import 'package:Accessability/accessability/data/model/login_model.dart';
-import 'package:Accessability/accessability/data/repositories/auth_repository.dart';
-import 'package:Accessability/accessability/data/repositories/user_repository.dart';
-import 'package:Accessability/accessability/firebaseServices/auth/auth_service.dart';
-import 'package:Accessability/accessability/logic/bloc/auth/auth_event.dart';
-import 'package:Accessability/accessability/logic/bloc/auth/auth_state.dart';
-import 'package:Accessability/accessability/logic/bloc/user/user_bloc.dart';
-import 'package:Accessability/accessability/logic/bloc/user/user_event.dart';
 
 class AuthBloc extends Bloc<AuthEvent, AuthState> {
   final AuthRepository authRepository;

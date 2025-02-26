@@ -1,8 +1,8 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
-import 'package:Accessability/accessability/firebaseServices/auth/auth_service.dart';
-import 'package:Accessability/accessability/firebaseServices/chat/chat_service.dart';
-import 'package:Accessability/accessability/presentation/widgets/chatWidgets/chat_users_tile.dart';
+import 'package:AccessAbility/accessability/firebaseServices/auth/auth_service.dart';
+import 'package:AccessAbility/accessability/firebaseServices/chat/chat_service.dart';
+import 'package:AccessAbility/accessability/presentation/widgets/chatWidgets/chat_users_tile.dart';
 import 'package:intl/intl.dart';
 
 class ChatUsersList extends StatelessWidget {
@@ -38,7 +38,8 @@ class ChatUsersList extends StatelessWidget {
     );
   }
 
-  Widget _buildUserListItem(Map<String, dynamic> userData, BuildContext context) {
+  Widget _buildUserListItem(
+      Map<String, dynamic> userData, BuildContext context) {
     if (userData['email'] != authService.getCurrentUser()!.email) {
       return StreamBuilder<QuerySnapshot>(
         stream: FirebaseFirestore.instance
@@ -53,9 +54,11 @@ class ChatUsersList extends StatelessWidget {
           String lastMessageTime = '';
 
           if (snapshot.hasData && snapshot.data!.docs.isNotEmpty) {
-            final messageData = snapshot.data!.docs.first.data() as Map<String, dynamic>;
+            final messageData =
+                snapshot.data!.docs.first.data() as Map<String, dynamic>;
             lastMessage = messageData['message'];
-            lastMessageTime = DateFormat('hh:mm a').format(messageData['timestamp'].toDate());
+            lastMessageTime =
+                DateFormat('hh:mm a').format(messageData['timestamp'].toDate());
           }
 
           return ChatUsersTile(

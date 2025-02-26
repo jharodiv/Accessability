@@ -1,13 +1,12 @@
-
-import 'package:Accessability/accessability/data/repositories/user_repository.dart';
-import 'package:Accessability/accessability/logic/firebase_logic/SignupModel.dart';
+import 'package:AccessAbility/accessability/data/model/login_model.dart';
+import 'package:AccessAbility/accessability/data/model/user_model.dart';
+import 'package:AccessAbility/accessability/data/repositories/user_repository.dart';
+import 'package:AccessAbility/accessability/firebaseServices/auth/auth_service.dart';
+import 'package:AccessAbility/accessability/logic/firebase_logic/SignupModel.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:Accessability/accessability/firebaseServices/auth/auth_service.dart';
-import 'package:Accessability/accessability/data/model/login_model.dart';
-import 'package:Accessability/accessability/data/model/user_model.dart';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:image_picker/image_picker.dart';
-  
 
 class AuthRepository {
   final AuthService authService;
@@ -34,8 +33,7 @@ class AuthRepository {
         throw Exception('Registration failed: User is null');
       }
 
-       
-       await Future.delayed(const Duration(seconds: 1));
+      await Future.delayed(const Duration(seconds: 1));
 
       // Fetch user data from Firestore
       final userModel = await userRepository.fetchUserData(user.uid);
@@ -56,7 +54,8 @@ class AuthRepository {
   // Login
   Future<LoginModel> login(String email, String password) async {
     try {
-      final userCredential = await authService.signInWithEmailPassword(email, password);
+      final userCredential =
+          await authService.signInWithEmailPassword(email, password);
       final user = userCredential.user;
       if (user == null) {
         throw Exception('Login failed: User is null');
@@ -88,7 +87,8 @@ class AuthRepository {
     try {
       await authService.completeOnboarding(uid);
     } catch (e) {
-      print('AuthRepository: Error updating onboarding status - ${e.toString()}');
+      print(
+          'AuthRepository: Error updating onboarding status - ${e.toString()}');
       throw Exception('Failed to update onboarding status: ${e.toString()}');
     }
   }

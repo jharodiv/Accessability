@@ -36,103 +36,107 @@ class _GpsScreenState extends State<GpsScreen> {
   final GlobalKey securityKey = GlobalKey();
   Set<Marker> _markers = {};
   Set<Circle> _circles = {};
-@override
-void initState() {
-  super.initState();
 
-  // Initialize _tutorialWidget with keys
-  _tutorialWidget = TutorialWidget(
-    inboxKey: inboxKey,
-    settingsKey: settingsKey,
-    youKey: youKey,
-    locationKey: locationKey,
-    securityKey: securityKey,
-  );
+  @override
+  void initState() {
+    super.initState();
 
-  // Initialize LocationHandler
-  _locationHandler = LocationHandler(
-    onMarkersUpdated: (markers) {
-      // Merge new markers with existing markers
+    // Initialize _tutorialWidget with keys
+    _tutorialWidget = TutorialWidget(
+      inboxKey: inboxKey,
+      settingsKey: settingsKey,
+      youKey: youKey,
+      locationKey: locationKey,
+      securityKey: securityKey,
+    );
+
+    // Initialize LocationHandler
+    _locationHandler = LocationHandler(
+      onMarkersUpdated: (markers) {
+        // Merge new markers with existing markers
+        final existingMarkers = _markers
+            .where((marker) => !marker.markerId.value.startsWith('user_'))
+            .toSet();
+        final updatedMarkers = existingMarkers.union(markers);
+
+        setState(() {
+          _markers = updatedMarkers;
+        });
+      },
+    );
+
+    // Get user location
+    _locationHandler.getUserLocation();
+
+    // Create markers for PWD-friendly locations
+    _markerHandler.createMarkers(pwdFriendlyLocations).then((markers) {
+      setState(() {
+        _markers.addAll(markers);
+      });
+    });
+
+    // Check if onboarding is completed before showing the tutorial
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final authBloc = context.read<AuthBloc>();
+      final hasCompletedOnboarding = authBloc.state is AuthenticatedLogin
+          ? (authBloc.state as AuthenticatedLogin).hasCompletedOnboarding
+          : false;
+
+      if (!hasCompletedOnboarding) {
+        _tutorialWidget.showTutorial(context);
+      }
+    });
+  }
+
+  Future<void> _fetchNearbyPlaces(String placeType) async {
+    if (_locationHandler.currentLocation == null) {
+      print("🚨 Current position is null, cannot fetch nearby places.");
+      return;
+    }
+
+    final result = await _nearbyPlacesHandler.fetchNearbyPlaces(
+      placeType,
+      _locationHandler.currentLocation!,
+    );
+
+    if (result.isNotEmpty) {
+      final Set<Marker> nearbyMarkers = result["markers"];
+      final Set<Circle> nearbyCircles = result["circles"];
+
+      // Preserve existing PWD-friendly and user markers
       final existingMarkers = _markers
-          .where((marker) => !marker.markerId.value.startsWith('user_'))
+          .where((marker) => marker.markerId.value.startsWith("pwd_") || marker.markerId.value.startsWith("user_"))
           .toSet();
-      final updatedMarkers = existingMarkers.union(markers);
+      final updatedMarkers = existingMarkers.union(nearbyMarkers);
 
       setState(() {
         _markers = updatedMarkers;
+        _circles = nearbyCircles;
       });
-    },
-  );
 
-  // Get user location
-  _locationHandler.getUserLocation();
-
-  // Create markers for PWD-friendly locations
-  _markerHandler.createMarkers(pwdFriendlyLocations).then((markers) {
-    setState(() {
-      _markers.addAll(markers);
-    });
-  });
-
-  // Check if onboarding is completed before showing the tutorial
-  WidgetsBinding.instance.addPostFrameCallback((_) {
-    final authBloc = context.read<AuthBloc>();
-    final hasCompletedOnboarding = authBloc.state is AuthenticatedLogin
-        ? (authBloc.state as AuthenticatedLogin).hasCompletedOnboarding
-        : false;
-
-    if (!hasCompletedOnboarding) {
-      _tutorialWidget.showTutorial(context);
-    }
-  });
-}
-
-
-Future<void> _fetchNearbyPlaces(String placeType) async {
-  if (_locationHandler.currentLocation == null) {
-    print("🚨 Current position is null, cannot fetch nearby places.");
-    return;
-  }
-
-  final result = await _nearbyPlacesHandler.fetchNearbyPlaces(
-    placeType,
-    _locationHandler.currentLocation!,
-  );
-
-  if (result.isNotEmpty) {
-    final Set<Marker> nearbyMarkers = result["markers"];
-    final Set<Circle> nearbyCircles = result["circles"];
-
-    // Preserve existing PWD-friendly and user markers
-    final existingMarkers = _markers
-        .where((marker) => marker.markerId.value.startsWith("pwd_") || marker.markerId.value.startsWith("user_"))
-        .toSet();
-    final updatedMarkers = existingMarkers.union(nearbyMarkers);
-
-    setState(() {
-      _markers = updatedMarkers;
-      _circles = nearbyCircles;
-    });
-
-    // Adjust the camera to fit all markers
-    if (_locationHandler.mapController != null && updatedMarkers.isNotEmpty) {
-      final bounds = _locationHandler.getLatLngBounds(
-        updatedMarkers.map((marker) => marker.position).toList(),
-      );
-      _locationHandler.mapController!
-          .animateCamera(CameraUpdate.newLatLngBounds(bounds, 100));
-      print("🎯 Adjusted camera to fit ${updatedMarkers.length} markers.");
-    } else {
-      print("⚠️ No bounds to adjust camera.");
+      // Adjust the camera to fit all markers
+      if (_locationHandler.mapController != null && updatedMarkers.isNotEmpty) {
+        final bounds = _locationHandler.getLatLngBounds(
+          updatedMarkers.map((marker) => marker.position).toList(),
+        );
+        _locationHandler.mapController!
+            .animateCamera(CameraUpdate.newLatLngBounds(bounds, 100));
+        print("🎯 Adjusted camera to fit ${updatedMarkers.length} markers.");
+      } else {
+        print("⚠️ No bounds to adjust camera.");
+      }
     }
   }
-}
 
-void _onMemberPressed(LatLng location) {
+  void _onMemberPressed(LatLng location, String userId) {
   if (_locationHandler.mapController != null) {
     _locationHandler.mapController!.animateCamera(
       CameraUpdate.newLatLng(location),
     );
+
+    // Trigger marker selection
+    _locationHandler.selectedUserId = userId;
+    _locationHandler.listenForLocationUpdates();
   }
 }
 

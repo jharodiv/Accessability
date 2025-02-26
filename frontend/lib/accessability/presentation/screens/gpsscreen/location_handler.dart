@@ -16,7 +16,7 @@ class LocationHandler {
   LocationData? _lastLocation;
   int currentIndex = 0;
   Set<Marker> _markers = {};
-  String? _selectedUserId; // Track the selected user ID
+  String? selectedUserId; // Track the selected user ID
   GoogleMapController? mapController;
   OverlayEntry? _overlayEntry;
   bool _showBottomWidgets = false;
@@ -93,14 +93,14 @@ class LocationHandler {
   void updateActiveSpaceId(String spaceId) {
     if (spaceId.isEmpty) return;
     activeSpaceId = spaceId;
-    _listenForLocationUpdates();
+    listenForLocationUpdates();
   }
 
   void updateCircles(Set<Circle> newCircles) {
     _circles = newCircles;
   }
 
-   void _listenForLocationUpdates() {
+  void listenForLocationUpdates() {
     if (activeSpaceId.isEmpty) return;
     _locationUpdatesSubscription?.cancel();
     _locationUpdatesSubscription = FirebaseFirestore.instance
@@ -138,7 +138,7 @@ class LocationHandler {
         print("🟢 Fetched user data for $username: $profilePictureUrl");
 
         // Determine if this marker is selected
-        final isSelected = userId == _selectedUserId;
+        final isSelected = userId == selectedUserId;
 
         // Create a custom marker icon with the profile picture
         BitmapDescriptor customIcon;
@@ -178,94 +178,95 @@ class LocationHandler {
     });
   }
 
- void _onMarkerTapped(MarkerId markerId) {
-  if (markerId.value.startsWith('user_')) {
-    // Handle user marker tap
-    final userId = markerId.value.replaceFirst('user_', ''); // Extract user ID from marker ID
-    _selectedUserId = userId; // Update the selected user ID
-    _listenForLocationUpdates(); // Refresh markers to update the selected state
-  }
-}
-
-   Future<BitmapDescriptor> _createCustomMarkerIcon(String imageUrl, {bool isSelected = false}) async {
-  print("🟢 Creating custom marker icon for: $imageUrl (isSelected: $isSelected)");
-
-  try {
-    // Fetch the profile picture
-    final response = await http.get(Uri.parse(imageUrl));
-    if (response.statusCode != 200) {
-      print("❌ Failed to load image: ${response.statusCode}");
-      throw Exception('Failed to load image');
+  void _onMarkerTapped(MarkerId markerId) {
+    if (markerId.value.startsWith('user_')) {
+      // Handle user marker tap
+      final userId = markerId.value.replaceFirst('user_', ''); // Extract user ID from marker ID
+      selectedUserId = userId; // Update the selected user ID
+      listenForLocationUpdates(); // Refresh markers to update the selected state
     }
-
-    // Decode the profile picture
-    final profileBytes = response.bodyBytes;
-    final profileCodec = await ui.instantiateImageCodec(profileBytes);
-    final profileFrame = await profileCodec.getNextFrame();
-    final profileImage = profileFrame.image;
-
-    // Load the appropriate marker shape asset
-    final markerShapeAsset = isSelected
-        ? 'assets/images/others/marker_shape_selected.png'
-        : 'assets/images/others/marker_shape.png';
-    final markerShapeBytes = await rootBundle.load(markerShapeAsset);
-    final markerShapeCodec = await ui.instantiateImageCodec(markerShapeBytes.buffer.asUint8List());
-    final markerShapeFrame = await markerShapeCodec.getNextFrame();
-    final markerShapeImage = markerShapeFrame.image;
-
-    // Create a canvas to draw the combined image
-    final pictureRecorder = ui.PictureRecorder();
-    final canvas = Canvas(pictureRecorder);
-
-    // Define the size of the marker
-    final markerWidth = markerShapeImage.width.toDouble();
-    final markerHeight = markerShapeImage.height.toDouble();
-
-    // Draw the marker shape
-    canvas.drawImage(markerShapeImage, Offset.zero, Paint());
-
-    // Draw the profile picture inside the marker shape
-    final profileSize = 100.0; // Adjust the size of the profile picture
-    final profileOffset = Offset(
-      (markerWidth - profileSize) / 1.8, // Center horizontally
-      11, // Adjust vertical position
-    );
-
-    // Clip the profile picture to a circle
-    final clipPath = Path()
-      ..addOval(Rect.fromCircle(
-        center: Offset(profileOffset.dx + profileSize / 2, profileOffset.dy + profileSize / 2),
-        radius: profileSize / 2,
-      ));
-    canvas.clipPath(clipPath);
-
-    // Draw the profile picture
-    canvas.drawImageRect(
-      profileImage,
-      Rect.fromLTWH(0, 0, profileImage.width.toDouble(), profileImage.height.toDouble()),
-      Rect.fromLTWH(profileOffset.dx, profileOffset.dy, profileSize, profileSize),
-      Paint(),
-    );
-
-    // Convert the canvas to an image
-    final picture = pictureRecorder.endRecording();
-    final imageMarker = await picture.toImage(markerWidth.toInt(), markerHeight.toInt());
-    final byteData = await imageMarker.toByteData(format: ui.ImageByteFormat.png);
-
-    if (byteData == null) {
-      print("❌ Failed to convert image to bytes");
-      throw Exception('Failed to convert image to bytes');
-    }
-
-    // Create the custom marker icon
-    print("🟢 Custom marker icon created successfully");
-    return BitmapDescriptor.fromBytes(byteData.buffer.asUint8List());
-  } catch (e) {
-    print("❌ Error creating custom marker icon: $e");
-    throw Exception('Failed to create custom marker icon: $e');
   }
-}
-   Future<bool> onWillPop(BuildContext context) async {
+
+  Future<BitmapDescriptor> _createCustomMarkerIcon(String imageUrl, {bool isSelected = false}) async {
+    print("🟢 Creating custom marker icon for: $imageUrl (isSelected: $isSelected)");
+
+    try {
+      // Fetch the profile picture
+      final response = await http.get(Uri.parse(imageUrl));
+      if (response.statusCode != 200) {
+        print("❌ Failed to load image: ${response.statusCode}");
+        throw Exception('Failed to load image');
+      }
+
+      // Decode the profile picture
+      final profileBytes = response.bodyBytes;
+      final profileCodec = await ui.instantiateImageCodec(profileBytes);
+      final profileFrame = await profileCodec.getNextFrame();
+      final profileImage = profileFrame.image;
+
+      // Load the appropriate marker shape asset
+      final markerShapeAsset = isSelected
+          ? 'assets/images/others/marker_shape_selected.png'
+          : 'assets/images/others/marker_shape.png';
+      final markerShapeBytes = await rootBundle.load(markerShapeAsset);
+      final markerShapeCodec = await ui.instantiateImageCodec(markerShapeBytes.buffer.asUint8List());
+      final markerShapeFrame = await markerShapeCodec.getNextFrame();
+      final markerShapeImage = markerShapeFrame.image;
+
+      // Create a canvas to draw the combined image
+      final pictureRecorder = ui.PictureRecorder();
+      final canvas = Canvas(pictureRecorder);
+
+      // Define the size of the marker
+      final markerWidth = markerShapeImage.width.toDouble();
+      final markerHeight = markerShapeImage.height.toDouble();
+
+      // Draw the marker shape
+      canvas.drawImage(markerShapeImage, Offset.zero, Paint());
+
+      // Draw the profile picture inside the marker shape
+      final profileSize = 100.0; // Adjust the size of the profile picture
+      final profileOffset = Offset(
+        (markerWidth - profileSize) / 1.8, // Center horizontally
+        11, // Adjust vertical position
+      );
+
+      // Clip the profile picture to a circle
+      final clipPath = Path()
+        ..addOval(Rect.fromCircle(
+          center: Offset(profileOffset.dx + profileSize / 2, profileOffset.dy + profileSize / 2),
+          radius: profileSize / 2,
+        ));
+      canvas.clipPath(clipPath);
+
+      // Draw the profile picture
+      canvas.drawImageRect(
+        profileImage,
+        Rect.fromLTWH(0, 0, profileImage.width.toDouble(), profileImage.height.toDouble()),
+        Rect.fromLTWH(profileOffset.dx, profileOffset.dy, profileSize, profileSize),
+        Paint(),
+      );
+
+      // Convert the canvas to an image
+      final picture = pictureRecorder.endRecording();
+      final imageMarker = await picture.toImage(markerWidth.toInt(), markerHeight.toInt());
+      final byteData = await imageMarker.toByteData(format: ui.ImageByteFormat.png);
+
+      if (byteData == null) {
+        print("❌ Failed to convert image to bytes");
+        throw Exception('Failed to convert image to bytes');
+      }
+
+      // Create the custom marker icon
+      print("🟢 Custom marker icon created successfully");
+      return BitmapDescriptor.fromBytes(byteData.buffer.asUint8List());
+    } catch (e) {
+      print("❌ Error creating custom marker icon: $e");
+      throw Exception('Failed to create custom marker icon: $e');
+    }
+  }
+
+  Future<bool> onWillPop(BuildContext context) async {
     return await showDialog(
           context: context,
           builder: (context) {
@@ -288,7 +289,7 @@ class LocationHandler {
         false;
   }
 
-   LatLngBounds getLatLngBounds(List<LatLng> locations) {
+  LatLngBounds getLatLngBounds(List<LatLng> locations) {
     double south = locations.first.latitude;
     double north = locations.first.latitude;
     double west = locations.first.longitude;
@@ -324,5 +325,4 @@ class LocationHandler {
   void onMapCreated(GoogleMapController controller) {
     mapController = controller;
   }
-
 }

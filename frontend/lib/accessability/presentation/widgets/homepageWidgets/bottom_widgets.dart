@@ -14,7 +14,7 @@ class BottomWidgets extends StatefulWidget {
   final String activeSpaceId;
   final Function(String) onCategorySelected; // Added callback
   final Key? key;
-  final Function(LatLng) onMemberPressed; // Callback for member press
+  final Function(LatLng, String) onMemberPressed; // Callback for member press
 
   const BottomWidgets({
     this.key,
@@ -51,8 +51,7 @@ class _BottomWidgetsState extends State<BottomWidgets> {
     }
   }
 
-  // Fetch members in the active space
- Future<void> _fetchMembers() async {
+  Future<void> _fetchMembers() async {
   if (widget.activeSpaceId.isEmpty) return;
 
   print("🟢 Fetching members for space: ${widget.activeSpaceId}");
@@ -80,21 +79,38 @@ class _BottomWidgetsState extends State<BottomWidgets> {
 
   print("🟢 Fetched ${usersSnapshot.docs.length} users");
 
+  // Fetch addresses for all members
+  final updatedMembers = await Future.wait(usersSnapshot.docs.map((doc) async {
+    final locationSnapshot = await _firestore
+        .collection('UserLocations')
+        .doc(doc['uid'])
+        .get();
+    final locationData = locationSnapshot.data();
+    String address = 'Fetching address...';
+    if (locationData != null) {
+      final lat = locationData['latitude'];
+      final lng = locationData['longitude'];
+      address = await _getAddressFromLatLng(LatLng(lat, lng));
+    }
+
+    return {
+      'uid': doc['uid'],
+      'username': doc['username'] ?? 'Unknown',
+      'profilePicture': doc['profilePicture'] ?? 'https://firebasestorage.googleapis.com/v0/b/accessability-71ef7.firebasestorage.app/o/profile_pictures%2Fdefault_profile.png?alt=media&token=bc7a75a7-a78e-4460-b816-026a8fc341ba',
+      'address': address,
+      'lastUpdate': locationData?['timestamp'],
+    };
+  }));
+
   setState(() {
-    _members = usersSnapshot.docs.map((doc) {
-      final data = doc.data() as Map<String, dynamic>;
-      print("🟢 User data: $data"); // Log user data
-      return {
-        'uid': doc['uid'],
-        'username': doc['username'] ?? 'Unknown',
-        'profilePicture': doc['profilePicture'] ?? 'https://firebasestorage.googleapis.com/v0/b/accessability-71ef7.firebasestorage.app/o/profile_pictures%2Fdefault_profile.png?alt=media&token=bc7a75a7-a78e-4460-b816-026a8fc341ba',
-      };
-    }).toList();
+    _members = updatedMembers;
     _creatorId = creatorId;
   });
 
   print("🟢 Updated _members: $_members");
 }
+
+
 
   // Add a person to the space
   Future<void> _addPerson() async {
@@ -351,79 +367,96 @@ class _BottomWidgetsState extends State<BottomWidgets> {
     );
   }
 
-  Widget _buildContent() {
-    switch (_activeIndex) {
-      case 0:
-        return Column(
-          children: _members
-              .where((member) =>
-                  member['uid'] !=
-                  _auth.currentUser?.uid) // Exclude current user
-              .map((member) => GestureDetector(
-                    onTap: () async {
+   Widget _buildContent() {
+  switch (_activeIndex) {
+    case 0:
+      return Column(
+        children: _members
+            .where((member) =>
+                member['uid'] !=
+                _auth.currentUser?.uid) // Exclude current user
+            .map((member) => GestureDetector(
+                  onTap: () async {
+                    setState(() {
+                      _selectedMemberId = member['uid'];
+                    });
+
+                    // Fetch the member's location
+                    final locationSnapshot = await _firestore
+                        .collection('UserLocations')
+                        .doc(member['uid'])
+                        .get();
+                    final locationData = locationSnapshot.data();
+                    if (locationData != null) {
+                      final lat = locationData['latitude'];
+                      final lng = locationData['longitude'];
+                      final address = await _getAddressFromLatLng(LatLng(lat, lng));
+
                       setState(() {
-                        _selectedMemberId = member['uid'];
+                        member['address'] = address;
+                        member['lastUpdate'] = locationData['timestamp'];
                       });
 
-                      // Fetch the member's location
-                      final locationSnapshot = await _firestore
-                          .collection('UserLocations')
-                          .doc(member['uid'])
-                          .get();
-                      final locationData = locationSnapshot.data();
-                      if (locationData != null) {
-                        final lat = locationData['latitude'];
-                        final lng = locationData['longitude'];
-                        final address = await _getAddressFromLatLng(LatLng(lat, lng));
-
-                        setState(() {
-                          member['address'] = address;
-                        });
-
-                        // Pan the camera to the member's location
-                        widget.onMemberPressed(LatLng(lat, lng));
-                      }
-                    },
-                    child: Container(
-                      color: _selectedMemberId == member['uid'] ? Color(0xFF6750A4) : Colors.white,
-                      child: ListTile(
-                        leading: CircleAvatar(
-    backgroundImage: member['profilePicture'] != null && member['profilePicture'].startsWith('http')
-        ? NetworkImage(member['profilePicture']) // Use NetworkImage for web URLs
-        : AssetImage('assets/images/others/default_profile.png') as ImageProvider, // Use AssetImage for local assets
-  ),
-  title: Text(member['username']),
-  subtitle: Text('Current Location: ${member['address']}' ?? 'Fetching address...', style:TextStyle(fontSize: 12),),
-  trailing: IconButton(
-    icon: const Icon(Icons.chat),
-    onPressed: () {
-                            // Navigate to chat with the member
-                            Navigator.pushNamed(
-                              context,
-                              '/chatconvo',
-                              arguments: {
-                                'receiverEmail': member['username'],
-                                'receiverID': member['uid'],
-                              },
-                            );
-                          },
-                        ),
+                      // Pan the camera to the member's location
+                      widget.onMemberPressed(LatLng(lat, lng), member['uid']);
+                    }
+                  },
+                  child: Container(
+                    color: _selectedMemberId == member['uid'] ? Color(0xFF6750A4) : Colors.white,
+                    child: ListTile(
+                      leading: CircleAvatar(
+                        backgroundImage: member['profilePicture'] != null && member['profilePicture'].startsWith('http')
+                            ? NetworkImage(member['profilePicture']) // Use NetworkImage for web URLs
+                            : AssetImage('assets/images/others/default_profile.png') as ImageProvider, // Use AssetImage for local assets
+                      ),
+                      title: Text(
+                        member['username'],
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      subtitle: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Current Location: ${member['address'] ?? 'Fetching address...'}',
+                            style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                          ),
+                          if (member['lastUpdate'] != null)
+                            Text(
+                              'Last location update: ${_getTimeDifference((member['lastUpdate'] as Timestamp).toDate())}',
+                              style: TextStyle(fontSize: 12),
+                            ),
+                        ],
+                      ),
+                      trailing: IconButton(
+                        icon: const Icon(Icons.chat),
+                        onPressed: () {
+                          // Navigate to chat with the member
+                          Navigator.pushNamed(
+                            context,
+                            '/chatconvo',
+                            arguments: {
+                              'receiverEmail': member['username'],
+                              'receiverID': member['uid'],
+                            },
+                          );
+                        },
                       ),
                     ),
-                  ))
-              .toList(),
-        );
-      case 1:
-        return AddPlaceWidget();
-      case 2:
-        return // Here we pass the onCategorySelected callback to MapContent.
-            MapContent(
-          onCategorySelected: widget.onCategorySelected,
-        );
-      default:
-        return const SizedBox.shrink();
-    }
+                  ),
+                ))
+            .toList(),
+      );
+    case 1:
+      return AddPlaceWidget();
+    case 2:
+      return // Here we pass the onCategorySelected callback to MapContent.
+          MapContent(
+        onCategorySelected: widget.onCategorySelected,
+      );
+    default:
+      return const SizedBox.shrink();
   }
+}
 
  Future<String> _getAddressFromLatLng(LatLng latLng) async {
   try {
@@ -435,6 +468,21 @@ class _BottomWidgetsState extends State<BottomWidgets> {
   } catch (e) {
     print('Error fetching address: $e');
     return 'Address unavailable';
+  }
+}
+
+String _getTimeDifference(DateTime timestamp) {
+  final now = DateTime.now();
+  final difference = now.difference(timestamp);
+
+  if (difference.inMinutes < 1) {
+    return 'Just now';
+  } else if (difference.inMinutes < 60) {
+    return '${difference.inMinutes} minute(s) ago';
+  } else if (difference.inHours < 24) {
+    return '${difference.inHours} hour(s) ago';
+  } else {
+    return '${difference.inDays} day(s) ago';
   }
 }
 }

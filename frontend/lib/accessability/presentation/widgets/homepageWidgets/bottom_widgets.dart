@@ -108,8 +108,27 @@ class _BottomWidgetsState extends State<BottomWidgets> {
   });
 
   print("🟢 Updated _members: $_members");
-}
 
+  // Set up real-time listener for location updates
+  for (final member in members) {
+    _firestore.collection('UserLocations').doc(member).snapshots().listen((locationSnapshot) async {
+      final locationData = locationSnapshot.data();
+      if (locationData != null) {
+        final lat = locationData['latitude'];
+        final lng = locationData['longitude'];
+        final address = await _getAddressFromLatLng(LatLng(lat, lng));
+
+        setState(() {
+          final index = _members.indexWhere((m) => m['uid'] == member);
+          if (index != -1) {
+            _members[index]['address'] = address;
+            _members[index]['lastUpdate'] = locationData['timestamp'];
+          }
+        });
+      }
+    });
+  }
+}
 
 
   // Add a person to the space
@@ -414,19 +433,19 @@ class _BottomWidgetsState extends State<BottomWidgets> {
                         style: TextStyle(fontWeight: FontWeight.bold),
                       ),
                       subtitle: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Current Location: ${member['address'] ?? 'Fetching address...'}',
-                            style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
-                          ),
-                          if (member['lastUpdate'] != null)
-                            Text(
-                              'Last location update: ${_getTimeDifference((member['lastUpdate'] as Timestamp).toDate())}',
-                              style: TextStyle(fontSize: 12),
-                            ),
-                        ],
-                      ),
+  crossAxisAlignment: CrossAxisAlignment.start,
+  children: [
+    Text(
+      'Current Location: ${member['address'] ?? 'Fetching address...'}',
+      style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+    ),
+    if (member['lastUpdate'] != null)
+      Text(
+        'Last location update: ${_getTimeDifference((member['lastUpdate'] as Timestamp).toDate())}',
+        style: TextStyle(fontSize: 12),
+      ),
+  ],
+),
                       trailing: IconButton(
                         icon: const Icon(Icons.chat),
                         onPressed: () {

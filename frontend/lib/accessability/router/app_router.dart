@@ -1,3 +1,4 @@
+import 'package:AccessAbility/accessability/presentation/screens/gpsscreen/gps.dart';
 import 'package:flutter/material.dart';
 import 'package:AccessAbility/accessability/logic/firebase_logic/SignupModel.dart';
 import 'package:AccessAbility/accessability/presentation/screens/authScreens/login_screen.dart';
@@ -5,7 +6,6 @@ import 'package:AccessAbility/accessability/presentation/screens/authScreens/sig
 import 'package:AccessAbility/accessability/presentation/screens/authScreens/onboarding_screen.dart';
 import 'package:AccessAbility/accessability/presentation/screens/authscreens/upload_profile_screen.dart';
 import 'package:AccessAbility/accessability/presentation/screens/chat_system/inbox_screen.dart';
-import 'package:AccessAbility/accessability/presentation/screens/gpsScreen/gps.dart';
 import 'package:AccessAbility/accessability/presentation/screens/gpsscreen/add_new_place.dart';
 import 'package:AccessAbility/accessability/presentation/screens/settings/settings_screen.dart';
 import 'package:AccessAbility/accessability/presentation/screens/sos/sos_screen.dart';
@@ -17,7 +17,6 @@ import 'package:AccessAbility/accessability/presentation/screens/settings/settin
 import 'package:AccessAbility/accessability/presentation/screens/settings/settingsScreens/privacy_security_screen.dart';
 import 'package:AccessAbility/accessability/presentation/screens/settings/settingsScreens/about_screen.dart';
 import 'package:AccessAbility/accessability/presentation/widgets/chatWidgets/chat_convo_screen.dart';
-import 'package:AccessAbility/main.dart';
 
 class AppRouter {
   Route<dynamic>? onGenerateRoute(RouteSettings routeSettings) {

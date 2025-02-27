@@ -1,45 +1,45 @@
+import 'package:AccessAbility/accessability/logic/bloc/place/bloc/place_bloc.dart';
+import 'package:AccessAbility/accessability/logic/bloc/place/bloc/place_event.dart';
+import 'package:AccessAbility/accessability/logic/bloc/place/bloc/place_state.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:AccessAbility/accessability/firebaseServices/models/place.dart';
 
 class AddPlaceWidget extends StatefulWidget {
+  const AddPlaceWidget({Key? key}) : super(key: key);
+
   @override
   _AddPlaceWidgetState createState() => _AddPlaceWidgetState();
 }
 
 class _AddPlaceWidgetState extends State<AddPlaceWidget> {
-  List<String> places = [];
-
-  void _addNewPlace(String place) {
-    setState(() {
-      places.add(place);
-    });
+  @override
+  void initState() {
+    super.initState();
+    // Fetch all places when this widget is initialized.
+    context.read<PlaceBloc>().add(const GetAllPlacesEvent());
   }
 
-  void _removePlace(int index) {
-    setState(() {
-      places.removeAt(index);
-    });
+  // Navigate to the /addPlace screen.
+  Future<void> _navigateToAddNewPlace() async {
+    await Navigator.pushNamed(context, '/addPlace');
+    // After returning, re-fetch all places.
+    context.read<PlaceBloc>().add(const GetAllPlacesEvent());
   }
 
-  void _navigateToAddNewPlace() {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      builder: (context) {
-        return Padding(
-          padding: EdgeInsets.only(
-            bottom: MediaQuery.of(context).viewInsets.bottom,
-          ),
-          child: AddPlaceForm(onPlaceAdded: _addNewPlace),
-        );
-      },
-    );
+  // Dispatch a DeletePlaceEvent to remove a place from Firestore.
+  void _removePlace(String placeId) {
+    context.read<PlaceBloc>().add(DeletePlaceEvent(placeId: placeId));
   }
 
   @override
   Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize:
+          MainAxisSize.min, // Let the column shrink to fit its children
       children: [
+        // Original "Add a new Place" tile with default divider
         ListTile(
           leading: const CircleAvatar(
             backgroundColor: Color(0xFF6750A4),
@@ -48,70 +48,86 @@ class _AddPlaceWidgetState extends State<AddPlaceWidget> {
           title: const Text(
             "Add a new Place",
             style: TextStyle(
-              color: Color(0xFF6750A4), fontWeight: FontWeight.bold,
-              fontSize: 16.0, // Adjust this value to make the text smaller
+              color: Color(0xFF6750A4),
+              fontWeight: FontWeight.bold,
+              fontSize: 16.0,
             ),
           ),
           onTap: _navigateToAddNewPlace,
         ),
-        Divider(),
-        if (places.isNotEmpty)
-          Column(
-            children: places.map((place) {
-              return ListTile(
-                leading: const Icon(Icons.place, color: Color(0xFF6750A4)),
-                title: Text(place),
-                trailing: IconButton(
-                  icon: Icon(Icons.close),
-                  onPressed: () => _removePlace(places.indexOf(place)),
-                ),
-              );
-            }).toList(),
+        // Default divider (no extra padding)
+        const Divider(),
+
+        // The list of places
+        Flexible(
+          fit: FlexFit.loose,
+          child: BlocBuilder<PlaceBloc, PlaceState>(
+            builder: (context, state) {
+              if (state is PlaceOperationLoading) {
+                return const Center(child: CircularProgressIndicator());
+              } else if (state is PlacesLoaded) {
+                final List<Place> places = state.places;
+                if (places.isEmpty) {
+                  return const Center(child: Text("No places found."));
+                }
+                return ListView.builder(
+                  shrinkWrap: true, // Prevents large empty space
+                  padding: EdgeInsets.zero, // Removes default list padding
+                  itemCount: places.length,
+                  itemBuilder: (context, index) {
+                    final place = places[index];
+                    return Column(
+                      children: [
+                        ListTile(
+                          leading: Container(
+                            width: 40,
+                            height: 40,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                color: const Color(0xFF6750A4),
+                              ),
+                            ),
+                            child: const Center(
+                              child: Icon(
+                                Icons.place,
+                                color: Color(0xFF6750A4),
+                              ),
+                            ),
+                          ),
+                          title: Text(
+                            place.name,
+                            style: const TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          trailing: IconButton(
+                            icon: const Icon(Icons.close),
+                            onPressed: () => _removePlace(place.id),
+                          ),
+                        ),
+
+                        // Small divider between items (optional)
+                        if (index < places.length - 1)
+                          const Padding(
+                            padding: EdgeInsets.symmetric(horizontal: 16.0),
+                            child: Divider(height: 1, thickness: 0.8),
+                          ),
+                      ],
+                    );
+                  },
+                );
+              } else if (state is PlaceOperationError) {
+                return Center(child: Text("Error: ${state.message}"));
+              } else {
+                // For states like PlaceInitial or any unhandled states
+                return const SizedBox.shrink();
+              }
+            },
           ),
+        ),
       ],
-    );
-  }
-}
-
-class AddPlaceForm extends StatefulWidget {
-  final Function(String) onPlaceAdded;
-  AddPlaceForm({required this.onPlaceAdded});
-
-  @override
-  _AddPlaceFormState createState() => _AddPlaceFormState();
-}
-
-class _AddPlaceFormState extends State<AddPlaceForm> {
-  final TextEditingController _controller = TextEditingController();
-
-  void _submit() {
-    if (_controller.text.isNotEmpty) {
-      widget.onPlaceAdded(_controller.text);
-      Navigator.of(context).pop();
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(16.0),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          TextField(
-            controller: _controller,
-            decoration: const InputDecoration(
-              labelText: "Search address or location name",
-              prefixIcon: Icon(Icons.place),
-            ),
-          ),
-          SizedBox(height: 20),
-          ElevatedButton(
-            onPressed: _submit,
-            child: Text("Add Place"),
-          ),
-        ],
-      ),
     );
   }
 }

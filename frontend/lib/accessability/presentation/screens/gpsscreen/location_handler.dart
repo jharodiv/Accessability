@@ -12,7 +12,13 @@ class LocationHandler {
   final Location _location = Location();
   LatLng? currentLocation;
   String activeSpaceId = '';
-  StreamSubscription? _locationUpdatesSubscription;
+
+  // Separate subscription for location stream.
+  StreamSubscription<LocationData>? _locationStreamSubscription;
+
+  // Subscription for Firestore updates.
+  StreamSubscription? _firestoreSubscription;
+
   LocationData? _lastLocation;
   int currentIndex = 0;
   Set<Marker> _markers = {};
@@ -26,26 +32,33 @@ class LocationHandler {
   Set<Circle> _circles = {};
   Set<Circle> get circles => _circles;
 
-  // Callback to update markers in the parent widget
+  // Callback to update markers in the parent widget.
   final Function(Set<Marker>) onMarkersUpdated;
 
   LocationHandler({required this.onMarkersUpdated});
 
   Future<void> getUserLocation() async {
+    // Check if the location service is enabled.
     bool serviceEnabled = await _location.serviceEnabled();
     if (!serviceEnabled) {
       serviceEnabled = await _location.requestService();
       if (!serviceEnabled) return;
     }
 
+    // Check for permission.
     PermissionStatus permissionGranted = await _location.hasPermission();
     if (permissionGranted == PermissionStatus.denied) {
       permissionGranted = await _location.requestPermission();
       if (permissionGranted != PermissionStatus.granted) return;
     }
 
-    _location.onLocationChanged.listen((LocationData locationData) {
-      final newLocation = LatLng(locationData.latitude!, locationData.longitude!);
+    // Listen to location changes and store the subscription.
+    _locationStreamSubscription =
+        _location.onLocationChanged.listen((LocationData locationData) {
+      if (locationData.latitude == null || locationData.longitude == null)
+        return;
+      final newLocation =
+          LatLng(locationData.latitude!, locationData.longitude!);
       if (_lastLocation == null ||
           _lastLocation!.latitude != locationData.latitude ||
           _lastLocation!.longitude != locationData.longitude) {
@@ -53,14 +66,16 @@ class LocationHandler {
         _updateUserLocation(newLocation);
         _lastLocation = locationData;
       }
+    }, onError: (error) {
+      print("Error receiving location updates: $error");
     });
   }
 
-   Future<void> initializeUserMarker() async {
+  Future<void> initializeUserMarker() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
 
-    // Fetch the user's profile data
+    // Fetch the user's profile data.
     final userDoc = await FirebaseFirestore.instance
         .collection('Users')
         .doc(user.uid)
@@ -68,11 +83,12 @@ class LocationHandler {
     final username = userDoc['username'];
     final profilePictureUrl = userDoc.data()?['profilePicture'] ?? '';
 
-    // Create a custom marker icon with the profile picture
+    // Create a custom marker icon with the profile picture.
     BitmapDescriptor customIcon;
     if (profilePictureUrl.isNotEmpty) {
       try {
-        customIcon = await _createCustomMarkerIcon(profilePictureUrl, isSelected: false);
+        customIcon =
+            await _createCustomMarkerIcon(profilePictureUrl, isSelected: false);
       } catch (e) {
         print("❌ Error creating custom marker for $username: $e");
         customIcon = await BitmapDescriptor.fromAssetImage(
@@ -81,14 +97,13 @@ class LocationHandler {
         );
       }
     } else {
-      // Use a default icon if no profile picture is available
       customIcon = await BitmapDescriptor.fromAssetImage(
         const ImageConfiguration(size: Size(24, 24)),
         'assets/images/others/default_profile.png',
       );
     }
 
-    // Add the user's marker to the map
+    // Add the user's marker to the map.
     if (currentLocation != null) {
       final userMarker = Marker(
         markerId: const MarkerId('user_current'),
@@ -98,15 +113,13 @@ class LocationHandler {
       );
 
       _markers.add(userMarker);
-      onMarkersUpdated(_markers); // Notify parent widget to update markers
+      onMarkersUpdated(_markers);
     }
   }
 
   void showOverlay(BuildContext context, Widget overlayContent) {
-    _overlayEntry = OverlayEntry(
-      builder: (context) => overlayContent,
-    );
-    Overlay.of(context).insert(_overlayEntry!);
+    _overlayEntry = OverlayEntry(builder: (context) => overlayContent);
+    Overlay.of(context)?.insert(_overlayEntry!);
   }
 
   void hideOverlay() {
@@ -148,162 +161,149 @@ class LocationHandler {
 
   void listenForLocationUpdates() {
     if (activeSpaceId.isEmpty) return;
-    _locationUpdatesSubscription?.cancel();
-    _locationUpdatesSubscription = FirebaseFirestore.instance
+    // Cancel any previous Firestore subscription.
+    _firestoreSubscription?.cancel();
+    _firestoreSubscription = FirebaseFirestore.instance
         .collection('Spaces')
         .doc(activeSpaceId)
         .snapshots()
         .asyncMap((spaceSnapshot) async {
-      final members = List<String>.from(spaceSnapshot['members']);
-      return FirebaseFirestore.instance
-          .collection('UserLocations')
-          .where(FieldPath.documentId, whereIn: members)
-          .snapshots();
-    }).asyncExpand((snapshotStream) => snapshotStream).listen((snapshot) async {
-      final updatedMarkers = <Marker>{};
+          final members = List<String>.from(spaceSnapshot['members']);
+          return FirebaseFirestore.instance
+              .collection('UserLocations')
+              .where(FieldPath.documentId, whereIn: members)
+              .snapshots();
+        })
+        .asyncExpand((snapshotStream) => snapshotStream)
+        .listen((snapshot) async {
+          final updatedMarkers = <Marker>{};
+          final existingMarkers = _markers
+              .where((marker) => !marker.markerId.value.startsWith('user_'));
+          for (final doc in snapshot.docs) {
+            final data = doc.data() as Map<String, dynamic>;
+            final lat = data['latitude'];
+            final lng = data['longitude'];
+            final userId = doc.id;
 
-      // Preserve existing PWD-friendly and nearby places markers
-      final existingMarkers = _markers
-          .where((marker) => !marker.markerId.value.startsWith('user_'));
+            final userDoc = await FirebaseFirestore.instance
+                .collection('Users')
+                .doc(userId)
+                .get();
+            final username = userDoc['username'];
+            final profilePictureUrl = userDoc.data()?['profilePicture'] ?? '';
 
-      // Process the snapshot
-      for (final doc in snapshot.docs) {
-        final data = doc.data() as Map<String, dynamic>;
-        final lat = data['latitude'];
-        final lng = data['longitude'];
-        final userId = doc.id;
+            print("🟢 Fetched user data for $username: $profilePictureUrl");
 
-        // Fetch the user's profile data
-        final userDoc = await FirebaseFirestore.instance
-            .collection('Users')
-            .doc(userId)
-            .get();
-        final username = userDoc['username'];
-        final profilePictureUrl = userDoc.data()?['profilePicture'] ?? '';
+            final isSelected = userId == selectedUserId;
+            BitmapDescriptor customIcon;
+            if (profilePictureUrl.isNotEmpty) {
+              try {
+                customIcon = await _createCustomMarkerIcon(profilePictureUrl,
+                    isSelected: isSelected);
+              } catch (e) {
+                print("❌ Error creating custom marker for $username: $e");
+                customIcon = await BitmapDescriptor.fromAssetImage(
+                  const ImageConfiguration(size: Size(24, 24)),
+                  'assets/images/others/default_profile.png',
+                );
+              }
+            } else {
+              customIcon = await BitmapDescriptor.fromAssetImage(
+                const ImageConfiguration(size: Size(24, 24)),
+                'assets/images/others/default_profile.png',
+              );
+            }
 
-        print("🟢 Fetched user data for $username: $profilePictureUrl");
-
-        // Determine if this marker is selected
-        final isSelected = userId == selectedUserId;
-
-        // Create a custom marker icon with the profile picture
-        BitmapDescriptor customIcon;
-        if (profilePictureUrl != null && profilePictureUrl.isNotEmpty) {
-          try {
-            customIcon = await _createCustomMarkerIcon(profilePictureUrl, isSelected: isSelected);
-          } catch (e) {
-            print("❌ Error creating custom marker for $username: $e");
-            customIcon = await BitmapDescriptor.fromAssetImage(
-              const ImageConfiguration(size: Size(24, 24)),
-              'assets/images/others/default_profile.png',
+            updatedMarkers.add(
+              Marker(
+                markerId: MarkerId('user_$userId'),
+                position: LatLng(lat, lng),
+                infoWindow: InfoWindow(title: username),
+                icon: customIcon,
+                onTap: () => _onMarkerTapped(MarkerId('user_$userId')),
+              ),
             );
           }
-        } else {
-          // Use a default icon if no profile picture is available
-          customIcon = await BitmapDescriptor.fromAssetImage(
-            const ImageConfiguration(size: Size(24, 24)),
-            'assets/images/others/default_profile.png',
-          );
-        }
 
-        // Add the custom marker
-        updatedMarkers.add(
-          Marker(
-            markerId: MarkerId('user_$userId'),
-            position: LatLng(lat, lng),
-            infoWindow: InfoWindow(title: username),
-            icon: customIcon,
-            onTap: () => _onMarkerTapped(MarkerId('user_$userId')),
-          ),
-        );
-      }
-
-      print("🟢 Updated ${updatedMarkers.length} user markers.");
-      _markers = existingMarkers.toSet().union(updatedMarkers);
-      onMarkersUpdated(_markers); // Notify parent widget to update markers
-    });
+          print("🟢 Updated ${updatedMarkers.length} user markers.");
+          _markers = existingMarkers.toSet().union(updatedMarkers);
+          onMarkersUpdated(_markers);
+        });
   }
 
   void _onMarkerTapped(MarkerId markerId) {
     if (markerId.value.startsWith('user_')) {
-      // Handle user marker tap
-      final userId = markerId.value.replaceFirst('user_', ''); // Extract user ID from marker ID
-      selectedUserId = userId; // Update the selected user ID
-      listenForLocationUpdates(); // Refresh markers to update the selected state
+      final userId = markerId.value.replaceFirst('user_', '');
+      selectedUserId = userId;
+      listenForLocationUpdates();
     }
   }
 
-  Future<BitmapDescriptor> _createCustomMarkerIcon(String imageUrl, {bool isSelected = false}) async {
-    print("🟢 Creating custom marker icon for: $imageUrl (isSelected: $isSelected)");
-
+  Future<BitmapDescriptor> _createCustomMarkerIcon(String imageUrl,
+      {bool isSelected = false}) async {
+    print(
+        "🟢 Creating custom marker icon for: $imageUrl (isSelected: $isSelected)");
     try {
-      // Fetch the profile picture
       final response = await http.get(Uri.parse(imageUrl));
       if (response.statusCode != 200) {
         print("❌ Failed to load image: ${response.statusCode}");
         throw Exception('Failed to load image');
       }
-
-      // Decode the profile picture
       final profileBytes = response.bodyBytes;
       final profileCodec = await ui.instantiateImageCodec(profileBytes);
       final profileFrame = await profileCodec.getNextFrame();
       final profileImage = profileFrame.image;
 
-      // Load the appropriate marker shape asset
       final markerShapeAsset = isSelected
           ? 'assets/images/others/marker_shape_selected.png'
           : 'assets/images/others/marker_shape.png';
       final markerShapeBytes = await rootBundle.load(markerShapeAsset);
-      final markerShapeCodec = await ui.instantiateImageCodec(markerShapeBytes.buffer.asUint8List());
+      final markerShapeCodec =
+          await ui.instantiateImageCodec(markerShapeBytes.buffer.asUint8List());
       final markerShapeFrame = await markerShapeCodec.getNextFrame();
       final markerShapeImage = markerShapeFrame.image;
 
-      // Create a canvas to draw the combined image
       final pictureRecorder = ui.PictureRecorder();
       final canvas = Canvas(pictureRecorder);
 
-      // Define the size of the marker
       final markerWidth = markerShapeImage.width.toDouble();
       final markerHeight = markerShapeImage.height.toDouble();
 
-      // Draw the marker shape
       canvas.drawImage(markerShapeImage, Offset.zero, Paint());
 
-      // Draw the profile picture inside the marker shape
-      final profileSize = 100.0; // Adjust the size of the profile picture
+      final profileSize = 100.0;
       final profileOffset = Offset(
-        (markerWidth - profileSize) / 1.8, // Center horizontally
-        11, // Adjust vertical position
+        (markerWidth - profileSize) / 1.8,
+        11,
       );
 
-      // Clip the profile picture to a circle
       final clipPath = Path()
         ..addOval(Rect.fromCircle(
-          center: Offset(profileOffset.dx + profileSize / 2, profileOffset.dy + profileSize / 2),
+          center: Offset(profileOffset.dx + profileSize / 2,
+              profileOffset.dy + profileSize / 2),
           radius: profileSize / 2,
         ));
       canvas.clipPath(clipPath);
 
-      // Draw the profile picture
       canvas.drawImageRect(
         profileImage,
-        Rect.fromLTWH(0, 0, profileImage.width.toDouble(), profileImage.height.toDouble()),
-        Rect.fromLTWH(profileOffset.dx, profileOffset.dy, profileSize, profileSize),
+        Rect.fromLTWH(0, 0, profileImage.width.toDouble(),
+            profileImage.height.toDouble()),
+        Rect.fromLTWH(
+            profileOffset.dx, profileOffset.dy, profileSize, profileSize),
         Paint(),
       );
 
-      // Convert the canvas to an image
       final picture = pictureRecorder.endRecording();
-      final imageMarker = await picture.toImage(markerWidth.toInt(), markerHeight.toInt());
-      final byteData = await imageMarker.toByteData(format: ui.ImageByteFormat.png);
+      final imageMarker =
+          await picture.toImage(markerWidth.toInt(), markerHeight.toInt());
+      final byteData =
+          await imageMarker.toByteData(format: ui.ImageByteFormat.png);
 
       if (byteData == null) {
         print("❌ Failed to convert image to bytes");
         throw Exception('Failed to convert image to bytes');
       }
-
-      // Create the custom marker icon
       print("🟢 Custom marker icon created successfully");
       return BitmapDescriptor.fromBytes(byteData.buffer.asUint8List());
     } catch (e) {
@@ -356,19 +356,23 @@ class LocationHandler {
 
   void navigateToSettings(BuildContext context) {
     print("Navigating to settings...");
-
-    if (_isNavigating) return; // Prevent duplicate navigation
+    if (_isNavigating) return;
     _isNavigating = true;
-
     WidgetsBinding.instance.addPostFrameCallback((_) {
       Navigator.pushNamed(context, '/settings').then((_) {
         print("Returned from settings.");
-        _isNavigating = false; // Re-enable navigation after the route is popped
+        _isNavigating = false;
       });
     });
   }
 
   void onMapCreated(GoogleMapController controller) {
     mapController = controller;
+  }
+
+  // Dispose both subscriptions
+  void disposeHandler() {
+    _locationStreamSubscription?.cancel();
+    _firestoreSubscription?.cancel();
   }
 }

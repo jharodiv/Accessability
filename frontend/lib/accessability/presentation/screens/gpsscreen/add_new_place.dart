@@ -1,14 +1,10 @@
+import 'package:AccessAbility/accessability/logic/bloc/place/bloc/place_bloc.dart';
+import 'package:AccessAbility/accessability/logic/bloc/place/bloc/place_event.dart';
 import 'package:flutter/material.dart';
-import 'package:AccessAbility/accessability/logic/bloc/user/user_bloc.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:AccessAbility/accessability/logic/bloc/user/user_bloc.dart';
 import 'package:AccessAbility/accessability/logic/bloc/user/user_event.dart';
-
-enum PlaceCategory {
-  favorite,
-  wantToGo,
-  visited,
-}
 
 class AddNewPlaceScreen extends StatefulWidget {
   const AddNewPlaceScreen({Key? key}) : super(key: key);
@@ -18,31 +14,14 @@ class AddNewPlaceScreen extends StatefulWidget {
 }
 
 class _AddNewPlaceScreenState extends State<AddNewPlaceScreen> {
-  // Controllers
+  // Controller for the place name input
   final TextEditingController _placeNameController = TextEditingController();
 
-  // Google Map
+  // Google Map controller and location variables
   GoogleMapController? _mapController;
   static const LatLng _initialLocation =
       LatLng(16.04361106008402, 120.33531522527143);
   LatLng _currentLatLng = _initialLocation;
-
-  // Category selection
-  PlaceCategory _selectedCategory = PlaceCategory.favorite;
-
-  // Map category to icons
-  final Map<PlaceCategory, IconData> categoryIcons = {
-    PlaceCategory.favorite: Icons.favorite,
-    PlaceCategory.wantToGo: Icons.flag,
-    PlaceCategory.visited: Icons.check_circle,
-  };
-
-  // Map category to labels (for popup menu)
-  final Map<PlaceCategory, String> categoryLabels = {
-    PlaceCategory.favorite: "Favorite",
-    PlaceCategory.wantToGo: "Want to Go",
-    PlaceCategory.visited: "Visited",
-  };
 
   @override
   Widget build(BuildContext context) {
@@ -63,50 +42,27 @@ class _AddNewPlaceScreenState extends State<AddNewPlaceScreen> {
       ),
       body: Column(
         children: [
-          // "Search bar" / place name row
+          // Row for entering the place name
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8),
             child: Column(
               children: [
                 Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
-                    // PopupMenu for category selection
-                    PopupMenuButton<PlaceCategory>(
-                      onSelected: (PlaceCategory value) {
-                        setState(() {
-                          _selectedCategory = value;
-                        });
-                      },
-                      icon: Icon(
-                        categoryIcons[_selectedCategory],
-                        color: const Color(0xFF6750A4),
-                      ),
-                      itemBuilder: (BuildContext context) {
-                        return PlaceCategory.values.map((category) {
-                          return PopupMenuItem<PlaceCategory>(
-                            value: category,
-                            child: Row(
-                              children: [
-                                Icon(
-                                  categoryIcons[category],
-                                  color: const Color(0xFF6750A4),
-                                ),
-                                const SizedBox(width: 8),
-                                Text(categoryLabels[category]!),
-                              ],
-                            ),
-                          );
-                        }).toList();
-                      },
-                    ),
-                    const SizedBox(width: 3),
-                    // TextField for place name
+                    // TextField for the place name
                     Expanded(
                       child: TextField(
                         controller: _placeNameController,
+                        textAlignVertical: TextAlignVertical.bottom,
                         decoration: const InputDecoration(
                           hintText: "Name of place",
                           border: InputBorder.none,
+                          prefixIcon: Icon(
+                            Icons.place,
+                            color: Color(0xFF6750A4), // Set the color here
+                          ),
                         ),
                       ),
                     ),
@@ -120,8 +76,7 @@ class _AddNewPlaceScreenState extends State<AddNewPlaceScreen> {
               ],
             ),
           ),
-
-          // "Locate on Map" label
+          // Label for the map location section
           const Padding(
             padding: EdgeInsets.only(left: 16.0, top: 8, bottom: 4),
             child: Align(
@@ -132,8 +87,7 @@ class _AddNewPlaceScreenState extends State<AddNewPlaceScreen> {
               ),
             ),
           ),
-
-          // The map with the pinned marker
+          // Map with a centered marker (for selecting the place location)
           Expanded(
             child: Container(
               decoration: BoxDecoration(
@@ -158,15 +112,15 @@ class _AddNewPlaceScreenState extends State<AddNewPlaceScreen> {
                       _currentLatLng = position.target;
                     },
                   ),
-                  // Center marker that changes with category
-                  Center(
+                  // Default center marker icon
+                  const Center(
                     child: Icon(
-                      categoryIcons[_selectedCategory],
+                      Icons.location_on,
                       size: 48,
-                      color: const Color(0xFF6750A4),
+                      color: Color(0xFF6750A4), // Set the color here
                     ),
                   ),
-                  // "Next" button pinned at the bottom
+                  // "Next" button at the bottom
                   Positioned(
                     bottom: 16,
                     left: 16,
@@ -198,6 +152,7 @@ class _AddNewPlaceScreenState extends State<AddNewPlaceScreen> {
     );
   }
 
+  // When the user taps "Next", dispatch the add event without a category.
   void _onNextPressed() {
     final placeName = _placeNameController.text.trim();
     if (placeName.isEmpty) {
@@ -207,17 +162,16 @@ class _AddNewPlaceScreenState extends State<AddNewPlaceScreen> {
       return;
     }
 
-    // Dispatch the AddPlaceEvent with all details
-    context.read<UserBloc>().add(
+    // Dispatch the AddPlaceEvent with name and location.
+    context.read<PlaceBloc>().add(
           AddPlaceEvent(
             name: placeName,
-            category: categoryLabels[_selectedCategory]!,
             latitude: _currentLatLng.latitude,
             longitude: _currentLatLng.longitude,
           ),
         );
 
-    // Navigate back to the home screen ("/") after adding the place
-    Navigator.of(context).pushNamedAndRemoveUntil("/", (route) => false);
+    // Pop this screen off the stack (go back to the previous screen).
+    Navigator.of(context).pop();
   }
 }

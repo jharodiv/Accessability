@@ -1,4 +1,6 @@
+import 'package:AccessAbility/accessability/data/repositories/place_repository.dart';
 import 'package:AccessAbility/accessability/firebaseServices/place/place_service.dart';
+import 'package:AccessAbility/accessability/logic/bloc/place/bloc/place_bloc.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -23,6 +25,7 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'package:AccessAbility/accessability/backgroundServices/location_notification_service.dart';
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+final RouteObserver<PageRoute> routeObserver = RouteObserver<PageRoute>();
 
 void main() async {
   // Ensure Flutter bindings are initialized
@@ -125,11 +128,17 @@ class MyApp extends StatelessWidget {
             authService: authService, // Use the passed AuthService
           ),
         ),
+        BlocProvider<PlaceBloc>(
+          create: (context) => PlaceBloc(
+            placeRepository: PlaceRepository(placeService: PlaceService()),
+          ),
+        ),
       ],
       child: Consumer<ThemeProvider>(
         builder: (context, themeProvider, child) {
           return MaterialApp(
             navigatorKey: navigatorKey,
+            navigatorObservers: [routeObserver],
             debugShowCheckedModeBanner: false,
             theme: _buildLightTheme(context),
             darkTheme: _buildDarkTheme(context),

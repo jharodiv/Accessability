@@ -1,5 +1,6 @@
 import 'package:AccessAbility/accessability/data/model/user_model.dart';
 import 'package:AccessAbility/accessability/firebaseServices/auth/auth_service.dart';
+import 'package:AccessAbility/accessability/firebaseServices/models/emergency_contact.dart';
 import 'package:AccessAbility/accessability/firebaseServices/models/place.dart';
 import 'package:AccessAbility/accessability/firebaseServices/place/place_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -166,6 +167,46 @@ class UserRepository {
     } catch (e) {
       print('AuthRepository: Failed to delete place - ${e.toString()}');
       throw Exception('Failed to delete place: ${e.toString()}');
+    }
+  }
+  // -----------------------------
+  // Emergency Contact Functionality using EmergencyContact Model
+  // -----------------------------
+
+  /// Add a new emergency contact for the user.
+  Future<void> addEmergencyContact(String uid, EmergencyContact contact) async {
+    try {
+      await authService.addEmergencyContact(uid, contact);
+    } catch (e) {
+      throw Exception('Failed to add emergency contact: ${e.toString()}');
+    }
+  }
+
+  /// Fetch all emergency contacts for the user.
+  Future<List<EmergencyContact>> getEmergencyContacts(String uid) async {
+    try {
+      return await authService.getEmergencyContacts(uid);
+    } catch (e) {
+      throw Exception('Failed to fetch emergency contacts: ${e.toString()}');
+    }
+  }
+
+  /// Update an existing emergency contact.
+  Future<void> updateEmergencyContact(
+      String uid, String contactId, EmergencyContact contact) async {
+    try {
+      await authService.updateEmergencyContact(uid, contactId, contact);
+    } catch (e) {
+      throw Exception('Failed to update emergency contact: ${e.toString()}');
+    }
+  }
+
+  /// Delete an emergency contact.
+  Future<void> deleteEmergencyContact(String uid, String contactId) async {
+    try {
+      await authService.deleteEmergencyContact(uid, contactId);
+    } catch (e) {
+      throw Exception('Failed to delete emergency contact: ${e.toString()}');
     }
   }
 }

@@ -22,7 +22,7 @@ class TutorialWidget {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       List<TargetFocus> targets = [];
       // Add targets for the tutorial
-       targets.add(TargetFocus(
+      targets.add(TargetFocus(
         identify: "inboxTarget",
         keyTarget: inboxKey,
         contents: [

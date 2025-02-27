@@ -27,45 +27,6 @@ class UploadProfilePictureEvent extends UserEvent {
   List<Object> get props => [uid, profilePicture];
 }
 
-class AddPlaceEvent extends UserEvent {
-  final String name;
-  final String category;
-  final double latitude;
-  final double longitude;
-
-  const AddPlaceEvent({
-    required this.name,
-    required this.category,
-    required this.latitude,
-    required this.longitude,
-  });
-
-  @override
-  List<Object> get props => [name, category, latitude, longitude];
-}
-
-class GetPlacesByCategoryEvent extends UserEvent {
-  final String category;
-
-  const GetPlacesByCategoryEvent({
-    required this.category,
-  });
-
-  @override
-  List<Object> get props => [category];
-}
-
-class DeletePlaceEvent extends UserEvent {
-  final String placeId;
-
-  const DeletePlaceEvent({
-    required this.placeId,
-  });
-
-  @override
-  List<Object> get props => [placeId];
-}
-
 // --- Emergency Contact Events ---
 
 class AddEmergencyContactEvent extends UserEvent {

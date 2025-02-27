@@ -135,40 +135,6 @@ class UserRepository {
     }
   }
 
-  // Add a Place
-  Future<void> addPlace(
-    String name,
-    String category,
-    double latitude,
-    double longitude,
-  ) async {
-    try {
-      await placeService.addPlace(name, category, latitude, longitude);
-    } catch (e) {
-      print('AuthRepository: Failed to add place - ${e.toString()}');
-      throw Exception('Failed to add place: ${e.toString()}');
-    }
-  }
-
-  // Get Places by Category
-  Stream<List<Place>> getPlacesByCategory(String category) {
-    try {
-      return placeService.getPlacesByCategory(category);
-    } catch (e) {
-      print('AuthRepository: Failed to fetch places - ${e.toString()}');
-      throw Exception('Failed to fetch places: ${e.toString()}');
-    }
-  }
-
-  // Delete a Place
-  Future<void> deletePlace(String placeId) async {
-    try {
-      await placeService.deletePlace(placeId);
-    } catch (e) {
-      print('AuthRepository: Failed to delete place - ${e.toString()}');
-      throw Exception('Failed to delete place: ${e.toString()}');
-    }
-  }
   // -----------------------------
   // Emergency Contact Functionality using EmergencyContact Model
   // -----------------------------

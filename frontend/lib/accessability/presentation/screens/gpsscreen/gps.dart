@@ -41,6 +41,8 @@ class _GpsScreenState extends State<GpsScreen> {
   void initState() {
     super.initState();
 
+    context.read<UserBloc>().add(FetchUserData());
+
     // Initialize _tutorialWidget with keys
     _tutorialWidget = TutorialWidget(
       inboxKey: inboxKey,
@@ -98,6 +100,12 @@ class _GpsScreenState extends State<GpsScreen> {
         _tutorialWidget.showTutorial(context);
       }
     });
+  }
+
+  @override
+  void dispose() {
+    _locationHandler.disposeHandler();
+    super.dispose();
   }
 
 // Callback when the tutorial is completed
@@ -181,7 +189,10 @@ class _GpsScreenState extends State<GpsScreen> {
   Widget build(BuildContext context) {
     return BlocBuilder<UserBloc, UserState>(
       builder: (context, userState) {
-        if (userState is UserLoading) {
+        print("🟢🟢🟢🟢🟢 Current user state: $userState");
+
+        // Handle initial state as loading
+        if (userState is UserInitial || userState is UserLoading) {
           return const Center(child: CircularProgressIndicator());
         } else if (userState is UserError) {
           return Center(
@@ -216,12 +227,11 @@ class _GpsScreenState extends State<GpsScreen> {
                     circles: _circles,
                     onMapCreated: (controller) {
                       _locationHandler.onMapCreated(controller);
-
-                      // Animate the camera to the user's location once the map is created
                       if (_locationHandler.currentLocation != null) {
                         controller.animateCamera(
                           CameraUpdate.newLatLng(
-                              _locationHandler.currentLocation!),
+                            _locationHandler.currentLocation!,
+                          ),
                         );
                       }
                     },
@@ -255,9 +265,8 @@ class _GpsScreenState extends State<GpsScreen> {
                   if (_locationHandler.currentIndex == 1)
                     const FavoriteWidget(),
                   if (_locationHandler.currentIndex == 2)
-                    const SafetyAssistWidget(
-                      uid: "",
-                    ),
+                    // Pass the user’s UID from the UserLoaded state.
+                    SafetyAssistWidget(uid: userState.user.uid),
                 ],
               ),
               bottomNavigationBar: Accessabilityfooter(

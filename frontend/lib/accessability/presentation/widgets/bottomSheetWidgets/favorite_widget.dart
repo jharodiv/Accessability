@@ -1,9 +1,9 @@
+import 'package:AccessAbility/accessability/logic/bloc/place/bloc/place_bloc.dart';
+import 'package:AccessAbility/accessability/logic/bloc/place/bloc/place_event.dart';
+import 'package:AccessAbility/accessability/logic/bloc/place/bloc/place_state.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:AccessAbility/accessability/firebaseServices/models/place.dart';
-import 'package:AccessAbility/accessability/logic/bloc/user/user_bloc.dart';
-import 'package:AccessAbility/accessability/logic/bloc/user/user_event.dart';
-import 'package:AccessAbility/accessability/logic/bloc/user/user_state.dart';
 
 class FavoriteWidget extends StatefulWidget {
   final VoidCallback? onPlaceAdded;
@@ -55,7 +55,7 @@ class _FavoriteWidgetState extends State<FavoriteWidget> {
     if (lists[index]['expanded'] == true) {
       final category = lists[index]['title'];
       context
-          .read<UserBloc>()
+          .read<PlaceBloc>()
           .add(GetPlacesByCategoryEvent(category: category));
     }
   }
@@ -178,7 +178,7 @@ class _FavoriteWidgetState extends State<FavoriteWidget> {
                         ),
                         // Expanded Section: show places for the category.
                         if (lists[index]['expanded'])
-                          BlocBuilder<UserBloc, UserState>(
+                          BlocBuilder<PlaceBloc, PlaceState>(
                             builder: (context, state) {
                               if (state is PlaceOperationLoading) {
                                 return const Padding(
@@ -205,12 +205,12 @@ class _FavoriteWidgetState extends State<FavoriteWidget> {
                                                   color: Colors.red),
                                               onPressed: () {
                                                 // Dispatch delete event and refresh list.
-                                                context.read<UserBloc>().add(
+                                                context.read<PlaceBloc>().add(
                                                     DeletePlaceEvent(
                                                         placeId: place.id));
                                                 final category =
                                                     lists[index]['title'];
-                                                context.read<UserBloc>().add(
+                                                context.read<PlaceBloc>().add(
                                                     GetPlacesByCategoryEvent(
                                                         category: category));
                                               },

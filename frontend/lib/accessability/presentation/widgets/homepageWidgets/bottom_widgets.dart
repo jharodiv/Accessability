@@ -13,15 +13,14 @@ class BottomWidgets extends StatefulWidget {
   final ScrollController scrollController;
   final String activeSpaceId;
   final Function(String) onCategorySelected; // Added callback
-  final Key? key;
   final Function(LatLng, String) onMemberPressed; // Callback for member press
 
   const BottomWidgets({
-    this.key,
+    Key? key,
     required this.scrollController,
     required this.activeSpaceId,
-    required this.onCategorySelected, // New parameter
-    required this.onMemberPressed, // New parameter
+    required this.onCategorySelected,
+    required this.onMemberPressed,
   }) : super(key: key);
 
   @override
@@ -52,84 +51,90 @@ class _BottomWidgetsState extends State<BottomWidgets> {
   }
 
   Future<void> _fetchMembers() async {
-  if (widget.activeSpaceId.isEmpty) return;
+    if (widget.activeSpaceId.isEmpty) return;
 
-  print("🟢 Fetching members for space: ${widget.activeSpaceId}");
+    print("🟢 Fetching members for space: ${widget.activeSpaceId}");
 
-  final snapshot = await _firestore.collection('Spaces').doc(widget.activeSpaceId).get();
-  if (!snapshot.exists) {
-    print("🔴 Space document does not exist");
-    return;
-  }
-
-  final members = snapshot['members'] != null ? List<String>.from(snapshot['members']) : [];
-  final creatorId = snapshot['creator'];
-
-  if (members.isEmpty) {
-    print("🟠 No members found in this space");
-    return;
-  }
-
-  print("🟢 Members in space: $members");
-
-  final usersSnapshot = await _firestore
-      .collection('Users')
-      .where('uid', whereIn: members)
-      .get();
-
-  print("🟢 Fetched ${usersSnapshot.docs.length} users");
-
-  // Fetch addresses for all members
-  final updatedMembers = await Future.wait(usersSnapshot.docs.map((doc) async {
-    final locationSnapshot = await _firestore
-        .collection('UserLocations')
-        .doc(doc['uid'])
-        .get();
-    final locationData = locationSnapshot.data();
-    String address = 'Fetching address...';
-    if (locationData != null) {
-      final lat = locationData['latitude'];
-      final lng = locationData['longitude'];
-      address = await _getAddressFromLatLng(LatLng(lat, lng));
+    final snapshot =
+        await _firestore.collection('Spaces').doc(widget.activeSpaceId).get();
+    if (!snapshot.exists) {
+      print("🔴 Space document does not exist");
+      return;
     }
 
-    return {
-      'uid': doc['uid'],
-      'username': doc['username'] ?? 'Unknown',
-      'profilePicture': doc['profilePicture'] ?? 'https://firebasestorage.googleapis.com/v0/b/accessability-71ef7.firebasestorage.app/o/profile_pictures%2Fdefault_profile.png?alt=media&token=bc7a75a7-a78e-4460-b816-026a8fc341ba',
-      'address': address,
-      'lastUpdate': locationData?['timestamp'],
-    };
-  }));
+    final members = snapshot['members'] != null
+        ? List<String>.from(snapshot['members'])
+        : [];
+    final creatorId = snapshot['creator'];
 
-  setState(() {
-    _members = updatedMembers;
-    _creatorId = creatorId;
-  });
+    if (members.isEmpty) {
+      print("🟠 No members found in this space");
+      return;
+    }
 
-  print("🟢 Updated _members: $_members");
+    print("🟢 Members in space: $members");
 
-  // Set up real-time listener for location updates
-  for (final member in members) {
-    _firestore.collection('UserLocations').doc(member).snapshots().listen((locationSnapshot) async {
+    final usersSnapshot = await _firestore
+        .collection('Users')
+        .where('uid', whereIn: members)
+        .get();
+
+    print("🟢 Fetched ${usersSnapshot.docs.length} users");
+
+    // Fetch addresses for all members
+    final updatedMembers =
+        await Future.wait(usersSnapshot.docs.map((doc) async {
+      final locationSnapshot =
+          await _firestore.collection('UserLocations').doc(doc['uid']).get();
       final locationData = locationSnapshot.data();
+      String address = 'Fetching address...';
       if (locationData != null) {
         final lat = locationData['latitude'];
         final lng = locationData['longitude'];
-        final address = await _getAddressFromLatLng(LatLng(lat, lng));
-
-        setState(() {
-          final index = _members.indexWhere((m) => m['uid'] == member);
-          if (index != -1) {
-            _members[index]['address'] = address;
-            _members[index]['lastUpdate'] = locationData['timestamp'];
-          }
-        });
+        address = await _getAddressFromLatLng(LatLng(lat, lng));
       }
-    });
-  }
-}
 
+      return {
+        'uid': doc['uid'],
+        'username': doc['username'] ?? 'Unknown',
+        'profilePicture': doc['profilePicture'] ??
+            'https://firebasestorage.googleapis.com/v0/b/accessability-71ef7.firebasestorage.app/o/profile_pictures%2Fdefault_profile.png?alt=media&token=bc7a75a7-a78e-4460-b816-026a8fc341ba',
+        'address': address,
+        'lastUpdate': locationData?['timestamp'],
+      };
+    }));
+
+    setState(() {
+      _members = updatedMembers;
+      _creatorId = creatorId;
+    });
+
+    print("🟢 Updated _members: $_members");
+
+    // Set up real-time listener for location updates
+    for (final member in members) {
+      _firestore
+          .collection('UserLocations')
+          .doc(member)
+          .snapshots()
+          .listen((locationSnapshot) async {
+        final locationData = locationSnapshot.data();
+        if (locationData != null) {
+          final lat = locationData['latitude'];
+          final lng = locationData['longitude'];
+          final address = await _getAddressFromLatLng(LatLng(lat, lng));
+
+          setState(() {
+            final index = _members.indexWhere((m) => m['uid'] == member);
+            if (index != -1) {
+              _members[index]['address'] = address;
+              _members[index]['lastUpdate'] = locationData['timestamp'];
+            }
+          });
+        }
+      });
+    }
+  }
 
   // Add a person to the space
   Future<void> _addPerson() async {
@@ -299,8 +304,9 @@ class _BottomWidgetsState extends State<BottomWidgets> {
                         ),
                         const SizedBox(height: 20),
                         _buildContent(),
-                        if (_creatorId ==
-                            _auth.currentUser?.uid && _activeIndex == 0) // Only show if creator and in People tab
+                        if (_creatorId == _auth.currentUser?.uid &&
+                            _activeIndex ==
+                                0) // Only show if creator and in People tab
                           ElevatedButton(
                             onPressed: _addPerson,
                             child: const Text('Add Person'),
@@ -386,122 +392,130 @@ class _BottomWidgetsState extends State<BottomWidgets> {
     );
   }
 
-   Widget _buildContent() {
-  switch (_activeIndex) {
-    case 0:
-      return Column(
-        children: _members
-            .where((member) =>
-                member['uid'] !=
-                _auth.currentUser?.uid) // Exclude current user
-            .map((member) => GestureDetector(
-                  onTap: () async {
-                    setState(() {
-                      _selectedMemberId = member['uid'];
-                    });
-
-                    // Fetch the member's location
-                    final locationSnapshot = await _firestore
-                        .collection('UserLocations')
-                        .doc(member['uid'])
-                        .get();
-                    final locationData = locationSnapshot.data();
-                    if (locationData != null) {
-                      final lat = locationData['latitude'];
-                      final lng = locationData['longitude'];
-                      final address = await _getAddressFromLatLng(LatLng(lat, lng));
-
+  Widget _buildContent() {
+    switch (_activeIndex) {
+      case 0:
+        return Column(
+          children: _members
+              .where((member) =>
+                  member['uid'] !=
+                  _auth.currentUser?.uid) // Exclude current user
+              .map((member) => GestureDetector(
+                    onTap: () async {
                       setState(() {
-                        member['address'] = address;
-                        member['lastUpdate'] = locationData['timestamp'];
+                        _selectedMemberId = member['uid'];
                       });
 
-                      // Pan the camera to the member's location
-                      widget.onMemberPressed(LatLng(lat, lng), member['uid']);
-                    }
-                  },
-                  child: Container(
-                    color: _selectedMemberId == member['uid'] ? Color(0xFF6750A4) : Colors.white,
-                    child: ListTile(
-                      leading: CircleAvatar(
-                        backgroundImage: member['profilePicture'] != null && member['profilePicture'].startsWith('http')
-                            ? NetworkImage(member['profilePicture']) // Use NetworkImage for web URLs
-                            : AssetImage('assets/images/others/default_profile.png') as ImageProvider, // Use AssetImage for local assets
-                      ),
-                      title: Text(
-                        member['username'],
-                        style: TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                      subtitle: Column(
-  crossAxisAlignment: CrossAxisAlignment.start,
-  children: [
-    Text(
-      'Current Location: ${member['address'] ?? 'Fetching address...'}',
-      style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
-    ),
-    if (member['lastUpdate'] != null)
-      Text(
-        'Last location update: ${_getTimeDifference((member['lastUpdate'] as Timestamp).toDate())}',
-        style: TextStyle(fontSize: 12),
-      ),
-  ],
-),
-                      trailing: IconButton(
-                        icon: const Icon(Icons.chat),
-                        onPressed: () {
-                          // Navigate to chat with the member
-                          Navigator.pushNamed(
-                            context,
-                            '/chatconvo',
-                            arguments: {
-                              'receiverEmail': member['username'],
-                              'receiverID': member['uid'],
-                            },
-                          );
-                        },
+                      // Fetch the member's location
+                      final locationSnapshot = await _firestore
+                          .collection('UserLocations')
+                          .doc(member['uid'])
+                          .get();
+                      final locationData = locationSnapshot.data();
+                      if (locationData != null) {
+                        final lat = locationData['latitude'];
+                        final lng = locationData['longitude'];
+                        final address =
+                            await _getAddressFromLatLng(LatLng(lat, lng));
+
+                        setState(() {
+                          member['address'] = address;
+                          member['lastUpdate'] = locationData['timestamp'];
+                        });
+
+                        // Pan the camera to the member's location
+                        widget.onMemberPressed(LatLng(lat, lng), member['uid']);
+                      }
+                    },
+                    child: Container(
+                      color: _selectedMemberId == member['uid']
+                          ? Color(0xFF6750A4)
+                          : Colors.white,
+                      child: ListTile(
+                        leading: CircleAvatar(
+                          backgroundImage: member['profilePicture'] != null &&
+                                  member['profilePicture'].startsWith('http')
+                              ? NetworkImage(member[
+                                  'profilePicture']) // Use NetworkImage for web URLs
+                              : AssetImage(
+                                      'assets/images/others/default_profile.png')
+                                  as ImageProvider, // Use AssetImage for local assets
+                        ),
+                        title: Text(
+                          member['username'],
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        subtitle: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Current Location: ${member['address'] ?? 'Fetching address...'}',
+                              style: TextStyle(
+                                  fontSize: 12, fontWeight: FontWeight.bold),
+                            ),
+                            if (member['lastUpdate'] != null)
+                              Text(
+                                'Last location update: ${_getTimeDifference((member['lastUpdate'] as Timestamp).toDate())}',
+                                style: TextStyle(fontSize: 12),
+                              ),
+                          ],
+                        ),
+                        trailing: IconButton(
+                          icon: const Icon(Icons.chat),
+                          onPressed: () {
+                            // Navigate to chat with the member
+                            Navigator.pushNamed(
+                              context,
+                              '/chatconvo',
+                              arguments: {
+                                'receiverEmail': member['username'],
+                                'receiverID': member['uid'],
+                              },
+                            );
+                          },
+                        ),
                       ),
                     ),
-                  ),
-                ))
-            .toList(),
-      );
-    case 1:
-      return AddPlaceWidget();
-    case 2:
-      return // Here we pass the onCategorySelected callback to MapContent.
-          MapContent(
-        onCategorySelected: widget.onCategorySelected,
-      );
-    default:
-      return const SizedBox.shrink();
+                  ))
+              .toList(),
+        );
+      case 1:
+        return const AddPlaceWidget();
+      case 2:
+        return // Here we pass the onCategorySelected callback to MapContent.
+            MapContent(
+          onCategorySelected: widget.onCategorySelected,
+        );
+      default:
+        return const SizedBox.shrink();
+    }
   }
-}
 
- Future<String> _getAddressFromLatLng(LatLng latLng) async {
-  try {
-    // Create an instance of GeocodingService
-    final geocodingService = GeocodingService();
-    // Call the instance method
-    final address = await geocodingService.getAddressFromLatLng(latLng);
-    return address;
-  } catch (e) {
-    print('Error fetching address: $e');
-    return 'Address unavailable';
+  Future<String> _getAddressFromLatLng(LatLng latLng) async {
+    try {
+      // Create an instance of GeocodingService
+      final geocodingService = GeocodingService();
+      // Call the instance method
+      final address = await geocodingService.getAddressFromLatLng(latLng);
+      return address;
+    } catch (e) {
+      print('Error fetching address: $e');
+      return 'Address unavailable';
+    }
   }
-}
 
-String _getTimeDifference(DateTime timestamp) {
-  final now = DateTime.now();
-  final difference = now.difference(timestamp);
+  String _getTimeDifference(DateTime timestamp) {
+    final now = DateTime.now();
+    final difference = now.difference(timestamp);
 
-  if (difference.inMinutes < 1) {
-    return 'Just now';
-  } else if (difference.inMinutes < 60) {
-    return '${difference.inMinutes} minute(s) ago';
-  } else if (difference.inHours < 24) {
-    return '${difference.inHours} hour(s) ago';
-  } else {
-    return '${difference.inDays} day(s) ago';
+    if (difference.inMinutes < 1) {
+      return 'Just now';
+    } else if (difference.inMinutes < 60) {
+      return '${difference.inMinutes} minute(s) ago';
+    } else if (difference.inHours < 24) {
+      return '${difference.inHours} hour(s) ago';
+    } else {
+      return '${difference.inDays} day(s) ago';
+    }
   }
-}
 }

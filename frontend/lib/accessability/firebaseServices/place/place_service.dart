@@ -8,7 +8,6 @@ class PlaceService {
 
   Future<void> addPlace(
     String name,
-    String category,
     double latitude,
     double longitude,
   ) async {
@@ -18,11 +17,12 @@ class PlaceService {
         throw Exception("User not authenticated");
       }
 
+      // Assign default category ("none") when adding a new place.
       Place place = Place(
         id: '', // Firestore will generate an ID
         userId: user.uid,
         name: name,
-        category: category,
+        category: 'none', // default category value
         latitude: latitude,
         longitude: longitude,
         timestamp: DateTime.now(),
@@ -35,6 +35,7 @@ class PlaceService {
     }
   }
 
+  // Existing method: fetch places by category.
   Stream<List<Place>> getPlacesByCategory(String category) {
     final user = _auth.currentUser;
     if (user == null) {
@@ -50,6 +51,22 @@ class PlaceService {
         .map((snapshot) => snapshot.docs
             .map((doc) => Place.fromMap(doc.id, doc.data()))
             .toList());
+  }
+
+  // New method: fetch all places (ignoring category).
+  Future<List<Place>> getAllPlaces() async {
+    final user = _auth.currentUser;
+    if (user == null) {
+      throw Exception("User not authenticated");
+    }
+    QuerySnapshot snapshot = await _firestore
+        .collection('Places')
+        .where('userId', isEqualTo: user.uid)
+        .orderBy('timestamp', descending: true)
+        .get();
+    return snapshot.docs
+        .map((doc) => Place.fromMap(doc.id, doc.data() as Map<String, dynamic>))
+        .toList();
   }
 
   Future<void> deletePlace(String placeId) async {

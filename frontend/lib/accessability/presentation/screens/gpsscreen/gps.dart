@@ -277,6 +277,8 @@ class _GpsScreenState extends State<GpsScreen> {
                   setState(() {});
                 },
                 onTap: (index) {
+                  print("Bottom nav index tapped: $index");
+
                   setState(() {
                     _locationHandler.currentIndex = index;
                   });

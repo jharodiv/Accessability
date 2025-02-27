@@ -480,7 +480,7 @@ class _BottomWidgetsState extends State<BottomWidgets> {
               .toList(),
         );
       case 1:
-        return const AddPlaceWidget();
+        return AddPlaceWidget();
       case 2:
         return // Here we pass the onCategorySelected callback to MapContent.
             MapContent(

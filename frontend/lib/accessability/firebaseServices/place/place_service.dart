@@ -77,4 +77,26 @@ class PlaceService {
       throw Exception('Failed to delete place: $e');
     }
   }
+
+  // New method: update the category of a place.
+  Future<void> updatePlaceCategory(String placeId, String newCategory) async {
+    try {
+      await _firestore.collection('Places').doc(placeId).update({
+        'category': newCategory,
+      });
+    } catch (e) {
+      print('Error updating place category: $e');
+      throw Exception('Failed to update place category: $e');
+    }
+  }
+
+  // New method: remove the place from its category (i.e. set its category to "none").
+  Future<void> removePlaceFromCategory(String placeId) async {
+    try {
+      await updatePlaceCategory(placeId, 'none');
+    } catch (e) {
+      print('Error removing place from category: $e');
+      throw Exception('Failed to remove place from category: $e');
+    }
+  }
 }

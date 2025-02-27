@@ -1,7 +1,7 @@
+import 'package:AccessAbility/accessability/logic/bloc/place/bloc/place_event.dart';
+import 'package:AccessAbility/accessability/logic/bloc/place/bloc/place_state.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:AccessAbility/accessability/firebaseServices/models/place.dart';
-import 'place_event.dart';
-import 'place_state.dart';
 import 'package:AccessAbility/accessability/data/repositories/place_repository.dart';
 
 class PlaceBloc extends Bloc<PlaceEvent, PlaceState> {
@@ -12,6 +12,8 @@ class PlaceBloc extends Bloc<PlaceEvent, PlaceState> {
     on<GetAllPlacesEvent>(_onGetAllPlacesEvent);
     on<GetPlacesByCategoryEvent>(_onGetPlacesByCategoryEvent);
     on<DeletePlaceEvent>(_onDeletePlaceEvent);
+    on<UpdatePlaceCategoryEvent>(_onUpdatePlaceCategoryEvent);
+    on<RemovePlaceFromCategoryEvent>(_onRemovePlaceFromCategoryEvent);
   }
 
   Future<void> _onAddPlaceEvent(
@@ -60,6 +62,31 @@ class PlaceBloc extends Bloc<PlaceEvent, PlaceState> {
       emit(PlaceOperationSuccess());
     } catch (e) {
       emit(PlaceOperationError('Failed to delete place: ${e.toString()}'));
+    }
+  }
+
+  Future<void> _onUpdatePlaceCategoryEvent(
+      UpdatePlaceCategoryEvent event, Emitter<PlaceState> emit) async {
+    emit(PlaceOperationLoading());
+    try {
+      await placeRepository.updatePlaceCategory(
+          event.placeId, event.newCategory);
+      emit(PlaceOperationSuccess());
+    } catch (e) {
+      emit(PlaceOperationError(
+          'Failed to update place category: ${e.toString()}'));
+    }
+  }
+
+  Future<void> _onRemovePlaceFromCategoryEvent(
+      RemovePlaceFromCategoryEvent event, Emitter<PlaceState> emit) async {
+    emit(PlaceOperationLoading());
+    try {
+      await placeRepository.removePlaceFromCategory(event.placeId);
+      emit(PlaceOperationSuccess());
+    } catch (e) {
+      emit(PlaceOperationError(
+          'Failed to remove place from category: ${e.toString()}'));
     }
   }
 }

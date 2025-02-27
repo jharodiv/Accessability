@@ -1,5 +1,8 @@
+import 'package:AccessAbility/accessability/data/repositories/emergency_repository.dart';
 import 'package:AccessAbility/accessability/data/repositories/place_repository.dart';
+import 'package:AccessAbility/accessability/firebaseServices/emergency/emergency_service.dart';
 import 'package:AccessAbility/accessability/firebaseServices/place/place_service.dart';
+import 'package:AccessAbility/accessability/logic/bloc/emergency/bloc/emergency_bloc.dart';
 import 'package:AccessAbility/accessability/logic/bloc/place/bloc/place_bloc.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -131,6 +134,12 @@ class MyApp extends StatelessWidget {
         BlocProvider<PlaceBloc>(
           create: (context) => PlaceBloc(
             placeRepository: PlaceRepository(placeService: PlaceService()),
+          ),
+        ),
+        BlocProvider<EmergencyBloc>(
+          create: (context) => EmergencyBloc(
+            emergencyRepository:
+                EmergencyRepository(emergencyService: EmergencyService()),
           ),
         ),
       ],

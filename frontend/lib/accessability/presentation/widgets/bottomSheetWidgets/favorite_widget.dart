@@ -1,9 +1,10 @@
 import 'package:AccessAbility/accessability/logic/bloc/place/bloc/place_bloc.dart';
 import 'package:AccessAbility/accessability/logic/bloc/place/bloc/place_event.dart';
 import 'package:AccessAbility/accessability/logic/bloc/place/bloc/place_state.dart';
+import 'package:AccessAbility/accessability/firebaseServices/models/place.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:AccessAbility/accessability/firebaseServices/models/place.dart';
+import 'add_list_modal.dart'; // Import the modal widget
 
 class FavoriteWidget extends StatefulWidget {
   final VoidCallback? onPlaceAdded;
@@ -15,7 +16,7 @@ class FavoriteWidget extends StatefulWidget {
 }
 
 class _FavoriteWidgetState extends State<FavoriteWidget> {
-  // Each list represents a category of places.
+  // Fixed list of categories (plus potential new ones).
   final List<Map<String, dynamic>> lists = [
     {
       "icon": Icons.favorite_border,
@@ -37,26 +38,28 @@ class _FavoriteWidgetState extends State<FavoriteWidget> {
     },
   ];
 
-  /// When toggling expansion, collapse all other lists and,
-  /// if the tapped list is expanding, load its places.
+  /// Collapses all categories, expands the one matching [categoryName].
+  void _expandCategory(String categoryName) {
+    setState(() {
+      for (int i = 0; i < lists.length; i++) {
+        // Expand only the matched category, collapse others
+        lists[i]['expanded'] = (lists[i]['title'] == categoryName);
+      }
+    });
+  }
+
+  /// When toggling expansion, collapse all other lists.
+  /// If the tapped list is expanding, trigger a fetch of all places.
   void toggleExpansion(int index) {
     setState(() {
-      // Collapse all other lists.
       for (int i = 0; i < lists.length; i++) {
-        if (i == index) {
-          lists[i]['expanded'] = !lists[i]['expanded'];
-        } else {
-          lists[i]['expanded'] = false;
-        }
+        lists[i]['expanded'] = (i == index) ? !lists[i]['expanded'] : false;
       }
     });
 
-    // If the list is expanded, trigger a load for its places.
     if (lists[index]['expanded'] == true) {
-      final category = lists[index]['title'];
-      context
-          .read<PlaceBloc>()
-          .add(GetPlacesByCategoryEvent(category: category));
+      // Fetch all places; we'll filter them by category in the UI.
+      context.read<PlaceBloc>().add(GetAllPlacesEvent());
     }
   }
 
@@ -96,31 +99,65 @@ class _FavoriteWidgetState extends State<FavoriteWidget> {
                     margin: const EdgeInsets.only(bottom: 8),
                   ),
                   const SizedBox(height: 5),
+                  // "+ New List" button opens a modal bottom sheet.
                   Padding(
                     padding: const EdgeInsets.all(16),
                     child: ElevatedButton(
                       onPressed: () async {
-                        // Instead of showing a dialog, push a full-screen page.
-                        final newListData =
-                            await Navigator.pushNamed<Map<String, dynamic>>(
-                          context,
-                          '/addPlace',
-                        );
-                        print("Returned from /addPlace: $newListData");
+                        // Fetch all places before opening the modal.
+                        context.read<PlaceBloc>().add(GetAllPlacesEvent());
 
-                        // If user returns data from that screen, update your list accordingly.
-                        if (newListData != null) {
-                          setState(() {
-                            lists.add({
-                              "icon": Icons.list,
-                              "title": newListData['title'] ?? "New List",
-                              "subtitle": "Private · 0 places",
-                              "expanded": false,
-                            });
-                          });
-                          if (widget.onPlaceAdded != null) {
-                            widget.onPlaceAdded!();
+                        final result =
+                            await showModalBottomSheet<Map<String, dynamic>>(
+                          context: context,
+                          isScrollControlled: true,
+                          builder: (BuildContext context) {
+                            return const AddListModal();
+                          },
+                        );
+
+                        if (result != null &&
+                            result.containsKey("category") &&
+                            result.containsKey("places")) {
+                          final newCategory = result["category"] as String;
+                          final placesToUpdate =
+                              result["places"] as List<Place>;
+
+                          // For each selected place, update its category in Firestore.
+                          for (Place place in placesToUpdate) {
+                            context.read<PlaceBloc>().add(
+                                  UpdatePlaceCategoryEvent(
+                                    placeId: place.id,
+                                    newCategory: newCategory,
+                                  ),
+                                );
                           }
+
+                          // See if this category already exists
+                          final existingIndex = lists.indexWhere(
+                            (item) => item["title"] == newCategory,
+                          );
+
+                          if (existingIndex == -1) {
+                            // If not found, add a new category (0 places as a placeholder).
+                            setState(() {
+                              lists.add({
+                                "icon": Icons.list,
+                                "title": newCategory,
+                                "subtitle": "Private · 0 places",
+                                "expanded": false,
+                              });
+                            });
+                          }
+
+                          // Expand the relevant category so user sees it immediately.
+                          _expandCategory(newCategory);
+
+                          // Re-fetch places so the new count is reflected in the UI.
+                          context.read<PlaceBloc>().add(GetAllPlacesEvent());
+
+                          // Notify parent if needed
+                          widget.onPlaceAdded?.call();
                         }
                       },
                       style: ElevatedButton.styleFrom(
@@ -145,18 +182,22 @@ class _FavoriteWidgetState extends State<FavoriteWidget> {
                         child: Text(
                           "Your lists",
                           style: TextStyle(
-                              fontSize: 18, fontWeight: FontWeight.bold),
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ),
                     ],
                   ),
-                  // Generate list items
+                  // Generate list items for each category.
                   ...List.generate(lists.length, (index) {
                     return Column(
                       children: [
                         ListTile(
-                          leading: Icon(lists[index]["icon"],
-                              color: const Color(0xFF6750A4)),
+                          leading: Icon(
+                            lists[index]["icon"],
+                            color: const Color(0xFF6750A4),
+                          ),
                           title: Text(
                             lists[index]["title"],
                             style: const TextStyle(fontWeight: FontWeight.bold),
@@ -184,40 +225,65 @@ class _FavoriteWidgetState extends State<FavoriteWidget> {
                                 return const Padding(
                                   padding: EdgeInsets.all(16.0),
                                   child: Center(
-                                      child: CircularProgressIndicator()),
+                                    child: CircularProgressIndicator(),
+                                  ),
                                 );
                               } else if (state is PlacesLoaded) {
-                                final places = state.places;
-                                // Update subtitle to show count
+                                // Filter all places based on the current category.
+                                final categoryTitle = lists[index]['title'];
+                                final filteredPlaces = state.places
+                                    .where((place) =>
+                                        place.category == categoryTitle)
+                                    .toList();
+
+                                // Update subtitle to show correct count.
                                 lists[index]['subtitle'] =
-                                    "Private · ${places.length} places";
-                                return places.isEmpty
-                                    ? const Padding(
-                                        padding: EdgeInsets.all(16.0),
-                                        child: Text("No places available."),
-                                      )
-                                    : Column(
-                                        children: places.map((Place place) {
-                                          return ListTile(
-                                            title: Text(place.name),
-                                            trailing: IconButton(
-                                              icon: const Icon(Icons.delete,
-                                                  color: Colors.red),
-                                              onPressed: () {
-                                                // Dispatch delete event and refresh list.
-                                                context.read<PlaceBloc>().add(
-                                                    DeletePlaceEvent(
-                                                        placeId: place.id));
-                                                final category =
-                                                    lists[index]['title'];
-                                                context.read<PlaceBloc>().add(
-                                                    GetPlacesByCategoryEvent(
-                                                        category: category));
-                                              },
-                                            ),
-                                          );
-                                        }).toList(),
-                                      );
+                                    "Private · ${filteredPlaces.length} places";
+
+                                return Column(
+                                  children: filteredPlaces.map((Place place) {
+                                    return ListTile(
+                                      title: Text(place.name),
+                                      trailing: PopupMenuButton<String>(
+                                        icon: const Icon(Icons.more_vert,
+                                            color: Colors.red),
+                                        onSelected: (value) {
+                                          if (value == 'remove') {
+                                            // Remove the place from its category
+                                            context.read<PlaceBloc>().add(
+                                                    RemovePlaceFromCategoryEvent(
+                                                  placeId: place.id,
+                                                ));
+                                            // Refresh after removing
+                                            context
+                                                .read<PlaceBloc>()
+                                                .add(GetAllPlacesEvent());
+                                          } else if (value == 'delete') {
+                                            // Delete the place entirely
+                                            context.read<PlaceBloc>().add(
+                                                DeletePlaceEvent(
+                                                    placeId: place.id));
+                                            // Refresh after deleting
+                                            context
+                                                .read<PlaceBloc>()
+                                                .add(GetAllPlacesEvent());
+                                          }
+                                        },
+                                        itemBuilder: (BuildContext context) =>
+                                            <PopupMenuEntry<String>>[
+                                          const PopupMenuItem<String>(
+                                            value: 'remove',
+                                            child: Text('Remove from Category'),
+                                          ),
+                                          const PopupMenuItem<String>(
+                                            value: 'delete',
+                                            child: Text('Delete'),
+                                          ),
+                                        ],
+                                      ),
+                                    );
+                                  }).toList(),
+                                );
                               } else if (state is PlaceOperationError) {
                                 return Padding(
                                   padding: const EdgeInsets.all(16.0),

@@ -55,7 +55,8 @@ class AuthService {
         'email': email,
         'username': username,
         'contactNumber': contactNumber,
-        'profilePicture': profilePictureUrl ?? 'https://firebasestorage.googleapis.com/v0/b/accessability-71ef7.firebasestorage.app/o/profile_pictures%2Fdefault_profile.png?alt=media&token=bc7a75a7-a78e-4460-b816-026a8fc341ba', // Save profile picture URL
+        'profilePicture': profilePictureUrl ??
+            'https://firebasestorage.googleapis.com/v0/b/accessability-71ef7.firebasestorage.app/o/profile_pictures%2Fdefault_profile.png?alt=media&token=bc7a75a7-a78e-4460-b816-026a8fc341ba', // Save profile picture URL
         'hasCompletedOnboarding': false,
       });
 
@@ -139,23 +140,23 @@ class AuthService {
   }
 
   // Complete Onboarding
- Future<void> completeOnboarding(String uid) async {
-  try {
-    // Update Firestore
-    await _firestore.collection('Users').doc(uid).update({
-      'hasCompletedOnboarding': true,
-    });
-    print('AuthService: Onboarding status updated for user $uid');
+  Future<void> completeOnboarding(String uid) async {
+    try {
+      // Update Firestore
+      await _firestore.collection('Users').doc(uid).update({
+        'hasCompletedOnboarding': true,
+      });
+      print('AuthService: Onboarding status updated for user $uid');
 
-    // Cache the updated status in SharedPreferences
-    final sharedPrefs = await SharedPreferences.getInstance();
-    await sharedPrefs.setBool('user_hasCompletedOnboarding', true);
-    print('Cached updated onboarding status for user $uid');
-  } catch (e) {
-    print('AuthService: Error updating onboarding status - ${e.toString()}');
-    throw Exception('Failed to update onboarding status: ${e.toString()}');
+      // Cache the updated status in SharedPreferences
+      final sharedPrefs = await SharedPreferences.getInstance();
+      await sharedPrefs.setBool('user_hasCompletedOnboarding', true);
+      print('Cached updated onboarding status for user $uid');
+    } catch (e) {
+      print('AuthService: Error updating onboarding status - ${e.toString()}');
+      throw Exception('Failed to update onboarding status: ${e.toString()}');
+    }
   }
-}
 
   Future<String?> updateProfilePicture(String uid, XFile imageFile) async {
     try {
@@ -183,71 +184,6 @@ class AuthService {
       await _firestore.collection('Users').doc(uid).update({
         'fcmToken': fcmToken,
       });
-    }
-  }
-
-  // -----------------------------
-  // Emergency Contact Functionality using EmergencyContact Model
-  // -----------------------------
-
-  /// Add an emergency contact for the user using an EmergencyContact model.
-  Future<DocumentReference> addEmergencyContact(
-      String uid, EmergencyContact contact) async {
-    try {
-      return await _firestore
-          .collection('Users')
-          .doc(uid)
-          .collection('EmergencyContacts')
-          .add(contact.toMap());
-    } catch (e) {
-      throw Exception('Error adding emergency contact: $e');
-    }
-  }
-
-  /// Update an existing emergency contact using an EmergencyContact model.
-  /// [contactId] is the document ID of the contact to update.
-  Future<void> updateEmergencyContact(
-      String uid, String contactId, EmergencyContact contact) async {
-    try {
-      await _firestore
-          .collection('Users')
-          .doc(uid)
-          .collection('EmergencyContacts')
-          .doc(contactId)
-          .update(contact.toMap());
-    } catch (e) {
-      throw Exception('Error updating emergency contact: $e');
-    }
-  }
-
-  /// Delete an emergency contact.
-  Future<void> deleteEmergencyContact(String uid, String contactId) async {
-    try {
-      await _firestore
-          .collection('Users')
-          .doc(uid)
-          .collection('EmergencyContacts')
-          .doc(contactId)
-          .delete();
-    } catch (e) {
-      throw Exception('Error deleting emergency contact: $e');
-    }
-  }
-
-  /// Fetch all emergency contacts for a user and convert them to EmergencyContact instances.
-  Future<List<EmergencyContact>> getEmergencyContacts(String uid) async {
-    try {
-      QuerySnapshot snapshot = await _firestore
-          .collection('Users')
-          .doc(uid)
-          .collection('EmergencyContacts')
-          .get();
-      return snapshot.docs.map((doc) {
-        Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
-        return EmergencyContact.fromMap(data, id: doc.id);
-      }).toList();
-    } catch (e) {
-      throw Exception('Error fetching emergency contacts: $e');
     }
   }
 }

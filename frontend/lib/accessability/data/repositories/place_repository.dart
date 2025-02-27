@@ -37,4 +37,22 @@ class PlaceRepository {
       throw Exception('Failed to delete place: ${e.toString()}');
     }
   }
+
+  // New method: update the category of a place.
+  Future<void> updatePlaceCategory(String placeId, String newCategory) async {
+    try {
+      await placeService.updatePlaceCategory(placeId, newCategory);
+    } catch (e) {
+      throw Exception('Failed to update place category: ${e.toString()}');
+    }
+  }
+
+  // New method: remove a place from its category (set its category to "none").
+  Future<void> removePlaceFromCategory(String placeId) async {
+    try {
+      await placeService.removePlaceFromCategory(placeId);
+    } catch (e) {
+      throw Exception('Failed to remove place from category: ${e.toString()}');
+    }
+  }
 }

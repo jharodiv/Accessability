@@ -1,7 +1,7 @@
 import 'package:AccessAbility/accessability/firebaseServices/models/emergency_contact.dart';
-import 'package:AccessAbility/accessability/logic/bloc/user/user_bloc.dart';
-import 'package:AccessAbility/accessability/logic/bloc/user/user_event.dart';
-import 'package:AccessAbility/accessability/logic/bloc/user/user_state.dart';
+import 'package:AccessAbility/accessability/logic/bloc/emergency/bloc/emergency_bloc.dart';
+import 'package:AccessAbility/accessability/logic/bloc/emergency/bloc/emergency_event.dart';
+import 'package:AccessAbility/accessability/logic/bloc/emergency/bloc/emergency_state.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -18,7 +18,7 @@ class _SafetyAssistWidgetState extends State<SafetyAssistWidget> {
   void initState() {
     super.initState();
     // Fetch emergency contacts when the widget loads.
-    BlocProvider.of<UserBloc>(context)
+    BlocProvider.of<EmergencyBloc>(context)
         .add(FetchEmergencyContactsEvent(uid: widget.uid));
   }
 
@@ -72,7 +72,7 @@ class _SafetyAssistWidgetState extends State<SafetyAssistWidget> {
                   update: updateController.text,
                 );
                 // Dispatch event to add the contact.
-                BlocProvider.of<UserBloc>(context).add(
+                BlocProvider.of<EmergencyBloc>(context).add(
                   AddEmergencyContactEvent(uid: widget.uid, contact: contact),
                 );
                 Navigator.of(context).pop(); // Dismiss dialog
@@ -165,9 +165,9 @@ class _SafetyAssistWidgetState extends State<SafetyAssistWidget> {
                   ),
                   const Divider(),
                   // Display emergency contacts from the Bloc state.
-                  BlocBuilder<UserBloc, UserState>(
+                  BlocBuilder<EmergencyBloc, EmergencyState>(
                     builder: (context, state) {
-                      if (state is EmergencyContactOperationLoading) {
+                      if (state is EmergencyLoading) {
                         return const Center(child: CircularProgressIndicator());
                       } else if (state is EmergencyContactsLoaded) {
                         final contacts = state.contacts;
@@ -228,7 +228,8 @@ class _SafetyAssistWidgetState extends State<SafetyAssistWidget> {
                                             color: Colors.red),
                                         onPressed: () {
                                           if (contact.id != null) {
-                                            BlocProvider.of<UserBloc>(context)
+                                            BlocProvider.of<EmergencyBloc>(
+                                                    context)
                                                 .add(
                                               DeleteEmergencyContactEvent(
                                                   uid: widget.uid,
@@ -245,7 +246,7 @@ class _SafetyAssistWidgetState extends State<SafetyAssistWidget> {
                             );
                           }).toList(),
                         );
-                      } else if (state is EmergencyContactOperationError) {
+                      } else if (state is EmergencyOperationError) {
                         return Text(state.message);
                       }
                       // In case the state is not one of the above, return an empty container.

@@ -43,3 +43,17 @@ class DeletePlaceEvent extends PlaceEvent {
   @override
   List<Object?> get props => [placeId];
 }
+
+class UpdatePlaceCategoryEvent extends PlaceEvent {
+  final String placeId;
+  final String newCategory;
+
+  const UpdatePlaceCategoryEvent(
+      {required this.placeId, required this.newCategory});
+}
+
+class RemovePlaceFromCategoryEvent extends PlaceEvent {
+  final String placeId;
+
+  const RemovePlaceFromCategoryEvent({required this.placeId});
+}

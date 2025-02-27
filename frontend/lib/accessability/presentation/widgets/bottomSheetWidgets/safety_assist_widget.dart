@@ -1,27 +1,89 @@
+import 'package:AccessAbility/accessability/firebaseServices/models/emergency_contact.dart';
+import 'package:AccessAbility/accessability/logic/bloc/user/user_bloc.dart';
+import 'package:AccessAbility/accessability/logic/bloc/user/user_event.dart';
+import 'package:AccessAbility/accessability/logic/bloc/user/user_state.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
 class SafetyAssistWidget extends StatefulWidget {
-  const SafetyAssistWidget({Key? key}) : super(key: key);
+  final String uid; // Pass the current user's uid
+  const SafetyAssistWidget({Key? key, required this.uid}) : super(key: key);
 
   @override
   State<SafetyAssistWidget> createState() => _SafetyAssistWidgetState();
 }
 
 class _SafetyAssistWidgetState extends State<SafetyAssistWidget> {
-  final List<Map<String, dynamic>> contacts = [
-    {
-      "name": "Harold",
-      "location": "Near Lingayen, Pangasinan (current location)",
-      "arrival": "Since [date of arrival]",
-      "update": "Last update 11 min. ago (last update location)",
-    },
-    {
-      "name": "Binnashii",
-      "location": "Near San Carlos, Pangasinan (current location)",
-      "arrival": "Since [date of arrival]",
-      "update": "Last update now. (last update location)",
-    },
-  ];
+  @override
+  void initState() {
+    super.initState();
+    // Fetch emergency contacts when the widget loads.
+    BlocProvider.of<UserBloc>(context)
+        .add(FetchEmergencyContactsEvent(uid: widget.uid));
+  }
+
+  void _showAddEmergencyContactDialog() {
+    final nameController = TextEditingController();
+    final locationController = TextEditingController();
+    final arrivalController = TextEditingController();
+    final updateController = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text("Add Emergency Contact"),
+          content: SingleChildScrollView(
+            child: Column(
+              children: [
+                TextField(
+                  controller: nameController,
+                  decoration: const InputDecoration(labelText: "Name"),
+                ),
+                TextField(
+                  controller: locationController,
+                  decoration: const InputDecoration(labelText: "Location"),
+                ),
+                TextField(
+                  controller: arrivalController,
+                  decoration: const InputDecoration(labelText: "Arrival"),
+                ),
+                TextField(
+                  controller: updateController,
+                  decoration: const InputDecoration(labelText: "Update"),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop(); // Dismiss dialog
+              },
+              child: const Text("Cancel"),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                // Create an EmergencyContact model from input data.
+                final contact = EmergencyContact(
+                  name: nameController.text,
+                  location: locationController.text,
+                  arrival: arrivalController.text,
+                  update: updateController.text,
+                );
+                // Dispatch event to add the contact.
+                BlocProvider.of<UserBloc>(context).add(
+                  AddEmergencyContactEvent(uid: widget.uid, contact: contact),
+                );
+                Navigator.of(context).pop(); // Dismiss dialog
+              },
+              child: const Text("Add"),
+            ),
+          ],
+        );
+      },
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -53,19 +115,16 @@ class _SafetyAssistWidgetState extends State<SafetyAssistWidget> {
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
                   Container(
-                    width: 100, // Adjust width as needed
-                    height: 2, // Thin line
-                    color: Colors.grey.shade700, // Dark grey color
-                    margin: const EdgeInsets.only(
-                        bottom: 8), // Space below the line
+                    width: 100,
+                    height: 2,
+                    color: Colors.grey.shade700,
+                    margin: const EdgeInsets.only(bottom: 8),
                   ),
-                  const SizedBox(
-                    height: 15,
-                  ),
-                  const Row(
+                  const SizedBox(height: 15),
+                  Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text(
+                    children: const [
+                      Text(
                         "Safety Assist",
                         style: TextStyle(
                           fontSize: 18,
@@ -74,17 +133,14 @@ class _SafetyAssistWidgetState extends State<SafetyAssistWidget> {
                       ),
                       Icon(
                         Icons.help_outline,
-                        color: const Color(0xFF6750A4),
+                        color: Color(0xFF6750A4),
                       ),
                     ],
                   ),
                   const SizedBox(height: 20),
-
-                  // Add Emergency Contact (no background)
+                  // Add Emergency Contact Button
                   InkWell(
-                    onTap: () {
-                      // Handle add contact action
-                    },
+                    onTap: _showAddEmergencyContactDialog,
                     child: const Padding(
                       padding: EdgeInsets.symmetric(horizontal: 12),
                       child: Row(
@@ -100,7 +156,7 @@ class _SafetyAssistWidgetState extends State<SafetyAssistWidget> {
                             "Add Emergency Contact",
                             style: TextStyle(
                               color: Colors.black,
-                              fontWeight: FontWeight.bold, // Make the text bold
+                              fontWeight: FontWeight.bold,
                             ),
                           ),
                         ],
@@ -108,57 +164,94 @@ class _SafetyAssistWidgetState extends State<SafetyAssistWidget> {
                     ),
                   ),
                   const Divider(),
-
-                  // Contact List
-                  ...contacts.map((contact) {
-                    return Column(
-                      children: [
-                        ListTile(
-                          leading: const CircleAvatar(
-                            backgroundColor: Colors.grey,
-                            child: Icon(Icons.person, color: Colors.white),
-                          ),
-                          title: Text(
-                            contact["name"],
-                            style: const TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                          subtitle: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                contact["location"],
-                                style: const TextStyle(color: Colors.grey),
-                              ),
-                              Text(
-                                contact["arrival"],
-                                style: const TextStyle(color: Colors.grey),
-                              ),
-                              Text(
-                                contact["update"],
-                                style: const TextStyle(color: Colors.grey),
-                              ),
-                            ],
-                          ),
-                          trailing: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              IconButton(
-                                icon: const Icon(Icons.call,
-                                    color: Color(0xFF6750A4)),
-                                onPressed: () {},
-                              ),
-                              IconButton(
-                                icon: const Icon(Icons.message,
-                                    color: Color(0xFF6750A4)),
-                                onPressed: () {},
-                              ),
-                            ],
-                          ),
-                        ),
-                        const Divider(),
-                      ],
-                    );
-                  }).toList(),
+                  // Display emergency contacts from the Bloc state.
+                  BlocBuilder<UserBloc, UserState>(
+                    builder: (context, state) {
+                      if (state is EmergencyContactOperationLoading) {
+                        return const Center(child: CircularProgressIndicator());
+                      } else if (state is EmergencyContactsLoaded) {
+                        final contacts = state.contacts;
+                        if (contacts.isEmpty) {
+                          return const Text("No emergency contacts added yet.");
+                        }
+                        return Column(
+                          children: contacts.map((contact) {
+                            return Column(
+                              children: [
+                                ListTile(
+                                  leading: const CircleAvatar(
+                                    backgroundColor: Colors.grey,
+                                    child:
+                                        Icon(Icons.person, color: Colors.white),
+                                  ),
+                                  title: Text(
+                                    contact.name,
+                                    style: const TextStyle(
+                                        fontWeight: FontWeight.bold),
+                                  ),
+                                  subtitle: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        contact.location,
+                                        style:
+                                            const TextStyle(color: Colors.grey),
+                                      ),
+                                      Text(
+                                        contact.arrival,
+                                        style:
+                                            const TextStyle(color: Colors.grey),
+                                      ),
+                                      Text(
+                                        contact.update,
+                                        style:
+                                            const TextStyle(color: Colors.grey),
+                                      ),
+                                    ],
+                                  ),
+                                  trailing: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      IconButton(
+                                        icon: const Icon(Icons.call,
+                                            color: Color(0xFF6750A4)),
+                                        onPressed: () {},
+                                      ),
+                                      IconButton(
+                                        icon: const Icon(Icons.message,
+                                            color: Color(0xFF6750A4)),
+                                        onPressed: () {},
+                                      ),
+                                      IconButton(
+                                        icon: const Icon(Icons.delete,
+                                            color: Colors.red),
+                                        onPressed: () {
+                                          if (contact.id != null) {
+                                            BlocProvider.of<UserBloc>(context)
+                                                .add(
+                                              DeleteEmergencyContactEvent(
+                                                  uid: widget.uid,
+                                                  contactId: contact.id!),
+                                            );
+                                          }
+                                        },
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const Divider(),
+                              ],
+                            );
+                          }).toList(),
+                        );
+                      } else if (state is EmergencyContactOperationError) {
+                        return Text(state.message);
+                      }
+                      // In case the state is not one of the above, return an empty container.
+                      return const SizedBox.shrink();
+                    },
+                  ),
                 ],
               ),
             ),

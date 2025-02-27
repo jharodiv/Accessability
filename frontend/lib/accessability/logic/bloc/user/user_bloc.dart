@@ -10,9 +10,15 @@ class UserBloc extends Bloc<UserEvent, UserState> {
   UserBloc({required this.userRepository}) : super(UserInitial()) {
     on<FetchUserData>(_onFetchUserData);
     on<UploadProfilePictureEvent>(_onUploadProfilePictureEvent);
-    on<AddPlaceEvent>(_onAddPlaceEvent); // Register AddPlaceEvent handler
-    on<GetPlacesByCategoryEvent>(_onGetPlacesByCategoryEvent); // if needed
-    on<DeletePlaceEvent>(_onDeletePlaceEvent); // if needed
+    on<AddPlaceEvent>(_onAddPlaceEvent);
+    on<GetPlacesByCategoryEvent>(_onGetPlacesByCategoryEvent);
+    on<DeletePlaceEvent>(_onDeletePlaceEvent);
+
+    // Emergency Contact event handlers
+    on<AddEmergencyContactEvent>(_onAddEmergencyContactEvent);
+    on<FetchEmergencyContactsEvent>(_onFetchEmergencyContactsEvent);
+    on<UpdateEmergencyContactEvent>(_onUpdateEmergencyContactEvent);
+    on<DeleteEmergencyContactEvent>(_onDeleteEmergencyContactEvent);
   }
 
   Future<void> _onFetchUserData(
@@ -85,6 +91,57 @@ class UserBloc extends Bloc<UserEvent, UserState> {
       emit(PlaceOperationSuccess());
     } catch (e) {
       emit(PlaceOperationError('Failed to delete place: ${e.toString()}'));
+    }
+  }
+
+  // --- Emergency Contact Event Handlers ---
+
+  Future<void> _onAddEmergencyContactEvent(
+      AddEmergencyContactEvent event, Emitter<UserState> emit) async {
+    emit(EmergencyContactOperationLoading());
+    try {
+      await userRepository.addEmergencyContact(event.uid, event.contact);
+      emit(EmergencyContactOperationSuccess());
+    } catch (e) {
+      emit(EmergencyContactOperationError(
+          'Failed to add emergency contact: ${e.toString()}'));
+    }
+  }
+
+  Future<void> _onFetchEmergencyContactsEvent(
+      FetchEmergencyContactsEvent event, Emitter<UserState> emit) async {
+    emit(EmergencyContactOperationLoading());
+    try {
+      final contacts = await userRepository.getEmergencyContacts(event.uid);
+      emit(EmergencyContactsLoaded(contacts));
+    } catch (e) {
+      emit(EmergencyContactOperationError(
+          'Failed to fetch emergency contacts: ${e.toString()}'));
+    }
+  }
+
+  Future<void> _onUpdateEmergencyContactEvent(
+      UpdateEmergencyContactEvent event, Emitter<UserState> emit) async {
+    emit(EmergencyContactOperationLoading());
+    try {
+      await userRepository.updateEmergencyContact(
+          event.uid, event.contactId, event.contact);
+      emit(EmergencyContactOperationSuccess());
+    } catch (e) {
+      emit(EmergencyContactOperationError(
+          'Failed to update emergency contact: ${e.toString()}'));
+    }
+  }
+
+  Future<void> _onDeleteEmergencyContactEvent(
+      DeleteEmergencyContactEvent event, Emitter<UserState> emit) async {
+    emit(EmergencyContactOperationLoading());
+    try {
+      await userRepository.deleteEmergencyContact(event.uid, event.contactId);
+      emit(EmergencyContactOperationSuccess());
+    } catch (e) {
+      emit(EmergencyContactOperationError(
+          'Failed to delete emergency contact: ${e.toString()}'));
     }
   }
 }

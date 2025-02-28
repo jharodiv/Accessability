@@ -1,4 +1,3 @@
-import 'package:AccessAbility/accessability/firebaseServices/models/emergency_contact.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:equatable/equatable.dart';
 

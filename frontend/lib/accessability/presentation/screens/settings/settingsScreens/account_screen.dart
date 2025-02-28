@@ -197,10 +197,9 @@ class _AccountScreenState extends State<AccountScreen> {
                           color: Color(0xFF6750A4)),
                       title: const Text('Phone Number'),
                       subtitle: Text(
-                        (user.contactNumber != null &&
-                                user.contactNumber!.isNotEmpty)
+                        (user.contactNumber.isNotEmpty)
                             ? user
-                                .contactNumber! // Use the contact number directly
+                                .contactNumber // Use the contact number directly
                             : 'Not provided', // Fallback if contact number is null or empty
                         style: const TextStyle(fontWeight: FontWeight.bold),
                       ),

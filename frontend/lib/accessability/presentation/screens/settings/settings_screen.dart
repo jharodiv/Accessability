@@ -104,7 +104,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             title: const Text('Notification',
                 style: TextStyle(fontWeight: FontWeight.bold)),
             trailing: Switch(
-              activeColor: Color(0xFF6750A4),
+              activeColor: const Color(0xFF6750A4),
               value: isNotificationEnabled,
               onChanged: (bool value) {
                 setState(

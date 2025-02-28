@@ -55,8 +55,9 @@ class LocationHandler {
     // Listen to location changes and store the subscription.
     _locationStreamSubscription =
         _location.onLocationChanged.listen((LocationData locationData) {
-      if (locationData.latitude == null || locationData.longitude == null)
+      if (locationData.latitude == null || locationData.longitude == null) {
         return;
+      }
       final newLocation =
           LatLng(locationData.latitude!, locationData.longitude!);
       if (_lastLocation == null ||
@@ -108,7 +109,7 @@ class LocationHandler {
       final userMarker = Marker(
         markerId: const MarkerId('user_current'),
         position: currentLocation!,
-        infoWindow: InfoWindow(title: 'You'),
+        infoWindow: const InfoWindow(title: 'You'),
         icon: customIcon,
       );
 
@@ -119,7 +120,7 @@ class LocationHandler {
 
   void showOverlay(BuildContext context, Widget overlayContent) {
     _overlayEntry = OverlayEntry(builder: (context) => overlayContent);
-    Overlay.of(context)?.insert(_overlayEntry!);
+    Overlay.of(context).insert(_overlayEntry!);
   }
 
   void hideOverlay() {
@@ -180,7 +181,7 @@ class LocationHandler {
           final existingMarkers = _markers
               .where((marker) => !marker.markerId.value.startsWith('user_'));
           for (final doc in snapshot.docs) {
-            final data = doc.data() as Map<String, dynamic>;
+            final data = doc.data();
             final lat = data['latitude'];
             final lng = data['longitude'];
             final userId = doc.id;
@@ -271,7 +272,7 @@ class LocationHandler {
 
       canvas.drawImage(markerShapeImage, Offset.zero, Paint());
 
-      final profileSize = 100.0;
+      const profileSize = 100.0;
       final profileOffset = Offset(
         (markerWidth - profileSize) / 1.8,
         11,

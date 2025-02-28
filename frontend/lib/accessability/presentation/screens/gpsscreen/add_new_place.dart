@@ -3,11 +3,9 @@ import 'package:AccessAbility/accessability/logic/bloc/place/bloc/place_event.da
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:AccessAbility/accessability/logic/bloc/user/user_bloc.dart';
-import 'package:AccessAbility/accessability/logic/bloc/user/user_event.dart';
 
 class AddNewPlaceScreen extends StatefulWidget {
-  const AddNewPlaceScreen({Key? key}) : super(key: key);
+  const AddNewPlaceScreen({super.key});
 
   @override
   State<AddNewPlaceScreen> createState() => _AddNewPlaceScreenState();

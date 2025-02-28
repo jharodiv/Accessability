@@ -3,8 +3,7 @@ import 'package:flutter/material.dart';
 class MapContent extends StatelessWidget {
   final Function(String) onCategorySelected; // New callback
 
-  const MapContent({Key? key, required this.onCategorySelected})
-      : super(key: key);
+  const MapContent({super.key, required this.onCategorySelected});
 
   @override
   Widget build(BuildContext context) {

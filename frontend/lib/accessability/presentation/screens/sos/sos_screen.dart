@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
 
 class SOSScreen extends StatefulWidget {
+  const SOSScreen({super.key});
+
   @override
   _SOSScreenState createState() => _SOSScreenState();
 }
@@ -35,7 +37,7 @@ class _SOSScreenState extends State<SOSScreen> {
       _isHolding = false; // Reset effect when starting countdown
     });
 
-    _timer = Timer.periodic(Duration(seconds: 1), (timer) {
+    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (_countdown > 1) {
         setState(() {
           _countdown--;
@@ -78,17 +80,17 @@ class _SOSScreenState extends State<SOSScreen> {
         elevation: 0.8,
         shadowColor: Colors.black.withOpacity(1),
         leading: IconButton(
-          icon: Icon(Icons.close, color: Colors.black),
+          icon: const Icon(Icons.close, color: Colors.black),
           onPressed: () => Navigator.pop(context),
         ),
-        title: Text(
+        title: const Text(
           'SOS',
           style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
         ),
         centerTitle: true,
       ),
       body: AnimatedContainer(
-        duration: Duration(milliseconds: 500),
+        duration: const Duration(milliseconds: 500),
         curve: Curves.easeInOut,
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -103,7 +105,7 @@ class _SOSScreenState extends State<SOSScreen> {
               ),
             ),
             // Add some space at the bottom
-            SizedBox(height: 50),
+            const SizedBox(height: 50),
           ],
         ),
       ),
@@ -124,18 +126,18 @@ class _SOSScreenState extends State<SOSScreen> {
               alignment: Alignment.center,
               children: [
                 AnimatedContainer(
-                  duration: Duration(milliseconds: 300),
+                  duration: const Duration(milliseconds: 300),
                   width: _isHolding ? 180 : 0,
                   height: _isHolding ? 180 : 0,
                   decoration: BoxDecoration(
-                    color: Color(0xFF6750A4).withOpacity(0.3),
+                    color: const Color(0xFF6750A4).withOpacity(0.3),
                     shape: BoxShape.circle,
                   ),
                 ),
                 InkWell(
                   onTap: _startCountdown,
                   borderRadius: BorderRadius.circular(80),
-                  splashColor: Color(0xFF6750A4),
+                  splashColor: const Color(0xFF6750A4),
                   child: const CircleAvatar(
                     radius: 80,
                     backgroundColor: Color(0xFF6750A4),
@@ -218,9 +220,9 @@ class _SOSScreenState extends State<SOSScreen> {
                   child: _countdown > 0
                       ? Text(
                           '$_countdown',
-                          style: TextStyle(fontSize: 40, color: Colors.white),
+                          style: const TextStyle(fontSize: 40, color: Colors.white),
                         )
-                      : Icon(
+                      : const Icon(
                           Icons
                               .warning, // Danger icon when countdown reaches zero
                           size: 40,
@@ -248,8 +250,8 @@ class _SOSScreenState extends State<SOSScreen> {
       children: [
         // Top text
         const Padding(
-          padding: const EdgeInsets.only(top: 50), // Add padding at the top
-          child: const Text(
+          padding: EdgeInsets.only(top: 50), // Add padding at the top
+          child: Text(
             'Slide to cancel',
             style: TextStyle(
               fontWeight: FontWeight.bold, // Make it bold
@@ -260,8 +262,8 @@ class _SOSScreenState extends State<SOSScreen> {
         ),
         const SizedBox(height: 8), // Space between texts
         const Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: const Text(
+          padding: EdgeInsets.symmetric(horizontal: 16),
+          child: Text(
             'After 10 seconds, your SOS and location will be sent to your Space and emergency contact',
             style: TextStyle(
               fontWeight: FontWeight.w400, // Set font weight to 400
@@ -277,12 +279,12 @@ class _SOSScreenState extends State<SOSScreen> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Text(
+                Text(
                   'SOS Activated!',
                   style: TextStyle(color: Colors.white, fontSize: 22),
                 ),
-                const SizedBox(height: 10),
-                const CircleAvatar(
+                SizedBox(height: 10),
+                CircleAvatar(
                   radius: 100,
                   backgroundColor: Colors.white,
                   child: Icon(Icons.warning, color: Colors.red, size: 50),
@@ -302,12 +304,12 @@ class _SOSScreenState extends State<SOSScreen> {
   }
 
   Widget _cancelButton() {
-    return Container(
+    return SizedBox(
       width: 300, // Set a reasonable width for the button
       child: Slidable(
         key: const ValueKey(0),
         endActionPane: ActionPane(
-          motion: DrawerMotion(),
+          motion: const DrawerMotion(),
           dismissible: DismissiblePane(onDismissed: _cancelSOS),
           children: [
             SlidableAction(
@@ -320,7 +322,7 @@ class _SOSScreenState extends State<SOSScreen> {
           ],
         ),
         child: Container(
-          padding: EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
           decoration: BoxDecoration(
             color: Colors.black,
             borderRadius: BorderRadius.circular(30),
@@ -328,7 +330,7 @@ class _SOSScreenState extends State<SOSScreen> {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
+              const Text(
                 'Slide to cancel',
                 style: TextStyle(
                   color: Colors.white,
@@ -337,14 +339,14 @@ class _SOSScreenState extends State<SOSScreen> {
                 ),
               ),
               AnimatedContainer(
-                duration: Duration(milliseconds: 300),
+                duration: const Duration(milliseconds: 300),
                 width: 32,
                 height: 32,
-                decoration: BoxDecoration(
+                decoration: const BoxDecoration(
                   color: Colors.red, // Arrow background changes to red
                   shape: BoxShape.circle,
                 ),
-                child: Center(
+                child: const Center(
                   child: Icon(
                     Icons.arrow_back,
                     color: Colors.white,

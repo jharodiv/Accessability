@@ -1,11 +1,7 @@
 import 'dart:math';
 
-import 'package:AccessAbility/accessability/presentation/screens/gpsscreen/pwd_friendly_locations.dart';
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
-import 'package:flutter/services.dart';
-import 'dart:ui' as ui;
-import 'package:http/http.dart' as http;
 
 class MarkerHandler {
   Set<Marker> markers = {};

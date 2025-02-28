@@ -6,7 +6,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:AccessAbility/accessability/firebaseServices/models/place.dart';
 
 class AddPlaceWidget extends StatefulWidget {
-  const AddPlaceWidget({Key? key}) : super(key: key);
+  const AddPlaceWidget({super.key});
 
   @override
   _AddPlaceWidgetState createState() => _AddPlaceWidgetState();

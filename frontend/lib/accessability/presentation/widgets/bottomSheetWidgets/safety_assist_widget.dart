@@ -7,7 +7,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 class SafetyAssistWidget extends StatefulWidget {
   final String uid; // Pass the current user's uid
-  const SafetyAssistWidget({Key? key, required this.uid}) : super(key: key);
+  const SafetyAssistWidget({super.key, required this.uid});
 
   @override
   State<SafetyAssistWidget> createState() => _SafetyAssistWidgetState();
@@ -121,9 +121,9 @@ class _SafetyAssistWidgetState extends State<SafetyAssistWidget> {
                     margin: const EdgeInsets.only(bottom: 8),
                   ),
                   const SizedBox(height: 15),
-                  Row(
+                  const Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: const [
+                    children: [
                       Text(
                         "Safety Assist",
                         style: TextStyle(

@@ -30,7 +30,7 @@ class _TopwidgetsState extends State<Topwidgets> {
   List<Map<String, dynamic>> _spaces = []; // List of spaces
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
-  String _activeSpaceId = ''; // ID of the active space
+  final String _activeSpaceId = ''; // ID of the active space
   String _activeSpaceName = 'Create Space'; // Name of the active space
 
   @override
@@ -305,7 +305,7 @@ class _TopwidgetsState extends State<Topwidgets> {
                           onTap: () => _selectSpace(space['id'],
                               space['name']), // Update active space
                         );
-                      }).toList(),
+                      }),
                     ],
                   ),
                 ),

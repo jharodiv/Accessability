@@ -6,11 +6,11 @@ class CategoryItem extends StatelessWidget {
   final Function(String) onCategorySelected;
 
   const CategoryItem({
-    Key? key,
+    super.key,
     required this.title,
     required this.icon,
     required this.onCategorySelected,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

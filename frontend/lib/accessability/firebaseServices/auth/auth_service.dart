@@ -1,5 +1,4 @@
 import 'package:AccessAbility/accessability/firebaseServices/chat/fcm_service.dart';
-import 'package:AccessAbility/accessability/firebaseServices/models/emergency_contact.dart';
 import 'package:AccessAbility/main.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';

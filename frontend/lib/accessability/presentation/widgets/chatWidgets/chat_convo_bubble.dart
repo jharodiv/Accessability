@@ -73,10 +73,8 @@ class _ChatConvoBubbleState extends State<ChatConvoBubble> {
       builder: (context) {
         return EmojiPicker(
           onEmojiSelected: (category, emoji) {
-            if (emoji != null) {
-              widget.onReact?.call(emoji.emoji); // Use `emoji.character`
-            }
-            Navigator.pop(context);
+            widget.onReact?.call(emoji.emoji); // Use `emoji.character`
+                      Navigator.pop(context);
           },
         );
       },

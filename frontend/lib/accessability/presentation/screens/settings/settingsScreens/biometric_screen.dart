@@ -142,7 +142,7 @@ class _BiometricLoginState extends State<BiometricLogin> {
             left: 0,
             right: 0,
             child: Padding(
-              padding: EdgeInsets.only(left: 8, right: 8),
+              padding: const EdgeInsets.only(left: 8, right: 8),
               child: ListTile(
                 title: const Text(
                   'Enable Biometric Login',

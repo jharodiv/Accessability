@@ -8,9 +8,6 @@ class NearbyPlacesHandler {
   final String _apiKey = dotenv.env["GOOGLE_API_KEY"] ?? '';
 
   Future<Map<String, dynamic>> fetchNearbyPlaces(String placeType, LatLng currentLocation) async {
-  if (currentLocation == null) return {};
-
-  // Determine the type, color, and icon path based on the placeType
   String type;
   Color color;
   String iconPath;

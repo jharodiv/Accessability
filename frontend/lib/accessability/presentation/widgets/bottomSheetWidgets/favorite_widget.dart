@@ -59,7 +59,7 @@ class _FavoriteWidgetState extends State<FavoriteWidget> {
 
     if (lists[index]['expanded'] == true) {
       // Fetch all places; we'll filter them by category in the UI.
-      context.read<PlaceBloc>().add(GetAllPlacesEvent());
+      context.read<PlaceBloc>().add(const GetAllPlacesEvent());
     }
   }
 
@@ -105,7 +105,7 @@ class _FavoriteWidgetState extends State<FavoriteWidget> {
                     child: ElevatedButton(
                       onPressed: () async {
                         // Fetch all places before opening the modal.
-                        context.read<PlaceBloc>().add(GetAllPlacesEvent());
+                        context.read<PlaceBloc>().add(const GetAllPlacesEvent());
 
                         final result =
                             await showModalBottomSheet<Map<String, dynamic>>(
@@ -154,7 +154,7 @@ class _FavoriteWidgetState extends State<FavoriteWidget> {
                           _expandCategory(newCategory);
 
                           // Re-fetch places so the new count is reflected in the UI.
-                          context.read<PlaceBloc>().add(GetAllPlacesEvent());
+                          context.read<PlaceBloc>().add(const GetAllPlacesEvent());
 
                           // Notify parent if needed
                           widget.onPlaceAdded?.call();
@@ -257,7 +257,7 @@ class _FavoriteWidgetState extends State<FavoriteWidget> {
                                             // Refresh after removing
                                             context
                                                 .read<PlaceBloc>()
-                                                .add(GetAllPlacesEvent());
+                                                .add(const GetAllPlacesEvent());
                                           } else if (value == 'delete') {
                                             // Delete the place entirely
                                             context.read<PlaceBloc>().add(
@@ -266,7 +266,7 @@ class _FavoriteWidgetState extends State<FavoriteWidget> {
                                             // Refresh after deleting
                                             context
                                                 .read<PlaceBloc>()
-                                                .add(GetAllPlacesEvent());
+                                                .add(const GetAllPlacesEvent());
                                           }
                                         },
                                         itemBuilder: (BuildContext context) =>

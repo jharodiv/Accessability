@@ -16,12 +16,12 @@ class BottomWidgets extends StatefulWidget {
   final Function(LatLng, String) onMemberPressed; // Callback for member press
 
   const BottomWidgets({
-    Key? key,
+    super.key,
     required this.scrollController,
     required this.activeSpaceId,
     required this.onCategorySelected,
     required this.onMemberPressed,
-  }) : super(key: key);
+  });
 
   @override
   _BottomWidgetsState createState() => _BottomWidgetsState();
@@ -375,18 +375,18 @@ class _BottomWidgetsState extends State<BottomWidgets> {
             _activeIndex = index;
           });
         },
-        child: Icon(
-          icon,
-          color: isActive ? Colors.white : const Color(0xFF6750A4),
-        ),
         style: ElevatedButton.styleFrom(
           backgroundColor: isActive
               ? const Color(0xFF6750A4)
-              : Color.fromARGB(255, 211, 198, 248),
+              : const Color.fromARGB(255, 211, 198, 248),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(20),
           ),
           padding: const EdgeInsets.all(16),
+        ),
+        child: Icon(
+          icon,
+          color: isActive ? Colors.white : const Color(0xFF6750A4),
         ),
       ),
     );
@@ -429,7 +429,7 @@ class _BottomWidgetsState extends State<BottomWidgets> {
                     },
                     child: Container(
                       color: _selectedMemberId == member['uid']
-                          ? Color(0xFF6750A4)
+                          ? const Color(0xFF6750A4)
                           : Colors.white,
                       child: ListTile(
                         leading: CircleAvatar(
@@ -437,26 +437,26 @@ class _BottomWidgetsState extends State<BottomWidgets> {
                                   member['profilePicture'].startsWith('http')
                               ? NetworkImage(member[
                                   'profilePicture']) // Use NetworkImage for web URLs
-                              : AssetImage(
+                              : const AssetImage(
                                       'assets/images/others/default_profile.png')
                                   as ImageProvider, // Use AssetImage for local assets
                         ),
                         title: Text(
                           member['username'],
-                          style: TextStyle(fontWeight: FontWeight.bold),
+                          style: const TextStyle(fontWeight: FontWeight.bold),
                         ),
                         subtitle: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
                               'Current Location: ${member['address'] ?? 'Fetching address...'}',
-                              style: TextStyle(
+                              style: const TextStyle(
                                   fontSize: 12, fontWeight: FontWeight.bold),
                             ),
                             if (member['lastUpdate'] != null)
                               Text(
                                 'Last location update: ${_getTimeDifference((member['lastUpdate'] as Timestamp).toDate())}',
-                                style: TextStyle(fontSize: 12),
+                                style: const TextStyle(fontSize: 12),
                               ),
                           ],
                         ),
@@ -480,7 +480,7 @@ class _BottomWidgetsState extends State<BottomWidgets> {
               .toList(),
         );
       case 1:
-        return AddPlaceWidget();
+        return const AddPlaceWidget();
       case 2:
         return // Here we pass the onCategorySelected callback to MapContent.
             MapContent(

@@ -1,7 +1,5 @@
 import 'package:AccessAbility/accessability/data/model/user_model.dart';
 import 'package:AccessAbility/accessability/firebaseServices/auth/auth_service.dart';
-import 'package:AccessAbility/accessability/firebaseServices/models/emergency_contact.dart';
-import 'package:AccessAbility/accessability/firebaseServices/models/place.dart';
 import 'package:AccessAbility/accessability/firebaseServices/place/place_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:image_picker/image_picker.dart';

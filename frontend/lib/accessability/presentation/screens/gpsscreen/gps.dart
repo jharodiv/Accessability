@@ -36,6 +36,7 @@ class _GpsScreenState extends State<GpsScreen> {
   final GlobalKey securityKey = GlobalKey();
   Set<Marker> _markers = {};
   Set<Circle> _circles = {};
+  bool _isLocationFetched = false;
 
   @override
   void initState() {
@@ -68,8 +69,15 @@ class _GpsScreenState extends State<GpsScreen> {
       },
     );
 
-    // Get user location
+    // Get user location and initialize marker and camera
     _locationHandler.getUserLocation().then((_) {
+      setState(() {
+        _isLocationFetched = true;
+      });
+
+      // Initialize the user's marker
+      _locationHandler.initializeUserMarker();
+
       // Animate the camera to the user's location once it's available
       if (_locationHandler.currentLocation != null &&
           _locationHandler.mapController != null) {
@@ -77,9 +85,6 @@ class _GpsScreenState extends State<GpsScreen> {
           CameraUpdate.newLatLng(_locationHandler.currentLocation!),
         );
       }
-
-      // Initialize the user's marker
-      _locationHandler.initializeUserMarker();
     });
 
     // Create markers for PWD-friendly locations
@@ -108,10 +113,14 @@ class _GpsScreenState extends State<GpsScreen> {
     super.dispose();
   }
 
-// Callback when the tutorial is completed
+  // Callback when the tutorial is completed
   void _onTutorialComplete() {
     // Re-trigger the map and marker initialization logic
     _locationHandler.getUserLocation().then((_) {
+      setState(() {
+        _isLocationFetched = true;
+      });
+
       if (_locationHandler.currentLocation != null &&
           _locationHandler.mapController != null) {
         _locationHandler.mapController!.animateCamera(
@@ -227,7 +236,8 @@ class _GpsScreenState extends State<GpsScreen> {
                     circles: _circles,
                     onMapCreated: (controller) {
                       _locationHandler.onMapCreated(controller);
-                      if (_locationHandler.currentLocation != null) {
+                      if (_isLocationFetched &&
+                          _locationHandler.currentLocation != null) {
                         controller.animateCamera(
                           CameraUpdate.newLatLng(
                             _locationHandler.currentLocation!,

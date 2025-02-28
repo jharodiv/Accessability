@@ -128,7 +128,6 @@ Future<void> _onCompleteOnboardingEvent(
     emit(AuthLoading());
     try {
       await authRepository.logout(); // Clear cached user data
-      userBloc.add(ResetUserState()); // Reset UserBloc state
       emit(AuthInitial()); // Reset to initial state after logout
     } catch (e) {
       emit(AuthError('Failed to logout: ${e.toString()}'));

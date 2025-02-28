@@ -19,18 +19,39 @@ class ChatUsersList extends StatelessWidget {
 
   Widget _buildUserList() {
     return StreamBuilder(
-      stream: chatService.getUserStream(),
+      stream: chatService.getUsersInSameSpaces(),
       builder: (context, snapshot) {
         if (snapshot.hasError) {
           return const Text('Error');
         }
 
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Text('Loading...');
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        final users = snapshot.data!;
+
+        if (users.isEmpty) {
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Text('No users found in your spaces.'),
+                const SizedBox(height: 16),
+                ElevatedButton(
+                  onPressed: () {
+                    // Navigate to the space creation or joining screen
+                    Navigator.pushNamed(context, '/createOrJoinSpace');
+                  },
+                  child: const Text('Join or Create a Space'),
+                ),
+              ],
+            ),
+          );
         }
 
         return ListView(
-          children: snapshot.data!
+          children: users
               .map<Widget>((userData) => _buildUserListItem(userData, context))
               .toList(),
         );

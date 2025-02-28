@@ -6,13 +6,33 @@ class ChatService {
   final FirebaseFirestore firebaseFirestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
 
-  // Get a stream of users
-  Stream<List<Map<String, dynamic>>> getUserStream() {
-    return firebaseFirestore.collection("Users").snapshots().map((snapshot) {
-      return snapshot.docs.map((doc) {
-        final user = doc.data();
-        return user;
-      }).toList();
+  // Get a stream of users in the same spaces
+  Stream<List<Map<String, dynamic>>> getUsersInSameSpaces() {
+    final String currentUserID = _auth.currentUser!.uid;
+
+    return firebaseFirestore
+        .collection('Spaces')
+        .where('members', arrayContains: currentUserID)
+        .snapshots()
+        .asyncMap((spacesSnapshot) async {
+      Set<String> userIds = {};
+
+      for (var spaceDoc in spacesSnapshot.docs) {
+        final spaceData = spaceDoc.data() as Map<String, dynamic>;
+        final members = List<String>.from(spaceData['members'] ?? []);
+        userIds.addAll(members);
+      }
+
+      if (userIds.isEmpty) {
+        return [];
+      }
+
+      final usersSnapshot = await firebaseFirestore
+          .collection('Users')
+          .where('uid', whereIn: userIds.toList())
+          .get();
+
+      return usersSnapshot.docs.map((doc) => doc.data()).toList();
     });
   }
 
@@ -54,4 +74,4 @@ class ChatService {
         .orderBy('timestamp', descending: false) // Ensure ascending order
         .snapshots();
   }
-}
+} 

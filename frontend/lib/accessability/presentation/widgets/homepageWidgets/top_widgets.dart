@@ -27,11 +27,10 @@ class Topwidgets extends StatefulWidget {
 
 class _TopwidgetsState extends State<Topwidgets> {
   bool _isDropdownOpen = false;
-  List<Map<String, dynamic>> _spaces = []; // List of spaces
+  List<Map<String, dynamic>> _spaces = [];
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
-  final String _activeSpaceId = ''; // ID of the active space
-  String _activeSpaceName = 'Create Space'; // Name of the active space
+  String _activeSpaceName = 'My Space'; // Default to "My Space"
 
   @override
   void initState() {
@@ -62,122 +61,11 @@ class _TopwidgetsState extends State<Topwidgets> {
 
   // When a space is selected, update the active space
   void _selectSpace(String spaceId, String spaceName) {
-    widget.onSpaceSelected(spaceId); // Notify parent about the selected space
+    widget.onSpaceSelected(spaceId);
     setState(() {
       _activeSpaceName = spaceName;
       _isDropdownOpen = false;
     });
-  }
-
-  // Create a new space
-  Future<void> _createSpace() async {
-    final user = _auth.currentUser;
-    if (user == null) return;
-
-    final spaceName = await _showCreateSpaceDialog();
-    if (spaceName == null || spaceName.isEmpty) return;
-
-    // Generate a random verification code
-    final verificationCode = _generateVerificationCode();
-
-    await _firestore.collection('Spaces').add({
-      'name': spaceName,
-      'creator': user.uid,
-      'members': [user.uid],
-      'verificationCode': verificationCode,
-      'createdAt': DateTime.now(),
-    });
-
-    _fetchSpaces(); // Refresh the list of spaces
-  }
-
-  // Generate a random 6-digit verification code
-  String _generateVerificationCode() {
-    final random = Random();
-    return (100000 + random.nextInt(900000)).toString();
-  }
-
-  // Show a dialog to create a space
-  Future<String?> _showCreateSpaceDialog() async {
-    String? spaceName;
-    await showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text('Create Space'),
-          content: TextField(
-            decoration: const InputDecoration(labelText: 'Space Name'),
-            onChanged: (value) => spaceName = value,
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel'),
-            ),
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Create'),
-            ),
-          ],
-        );
-      },
-    );
-    return spaceName;
-  }
-
-  // Join a space using a verification code
-  Future<void> _joinSpace() async {
-    final user = _auth.currentUser;
-    if (user == null) return;
-
-    final verificationCode = await _showJoinSpaceDialog();
-    if (verificationCode == null || verificationCode.isEmpty) return;
-
-    final snapshot = await _firestore
-        .collection('Spaces')
-        .where('verificationCode', isEqualTo: verificationCode)
-        .get();
-
-    if (snapshot.docs.isNotEmpty) {
-      final spaceId = snapshot.docs.first.id;
-      await _firestore.collection('Spaces').doc(spaceId).update({
-        'members': FieldValue.arrayUnion([user.uid]),
-      });
-
-      _fetchSpaces(); // Refresh the list of spaces
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Invalid verification code')),
-      );
-    }
-  }
-
-  // Show a dialog to join a space
-  Future<String?> _showJoinSpaceDialog() async {
-    String? verificationCode;
-    await showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text('Join Space'),
-          content: TextField(
-            decoration: const InputDecoration(labelText: 'Verification Code'),
-            onChanged: (value) => verificationCode = value,
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel'),
-            ),
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Join'),
-            ),
-          ],
-        );
-      },
-    );
-    return verificationCode;
   }
 
   @override
@@ -289,21 +177,10 @@ class _TopwidgetsState extends State<Topwidgets> {
                   ),
                   child: Column(
                     children: [
-                      ListTile(
-                        title: const Text('Create Space +'),
-                        trailing: const Icon(Icons.add),
-                        onTap: _createSpace,
-                      ),
-                      ListTile(
-                        title: const Text('Join Space'),
-                        trailing: const Icon(Icons.group_add),
-                        onTap: _joinSpace,
-                      ),
                       ..._spaces.map((space) {
                         return ListTile(
                           title: Text(space['name']),
-                          onTap: () => _selectSpace(space['id'],
-                              space['name']), // Update active space
+                          onTap: () => _selectSpace(space['id'], space['name']),
                         );
                       }),
                     ],

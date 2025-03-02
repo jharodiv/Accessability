@@ -1,5 +1,3 @@
-import 'dart:math';
-
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -22,10 +20,10 @@ class Topwidgets extends StatefulWidget {
   });
 
   @override
-  _TopwidgetsState createState() => _TopwidgetsState();
+  TopwidgetsState createState() => TopwidgetsState(); // Expose the state class
 }
 
-class _TopwidgetsState extends State<Topwidgets> {
+class TopwidgetsState extends State<Topwidgets> {
   bool _isDropdownOpen = false;
   List<Map<String, dynamic>> _spaces = [];
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -57,6 +55,11 @@ class _TopwidgetsState extends State<Topwidgets> {
         };
       }).toList();
     });
+  }
+
+  // Allow external calls to fetch spaces
+  void refreshSpaces() {
+    _fetchSpaces();
   }
 
   // When a space is selected, update the active space

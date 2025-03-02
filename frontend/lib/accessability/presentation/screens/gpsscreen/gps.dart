@@ -2,6 +2,7 @@ import 'package:AccessAbility/accessability/logic/bloc/user/user_event.dart';
 import 'package:AccessAbility/accessability/presentation/screens/gpsscreen/location_handler.dart';
 import 'package:AccessAbility/accessability/presentation/screens/gpsscreen/pwd_friendly_locations.dart';
 import 'package:AccessAbility/accessability/presentation/widgets/accessability_footer.dart';
+import 'package:AccessAbility/accessability/presentation/widgets/homepageWidgets/top_widgets.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
@@ -11,7 +12,6 @@ import 'package:AccessAbility/accessability/presentation/screens/gpsscreen/marke
 import 'package:AccessAbility/accessability/presentation/screens/gpsscreen/nearby_places_handler.dart';
 import 'package:AccessAbility/accessability/presentation/screens/gpsscreen/tutorial_widget.dart';
 import 'package:AccessAbility/accessability/presentation/widgets/homepageWidgets/bottom_widgets.dart';
-import 'package:AccessAbility/accessability/presentation/widgets/homepagewidgets/top_widgets.dart';
 import 'package:AccessAbility/accessability/presentation/widgets/bottomSheetWidgets/favorite_widget.dart';
 import 'package:AccessAbility/accessability/presentation/widgets/bottomSheetWidgets/safety_assist_widget.dart';
 import 'package:AccessAbility/accessability/logic/bloc/auth/auth_bloc.dart';
@@ -34,6 +34,7 @@ class _GpsScreenState extends State<GpsScreen> {
   final GlobalKey youKey = GlobalKey();
   final GlobalKey locationKey = GlobalKey();
   final GlobalKey securityKey = GlobalKey();
+  final GlobalKey<TopwidgetsState> _topWidgetsKey = GlobalKey();// Add this key
   Set<Marker> _markers = {};
   Set<Circle> _circles = {};
   bool _isLocationFetched = false;
@@ -252,6 +253,7 @@ class _GpsScreenState extends State<GpsScreen> {
                     },
                   ),
                   Topwidgets(
+                    key: _topWidgetsKey, // Use the GlobalKey here
                     inboxKey: inboxKey,
                     settingsKey: settingsKey,
                     onCategorySelected: (selectedType) {
@@ -271,6 +273,10 @@ class _GpsScreenState extends State<GpsScreen> {
                         _fetchNearbyPlaces(selectedType);
                       },
                       onMemberPressed: _onMemberPressed,
+                      refreshSpaces: () {
+                        // Call the refreshSpaces method from Topwidgets
+                        _topWidgetsKey.currentState?.refreshSpaces();
+                      },
                     ),
                   if (_locationHandler.currentIndex == 1)
                     const FavoriteWidget(),

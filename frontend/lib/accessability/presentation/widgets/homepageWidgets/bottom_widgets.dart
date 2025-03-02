@@ -14,6 +14,7 @@ class BottomWidgets extends StatefulWidget {
   final String activeSpaceId;
   final Function(String) onCategorySelected;
   final Function(LatLng, String) onMemberPressed;
+  final Function() refreshSpaces; // Callback to refresh spaces in Topwidgets
 
   const BottomWidgets({
     super.key,
@@ -21,6 +22,7 @@ class BottomWidgets extends StatefulWidget {
     required this.activeSpaceId,
     required this.onCategorySelected,
     required this.onMemberPressed,
+    required this.refreshSpaces,
   });
 
   @override
@@ -131,6 +133,7 @@ class _BottomWidgetsState extends State<BottomWidgets> {
     final email = await _showAddPersonDialog();
     if (email == null || email.isEmpty) return;
 
+    // Fetch the receiver's user ID from Firestore
     final receiverSnapshot = await _firestore
         .collection('Users')
         .where('email', isEqualTo: email)
@@ -145,13 +148,16 @@ class _BottomWidgetsState extends State<BottomWidgets> {
 
     final receiverID = receiverSnapshot.docs.first.id;
 
+    // Generate a random verification code
     final verificationCode = _generateVerificationCode();
 
+    // Send the verification code via chat
     await _chatService.sendMessage(
       receiverID,
       'Join My Space! \n Your verification code is: $verificationCode (Expires in 10 minutes)',
     );
 
+    // Update the space with the verification code
     await _firestore.collection('Spaces').doc(widget.activeSpaceId).update({
       'verificationCode': verificationCode,
     });
@@ -210,6 +216,9 @@ class _BottomWidgetsState extends State<BottomWidgets> {
       _showCreateSpace = false;
     });
 
+    // Refresh spaces in Topwidgets
+    widget.refreshSpaces();
+
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Space created successfully')),
     );
@@ -234,6 +243,9 @@ class _BottomWidgetsState extends State<BottomWidgets> {
       setState(() {
         _showJoinSpace = false;
       });
+
+      // Refresh spaces in Topwidgets
+      widget.refreshSpaces();
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Joined space successfully')),
@@ -323,12 +335,11 @@ class _BottomWidgetsState extends State<BottomWidgets> {
                           ],
                         ),
                         const SizedBox(height: 20),
-                        if (widget.activeSpaceId.isEmpty && _activeIndex == 0) ...[
+                        if (widget.activeSpaceId.isEmpty && _activeIndex == 0 && !_showCreateSpace && !_showJoinSpace) ...[
                           ElevatedButton(
                             onPressed: () {
                               setState(() {
                                 _showCreateSpace = true;
-                                _showJoinSpace = false;
                               });
                             },
                             style: ElevatedButton.styleFrom(
@@ -345,7 +356,6 @@ class _BottomWidgetsState extends State<BottomWidgets> {
                             onPressed: () {
                               setState(() {
                                 _showJoinSpace = true;
-                                _showCreateSpace = false;
                               });
                             },
                             style: ElevatedButton.styleFrom(
@@ -361,6 +371,11 @@ class _BottomWidgetsState extends State<BottomWidgets> {
                         if (_showCreateSpace) _buildCreateSpaceForm(),
                         if (_showJoinSpace) _buildJoinSpaceForm(),
                         if (widget.activeSpaceId.isNotEmpty) _buildContent(),
+                        if (_creatorId == _auth.currentUser?.uid && _activeIndex == 0 && widget.activeSpaceId.isNotEmpty)
+                          ElevatedButton(
+                            onPressed: _addPerson,
+                            child: const Text('Add Person'),
+                          ),
                       ],
                     ),
                   ),

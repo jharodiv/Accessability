@@ -19,61 +19,63 @@ class ChatUsersList extends StatelessWidget {
   }
 
   Widget _buildUserList() {
-    return StreamBuilder(
-      stream: CombineLatestStream.list([
-        chatService.getUsersInSameSpaces(),
-        chatService.getUsersWithAcceptedChatRequests(),
-      ]),
-      builder: (context, snapshot) {
-        if (snapshot.hasError) {
-          return const Text('Error');
-        }
+  return StreamBuilder(
+    stream: CombineLatestStream.list([
+      chatService.getUsersInSameSpaces(),
+      chatService.getUsersWithAcceptedChatRequests(),
+    ]),
+    builder: (context, snapshot) {
+      if (snapshot.hasError) {
+        return const Text('Error');
+      }
 
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
-        }
+      if (snapshot.connectionState == ConnectionState.waiting) {
+        return const Center(child: CircularProgressIndicator());
+      }
 
-        final List<Map<String, dynamic>> usersInSameSpaces = snapshot.data![0];
-        final List<Map<String, dynamic>> usersWithAcceptedRequests = snapshot.data![1];
+      final List<Map<String, dynamic>> usersInSameSpaces = snapshot.data![0];
+      final List<Map<String, dynamic>> usersWithAcceptedRequests = snapshot.data![1];
 
-        // Combine the two lists and remove duplicates using a Map
-        final Map<String, Map<String, dynamic>> uniqueUsers = {};
+      // Combine the two lists and remove duplicates using a Map
+      final Map<String, Map<String, dynamic>> uniqueUsers = {};
 
-        for (var user in usersInSameSpaces) {
-          uniqueUsers[user['uid']] = user;
-        }
+      for (var user in usersInSameSpaces) {
+        uniqueUsers[user['uid']] = user;
+      }
 
-        for (var user in usersWithAcceptedRequests) {
-          uniqueUsers[user['uid']] = user;
-        }
+      for (var user in usersWithAcceptedRequests) {
+        uniqueUsers[user['uid']] = user;
+      }
 
-        if (uniqueUsers.isEmpty) {
-          return Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Text('No users found.'),
-                const SizedBox(height: 16),
-                ElevatedButton(
-                  onPressed: () {
-                    // Navigate to the space creation or joining screen
-                    Navigator.pushNamed(context, '/createOrJoinSpace');
-                  },
-                  child: const Text('Join or Create a Space'),
-                ),
-              ],
-            ),
-          );
-        }
-
-        return ListView(
-          children: uniqueUsers.values
-              .map<Widget>((userData) => _buildUserListItem(userData, context))
-              .toList(),
+      if (uniqueUsers.isEmpty) {
+        return const Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text('No users found.'),
+              SizedBox(height: 16),
+              Text('Create or join a space in the main screen')
+            ],
+          ),
         );
-      },
-    );
-  }
+      }
+
+      // Sort users by the timestamp of their last message
+      final sortedUsers = uniqueUsers.values.toList()
+        ..sort((a, b) {
+          final aLastMessage = a['lastMessageTimestamp'] ?? Timestamp(0, 0);
+          final bLastMessage = b['lastMessageTimestamp'] ?? Timestamp(0, 0);
+          return bLastMessage.compareTo(aLastMessage); // Sort in descending order
+        });
+
+      return ListView(
+        children: sortedUsers
+            .map<Widget>((userData) => _buildUserListItem(userData, context))
+            .toList(),
+      );
+    },
+  );
+}
 
   Widget _buildUserListItem(Map<String, dynamic> userData, BuildContext context) {
   if (userData['email'] != authService.getCurrentUser()!.email) {
@@ -88,6 +90,7 @@ class ChatUsersList extends StatelessWidget {
       builder: (context, snapshot) {
         String lastMessage = '';
         String lastMessageTime = '';
+        Timestamp lastMessageTimestamp = Timestamp(0, 0);
 
         if (snapshot.hasData && snapshot.data!.docs.isNotEmpty) {
           final messageData =
@@ -95,24 +98,20 @@ class ChatUsersList extends StatelessWidget {
           lastMessage = messageData['message'];
           lastMessageTime =
               DateFormat('hh:mm a').format(messageData['timestamp'].toDate());
+          lastMessageTimestamp = messageData['timestamp'];
         }
 
         return ChatUsersTile(
-          email: userData['email'],
+          username: userData['username'], // Use username
           lastMessage: lastMessage,
           lastMessageTime: lastMessageTime,
-          profilePicture: userData['profilePicture'] ?? 'https://via.placeholder.com/150', // Default image if none
+          profilePicture: userData['profilePicture'] ?? 'https://via.placeholder.com/150',
           onTap: () {
             Navigator.pushNamed(context, '/chatconvo', arguments: {
-              'receiverEmail': userData['email'],
+              'receiverUsername': userData['username'], // Pass username
               'receiverID': userData['uid'],
-              'receiverProfilePicture': userData['profilePicture'], // Pass profile picture
+              'receiverProfilePicture': userData['profilePicture'],
             });
-            print('Navigating to ChatConvoScreen with arguments: ${{
-  'receiverEmail': userData['email'],
-  'receiverID': userData['uid'],
-  'receiverProfilePicture': userData['profilePicture'],
-}}');
           },
         );
       },
@@ -121,12 +120,10 @@ class ChatUsersList extends StatelessWidget {
     return const SizedBox.shrink();
   }
 }
-
-  String _getChatRoomID(String userID) {
+ String _getChatRoomID(String userID) {
     List<String> ids = [authService.getCurrentUser()!.uid, userID];
     ids.sort();
     return ids.join('_');
   }
 
-  
 }

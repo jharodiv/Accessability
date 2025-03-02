@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 class ChatUsersTile extends StatelessWidget {
-  final String email;
+  final String username;
   final String lastMessage;
   final String lastMessageTime;
   final String profilePicture; // Add profile picture URL
@@ -9,7 +9,7 @@ class ChatUsersTile extends StatelessWidget {
 
   const ChatUsersTile({
     super.key,
-    required this.email,
+    required this.username,
     required this.lastMessage,
     required this.lastMessageTime,
     required this.profilePicture, // Add profile picture URL
@@ -28,7 +28,7 @@ class ChatUsersTile extends StatelessWidget {
           leading: CircleAvatar(
             backgroundImage: NetworkImage(profilePicture), // Display profile picture
           ),
-          title: Text(email),
+          title: Text(username),
           subtitle: Text(lastMessage),
           trailing: Text(lastMessageTime),
           onTap: onTap,

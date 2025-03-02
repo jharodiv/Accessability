@@ -9,11 +9,11 @@ import 'package:intl/intl.dart';
 class ChatConvoScreen extends StatefulWidget {
   const ChatConvoScreen({
     super.key,
-    required this.receiverEmail,
+    required this.receiverUsername,
     required this.receiverID,
   });
 
-  final String receiverEmail;
+  final String receiverUsername;
   final String receiverID;
 
   @override
@@ -98,7 +98,7 @@ Widget build(BuildContext context) {
     );
   }
 
-  final String receiverEmail = args['receiverEmail'] as String;
+  final String receiverUsername = args['receiverUsername'] as String;
   final String receiverID = args['receiverID'] as String;
   final String receiverProfilePicture = args['receiverProfilePicture'] as String? ?? 'https://firebasestorage.googleapis.com/v0/b/accessability-71ef7.appspot.com/o/profile_pictures%2Fdefault_profile.png?alt=media&token=bc7a75a7-a78e-4460-b816-026a8fc341ba'; // Default image if none
 
@@ -110,7 +110,7 @@ Widget build(BuildContext context) {
             backgroundImage: NetworkImage(receiverProfilePicture),
           ),
           const SizedBox(width: 10),
-          Text(receiverEmail),
+          Text(receiverUsername),
         ],
       ),
     ),
@@ -144,69 +144,69 @@ Widget build(BuildContext context) {
 }
 
 
-  Widget _buildMessageList() {
-    String senderID = authService.getCurrentUser()!.uid;
-    return StreamBuilder(
-      stream: chatService.getMessages(widget.receiverID, senderID),
-      builder: (context, snapshot) {
-        if (snapshot.hasError) {
-          return const Text('Error');
-        }
+ Widget _buildMessageList() {
+  String senderID = authService.getCurrentUser()!.uid;
+  return StreamBuilder(
+    stream: chatService.getMessages(widget.receiverID, senderID),
+    builder: (context, snapshot) {
+      if (snapshot.hasError) {
+        return const Text('Error');
+      }
 
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
-        }
+      if (snapshot.connectionState == ConnectionState.waiting) {
+        return const Center(child: CircularProgressIndicator());
+      }
 
-        List<Widget> messageWidgets = [];
-        Timestamp? lastTimestamp;
+      List<Widget> messageWidgets = [];
+      Timestamp? lastTimestamp;
 
-        for (var doc in snapshot.data!.docs) {
-          Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
-          bool isCurrentUser = data['senderID'] == senderID;
+      for (var doc in snapshot.data!.docs) {
+        Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+        bool isCurrentUser = data['senderID'] == senderID;
 
-          // Check if we need to add a timestamp divider
-          if (lastTimestamp != null) {
-            final currentTimestamp = data['timestamp'] as Timestamp;
-            final difference = currentTimestamp
-                .toDate()
-                .difference(lastTimestamp.toDate())
-                .inMinutes;
+        // Check if we need to add a timestamp divider
+        if (lastTimestamp != null) {
+          final currentTimestamp = data['timestamp'] as Timestamp;
+          final difference = currentTimestamp
+              .toDate()
+              .difference(lastTimestamp.toDate())
+              .inMinutes;
 
-            if (difference >= 10) {
-              messageWidgets.add(
-                Column(
-                  children: [
-                    const Divider(),
-                    Text(
-                      DateFormat('hh:mm a').format(currentTimestamp.toDate()),
-                      style: const TextStyle(color: Colors.grey),
-                    ),
-                    const Divider(),
-                  ],
-                ),
-              );
-            }
+          if (difference >= 10) {
+            messageWidgets.add(
+              Column(
+                children: [
+                  const Divider(),
+                  Text(
+                    DateFormat('MMM d, yyyy hh:mm a').format(currentTimestamp.toDate()), // Full date and time
+                    style: const TextStyle(color: Colors.grey),
+                  ),
+                  const Divider(),
+                ],
+              ),
+            );
           }
-
-          // Add the message item
-          messageWidgets.add(_buildMessageItem(doc));
-          lastTimestamp = data['timestamp'];
         }
 
-        // Automatically scroll down when new messages are added
-        if (snapshot.hasData && messageWidgets.isNotEmpty) {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            scrollDown();
-          });
-        }
+        // Add the message item
+        messageWidgets.add(_buildMessageItem(doc));
+        lastTimestamp = data['timestamp'];
+      }
 
-        return ListView(
-          controller: scrollController,
-          children: messageWidgets,
-        );
-      },
-    );
-  }
+      // Automatically scroll down when new messages are added
+      if (snapshot.hasData && messageWidgets.isNotEmpty) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          scrollDown();
+        });
+      }
+
+      return ListView(
+        controller: scrollController,
+        children: messageWidgets,
+      );
+    },
+  );
+}
 
   Widget _buildMessageItem(DocumentSnapshot doc) {
     Map<String, dynamic> data = doc.data() as Map<String, dynamic>;

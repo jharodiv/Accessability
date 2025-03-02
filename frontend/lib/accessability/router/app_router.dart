@@ -60,12 +60,12 @@ class AppRouter {
   if (args == null) {
     throw ArgumentError('Arguments must not be null for /chatconvo route');
   }
-  final receiverEmail = args['receiverEmail'] as String;
+  final receiverUsername = args['receiverUsername'] as String;
   final receiverID = args['receiverID'] as String;
   final receiverProfilePicture = args['receiverProfilePicture'] as String? ?? 'https://firebasestorage.googleapis.com/v0/b/accessability-71ef7.appspot.com/o/profile_pictures%2Fdefault_profile.png?alt=media&token=bc7a75a7-a78e-4460-b816-026a8fc341ba'; // Default image if none
   return MaterialPageRoute(
     builder: (context) => ChatConvoScreen(
-      receiverEmail: receiverEmail,
+      receiverUsername: receiverUsername,
       receiverID: receiverID,
     ),
     settings: routeSettings, // Pass the route settings

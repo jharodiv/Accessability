@@ -55,14 +55,19 @@ class _BottomWidgetsState extends State<BottomWidgets> {
     _setupVerificationCodeFocusListeners();
   }
 
-  @override
-  void didUpdateWidget(BottomWidgets oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (widget.activeSpaceId != oldWidget.activeSpaceId) {
-      _listenToMembers(); // Reinitialize the listener when activeSpaceId changes
+ @override
+void didUpdateWidget(BottomWidgets oldWidget) {
+  super.didUpdateWidget(oldWidget);
+  if (widget.activeSpaceId != oldWidget.activeSpaceId) {
+    if (widget.activeSpaceId == 'my_space') {
+      setState(() {
+        _showCreateSpace = false;
+        _showJoinSpace = false;
+      });
     }
+    _listenToMembers(); // Reinitialize the listener when activeSpaceId changes
   }
-
+}
   @override
   void dispose() {
     _membersListener?.cancel();
@@ -72,84 +77,85 @@ class _BottomWidgetsState extends State<BottomWidgets> {
 
   // Listen to members in real time
   void _listenToMembers() {
-    if (widget.activeSpaceId.isEmpty) return;
+  if (widget.activeSpaceId.isEmpty || widget.activeSpaceId == 'my_space') return;
 
-    // Cancel any existing listeners
-    _membersListener?.cancel();
-    _locationListeners.forEach((listener) => listener.cancel());
-    _locationListeners.clear();
+  // Cancel any existing listeners
+  _membersListener?.cancel();
+  _locationListeners.forEach((listener) => listener.cancel());
+  _locationListeners.clear();
 
-    _membersListener = _firestore
-        .collection('Spaces')
-        .doc(widget.activeSpaceId)
-        .snapshots()
-        .listen((snapshot) async {
-      if (!snapshot.exists) return;
+  _membersListener = _firestore
+      .collection('Spaces')
+      .doc(widget.activeSpaceId)
+      .snapshots()
+      .listen((snapshot) async {
+    if (!snapshot.exists) return;
 
-      final members = snapshot['members'] != null
-          ? List<String>.from(snapshot['members'])
-          : [];
-      final creatorId = snapshot['creator'];
+    final members = snapshot['members'] != null
+        ? List<String>.from(snapshot['members'])
+        : [];
+    final creatorId = snapshot['creator'];
 
-      if (members.isEmpty) return;
+    if (members.isEmpty) return;
 
-      final usersSnapshot = await _firestore
-          .collection('Users')
-          .where('uid', whereIn: members)
-          .get();
+    final usersSnapshot = await _firestore
+        .collection('Users')
+        .where('uid', whereIn: members)
+        .get();
 
-      final updatedMembers = await Future.wait(usersSnapshot.docs.map((doc) async {
-        final locationSnapshot =
-            await _firestore.collection('UserLocations').doc(doc['uid']).get();
+    final updatedMembers = await Future.wait(usersSnapshot.docs.map((doc) async {
+      final locationSnapshot =
+          await _firestore.collection('UserLocations').doc(doc['uid']).get();
+      final locationData = locationSnapshot.data();
+      String address = 'Fetching address...';
+      if (locationData != null) {
+        final lat = locationData['latitude'];
+        final lng = locationData['longitude'];
+        address = await _getAddressFromLatLng(LatLng(lat, lng));
+      }
+
+      return {
+        'uid': doc['uid'],
+        'username': doc['username'] ?? 'Unknown',
+        'profilePicture': doc['profilePicture'] ??
+            'https://firebasestorage.googleapis.com/v0/b/accessability-71ef7.appspot.com/o/profile_pictures%2Fdefault_profile.png?alt=media&token=bc7a75a7-a78e-4460-b816-026a8fc341ba',
+        'address': address,
+        'lastUpdate': locationData?['timestamp'],
+      };
+    }));
+
+    setState(() {
+      _members = updatedMembers;
+      _creatorId = creatorId;
+    });
+
+    // Listen to location updates for each member
+    for (final member in members) {
+      final listener = _firestore
+          .collection('UserLocations')
+          .doc(member)
+          .snapshots()
+          .listen((locationSnapshot) async {
         final locationData = locationSnapshot.data();
-        String address = 'Fetching address...';
         if (locationData != null) {
           final lat = locationData['latitude'];
           final lng = locationData['longitude'];
-          address = await _getAddressFromLatLng(LatLng(lat, lng));
+          final address = await _getAddressFromLatLng(LatLng(lat, lng));
+
+          setState(() {
+            final index = _members.indexWhere((m) => m['uid'] == member);
+            if (index != -1) {
+              _members[index]['address'] = address;
+              _members[index]['lastUpdate'] = locationData['timestamp'];
+            }
+          });
         }
-
-        return {
-          'uid': doc['uid'],
-          'username': doc['username'] ?? 'Unknown',
-          'profilePicture': doc['profilePicture'] ??
-              'https://firebasestorage.googleapis.com/v0/b/accessability-71ef7.appspot.com/o/profile_pictures%2Fdefault_profile.png?alt=media&token=bc7a75a7-a78e-4460-b816-026a8fc341ba',
-          'address': address,
-          'lastUpdate': locationData?['timestamp'],
-        };
-      }));
-
-      setState(() {
-        _members = updatedMembers;
-        _creatorId = creatorId;
       });
+      _locationListeners.add(listener);
+    }
+  });
+}
 
-      // Listen to location updates for each member
-      for (final member in members) {
-        final listener = _firestore
-            .collection('UserLocations')
-            .doc(member)
-            .snapshots()
-            .listen((locationSnapshot) async {
-          final locationData = locationSnapshot.data();
-          if (locationData != null) {
-            final lat = locationData['latitude'];
-            final lng = locationData['longitude'];
-            final address = await _getAddressFromLatLng(LatLng(lat, lng));
-
-            setState(() {
-              final index = _members.indexWhere((m) => m['uid'] == member);
-              if (index != -1) {
-                _members[index]['address'] = address;
-                _members[index]['lastUpdate'] = locationData['timestamp'];
-              }
-            });
-          }
-        });
-        _locationListeners.add(listener);
-      }
-    });
-  }
 
   // Set up focus listeners for verification code fields
   void _setupVerificationCodeFocusListeners() {
@@ -303,132 +309,133 @@ class _BottomWidgetsState extends State<BottomWidgets> {
     return (100000 + random.nextInt(900000)).toString();
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return DraggableScrollableSheet(
-      initialChildSize: 0.15,
-      minChildSize: 0.15,
-      maxChildSize: 0.8,
-      builder: (BuildContext context, ScrollController scrollController) {
-        return Column(
-          children: [
-            Expanded(
-              child: Container(
-                decoration: const BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.only(
-                    topLeft: Radius.circular(20),
-                    topRight: Radius.circular(20),
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black26,
-                      blurRadius: 10,
-                      offset: Offset(0, -5),
-                    ),
-                  ],
+ @override
+Widget build(BuildContext context) {
+  return DraggableScrollableSheet(
+    initialChildSize: 0.15,
+    minChildSize: 0.15,
+    maxChildSize: 0.8,
+    builder: (BuildContext context, ScrollController scrollController) {
+      return Column(
+        children: [
+          Expanded(
+            child: Container(
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.only(
+                  topLeft: Radius.circular(20),
+                  topRight: Radius.circular(20),
                 ),
-                child: SingleChildScrollView(
-                  controller: scrollController,
-                  child: Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Column(
-                      children: [
-                        Container(
-                          width: 100,
-                          height: 2,
-                          color: Colors.grey.shade700,
-                          margin: const EdgeInsets.only(bottom: 8),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black26,
+                    blurRadius: 10,
+                    offset: Offset(0, -5),
+                  ),
+                ],
+              ),
+              child: SingleChildScrollView(
+                controller: scrollController,
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    children: [
+                      Container(
+                        width: 100,
+                        height: 2,
+                        color: Colors.grey.shade700,
+                        margin: const EdgeInsets.only(bottom: 8),
+                      ),
+                      const SizedBox(height: 5),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        height: 50,
+                        decoration: BoxDecoration(
+                          color: Colors.grey.shade200,
+                          borderRadius: BorderRadius.circular(25),
                         ),
-                        const SizedBox(height: 5),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 16),
-                          height: 50,
-                          decoration: BoxDecoration(
-                            color: Colors.grey.shade200,
-                            borderRadius: BorderRadius.circular(25),
-                          ),
-                          child: const Row(
-                            children: [
-                              Expanded(
-                                child: Text(
-                                  "Text to Speech, Speech to Text",
-                                  style: TextStyle(
-                                    color: Color(0xFF6750A4),
-                                    fontSize: 16,
-                                  ),
+                        child: const Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                "Text to Speech, Speech to Text",
+                                style: TextStyle(
+                                  color: Color(0xFF6750A4),
+                                  fontSize: 16,
                                 ),
                               ),
-                              Icon(
-                                Icons.mic,
-                                color: Color(0xFF6750A4),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 20),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                          children: [
-                            _buildButton(Icons.people, 0),
-                            _buildButton(Icons.business, 1),
-                            _buildButton(Icons.map, 2),
+                            ),
+                            Icon(
+                              Icons.mic,
+                              color: Color(0xFF6750A4),
+                            ),
                           ],
                         ),
-                        const SizedBox(height: 20),
-                        if (widget.activeSpaceId.isEmpty && _activeIndex == 0 && !_showCreateSpace && !_showJoinSpace) ...[
-                          ElevatedButton(
-                            onPressed: () {
-                              setState(() {
-                                _showCreateSpace = true;
-                              });
-                            },
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF6750A4),
-                              padding: const EdgeInsets.symmetric(horizontal: 50, vertical: 15),
-                            ),
-                            child: const Text(
-                              'Create Space',
-                              style: TextStyle(color: Colors.white),
-                            ),
-                          ),
-                          const SizedBox(height: 10),
-                          ElevatedButton(
-                            onPressed: () {
-                              setState(() {
-                                _showJoinSpace = true;
-                              });
-                            },
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF6750A4),
-                              padding: const EdgeInsets.symmetric(horizontal: 50, vertical: 15),
-                            ),
-                            child: const Text(
-                              'Join Space',
-                              style: TextStyle(color: Colors.white),
-                            ),
-                          ),
+                      ),
+                      const SizedBox(height: 20),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                        children: [
+                          _buildButton(Icons.people, 0),
+                          _buildButton(Icons.business, 1),
+                          _buildButton(Icons.map, 2),
                         ],
-                        if (_showCreateSpace) _buildCreateSpaceForm(),
-                        if (_showJoinSpace) _buildJoinSpaceForm(),
-                        if (widget.activeSpaceId.isNotEmpty) _buildContent(),
-                        if (_creatorId == _auth.currentUser?.uid && _activeIndex == 0 && widget.activeSpaceId.isNotEmpty)
-                          ElevatedButton(
-                            onPressed: _addPerson,
-                            style: ElevatedButton.styleFrom(backgroundColor: Color(0xFF6750A4)),
-                            child: const Text('Send code'),
+                      ),
+                      const SizedBox(height: 20),
+                      if (widget.activeSpaceId == 'my_space' && _activeIndex == 0 && !_showCreateSpace && !_showJoinSpace || widget.activeSpaceId.isEmpty) ...[
+                        ElevatedButton(
+                          onPressed: () {
+                            setState(() {
+                              _showCreateSpace = true;
+                            });
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF6750A4),
+                            padding: const EdgeInsets.symmetric(horizontal: 50, vertical: 15),
                           ),
+                          child: const Text(
+                            'Create Space',
+                            style: TextStyle(color: Colors.white),
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        ElevatedButton(
+                          onPressed: () {
+                            setState(() {
+                              _showJoinSpace = true;
+                            });
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF6750A4),
+                            padding: const EdgeInsets.symmetric(horizontal: 50, vertical: 15),
+                          ),
+                          child: const Text(
+                            'Join Space',
+                            style: TextStyle(color: Colors.white),
+                          ),
+                        ),
                       ],
-                    ),
+                      if (_showCreateSpace) _buildCreateSpaceForm(),
+                      if (_showJoinSpace) _buildJoinSpaceForm(),
+                      if (widget.activeSpaceId != 'my_space' && widget.activeSpaceId.isNotEmpty) _buildContent(),
+                      if (_creatorId == _auth.currentUser?.uid && _activeIndex == 0 && widget.activeSpaceId.isNotEmpty && widget.activeSpaceId != 'my_space')
+                        ElevatedButton(
+                          onPressed: _addPerson,
+                          style: ElevatedButton.styleFrom(backgroundColor: Color(0xFF6750A4)),
+                          child: const Text('Send code'),
+                        ),
+                    ],
                   ),
                 ),
               ),
             ),
-          ],
-        );
-      },
-    );
-  }
+          ),
+        ],
+      );
+    },
+  );
+}
+
 
   Widget _buildCreateSpaceForm() {
     return Column(

@@ -74,17 +74,20 @@ class _InboxScreenState extends State<InboxScreen> {
                         final userData =
                             userSnapshot.data!.data() as Map<String, dynamic>;
                         final senderEmail = userData['email'];
+                        final profilePicture = userData['profilePicture'] ?? 'https://via.placeholder.com/150'; // Default image if none
 
                         return ChatUsersTile(
                           email: senderEmail,
                           lastMessage: message,
                           lastMessageTime: 'Pending',
+                          profilePicture: profilePicture, // Pass profile picture
                           onTap: () async {
                             await chatService.acceptChatRequest(doc.id);
                             // Navigate to chat screen
                             Navigator.pushNamed(context, '/chatconvo', arguments: {
                               'receiverEmail': senderEmail,
                               'receiverID': senderID,
+                              'receiverProfilePicture': profilePicture, // Pass profile picture
                             });
                           },
                         );

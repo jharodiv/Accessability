@@ -9,6 +9,7 @@ class ChatConvoBubble extends StatefulWidget {
   final String message;
   final bool isCurrentUser;
   final Timestamp timestamp;
+  final String profilePicture; // Add profile picture
   final Function()? onEdit;
   final Function()? onDelete;
   final Function(String emoji)? onReact;
@@ -18,6 +19,7 @@ class ChatConvoBubble extends StatefulWidget {
     required this.isCurrentUser,
     required this.message,
     required this.timestamp,
+    required this.profilePicture, // Add profile picture
     this.onEdit,
     this.onDelete,
     this.onReact,
@@ -74,7 +76,7 @@ class _ChatConvoBubbleState extends State<ChatConvoBubble> {
         return EmojiPicker(
           onEmojiSelected: (category, emoji) {
             widget.onReact?.call(emoji.emoji); // Use `emoji.character`
-                      Navigator.pop(context);
+            Navigator.pop(context);
           },
         );
       },
@@ -88,45 +90,68 @@ class _ChatConvoBubbleState extends State<ChatConvoBubble> {
     String formattedTime =
         DateFormat('hh:mm a').format(widget.timestamp.toDate());
 
-    return GestureDetector(
-      onTap: () {
-        setState(() {
-          _showTimestamp = !_showTimestamp;
-        });
-      },
-      onLongPress: () => _showOptionsMenu(context),
-      child: Container(
-        decoration: BoxDecoration(
-          color: widget.isCurrentUser
-              ? const Color(0xFF6750A4)
-              : (isDarkMode
-                  ? const Color.fromARGB(255, 65, 63, 71)
-                  : const Color.fromARGB(255, 145, 141, 141)),
-          borderRadius: BorderRadius.circular(12),
-        ),
-        padding: const EdgeInsets.all(16),
-        margin: const EdgeInsets.symmetric(vertical: 5, horizontal: 25),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              widget.message,
-              style: TextStyle(
-                  color: widget.isCurrentUser
-                      ? Colors.white
-                      : (isDarkMode ? Colors.white : Colors.black)),
+    return Row(
+      mainAxisAlignment: widget.isCurrentUser
+          ? MainAxisAlignment.end
+          : MainAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.start, // Align to the top
+      children: [
+        if (!widget.isCurrentUser)
+          CircleAvatar(
+            backgroundImage: NetworkImage(widget.profilePicture),
+          ),
+        const SizedBox(width: 8),
+        Flexible( // Use Flexible to prevent overflow
+          child: GestureDetector(
+            onTap: () {
+              setState(() {
+                _showTimestamp = !_showTimestamp;
+              });
+            },
+            onLongPress: () => _showOptionsMenu(context),
+            child: Container(
+              constraints: BoxConstraints(
+                maxWidth: MediaQuery.of(context).size.width * 0.7, // Limit bubble width
+              ),
+              decoration: BoxDecoration(
+                color: widget.isCurrentUser
+                    ? const Color(0xFF6750A4)
+                    : (isDarkMode
+                        ? const Color.fromARGB(255, 65, 63, 71)
+                        : const Color.fromARGB(255, 145, 141, 141)),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              padding: const EdgeInsets.all(12), // Reduce padding
+              margin: const EdgeInsets.symmetric(vertical: 5, horizontal: 8),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    widget.message,
+                    style: TextStyle(
+                      color: widget.isCurrentUser
+                          ? Colors.white
+                          : (isDarkMode ? Colors.white : Colors.black),
+                      fontSize: 14, // Adjust text size
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  if (_showTimestamp)
+                    Text(
+                      formattedTime,
+                      style: TextStyle(
+                        color: widget.isCurrentUser
+                            ? Colors.white70
+                            : Colors.black54,
+                        fontSize: 10, // Smaller timestamp
+                      ),
+                    ),
+                ],
+              ),
             ),
-            const SizedBox(height: 4),
-            if (_showTimestamp)
-              Text(formattedTime,
-                  style: TextStyle(
-                    color:
-                        widget.isCurrentUser ? Colors.white70 : Colors.black54,
-                    fontSize: 12,
-                  )),
-          ],
+          ),
         ),
-      ),
+      ],
     );
   }
 }

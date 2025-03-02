@@ -29,22 +29,22 @@ class _ChatConvoScreenState extends State<ChatConvoScreen> {
   FocusNode focusNode = FocusNode();
   bool _isRequestPending = true;
 
-
   @override
   void initState() {
     super.initState();
-     _checkChatRequest();
+    _checkChatRequest();
 
     focusNode.addListener(() {
       if (focusNode.hasFocus) {
-        Future.delayed(const Duration(milliseconds: 500), () => scrollDown());
+        WidgetsBinding.instance.addPostFrameCallback((_) => scrollDown());
       }
     });
 
-    Future.delayed(const Duration(milliseconds: 500), () => scrollDown());
+    // Use addPostFrameCallback instead of Future.delayed
+    WidgetsBinding.instance.addPostFrameCallback((_) => scrollDown());
   }
 
-   Future<void> _checkChatRequest() async {
+  Future<void> _checkChatRequest() async {
     final senderID = authService.getCurrentUser()!.uid;
     final hasRequest = await chatService.hasChatRequest(senderID, widget.receiverID);
     setState(() {
@@ -52,13 +52,8 @@ class _ChatConvoScreenState extends State<ChatConvoScreen> {
     });
   }
 
-   Future<void> _acceptChatRequest() async {
-    final senderID = authService.getCurrentUser()!.uid;
-    final receiverID = widget.receiverID;
-
-    // Create a chat room and add the last message
+  Future<void> _acceptChatRequest() async {
     await chatService.acceptChatRequest(widget.receiverID);
-
     setState(() {
       _isRequestPending = false;
     });
@@ -80,46 +75,73 @@ class _ChatConvoScreenState extends State<ChatConvoScreen> {
   }
 
   void scrollDown() {
-    scrollController.animateTo(
-      scrollController.position.maxScrollExtent,
-      duration: const Duration(milliseconds: 300),
-      curve: Curves.easeOut,
+    if (scrollController.hasClients) {
+      scrollController.animateTo(
+        scrollController.position.maxScrollExtent,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOut,
+      );
+    }
+  }
+
+@override
+Widget build(BuildContext context) {
+  final Map<String, dynamic>? args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
+
+  print('Received arguments in ChatConvoScreen: $args'); // Debugging
+
+  if (args == null) {
+    return const Scaffold(
+      body: Center(
+        child: Text('Error: Missing arguments for ChatConvoScreen'),
+      ),
     );
   }
 
- @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: Text(widget.receiverEmail)),
-      body: _isRequestPending
-          ? Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Text('You have a pending chat request'),
-                  ElevatedButton(
-                    onPressed: _acceptChatRequest,
-                    child: const Text('Accept'),
-                  ),
-                  ElevatedButton(
-                    onPressed: () async {
-                      await chatService.rejectChatRequest(widget.receiverID);
-                      Navigator.pop(context);
-                    },
-                    child: const Text('Reject'),
-                  ),
-                ],
-              ),
-            )
-          : Column(
+  final String receiverEmail = args['receiverEmail'] as String;
+  final String receiverID = args['receiverID'] as String;
+  final String receiverProfilePicture = args['receiverProfilePicture'] as String? ?? 'https://firebasestorage.googleapis.com/v0/b/accessability-71ef7.appspot.com/o/profile_pictures%2Fdefault_profile.png?alt=media&token=bc7a75a7-a78e-4460-b816-026a8fc341ba'; // Default image if none
+
+  return Scaffold(
+    appBar: AppBar(
+      title: Row(
+        children: [
+          CircleAvatar(
+            backgroundImage: NetworkImage(receiverProfilePicture),
+          ),
+          const SizedBox(width: 10),
+          Text(receiverEmail),
+        ],
+      ),
+    ),
+    body: _isRequestPending
+        ? Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Expanded(child: _buildMessageList()),
-                _buildUserInput(),
+                const Text('You have a pending chat request'),
+                ElevatedButton(
+                  onPressed: _acceptChatRequest,
+                  child: const Text('Accept'),
+                ),
+                ElevatedButton(
+                  onPressed: () async {
+                    await chatService.rejectChatRequest(widget.receiverID);
+                    Navigator.pop(context);
+                  },
+                  child: const Text('Reject'),
+                ),
               ],
             ),
-    );
-  }
-
+          )
+        : Column(
+            children: [
+              Expanded(child: _buildMessageList()),
+              _buildUserInput(),
+            ],
+          ),
+  );
+}
 
 
   Widget _buildMessageList() {
@@ -132,7 +154,7 @@ class _ChatConvoScreenState extends State<ChatConvoScreen> {
         }
 
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Text('Loading...');
+          return const Center(child: CircularProgressIndicator());
         }
 
         List<Widget> messageWidgets = [];
@@ -189,21 +211,44 @@ class _ChatConvoScreenState extends State<ChatConvoScreen> {
   Widget _buildMessageItem(DocumentSnapshot doc) {
     Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
     bool isCurrentUser = data['senderID'] == authService.getCurrentUser()!.uid;
-    var alignment =
-        isCurrentUser ? Alignment.centerRight : Alignment.centerLeft;
-    return Container(
-      alignment: alignment,
-      child: Column(
-        crossAxisAlignment:
-            isCurrentUser ? CrossAxisAlignment.end : CrossAxisAlignment.start,
-        children: [
-          ChatConvoBubble(
+
+    return FutureBuilder<DocumentSnapshot>(
+      future: FirebaseFirestore.instance
+          .collection('Users')
+          .doc(data['senderID'])
+          .get(),
+      builder: (context, snapshot) {
+        // Handle loading state
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        // Handle error state
+        if (snapshot.hasError) {
+          return const Text('Error loading user data');
+        }
+
+        // Handle case where user data is not found
+        if (!snapshot.hasData || !snapshot.data!.exists) {
+          return ChatConvoBubble(
             isCurrentUser: isCurrentUser,
             message: data['message'],
             timestamp: data['timestamp'],
-          ),
-        ],
-      ),
+            profilePicture: 'https://firebasestorage.googleapis.com/v0/b/accessability-71ef7.appspot.com/o/profile_pictures%2Fdefault_profile.png?alt=media&token=bc7a75a7-a78e-4460-b816-026a8fc341ba', // Default image
+          );
+        }
+
+        // Fetch and use the user's profile picture
+        final userData = snapshot.data!.data() as Map<String, dynamic>;
+        final profilePicture = userData['profilePicture'] ?? 'https://firebasestorage.googleapis.com/v0/b/accessability-71ef7.appspot.com/o/profile_pictures%2Fdefault_profile.png?alt=media&token=bc7a75a7-a78e-4460-b816-026a8fc341ba'; // Default image if none
+
+        return ChatConvoBubble(
+          isCurrentUser: isCurrentUser,
+          message: data['message'],
+          timestamp: data['timestamp'],
+          profilePicture: profilePicture,
+        );
+      },
     );
   }
 

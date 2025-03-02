@@ -45,10 +45,14 @@ class _BottomWidgetsState extends State<BottomWidgets> {
   StreamSubscription<DocumentSnapshot>? _membersListener;
   final List<StreamSubscription<DocumentSnapshot>> _locationListeners = [];
 
+  final List<FocusNode> _verificationCodeFocusNodes =
+      List.generate(6, (index) => FocusNode());
+
   @override
   void initState() {
     super.initState();
     _listenToMembers();
+    _setupVerificationCodeFocusListeners();
   }
 
   @override
@@ -147,6 +151,17 @@ class _BottomWidgetsState extends State<BottomWidgets> {
     });
   }
 
+  // Set up focus listeners for verification code fields
+  void _setupVerificationCodeFocusListeners() {
+    for (int i = 0; i < _verificationCodeControllers.length; i++) {
+      _verificationCodeControllers[i].addListener(() {
+        if (_verificationCodeControllers[i].text.isNotEmpty && i < 5) {
+          FocusScope.of(context).requestFocus(_verificationCodeFocusNodes[i + 1]);
+        }
+      });
+    }
+  }
+
   Future<void> _addPerson() async {
     final user = _auth.currentUser;
     if (user == null) return;
@@ -205,7 +220,7 @@ class _BottomWidgetsState extends State<BottomWidgets> {
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: const Text('Add Person'),
+          title: const Text('Send Code'),
           content: TextField(
             decoration: const InputDecoration(labelText: 'Email'),
             onChanged: (value) => email = value,
@@ -400,7 +415,8 @@ class _BottomWidgetsState extends State<BottomWidgets> {
                         if (_creatorId == _auth.currentUser?.uid && _activeIndex == 0 && widget.activeSpaceId.isNotEmpty)
                           ElevatedButton(
                             onPressed: _addPerson,
-                            child: const Text('Add Person'),
+                            style: ElevatedButton.styleFrom(backgroundColor: Color(0xFF6750A4)),
+                            child: const Text('Send code'),
                           ),
                       ],
                     ),
@@ -454,7 +470,7 @@ class _BottomWidgetsState extends State<BottomWidgets> {
     );
   }
 
-  Widget _buildJoinSpaceForm() {
+   Widget _buildJoinSpaceForm() {
     return Column(
       children: [
         const Text(
@@ -464,20 +480,42 @@ class _BottomWidgetsState extends State<BottomWidgets> {
         const SizedBox(height: 20),
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-          children: List.generate(6, (index) {
-            return SizedBox(
-              width: 40,
-              child: TextField(
-                controller: _verificationCodeControllers[index],
-                textAlign: TextAlign.center,
-                maxLength: 1,
-                decoration: const InputDecoration(
-                  counterText: '',
-                  border: OutlineInputBorder(),
+          children: [
+            // First 3 fields
+            for (int i = 0; i < 3; i++)
+              SizedBox(
+                width: 40,
+                child: TextField(
+                  controller: _verificationCodeControllers[i],
+                  focusNode: _verificationCodeFocusNodes[i],
+                  textAlign: TextAlign.center,
+                  maxLength: 1,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(
+                    counterText: '',
+                    border: OutlineInputBorder(),
+                  ),
                 ),
               ),
-            );
-          }),
+            // Dash between the 3rd and 4th fields
+            const Text('-', style: TextStyle(fontSize: 20)),
+            // Last 3 fields
+            for (int i = 3; i < 6; i++)
+              SizedBox(
+                width: 40,
+                child: TextField(
+                  controller: _verificationCodeControllers[i],
+                  focusNode: _verificationCodeFocusNodes[i],
+                  textAlign: TextAlign.center,
+                  maxLength: 1,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(
+                    counterText: '',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+              ),
+          ],
         ),
         const SizedBox(height: 20),
         ElevatedButton(

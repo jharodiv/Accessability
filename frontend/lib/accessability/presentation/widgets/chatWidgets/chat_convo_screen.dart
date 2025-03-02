@@ -84,129 +84,111 @@ class _ChatConvoScreenState extends State<ChatConvoScreen> {
     }
   }
 
-@override
-Widget build(BuildContext context) {
-  final Map<String, dynamic>? args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
+  @override
+  Widget build(BuildContext context) {
+    final Map<String, dynamic>? args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
 
-  print('Received arguments in ChatConvoScreen: $args'); // Debugging
+    print('Received arguments in ChatConvoScreen: $args'); // Debugging
 
-  if (args == null) {
-    return const Scaffold(
-      body: Center(
-        child: Text('Error: Missing arguments for ChatConvoScreen'),
+    if (args == null) {
+      return const Scaffold(
+        body: Center(
+          child: Text('Error: Missing arguments for ChatConvoScreen'),
+        ),
+      );
+    }
+
+    final String receiverUsername = args['receiverUsername'] as String;
+    final String receiverID = args['receiverID'] as String;
+    final String receiverProfilePicture = args['receiverProfilePicture'] as String? ?? 'https://firebasestorage.googleapis.com/v0/b/accessability-71ef7.appspot.com/o/profile_pictures%2Fdefault_profile.png?alt=media&token=bc7a75a7-a78e-4460-b816-026a8fc341ba'; // Default image if none
+
+    return Scaffold(
+      appBar: AppBar(
+        title: Row(
+          children: [
+            CircleAvatar(
+              backgroundImage: NetworkImage(receiverProfilePicture),
+            ),
+            const SizedBox(width: 10),
+            Text(receiverUsername),
+          ],
+        ),
+      ),
+      body: SafeArea(
+        child: Column(
+          children: [
+            Expanded(child: _buildMessageList()),
+            _buildUserInput(),
+          ],
+        ),
       ),
     );
   }
 
-  final String receiverUsername = args['receiverUsername'] as String;
-  final String receiverID = args['receiverID'] as String;
-  final String receiverProfilePicture = args['receiverProfilePicture'] as String? ?? 'https://firebasestorage.googleapis.com/v0/b/accessability-71ef7.appspot.com/o/profile_pictures%2Fdefault_profile.png?alt=media&token=bc7a75a7-a78e-4460-b816-026a8fc341ba'; // Default image if none
-
-  return Scaffold(
-    appBar: AppBar(
-      title: Row(
-        children: [
-          CircleAvatar(
-            backgroundImage: NetworkImage(receiverProfilePicture),
-          ),
-          const SizedBox(width: 10),
-          Text(receiverUsername),
-        ],
-      ),
-    ),
-    body: _isRequestPending
-        ? Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Text('You have a pending chat request'),
-                ElevatedButton(
-                  onPressed: _acceptChatRequest,
-                  child: const Text('Accept'),
-                ),
-                ElevatedButton(
-                  onPressed: () async {
-                    await chatService.rejectChatRequest(widget.receiverID);
-                    Navigator.pop(context);
-                  },
-                  child: const Text('Reject'),
-                ),
-              ],
-            ),
-          )
-        : Column(
-            children: [
-              Expanded(child: _buildMessageList()),
-              _buildUserInput(),
-            ],
-          ),
-  );
-}
-
-
- Widget _buildMessageList() {
-  String senderID = authService.getCurrentUser()!.uid;
-  return StreamBuilder(
-    stream: chatService.getMessages(widget.receiverID, senderID),
-    builder: (context, snapshot) {
-      if (snapshot.hasError) {
-        return const Text('Error');
-      }
-
-      if (snapshot.connectionState == ConnectionState.waiting) {
-        return const Center(child: CircularProgressIndicator());
-      }
-
-      List<Widget> messageWidgets = [];
-      Timestamp? lastTimestamp;
-
-      for (var doc in snapshot.data!.docs) {
-        Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
-        bool isCurrentUser = data['senderID'] == senderID;
-
-        // Check if we need to add a timestamp divider
-        if (lastTimestamp != null) {
-          final currentTimestamp = data['timestamp'] as Timestamp;
-          final difference = currentTimestamp
-              .toDate()
-              .difference(lastTimestamp.toDate())
-              .inMinutes;
-
-          if (difference >= 10) {
-            messageWidgets.add(
-              Column(
-                children: [
-                  const Divider(),
-                  Text(
-                    DateFormat('MMM d, yyyy hh:mm a').format(currentTimestamp.toDate()), // Full date and time
-                    style: const TextStyle(color: Colors.grey),
-                  ),
-                  const Divider(),
-                ],
-              ),
-            );
-          }
+  Widget _buildMessageList() {
+    String senderID = authService.getCurrentUser()!.uid;
+    return StreamBuilder(
+      stream: chatService.getMessages(widget.receiverID, senderID),
+      builder: (context, snapshot) {
+        if (snapshot.hasError) {
+          return const Text('Error');
         }
 
-        // Add the message item
-        messageWidgets.add(_buildMessageItem(doc));
-        lastTimestamp = data['timestamp'];
-      }
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
 
-      // Automatically scroll down when new messages are added
-      if (snapshot.hasData && messageWidgets.isNotEmpty) {
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          scrollDown();
-        });
-      }
+        List<Widget> messageWidgets = [];
+        Timestamp? lastTimestamp;
 
-      return ListView(
-        controller: scrollController,
-        children: messageWidgets,
-      );
-    },
-  );
-}
+        for (var doc in snapshot.data!.docs) {
+          Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+          bool isCurrentUser = data['senderID'] == senderID;
+
+          // Check if we need to add a timestamp divider
+          if (lastTimestamp != null) {
+            final currentTimestamp = data['timestamp'] as Timestamp;
+            final difference = currentTimestamp
+                .toDate()
+                .difference(lastTimestamp.toDate())
+                .inMinutes;
+
+            if (difference >= 10) {
+              messageWidgets.add(
+                Column(
+                  children: [
+                    const Divider(),
+                    Text(
+                      DateFormat('MMM d, yyyy hh:mm a').format(currentTimestamp.toDate()), // Full date and time
+                      style: const TextStyle(color: Colors.grey),
+                    ),
+                    const Divider(),
+                  ],
+                ),
+              );
+            }
+          }
+
+          // Add the message item
+          messageWidgets.add(_buildMessageItem(doc));
+          lastTimestamp = data['timestamp'];
+        }
+
+        // Automatically scroll down when new messages are added
+        if (snapshot.hasData && messageWidgets.isNotEmpty) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            scrollDown();
+          });
+        }
+
+        return ListView(
+          controller: scrollController,
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          children: messageWidgets,
+        );
+      },
+    );
+  }
 
   Widget _buildMessageItem(DocumentSnapshot doc) {
     Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
@@ -253,29 +235,33 @@ Widget build(BuildContext context) {
   }
 
   Widget _buildUserInput() {
-    return Row(
-      children: [
-        Expanded(
-          child: CustomTextField(
-            focusNode: focusNode,
-            controller: messageController,
-            hintText: 'Type a message...',
-            obscureText: false,
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      color: Colors.white,
+      child: Row(
+        children: [
+          Expanded(
+            child: CustomTextField(
+              focusNode: focusNode,
+              controller: messageController,
+              hintText: 'Type a message...',
+              obscureText: false,
+            ),
           ),
-        ),
-        Container(
-          decoration: const BoxDecoration(
-            color: Color(0xFF6750A4),
-            shape: BoxShape.circle,
+          const SizedBox(width: 8), // Add spacing between text field and button
+          Container(
+            decoration: const BoxDecoration(
+              color: Color(0xFF6750A4),
+              shape: BoxShape.circle,
+            ),
+            child: IconButton(
+              onPressed: sendMessage,
+              icon: const Icon(Icons.arrow_upward),
+              color: Colors.white,
+            ),
           ),
-          margin: const EdgeInsets.only(right: 25),
-          child: IconButton(
-            onPressed: sendMessage,
-            icon: const Icon(Icons.arrow_upward),
-            color: Colors.white,
-          ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }

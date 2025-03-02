@@ -18,20 +18,37 @@ class ChatUsersTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    
+    const double tileHeight = 80.0;
+
     return Column(
       children: [
         Divider(
           color: Colors.grey[300],
           thickness: 1,
         ),
-        ListTile(
-          leading: CircleAvatar(
-            backgroundImage: NetworkImage(profilePicture), // Display profile picture
+        Container(
+          height: tileHeight, 
+          child: ListTile(
+            leading: CircleAvatar(
+              backgroundImage: NetworkImage(profilePicture), 
+            ),
+            title: Expanded( 
+              child: Text(
+                username,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            subtitle: Expanded( 
+              child: Text(
+                lastMessage,
+                overflow: TextOverflow.ellipsis, 
+              ),
+            ),
+            trailing: Text(lastMessageTime),
+            onTap: onTap,
+            isThreeLine: true,
           ),
-          title: Text(username),
-          subtitle: Text(lastMessage),
-          trailing: Text(lastMessageTime),
-          onTap: onTap,
         ),
       ],
     );

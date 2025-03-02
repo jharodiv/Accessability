@@ -33,11 +33,9 @@ class TopwidgetsState extends State<Topwidgets> {
   @override
   void initState() {
     super.initState();
-    // Start listening to spaces
     _listenToSpaces();
   }
 
-  // Listen to spaces in real time
   void _listenToSpaces() {
     final user = _auth.currentUser;
     if (user == null) return;
@@ -59,7 +57,6 @@ class TopwidgetsState extends State<Topwidgets> {
     });
   }
 
-  // When a space is selected, update the active space
   void _selectSpace(String spaceId, String spaceName) {
     widget.onSpaceSelected(spaceId);
     setState(() {
@@ -177,6 +174,18 @@ class TopwidgetsState extends State<Topwidgets> {
                   ),
                   child: Column(
                     children: [
+                      // Default "My Space" option
+                      ListTile(
+                        title: const Text('My Space'),
+                        onTap: () {
+                          setState(() {
+                            _activeSpaceName = 'My Space';
+                            _isDropdownOpen = false;
+                          });
+                          widget.onSpaceSelected('');
+                        },
+                      ),
+                      // Other spaces
                       ..._spaces.map((space) {
                         return ListTile(
                           title: Text(space['name']),

@@ -4,6 +4,8 @@ import 'package:AccessAbility/accessability/firebaseServices/auth/auth_service.d
 import 'package:AccessAbility/accessability/firebaseServices/chat/chat_service.dart';
 import 'package:AccessAbility/accessability/presentation/widgets/chatWidgets/chat_users_tile.dart';
 import 'package:intl/intl.dart';
+import 'package:rxdart/rxdart.dart';
+
 
 class ChatUsersList extends StatelessWidget {
   ChatUsersList({super.key});
@@ -19,7 +21,10 @@ class ChatUsersList extends StatelessWidget {
 
   Widget _buildUserList() {
     return StreamBuilder(
-      stream: chatService.getUsersInSameSpaces(),
+      stream: CombineLatestStream.list([
+        chatService.getUsersInSameSpaces(),
+        chatService.getUsersWithAcceptedChatRequests(),
+      ]),
       builder: (context, snapshot) {
         if (snapshot.hasError) {
           return const Text('Error');
@@ -29,14 +34,20 @@ class ChatUsersList extends StatelessWidget {
           return const Center(child: CircularProgressIndicator());
         }
 
-        final users = snapshot.data!;
+        final List<Map<String, dynamic>> usersInSameSpaces = snapshot.data![0];
+        final List<Map<String, dynamic>> usersWithAcceptedRequests = snapshot.data![1];
 
-        if (users.isEmpty) {
+        // Combine the two lists and remove duplicates
+        final Set<Map<String, dynamic>> uniqueUsers = {};
+        usersInSameSpaces.forEach(uniqueUsers.add);
+        usersWithAcceptedRequests.forEach(uniqueUsers.add);
+
+        if (uniqueUsers.isEmpty) {
           return Center(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Text('No users found in your spaces.'),
+                const Text('No users found.'),
                 const SizedBox(height: 16),
                 ElevatedButton(
                   onPressed: () {
@@ -51,7 +62,7 @@ class ChatUsersList extends StatelessWidget {
         }
 
         return ListView(
-          children: users
+          children: uniqueUsers
               .map<Widget>((userData) => _buildUserListItem(userData, context))
               .toList(),
         );

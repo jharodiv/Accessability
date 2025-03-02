@@ -25,11 +25,15 @@ class _ChatConvoScreenState extends State<ChatConvoScreen> {
   final ScrollController scrollController = ScrollController();
   final ChatService chatService = ChatService();
   final AuthService authService = AuthService();
+  final FirebaseFirestore firebaseFirestore = FirebaseFirestore.instance;
   FocusNode focusNode = FocusNode();
+  bool _isRequestPending = true;
+
 
   @override
   void initState() {
     super.initState();
+     _checkChatRequest();
 
     focusNode.addListener(() {
       if (focusNode.hasFocus) {
@@ -38,6 +42,26 @@ class _ChatConvoScreenState extends State<ChatConvoScreen> {
     });
 
     Future.delayed(const Duration(milliseconds: 500), () => scrollDown());
+  }
+
+   Future<void> _checkChatRequest() async {
+    final senderID = authService.getCurrentUser()!.uid;
+    final hasRequest = await chatService.hasChatRequest(senderID, widget.receiverID);
+    setState(() {
+      _isRequestPending = hasRequest;
+    });
+  }
+
+   Future<void> _acceptChatRequest() async {
+    final senderID = authService.getCurrentUser()!.uid;
+    final receiverID = widget.receiverID;
+
+    // Create a chat room and add the last message
+    await chatService.acceptChatRequest(widget.receiverID);
+
+    setState(() {
+      _isRequestPending = false;
+    });
   }
 
   void sendMessage() async {
@@ -63,18 +87,40 @@ class _ChatConvoScreenState extends State<ChatConvoScreen> {
     );
   }
 
-  @override
+ @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: Text(widget.receiverEmail)),
-      body: Column(
-        children: [
-          Expanded(child: _buildMessageList()),
-          _buildUserInput(),
-        ],
-      ),
+      body: _isRequestPending
+          ? Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Text('You have a pending chat request'),
+                  ElevatedButton(
+                    onPressed: _acceptChatRequest,
+                    child: const Text('Accept'),
+                  ),
+                  ElevatedButton(
+                    onPressed: () async {
+                      await chatService.rejectChatRequest(widget.receiverID);
+                      Navigator.pop(context);
+                    },
+                    child: const Text('Reject'),
+                  ),
+                ],
+              ),
+            )
+          : Column(
+              children: [
+                Expanded(child: _buildMessageList()),
+                _buildUserInput(),
+              ],
+            ),
     );
   }
+
+
 
   Widget _buildMessageList() {
     String senderID = authService.getCurrentUser()!.uid;

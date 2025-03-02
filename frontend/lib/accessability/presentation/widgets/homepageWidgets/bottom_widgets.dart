@@ -127,45 +127,56 @@ class _BottomWidgetsState extends State<BottomWidgets> {
   }
 
   Future<void> _addPerson() async {
-    final user = _auth.currentUser;
-    if (user == null) return;
+  final user = _auth.currentUser;
+  if (user == null) return;
 
-    final email = await _showAddPersonDialog();
-    if (email == null || email.isEmpty) return;
+  final email = await _showAddPersonDialog();
+  if (email == null || email.isEmpty) return;
 
-    // Fetch the receiver's user ID from Firestore
-    final receiverSnapshot = await _firestore
-        .collection('Users')
-        .where('email', isEqualTo: email)
-        .get();
+  // Fetch the receiver's user ID from Firestore
+  final receiverSnapshot = await _firestore
+      .collection('Users')
+      .where('email', isEqualTo: email)
+      .get();
 
-    if (receiverSnapshot.docs.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('User not found')),
-      );
-      return;
-    }
+  if (receiverSnapshot.docs.isEmpty) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('User not found')),
+    );
+    return;
+  }
 
-    final receiverID = receiverSnapshot.docs.first.id;
+  final receiverID = receiverSnapshot.docs.first.id;
 
-    // Generate a random verification code
-    final verificationCode = _generateVerificationCode();
+  // Generate a random verification code
+  final verificationCode = _generateVerificationCode();
 
-    // Send the verification code via chat
+  // Check if a chat room already exists between the users
+  final hasChatRoom = await _chatService.hasChatRoom(user.uid, receiverID);
+
+  if (!hasChatRoom) {
+    // Send a chat request if no chat room exists
+    await _chatService.sendChatRequest(
+      receiverID,
+      'Join My Space! \n Your verification code is: $verificationCode (Expires in 10 minutes)',
+    );
+  } else {
+    // Send a normal message if a chat room already exists
     await _chatService.sendMessage(
       receiverID,
       'Join My Space! \n Your verification code is: $verificationCode (Expires in 10 minutes)',
     );
-
-    // Update the space with the verification code
-    await _firestore.collection('Spaces').doc(widget.activeSpaceId).update({
-      'verificationCode': verificationCode,
-    });
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Verification code sent via chat')),
-    );
   }
+
+  // Update the space with the verification code
+  await _firestore.collection('Spaces').doc(widget.activeSpaceId).update({
+    'verificationCode': verificationCode,
+  });
+
+  ScaffoldMessenger.of(context).showSnackBar(
+    const SnackBar(content: Text('Verification code sent via chat')),
+  );
+}
 
   Future<String?> _showAddPersonDialog() async {
     String? email;

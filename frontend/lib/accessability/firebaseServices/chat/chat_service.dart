@@ -6,14 +6,19 @@ class ChatService {
   final FirebaseFirestore firebaseFirestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
 
-   // Get users with accepted chat requests
+  // Get users with accepted chat requests (both sender and receiver)
   Stream<List<Map<String, dynamic>>> getUsersWithAcceptedChatRequests() {
     final String currentUserID = _auth.currentUser!.uid;
 
     return firebaseFirestore
         .collection('chat_requests')
         .where('status', isEqualTo: 'accepted')
-        .where('receiverID', isEqualTo: currentUserID)
+        .where(
+          Filter.or(
+            Filter('receiverID', isEqualTo: currentUserID),
+            Filter('senderID', isEqualTo: currentUserID),
+          ),
+        )
         .snapshots()
         .asyncMap((snapshot) async {
       final List<Map<String, dynamic>> users = [];
@@ -21,10 +26,14 @@ class ChatService {
       for (var doc in snapshot.docs) {
         final data = doc.data() as Map<String, dynamic>;
         final senderID = data['senderID'];
+        final receiverID = data['receiverID'];
+
+        // Fetch the other user's data (either sender or receiver)
+        final otherUserID = senderID == currentUserID ? receiverID : senderID;
 
         final userSnapshot = await firebaseFirestore
             .collection('Users')
-            .doc(senderID)
+            .doc(otherUserID)
             .get();
 
         if (userSnapshot.exists) {

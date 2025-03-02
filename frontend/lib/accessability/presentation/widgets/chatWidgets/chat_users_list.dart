@@ -6,7 +6,6 @@ import 'package:AccessAbility/accessability/presentation/widgets/chatWidgets/cha
 import 'package:intl/intl.dart';
 import 'package:rxdart/rxdart.dart';
 
-
 class ChatUsersList extends StatelessWidget {
   ChatUsersList({super.key});
   final ChatService chatService = ChatService();
@@ -37,10 +36,16 @@ class ChatUsersList extends StatelessWidget {
         final List<Map<String, dynamic>> usersInSameSpaces = snapshot.data![0];
         final List<Map<String, dynamic>> usersWithAcceptedRequests = snapshot.data![1];
 
-        // Combine the two lists and remove duplicates
-        final Set<Map<String, dynamic>> uniqueUsers = {};
-        usersInSameSpaces.forEach(uniqueUsers.add);
-        usersWithAcceptedRequests.forEach(uniqueUsers.add);
+        // Combine the two lists and remove duplicates using a Map
+        final Map<String, Map<String, dynamic>> uniqueUsers = {};
+
+        for (var user in usersInSameSpaces) {
+          uniqueUsers[user['uid']] = user;
+        }
+
+        for (var user in usersWithAcceptedRequests) {
+          uniqueUsers[user['uid']] = user;
+        }
 
         if (uniqueUsers.isEmpty) {
           return Center(
@@ -62,7 +67,7 @@ class ChatUsersList extends StatelessWidget {
         }
 
         return ListView(
-          children: uniqueUsers
+          children: uniqueUsers.values
               .map<Widget>((userData) => _buildUserListItem(userData, context))
               .toList(),
         );

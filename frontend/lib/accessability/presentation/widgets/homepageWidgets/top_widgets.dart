@@ -20,7 +20,7 @@ class Topwidgets extends StatefulWidget {
   });
 
   @override
-  TopwidgetsState createState() => TopwidgetsState(); // Expose the state class
+  TopwidgetsState createState() => TopwidgetsState();
 }
 
 class TopwidgetsState extends State<Topwidgets> {
@@ -33,33 +33,30 @@ class TopwidgetsState extends State<Topwidgets> {
   @override
   void initState() {
     super.initState();
-    _fetchSpaces();
+    // Start listening to spaces
+    _listenToSpaces();
   }
 
-  // Fetch spaces from Firestore
-  Future<void> _fetchSpaces() async {
+  // Listen to spaces in real time
+  void _listenToSpaces() {
     final user = _auth.currentUser;
     if (user == null) return;
 
-    final snapshot = await _firestore
+    _firestore
         .collection('Spaces')
         .where('members', arrayContains: user.uid)
-        .get();
-
-    setState(() {
-      _spaces = snapshot.docs.map((doc) {
-        return {
-          'id': doc.id,
-          'name': doc['name'],
-          'creator': doc['creator'],
-        };
-      }).toList();
+        .snapshots()
+        .listen((snapshot) {
+      setState(() {
+        _spaces = snapshot.docs.map((doc) {
+          return {
+            'id': doc.id,
+            'name': doc['name'],
+            'creator': doc['creator'],
+          };
+        }).toList();
+      });
     });
-  }
-
-  // Allow external calls to fetch spaces
-  void refreshSpaces() {
-    _fetchSpaces();
   }
 
   // When a space is selected, update the active space

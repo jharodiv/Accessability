@@ -273,10 +273,7 @@ class _GpsScreenState extends State<GpsScreen> {
                         _fetchNearbyPlaces(selectedType);
                       },
                       onMemberPressed: _onMemberPressed,
-                      refreshSpaces: () {
-                        // Call the refreshSpaces method from Topwidgets
-                        _topWidgetsKey.currentState?.refreshSpaces();
-                      },
+                  
                     ),
                   if (_locationHandler.currentIndex == 1)
                     const FavoriteWidget(),

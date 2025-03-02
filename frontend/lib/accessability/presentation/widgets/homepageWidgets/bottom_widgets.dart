@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math';
 
 import 'package:AccessAbility/accessability/firebaseServices/place/geocoding_service.dart';
@@ -14,7 +15,6 @@ class BottomWidgets extends StatefulWidget {
   final String activeSpaceId;
   final Function(String) onCategorySelected;
   final Function(LatLng, String) onMemberPressed;
-  final Function() refreshSpaces; // Callback to refresh spaces in Topwidgets
 
   const BottomWidgets({
     super.key,
@@ -22,7 +22,6 @@ class BottomWidgets extends StatefulWidget {
     required this.activeSpaceId,
     required this.onCategorySelected,
     required this.onMemberPressed,
-    required this.refreshSpaces,
   });
 
   @override
@@ -43,140 +42,162 @@ class _BottomWidgetsState extends State<BottomWidgets> {
   final List<TextEditingController> _verificationCodeControllers =
       List.generate(6, (index) => TextEditingController());
 
+  StreamSubscription<DocumentSnapshot>? _membersListener;
+  final List<StreamSubscription<DocumentSnapshot>> _locationListeners = [];
+
   @override
   void initState() {
     super.initState();
-    _fetchMembers();
+    _listenToMembers();
   }
 
   @override
   void didUpdateWidget(BottomWidgets oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (widget.activeSpaceId != oldWidget.activeSpaceId) {
-      _fetchMembers();
+      _listenToMembers(); // Reinitialize the listener when activeSpaceId changes
     }
   }
 
-  Future<void> _fetchMembers() async {
+  @override
+  void dispose() {
+    _membersListener?.cancel();
+    _locationListeners.forEach((listener) => listener.cancel());
+    super.dispose();
+  }
+
+  // Listen to members in real time
+  void _listenToMembers() {
     if (widget.activeSpaceId.isEmpty) return;
 
-    final snapshot =
-        await _firestore.collection('Spaces').doc(widget.activeSpaceId).get();
-    if (!snapshot.exists) return;
+    // Cancel any existing listeners
+    _membersListener?.cancel();
+    _locationListeners.forEach((listener) => listener.cancel());
+    _locationListeners.clear();
 
-    final members = snapshot['members'] != null
-        ? List<String>.from(snapshot['members'])
-        : [];
-    final creatorId = snapshot['creator'];
+    _membersListener = _firestore
+        .collection('Spaces')
+        .doc(widget.activeSpaceId)
+        .snapshots()
+        .listen((snapshot) async {
+      if (!snapshot.exists) return;
 
-    if (members.isEmpty) return;
+      final members = snapshot['members'] != null
+          ? List<String>.from(snapshot['members'])
+          : [];
+      final creatorId = snapshot['creator'];
 
-    final usersSnapshot = await _firestore
-        .collection('Users')
-        .where('uid', whereIn: members)
-        .get();
+      if (members.isEmpty) return;
 
-    final updatedMembers = await Future.wait(usersSnapshot.docs.map((doc) async {
-      final locationSnapshot =
-          await _firestore.collection('UserLocations').doc(doc['uid']).get();
-      final locationData = locationSnapshot.data();
-      String address = 'Fetching address...';
-      if (locationData != null) {
-        final lat = locationData['latitude'];
-        final lng = locationData['longitude'];
-        address = await _getAddressFromLatLng(LatLng(lat, lng));
-      }
+      final usersSnapshot = await _firestore
+          .collection('Users')
+          .where('uid', whereIn: members)
+          .get();
 
-      return {
-        'uid': doc['uid'],
-        'username': doc['username'] ?? 'Unknown',
-        'profilePicture': doc['profilePicture'] ??
-            'https://firebasestorage.googleapis.com/v0/b/accessability-71ef7.appspot.com/o/profile_pictures%2Fdefault_profile.png?alt=media&token=bc7a75a7-a78e-4460-b816-026a8fc341ba',
-        'address': address,
-        'lastUpdate': locationData?['timestamp'],
-      };
-    }));
-
-    setState(() {
-      _members = updatedMembers;
-      _creatorId = creatorId;
-    });
-
-    for (final member in members) {
-      _firestore
-          .collection('UserLocations')
-          .doc(member)
-          .snapshots()
-          .listen((locationSnapshot) async {
+      final updatedMembers = await Future.wait(usersSnapshot.docs.map((doc) async {
+        final locationSnapshot =
+            await _firestore.collection('UserLocations').doc(doc['uid']).get();
         final locationData = locationSnapshot.data();
+        String address = 'Fetching address...';
         if (locationData != null) {
           final lat = locationData['latitude'];
           final lng = locationData['longitude'];
-          final address = await _getAddressFromLatLng(LatLng(lat, lng));
-
-          setState(() {
-            final index = _members.indexWhere((m) => m['uid'] == member);
-            if (index != -1) {
-              _members[index]['address'] = address;
-              _members[index]['lastUpdate'] = locationData['timestamp'];
-            }
-          });
+          address = await _getAddressFromLatLng(LatLng(lat, lng));
         }
+
+        return {
+          'uid': doc['uid'],
+          'username': doc['username'] ?? 'Unknown',
+          'profilePicture': doc['profilePicture'] ??
+              'https://firebasestorage.googleapis.com/v0/b/accessability-71ef7.appspot.com/o/profile_pictures%2Fdefault_profile.png?alt=media&token=bc7a75a7-a78e-4460-b816-026a8fc341ba',
+          'address': address,
+          'lastUpdate': locationData?['timestamp'],
+        };
+      }));
+
+      setState(() {
+        _members = updatedMembers;
+        _creatorId = creatorId;
       });
-    }
+
+      // Listen to location updates for each member
+      for (final member in members) {
+        final listener = _firestore
+            .collection('UserLocations')
+            .doc(member)
+            .snapshots()
+            .listen((locationSnapshot) async {
+          final locationData = locationSnapshot.data();
+          if (locationData != null) {
+            final lat = locationData['latitude'];
+            final lng = locationData['longitude'];
+            final address = await _getAddressFromLatLng(LatLng(lat, lng));
+
+            setState(() {
+              final index = _members.indexWhere((m) => m['uid'] == member);
+              if (index != -1) {
+                _members[index]['address'] = address;
+                _members[index]['lastUpdate'] = locationData['timestamp'];
+              }
+            });
+          }
+        });
+        _locationListeners.add(listener);
+      }
+    });
   }
 
   Future<void> _addPerson() async {
-  final user = _auth.currentUser;
-  if (user == null) return;
+    final user = _auth.currentUser;
+    if (user == null) return;
 
-  final email = await _showAddPersonDialog();
-  if (email == null || email.isEmpty) return;
+    final email = await _showAddPersonDialog();
+    if (email == null || email.isEmpty) return;
 
-  // Fetch the receiver's user ID from Firestore
-  final receiverSnapshot = await _firestore
-      .collection('Users')
-      .where('email', isEqualTo: email)
-      .get();
+    // Fetch the receiver's user ID from Firestore
+    final receiverSnapshot = await _firestore
+        .collection('Users')
+        .where('email', isEqualTo: email)
+        .get();
 
-  if (receiverSnapshot.docs.isEmpty) {
+    if (receiverSnapshot.docs.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('User not found')),
+      );
+      return;
+    }
+
+    final receiverID = receiverSnapshot.docs.first.id;
+
+    // Generate a random verification code
+    final verificationCode = _generateVerificationCode();
+
+    // Check if a chat room already exists between the users
+    final hasChatRoom = await _chatService.hasChatRoom(user.uid, receiverID);
+
+    if (!hasChatRoom) {
+      // Send a chat request if no chat room exists
+      await _chatService.sendChatRequest(
+        receiverID,
+        'Join My Space! \n Your verification code is: $verificationCode (Expires in 10 minutes)',
+      );
+    } else {
+      // Send a normal message if a chat room already exists
+      await _chatService.sendMessage(
+        receiverID,
+        'Join My Space! \n Your verification code is: $verificationCode (Expires in 10 minutes)',
+      );
+    }
+
+    // Update the space with the verification code
+    await _firestore.collection('Spaces').doc(widget.activeSpaceId).update({
+      'verificationCode': verificationCode,
+    });
+
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('User not found')),
-    );
-    return;
-  }
-
-  final receiverID = receiverSnapshot.docs.first.id;
-
-  // Generate a random verification code
-  final verificationCode = _generateVerificationCode();
-
-  // Check if a chat room already exists between the users
-  final hasChatRoom = await _chatService.hasChatRoom(user.uid, receiverID);
-
-  if (!hasChatRoom) {
-    // Send a chat request if no chat room exists
-    await _chatService.sendChatRequest(
-      receiverID,
-      'Join My Space! \n Your verification code is: $verificationCode (Expires in 10 minutes)',
-    );
-  } else {
-    // Send a normal message if a chat room already exists
-    await _chatService.sendMessage(
-      receiverID,
-      'Join My Space! \n Your verification code is: $verificationCode (Expires in 10 minutes)',
+      const SnackBar(content: Text('Verification code sent via chat')),
     );
   }
-
-  // Update the space with the verification code
-  await _firestore.collection('Spaces').doc(widget.activeSpaceId).update({
-    'verificationCode': verificationCode,
-  });
-
-  ScaffoldMessenger.of(context).showSnackBar(
-    const SnackBar(content: Text('Verification code sent via chat')),
-  );
-}
 
   Future<String?> _showAddPersonDialog() async {
     String? email;
@@ -227,9 +248,6 @@ class _BottomWidgetsState extends State<BottomWidgets> {
       _showCreateSpace = false;
     });
 
-    // Refresh spaces in Topwidgets
-    widget.refreshSpaces();
-
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Space created successfully')),
     );
@@ -254,9 +272,6 @@ class _BottomWidgetsState extends State<BottomWidgets> {
       setState(() {
         _showJoinSpace = false;
       });
-
-      // Refresh spaces in Topwidgets
-      widget.refreshSpaces();
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Joined space successfully')),

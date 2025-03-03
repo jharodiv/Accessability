@@ -1,5 +1,6 @@
 import 'dart:io';
-
+import 'package:AccessAbility/accessability/presentation/screens/authscreens/verify_email_screen.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:AccessAbility/accessability/logic/bloc/auth/auth_state.dart';
@@ -48,12 +49,22 @@ class _UploadProfileScreenState extends State<UploadProfileScreen> {
         if (state is RegistrationSuccess) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text("Successfully signed up!"),
+              content: Text("Successfully signed up, you can verify your email now!"),
               backgroundColor: Colors.lightGreen,
             ),
           );
-          // Navigate back to the login screen after successful registration
-          Navigator.of(context).pushReplacementNamed('/login');
+
+          // Get the current user
+          final user = FirebaseAuth.instance.currentUser;
+          if (user != null) {
+            // Navigate to the verification screen and pass the user
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (context) => VerifyEmailScreen(user: user),
+              ),
+            );
+          }
         } else if (state is AuthError) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text("Error: ${state.message}")),
@@ -101,16 +112,12 @@ class _UploadProfileScreenState extends State<UploadProfileScreen> {
                           onTap: _pickImage,
                           child: CircleAvatar(
                             radius: 70,
-                            backgroundColor: const Color(
-                                0xFF6750A4), // Set the background color here
+                            backgroundColor: const Color(0xFF6750A4),
                             backgroundImage: _imageFile != null
                                 ? FileImage(File(_imageFile!.path))
                                 : null,
                             child: _imageFile == null
-                                ? const Icon(Icons.person,
-                                    size: 70,
-                                    color: Colors
-                                        .white) // Optional: Change icon color for better contrast
+                                ? const Icon(Icons.person, size: 70, color: Colors.white)
                                 : null,
                           ),
                         ),
@@ -119,7 +126,7 @@ class _UploadProfileScreenState extends State<UploadProfileScreen> {
                           onPressed: _pickImage,
                           style: ElevatedButton.styleFrom(
                             backgroundColor: const Color(0xFF6750A4),
-                            minimumSize: const Size(250, 60), // Big button
+                            minimumSize: const Size(250, 60),
                           ),
                           child: const Text("Upload Picture"),
                         ),
@@ -133,21 +140,19 @@ class _UploadProfileScreenState extends State<UploadProfileScreen> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       TextButton(
-                        onPressed:
-                            state is AuthLoading ? null : () => _finishSignup(),
+                        onPressed: state is AuthLoading ? null : () => _finishSignup(),
                         child: const Text(
                           "Skip",
                           style: TextStyle(
-                            color: Color(0xFF6750A4), // Set the text color here
+                            color: Color(0xFF6750A4),
                           ),
                         ),
                       ),
                       ElevatedButton(
-                        onPressed:
-                            state is AuthLoading ? null : () => _finishSignup(),
+                        onPressed: state is AuthLoading ? null : () => _finishSignup(),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFF6750A4),
-                          minimumSize: const Size(100, 40), // Big button
+                          minimumSize: const Size(100, 40),
                         ),
                         child: const Text("Finish"),
                       ),

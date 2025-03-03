@@ -37,3 +37,6 @@ class VerifyCodeEvent extends AuthEvent {
 }
 
 class LoginWithBiometricEvent extends AuthEvent {}
+
+class CheckEmailVerification extends AuthEvent {}
+

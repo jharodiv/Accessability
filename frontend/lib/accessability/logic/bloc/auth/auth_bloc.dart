@@ -7,6 +7,8 @@ import 'package:AccessAbility/accessability/logic/bloc/auth/auth_state.dart';
 import 'package:AccessAbility/accessability/logic/bloc/user/user_bloc.dart';
 import 'package:AccessAbility/accessability/logic/bloc/user/user_event.dart';
 import 'package:bloc/bloc.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_core/firebase_core.dart';
 
 class AuthBloc extends Bloc<AuthEvent, AuthState> {
   final AuthRepository authRepository;
@@ -19,31 +21,37 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     required this.userRepository, // Inject UserRepository
     required this.userBloc,
     required this.authService,
+  
   }) : super(AuthInitial()) {
     on<LoginEvent>(_onLoginEvent);
     on<RegisterEvent>(_onRegisterEvent);
     on<CheckAuthStatus>(_onCheckAuthStatus);
     on<CompleteOnboardingEvent>(_onCompleteOnboardingEvent);
     on<LogoutEvent>(_onLogoutEvent);
+    on<CheckEmailVerification>(_onCheckEmailVerification);
   }
 
-  // Handle LoginEvent
-  Future<void> _onLoginEvent(LoginEvent event, Emitter<AuthState> emit) async {
-    emit(AuthLoading());
-    try {
-      final loginModel =
-          await authRepository.login(event.email, event.password);
-      await authService.saveFCMToken(loginModel.userId); // Save FCM token
-      emit(AuthenticatedLogin(
-        loginModel,
-        hasCompletedOnboarding: loginModel.hasCompletedOnboarding,
-      ));
-      userBloc.add(FetchUserData()); // Fetch user data after login
-    } catch (e) {
-      emit(AuthError('Login failed: ${e.toString()}'));
+ Future<void> _onLoginEvent(LoginEvent event, Emitter<AuthState> emit) async {
+  emit(AuthLoading());
+  try {
+    final loginModel = await authRepository.login(event.email, event.password);
+    final user = authService.getCurrentUser(); // Use authService to get the current user
+
+    if (user != null && !user.emailVerified) {
+      emit(AuthError('Please verify your email before logging in'));
+      return;
     }
-  }
 
+    await authService.saveFCMToken(loginModel.userId);
+    emit(AuthenticatedLogin(
+      loginModel,
+      hasCompletedOnboarding: loginModel.hasCompletedOnboarding,
+    ));
+    userBloc.add(FetchUserData());
+  } catch (e) {
+    emit(AuthError('Login failed: ${e.toString()}'));
+  }
+}
   // Handle RegisterEvent
   Future<void> _onRegisterEvent(
       RegisterEvent event, Emitter<AuthState> emit) async {
@@ -133,4 +141,19 @@ Future<void> _onCompleteOnboardingEvent(
       emit(AuthError('Failed to logout: ${e.toString()}'));
     }
   }
+
+ Future<void> _onCheckEmailVerification(
+  CheckEmailVerification event,
+  Emitter<AuthState> emit,
+) async {
+  final user = authService.getCurrentUser(); // Use authService to get the current user
+  if (user != null) {
+    await user.reload();
+    if (user.emailVerified) {
+      emit(EmailVerified());
+    } else {
+      emit(AuthError('Email not verified'));
+    }
+  }
+}
 }

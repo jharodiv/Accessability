@@ -22,49 +22,50 @@ class AuthService {
 
   // Register with profile picture
   Future<UserCredential> signUpWithEmailAndPassword(
-    String email,
-    String password,
-    String username,
-    String contactNumber,
-    XFile? profilePicture, // Pass the profile picture file
-  ) async {
-    try {
-      // Step 1: Create the user
-      UserCredential userCredential =
-          await _auth.createUserWithEmailAndPassword(
-        email: email,
-        password: password,
-      );
+  String email,
+  String password,
+  String username,
+  String contactNumber,
+  XFile? profilePicture,
+) async {
+  try {
+    // Step 1: Create the user
+    UserCredential userCredential = await _auth.createUserWithEmailAndPassword(
+      email: email,
+      password: password,
+    );
 
-      final user = userCredential.user;
-      if (user == null) {
-        throw Exception("User creation failed");
-      }
-
-      // Step 2: Upload the profile picture (if provided)
-      String? profilePictureUrl;
-      if (profilePicture != null) {
-        profilePictureUrl =
-            await uploadProfilePicture(user.uid, profilePicture);
-      }
-
-      // Step 3: Save user data in Firestore
-      await _firestore.collection('Users').doc(user.uid).set({
-        'uid': user.uid,
-        'email': email,
-        'username': username,
-        'contactNumber': contactNumber,
-        'profilePicture': profilePictureUrl ??
-            'https://firebasestorage.googleapis.com/v0/b/accessability-71ef7.firebasestorage.app/o/profile_pictures%2Fdefault_profile.png?alt=media&token=bc7a75a7-a78e-4460-b816-026a8fc341ba', // Save profile picture URL
-        'hasCompletedOnboarding': false,
-      });
-
-      return userCredential;
-    } on FirebaseAuthException catch (e) {
-      throw Exception(e.code);
+    final user = userCredential.user;
+    if (user == null) {
+      throw Exception("User creation failed");
     }
-  }
 
+    // Step 2: Send email verification
+    await user.sendEmailVerification();
+
+    // Step 3: Upload the profile picture (if provided)
+    String? profilePictureUrl;
+    if (profilePicture != null) {
+      profilePictureUrl = await uploadProfilePicture(user.uid, profilePicture);
+    }
+
+    // Step 4: Save user data in Firestore
+    await _firestore.collection('Users').doc(user.uid).set({
+      'uid': user.uid,
+      'email': email,
+      'username': username,
+      'contactNumber': contactNumber,
+      'profilePicture': profilePictureUrl ??
+          'https://firebasestorage.googleapis.com/v0/b/accessability-71ef7.firebasestorage.app/o/profile_pictures%2Fdefault_profile.png?alt=media&token=bc7a75a7-a78e-4460-b816-026a8fc341ba',
+      'hasCompletedOnboarding': false,
+      'emailVerified': false, // Track email verification status
+    });
+
+    return userCredential;
+  } on FirebaseAuthException catch (e) {
+    throw Exception(e.code);
+  }
+}
   // Upload profile picture to Firebase Storage
   Future<String?> uploadProfilePicture(String uid, XFile imageFile) async {
     try {
@@ -182,6 +183,15 @@ class AuthService {
     if (fcmToken != null) {
       await _firestore.collection('Users').doc(uid).update({
         'fcmToken': fcmToken,
+      });
+    }
+  }
+
+  Future<void> updateEmailVerificationStatus(String uid) async {
+    final user = _auth.currentUser;
+    if (user != null && user.emailVerified) {
+      await _firestore.collection('Users').doc(uid).update({
+        'emailVerified': true,
       });
     }
   }

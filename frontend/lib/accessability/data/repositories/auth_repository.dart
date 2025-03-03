@@ -39,9 +39,6 @@ class AuthRepository {
         throw Exception('Registration failed: User data not found');
       }
 
-      // Cache the user data
-      userRepository.cacheUserData(userModel);
-
       return userModel;
     } catch (e) {
       print('AuthRepository: Registration failed - ${e.toString()}');

@@ -48,3 +48,5 @@ class ProfilePictureUpdated extends AuthState {
 
   const ProfilePictureUpdated(this.user);
 }
+
+class EmailVerified extends AuthState {}

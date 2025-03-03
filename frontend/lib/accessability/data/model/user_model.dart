@@ -9,6 +9,8 @@ class UserModel {
   final DateTime createdAt;
   final DateTime updatedAt;
   final bool hasCompletedOnboarding; 
+  final bool biometricEnabled; // Add this field
+  final String? deviceId; // Add this field
 
   UserModel({
     required this.uid,
@@ -21,6 +23,8 @@ class UserModel {
     required this.createdAt,
     required this.updatedAt,
     this.hasCompletedOnboarding = false, // Default value false
+    this.biometricEnabled = false, // Default value false
+    this.deviceId, // Default value null
   });
 
   // Copy constructor to create a new instance with updated properties
@@ -35,6 +39,8 @@ class UserModel {
     DateTime? createdAt,
     DateTime? updatedAt,
     bool? hasCompletedOnboarding,
+    bool? biometricEnabled,
+    String? deviceId,
   }) {
     return UserModel(
       uid: uid ?? this.uid,
@@ -48,6 +54,8 @@ class UserModel {
       updatedAt: updatedAt ?? this.updatedAt,
       hasCompletedOnboarding:
           hasCompletedOnboarding ?? this.hasCompletedOnboarding,
+      biometricEnabled: biometricEnabled ?? this.biometricEnabled,
+      deviceId: deviceId ?? this.deviceId,
     );
   }
 
@@ -68,6 +76,8 @@ class UserModel {
           DateTime.now().toIso8601String()), // Fallback to current time if null
       hasCompletedOnboarding:
           json['hasCompletedOnboarding'] ?? false, // Fallback to false if null
+      biometricEnabled: json['biometricEnabled'] ?? false,
+      deviceId: json['deviceId'], 
     );
   }
 
@@ -82,6 +92,8 @@ class UserModel {
       'createdAt': createdAt.toIso8601String(),
       'updatedAt': updatedAt.toIso8601String(),
       'hasCompletedOnboarding': hasCompletedOnboarding,
+      'biometricEnabled': biometricEnabled, 
+      'deviceId': deviceId,
     };
   }
 }

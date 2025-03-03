@@ -45,6 +45,8 @@ class UserRepository {
     _sharedPrefs?.setString('user_userEmail', user.email);
     _sharedPrefs?.setString('user_profilePicture', user.profilePicture);
     _sharedPrefs?.setString('user_contactNumber', user.contactNumber);
+    _sharedPrefs?.setBool('user_biometricEnabled', user.biometricEnabled); 
+    _sharedPrefs?.setString('user_deviceId', user.deviceId ?? ''); 
 
     _sharedPrefs?.setBool(
         'user_hasCompletedOnboarding', user.hasCompletedOnboarding);
@@ -60,6 +62,8 @@ class UserRepository {
     final contactNumber = _sharedPrefs?.getString('user_contactNumber') ?? '';
     final hasCompletedOnboarding =
         _sharedPrefs?.getBool('user_hasCompletedOnboarding') ?? false;
+    final biometricEnabled = _sharedPrefs?.getBool('user_biometricEnabled') ?? false;
+    final deviceId = _sharedPrefs?.getString('user_deviceId'); 
 
     if (userId != null && userName != null && userEmail != null) {
       return UserModel(
@@ -69,6 +73,8 @@ class UserRepository {
         contactNumber: contactNumber,
         profilePicture: profilePicture,
         hasCompletedOnboarding: hasCompletedOnboarding,
+        biometricEnabled: biometricEnabled, 
+        deviceId: deviceId, 
         details: UserDetails(
           address: _sharedPrefs?.getString('user_address') ?? '',
           phoneNumber: _sharedPrefs?.getString('user_phoneNumber') ?? '',
@@ -103,6 +109,8 @@ class UserRepository {
     _sharedPrefs?.remove('user_profilePicture');
     _sharedPrefs?.remove('user_contactNumber');
     _sharedPrefs?.remove('user_hasCompletedOnboarding');
+    _sharedPrefs?.remove('user_biometricEnabled'); // Add this line
+    _sharedPrefs?.remove('user_deviceId'); // Add this line
     print('User cache cleared');
   }
 

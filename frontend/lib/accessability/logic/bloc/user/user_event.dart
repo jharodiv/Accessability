@@ -25,3 +25,22 @@ class UploadProfilePictureEvent extends UserEvent {
   @override
   List<Object> get props => [uid, profilePicture];
 }
+
+class EnableBiometricLogin extends UserEvent {
+  final String uid;
+  final String deviceId;
+
+  const EnableBiometricLogin(this.uid, this.deviceId);
+
+  @override
+  List<Object> get props => [uid, deviceId];
+}
+
+class DisableBiometricLogin extends UserEvent {
+  final String uid;
+
+  const DisableBiometricLogin(this.uid);
+
+  @override
+  List<Object> get props => [uid];
+}

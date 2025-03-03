@@ -11,7 +11,7 @@ import 'package:AccessAbility/accessability/presentation/screens/settings/settin
 import 'package:AccessAbility/accessability/presentation/screens/sos/sos_screen.dart';
 import 'package:AccessAbility/accessability/presentation/screens/splash_screen.dart';
 import 'package:AccessAbility/accessability/presentation/screens/settings/settingsScreens/account_screen.dart';
-import 'package:AccessAbility/accessability/presentation/screens/settings/settingsScreens/biometric_screen.dart';
+import 'package:AccessAbility/accessability/presentation/screens/settings/settingsScreens/biometric/biometric_screen.dart';
 import 'package:AccessAbility/accessability/presentation/screens/settings/settingsScreens/chat_with_support_screen.dart';
 import 'package:AccessAbility/accessability/presentation/screens/settings/settingsScreens/preferences_screen.dart';
 import 'package:AccessAbility/accessability/presentation/screens/settings/settingsScreens/privacy_security_screen.dart';
@@ -46,7 +46,7 @@ class AppRouter {
       case '/chatsupport':
         return _buildRoute(const ChatAndSupport());
       case '/biometric':
-        return _buildRoute(const BiometricLogin());
+        return _buildRoute(const BiometricScreen());
       case '/settings':
         return _buildRoute(const SettingsScreen());
       case '/inbox':

@@ -9,6 +9,8 @@ class UserBloc extends Bloc<UserEvent, UserState> {
   UserBloc({required this.userRepository}) : super(UserInitial()) {
     on<FetchUserData>(_onFetchUserData);
     on<UploadProfilePictureEvent>(_onUploadProfilePictureEvent);
+    on<EnableBiometricLogin>(_onEnableBiometricLogin); 
+    on<DisableBiometricLogin>(_onDisableBiometricLogin); 
   }
 
   Future<void> _onFetchUserData(
@@ -39,6 +41,58 @@ class UserBloc extends Bloc<UserEvent, UserState> {
       emit(UserLoaded(updatedUser));
     } catch (e) {
       emit(UserError('Failed to update profile picture: ${e.toString()}'));
+    }
+  }
+
+  Future<void> _onEnableBiometricLogin(
+    EnableBiometricLogin event,
+    Emitter<UserState> emit,
+  ) async {
+    emit(UserLoading());
+    try {
+      // Update Firestore
+      await userRepository.updateUserData(event.uid, {
+        'biometricEnabled': true,
+        'deviceId': event.deviceId,
+      });
+
+      // Fetch updated user data
+      final user = await userRepository.fetchUserData(event.uid);
+      if (user != null) {
+        // Cache the updated user data
+        userRepository.cacheUserData(user);
+        emit(UserLoaded(user));
+      } else {
+        emit(UserError('User not found'));
+      }
+    } catch (e) {
+      emit(UserError('Failed to enable biometric login: ${e.toString()}'));
+    }
+  }
+
+  Future<void> _onDisableBiometricLogin(
+    DisableBiometricLogin event,
+    Emitter<UserState> emit,
+  ) async {
+    emit(UserLoading());
+    try {
+      // Update Firestore
+      await userRepository.updateUserData(event.uid, {
+        'biometricEnabled': false,
+        'deviceId': null,
+      });
+
+      // Fetch updated user data
+      final user = await userRepository.fetchUserData(event.uid);
+      if (user != null) {
+        // Cache the updated user data
+        userRepository.cacheUserData(user);
+        emit(UserLoaded(user));
+      } else {
+        emit(UserError('User not found'));
+      }
+    } catch (e) {
+      emit(UserError('Failed to disable biometric login: ${e.toString()}'));
     }
   }
 }

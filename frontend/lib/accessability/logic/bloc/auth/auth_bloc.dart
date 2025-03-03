@@ -1,4 +1,5 @@
 import 'package:AccessAbility/accessability/data/model/login_model.dart';
+import 'package:AccessAbility/accessability/data/model/user_model.dart';
 import 'package:AccessAbility/accessability/data/repositories/auth_repository.dart';
 import 'package:AccessAbility/accessability/data/repositories/user_repository.dart';
 import 'package:AccessAbility/accessability/firebaseServices/auth/auth_service.dart';
@@ -7,6 +8,7 @@ import 'package:AccessAbility/accessability/logic/bloc/auth/auth_state.dart';
 import 'package:AccessAbility/accessability/logic/bloc/user/user_bloc.dart';
 import 'package:AccessAbility/accessability/logic/bloc/user/user_event.dart';
 import 'package:bloc/bloc.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 
@@ -15,12 +17,15 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   final UserRepository userRepository; // Add UserRepository
   final UserBloc userBloc;
   final AuthService authService;
+   final FirebaseFirestore _firestore = FirebaseFirestore.instance; 
+  
 
   AuthBloc({
     required this.authRepository,
     required this.userRepository, // Inject UserRepository
     required this.userBloc,
     required this.authService,
+    
   
   }) : super(AuthInitial()) {
     on<LoginEvent>(_onLoginEvent);
@@ -29,6 +34,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     on<CompleteOnboardingEvent>(_onCompleteOnboardingEvent);
     on<LogoutEvent>(_onLogoutEvent);
     on<CheckEmailVerification>(_onCheckEmailVerification);
+    on<LoginWithBiometricEvent>(_onLoginWithBiometricEvent);
   }
 
  Future<void> _onLoginEvent(LoginEvent event, Emitter<AuthState> emit) async {
@@ -66,6 +72,38 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       emit(AuthError('Registration failed: ${e.toString()}'));
     }
   }
+
+   Future<void> _onLoginWithBiometricEvent(
+    LoginWithBiometricEvent event,
+    Emitter<AuthState> emit,
+  ) async {
+    emit(AuthLoading());
+    try {
+      final user = authService.getCurrentUser();
+      if (user != null) {
+        final userDoc = await _firestore.collection('Users').doc(user.uid).get();
+        if (userDoc.exists && userDoc.data()?['biometricEnabled'] == true) {
+          emit(AuthenticatedLogin(
+            LoginModel(
+              token: user.uid,
+              userId: user.uid,
+              hasCompletedOnboarding: userDoc.data()?['hasCompletedOnboarding'] ?? false,
+              user: UserModel.fromJson(userDoc.data()!),
+            ),
+            hasCompletedOnboarding: userDoc.data()?['hasCompletedOnboarding'] ?? false,
+          ));
+          userBloc.add(FetchUserData());
+        } else {
+          emit(AuthError('Biometric login not enabled'));
+        }
+      } else {
+        emit(AuthError('User not found'));
+      }
+    } catch (e) {
+      emit(AuthError('Failed to login with biometrics: ${e.toString()}'));
+    }
+  }
+
 
   // Handle CheckAuthStatus
   Future<void> _onCheckAuthStatus(

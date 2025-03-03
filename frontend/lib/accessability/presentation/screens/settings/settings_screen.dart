@@ -125,15 +125,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
               Navigator.pushNamed(context, '/privacy');
             },
           ),
-          const Divider(),
-          ListTile(
-            leading: const Icon(Icons.chat_outlined, color: Color(0xFF6750A4)),
-            title: const Text('Chat and Support',
-                style: TextStyle(fontWeight: FontWeight.bold)),
-            onTap: () {
-              Navigator.pushNamed(context, '/chat');
-            },
-          ),
+          // const Divider(),
+          // ListTile(
+          //   leading: const Icon(Icons.chat_outlined, color: Color(0xFF6750A4)),
+          //   title: const Text('Chat and Support',
+          //       style: TextStyle(fontWeight: FontWeight.bold)),
+          //   onTap: () {
+          //     Navigator.pushNamed(context, '/chat');
+          //   },
+          // ),
           const Divider(),
           ListTile(
             leading: const Icon(Icons.fingerprint, color: Color(0xFF6750A4)),

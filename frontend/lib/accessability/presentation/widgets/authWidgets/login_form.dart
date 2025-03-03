@@ -87,45 +87,46 @@ class _LoginFormState extends State<LoginForm> {
   }
 
   Future<void> _login(BuildContext context) async {
-    final email = emailController.text;
-    final password = passwordController.text;
+  final email = emailController.text;
+  final password = passwordController.text;
 
-    try {
-      // Authenticate the user
-      final userCredential = await _auth.signInWithEmailAndPassword(
-        email: email,
-        password: password,
-      );
+  try {
+    // Authenticate the user
+    final userCredential = await _auth.signInWithEmailAndPassword(
+      email: email,
+      password: password,
+    );
 
-      if (userCredential.user != null) {
-        // Fetch user data from Firestore
-        final userDoc = await _firestore.collection('Users').doc(userCredential.user!.uid).get();
-        if (userDoc.exists) {
-          final biometricEnabled = userDoc.data()?['biometricEnabled'] ?? false;
-          final storedDeviceId = userDoc.data()?['deviceId'];
-          print("biometricEnabled = ${biometricEnabled}");
-          print("StoredDeviceId = ${storedDeviceId}");
-          print("Current Device Id = ${_deviceId}");
+    if (userCredential.user != null) {
+      // Fetch user data from Firestore
+      final userDoc = await _firestore.collection('Users').doc(userCredential.user!.uid).get();
+      if (userDoc.exists) {
+        final biometricEnabled = userDoc.data()?['biometricEnabled'] ?? false;
+        final storedDeviceId = userDoc.data()?['deviceId'];
 
-          // Check if biometric is enabled and the device ID matches
-          if (biometricEnabled && storedDeviceId == _deviceId) {
-            // Save email and password in SharedPreferences
-            print('Saving Credentials');
-            final prefs = await SharedPreferences.getInstance();
-            prefs.setString('biometric_email', email);
-            prefs.setString('biometric_password', password);
-          }
+        // Save credentials in SharedPreferences
+        final prefs = await SharedPreferences.getInstance();
+
+        // Always save credentials in backup fields
+        prefs.setString('backup_username', email);
+        prefs.setString('backup_password', password);
+
+        // Save in biometric fields only if conditions are met
+        if (biometricEnabled && storedDeviceId == _deviceId) {
+          prefs.setString('biometric_username', email);
+          prefs.setString('biometric_password', password);
         }
-
-        // Trigger login success
-        context.read<AuthBloc>().add(LoginEvent(email: email, password: password));
       }
-    } on FirebaseAuthException catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Login failed: ${e.message}')),
-      );
+
+      // Trigger login success
+      context.read<AuthBloc>().add(LoginEvent(email: email, password: password));
     }
+  } on FirebaseAuthException catch (e) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Login failed: ${e.message}')),
+    );
   }
+}
 
   Future<void> _authenticateWithBiometrics() async {
     try {

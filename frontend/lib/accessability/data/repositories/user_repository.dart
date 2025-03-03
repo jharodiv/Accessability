@@ -109,8 +109,10 @@ class UserRepository {
     _sharedPrefs?.remove('user_profilePicture');
     _sharedPrefs?.remove('user_contactNumber');
     _sharedPrefs?.remove('user_hasCompletedOnboarding');
-    _sharedPrefs?.remove('user_biometricEnabled'); // Add this line
-    _sharedPrefs?.remove('user_deviceId'); // Add this line
+    _sharedPrefs?.remove('user_biometricEnabled'); 
+    _sharedPrefs?.remove('user_deviceId'); 
+    _sharedPrefs?.remove('backup_username'); 
+    _sharedPrefs?.remove('backup_password');
     print('User cache cleared');
   }
 

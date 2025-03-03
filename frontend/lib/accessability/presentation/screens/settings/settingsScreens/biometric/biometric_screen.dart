@@ -1,3 +1,4 @@
+import 'package:AccessAbility/accessability/data/model/user_model.dart';
 import 'package:AccessAbility/accessability/logic/bloc/user/user_bloc.dart';
 import 'package:AccessAbility/accessability/logic/bloc/user/user_event.dart';
 import 'package:AccessAbility/accessability/logic/bloc/user/user_state.dart';
@@ -8,6 +9,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:local_auth/local_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class BiometricScreen extends StatefulWidget {
   const BiometricScreen({super.key});
@@ -41,12 +43,60 @@ class _BiometricScreenState extends State<BiometricScreen> {
     }
   }
 
+  Future<void> _showDisableBiometricDialog(BuildContext context, UserModel user) async {
+    return showDialog<void>(
+      context: context,
+      barrierDismissible: false, 
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Disable Biometric Login'),
+          content: const Text(
+            'Are you sure you want to disable biometric login? You have to verify your fingerprint again to enable it.',
+          ),
+          actions: <Widget>[
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop(); 
+              },
+              child: const Text(
+                'Cancel',
+                style: TextStyle(color: Color(0xFF6750A4)),
+              ),
+            ),
+            TextButton(
+              onPressed: () async {
+
+                final prefs = await SharedPreferences.getInstance();
+                prefs.remove('biometric_username');
+                prefs.remove('biometric_password');
+
+                context.read<UserBloc>().add(
+                  DisableBiometricLogin(user.uid),
+                );
+                setState(() {
+                  isBiometricEnabled = false;
+                });
+                Navigator.of(context).pop(); 
+              },
+              child: const Text(
+                'Disable',
+                style: TextStyle(color: Colors.red),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return BlocBuilder<UserBloc, UserState>(
       builder: (context, state) {
         final user = (state is UserLoaded) ? state.user : null;
-        isBiometricEnabled = user?.biometricEnabled ?? false;
+        final biometricEnabled = user?.biometricEnabled ?? false;
+        final storedDeviceId = user?.deviceId;
+        isBiometricEnabled = biometricEnabled && storedDeviceId == _deviceId;
         return Scaffold(
           appBar: PreferredSize(
             preferredSize: const Size.fromHeight(65),
@@ -146,6 +196,17 @@ class _BiometricScreenState extends State<BiometricScreen> {
                           );
 
                           if (result == true && _deviceId != null) {
+                            
+                            final prefs = await SharedPreferences.getInstance();
+                            final backupUsername = prefs.getString('backup_username');
+                            final backupPassword = prefs.getString('backup_password');
+
+                            if (backupUsername != null && backupPassword != null) {
+                              
+                              prefs.setString('biometric_username', backupUsername);
+                              prefs.setString('biometric_password', backupPassword);
+                            }
+
                             context.read<UserBloc>().add(
                               EnableBiometricLogin(user!.uid, _deviceId!),
                             );
@@ -154,12 +215,7 @@ class _BiometricScreenState extends State<BiometricScreen> {
                             });
                           }
                         } else {
-                          context.read<UserBloc>().add(
-                            DisableBiometricLogin(user!.uid),
-                          );
-                          setState(() {
-                            isBiometricEnabled = false;
-                          });
+                          await _showDisableBiometricDialog(context, user!);
                         }
                       },
                       activeColor: const Color(0xFF6750A4),

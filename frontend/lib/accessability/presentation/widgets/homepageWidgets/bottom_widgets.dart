@@ -169,56 +169,76 @@ void didUpdateWidget(BottomWidgets oldWidget) {
   }
 
   Future<void> _addPerson() async {
-    final user = _auth.currentUser;
-    if (user == null) return;
+  final user = _auth.currentUser;
+  if (user == null) return;
 
-    final email = await _showAddPersonDialog();
-    if (email == null || email.isEmpty) return;
+  final email = await _showAddPersonDialog();
+  if (email == null || email.isEmpty) return;
 
-    // Fetch the receiver's user ID from Firestore
-    final receiverSnapshot = await _firestore
-        .collection('Users')
-        .where('email', isEqualTo: email)
-        .get();
-
-    if (receiverSnapshot.docs.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('User not found')),
-      );
-      return;
-    }
-
-    final receiverID = receiverSnapshot.docs.first.id;
-
-    // Generate a random verification code
-    final verificationCode = _generateVerificationCode();
-
-    // Check if a chat room already exists between the users
-    final hasChatRoom = await _chatService.hasChatRoom(user.uid, receiverID);
-
-    if (!hasChatRoom) {
-      // Send a chat request if no chat room exists
-      await _chatService.sendChatRequest(
-        receiverID,
-        'Join My Space! \n Your verification code is: $verificationCode (Expires in 10 minutes)',
-      );
-    } else {
-      // Send a normal message if a chat room already exists
-      await _chatService.sendMessage(
-        receiverID,
-        'Join My Space! \n Your verification code is: $verificationCode (Expires in 10 minutes)',
-      );
-    }
-
-    // Update the space with the verification code
-    await _firestore.collection('Spaces').doc(widget.activeSpaceId).update({
-      'verificationCode': verificationCode,
-    });
-
+  if (email == user.email) {
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Verification code sent via chat')),
+      const SnackBar(content: Text('You cannot send a verification code to yourself')),
+    );
+    return;
+  }
+
+  // Fetch the receiver's user ID from Firestore
+  final receiverSnapshot = await _firestore
+      .collection('Users')
+      .where('email', isEqualTo: email)
+      .get();
+
+  if (receiverSnapshot.docs.isEmpty) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('User not found')),
+    );
+    return;
+  }
+
+  final receiverID = receiverSnapshot.docs.first.id;
+
+  // Check if a verification code already exists and if it has expired
+  final spaceSnapshot = await _firestore.collection('Spaces').doc(widget.activeSpaceId).get();
+  final existingCode = spaceSnapshot['verificationCode'];
+  final codeTimestamp = spaceSnapshot['codeTimestamp']?.toDate();
+
+  String verificationCode;
+  if (existingCode != null && codeTimestamp != null) {
+    final now = DateTime.now();
+    final difference = now.difference(codeTimestamp).inMinutes;
+
+    if (difference < 10) {
+      verificationCode = existingCode;
+    } else {
+      verificationCode = _generateVerificationCode();
+    }
+  } else {
+    verificationCode = _generateVerificationCode();
+  }
+
+  final hasChatRoom = await _chatService.hasChatRoom(user.uid, receiverID);
+
+  if (!hasChatRoom) {
+    await _chatService.sendChatRequest(
+      receiverID,
+      'Join My Space! \n Your verification code is: $verificationCode (Expires in 10 minutes)',
+    );
+  } else {
+    await _chatService.sendMessage(
+      receiverID,
+      'Join My Space! \n Your verification code is: $verificationCode (Expires in 10 minutes)',
     );
   }
+
+  await _firestore.collection('Spaces').doc(widget.activeSpaceId).update({
+    'verificationCode': verificationCode,
+    'codeTimestamp': DateTime.now(),
+  });
+
+  ScaffoldMessenger.of(context).showSnackBar(
+    const SnackBar(content: Text('Verification code sent via chat')),
+  );
+}
 
   Future<String?> _showAddPersonDialog() async {
     String? email;
@@ -274,36 +294,49 @@ void didUpdateWidget(BottomWidgets oldWidget) {
     );
   }
 
-  Future<void> _joinSpace() async {
-    final user = _auth.currentUser;
-    if (user == null) return;
+ Future<void> _joinSpace() async {
+  final user = _auth.currentUser;
+  if (user == null) return;
 
-    final verificationCode = _verificationCodeControllers.map((controller) => controller.text).join();
-    if (verificationCode.isEmpty) return;
+  final verificationCode = _verificationCodeControllers.map((controller) => controller.text).join();
+  if (verificationCode.isEmpty) return;
 
-    final snapshot = await _firestore.collection('Spaces').where('verificationCode', isEqualTo: verificationCode).get();
+  final snapshot = await _firestore.collection('Spaces').where('verificationCode', isEqualTo: verificationCode).get();
 
-    if (snapshot.docs.isNotEmpty) {
-      final spaceId = snapshot.docs.first.id;
-      await _firestore.collection('Spaces').doc(spaceId).update({
-        'members': FieldValue.arrayUnion([user.uid]),
-      });
+  if (snapshot.docs.isNotEmpty) {
+    final spaceId = snapshot.docs.first.id;
+    final codeTimestamp = snapshot.docs.first['codeTimestamp']?.toDate();
 
-      _verificationCodeControllers.forEach((controller) => controller.clear());
-      setState(() {
-        _showJoinSpace = false;
-      });
+    if (codeTimestamp != null) {
+      final now = DateTime.now();
+      final difference = now.difference(codeTimestamp).inMinutes;
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Joined space successfully')),
-      );
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Invalid verification code')),
-      );
+      if (difference > 10) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Verification code has expired')),
+        );
+        return;
+      }
     }
-  }
 
+    await _firestore.collection('Spaces').doc(spaceId).update({
+      'members': FieldValue.arrayUnion([user.uid]),
+    });
+
+    _verificationCodeControllers.forEach((controller) => controller.clear());
+    setState(() {
+      _showJoinSpace = false;
+    });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Joined space successfully')),
+    );
+  } else {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Invalid verification code')),
+    );
+  }
+}
   String _generateVerificationCode() {
     final random = Random();
     return (100000 + random.nextInt(900000)).toString();

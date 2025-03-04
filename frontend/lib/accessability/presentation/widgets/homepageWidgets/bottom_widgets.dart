@@ -2,6 +2,8 @@ import 'dart:async';
 import 'dart:math';
 
 import 'package:AccessAbility/accessability/firebaseServices/place/geocoding_service.dart';
+import 'package:AccessAbility/accessability/presentation/widgets/bottomSheetWidgets/create_space_widget.dart';
+import 'package:AccessAbility/accessability/presentation/widgets/bottomSheetWidgets/join_space_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -55,59 +57,61 @@ class _BottomWidgetsState extends State<BottomWidgets> {
     _setupVerificationCodeFocusListeners();
   }
 
-@override
-void didUpdateWidget(BottomWidgets oldWidget) {
-  super.didUpdateWidget(oldWidget);
-  if (widget.activeSpaceId != oldWidget.activeSpaceId) {
-    if (widget.activeSpaceId.isEmpty) {
-      setState(() {
-        _showCreateSpace = false;
-        _showJoinSpace = false;
-        _members = []; // Clear members list
-      });
+  @override
+  void didUpdateWidget(BottomWidgets oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.activeSpaceId != oldWidget.activeSpaceId) {
+      if (widget.activeSpaceId.isEmpty) {
+        setState(() {
+          _showCreateSpace = false;
+          _showJoinSpace = false;
+          _members = []; // Clear members list
+        });
+      }
+      _listenToMembers(); // Reinitialize the listener when activeSpaceId changes
     }
-    _listenToMembers(); // Reinitialize the listener when activeSpaceId changes
   }
-}
 
   @override
-void dispose() {
-  _membersListener?.cancel();
-  _membersListener = null; // Reset the listener
-  _locationListeners.forEach((listener) => listener.cancel());
-  _locationListeners.clear();
-  super.dispose();
-}
-
-
-  // Listen to members in real time
-void _listenToMembers() {
-  // If activeSpaceId is empty, cancel any existing listeners and return early
-  if (widget.activeSpaceId.isEmpty) {
+  void dispose() {
     _membersListener?.cancel();
-    _membersListener = null; // Reset the listener
+    _membersListener = null;
     _locationListeners.forEach((listener) => listener.cancel());
     _locationListeners.clear();
-    setState(() {
-      _members = []; // Clear members list
-    });
-    return;
+    _spaceNameController.dispose();
+    for (final controller in _verificationCodeControllers) {
+      controller.dispose();
+    }
+    for (final node in _verificationCodeFocusNodes) {
+      node.dispose();
+    }
+    super.dispose();
   }
 
-  // Cancel any existing listeners
-  _membersListener?.cancel();
-  _membersListener = null; // Reset the listener
-  _locationListeners.forEach((listener) => listener.cancel());
-  _locationListeners.clear();
+  // Listen to members in real time
+  void _listenToMembers() {
+    if (widget.activeSpaceId.isEmpty) {
+      _membersListener?.cancel();
+      _membersListener = null;
+      _locationListeners.forEach((listener) => listener.cancel());
+      _locationListeners.clear();
+      setState(() {
+        _members = [];
+      });
+      return;
+    }
 
-    // Listen to the space document
+    _membersListener?.cancel();
+    _membersListener = null;
+    _locationListeners.forEach((listener) => listener.cancel());
+    _locationListeners.clear();
+
     _membersListener = _firestore
         .collection('Spaces')
         .doc(widget.activeSpaceId)
         .snapshots()
         .listen((snapshot) async {
       if (!snapshot.exists) {
-        // If the document doesn't exist, clear members and return
         setState(() {
           _members = [];
         });
@@ -120,14 +124,12 @@ void _listenToMembers() {
       final creatorId = snapshot['creator'];
 
       if (members.isEmpty) {
-        // If there are no members, clear the list and return
         setState(() {
           _members = [];
         });
         return;
       }
 
-      // Fetch user details for each member
       final usersSnapshot = await _firestore
           .collection('Users')
           .where('uid', whereIn: members)
@@ -144,7 +146,6 @@ void _listenToMembers() {
           final lng = locationData['longitude'];
           address = await _getAddressFromLatLng(LatLng(lat, lng));
         }
-
         return {
           'uid': doc['uid'],
           'username': doc['username'] ?? 'Unknown',
@@ -160,7 +161,6 @@ void _listenToMembers() {
         _creatorId = creatorId;
       });
 
-      // Listen to location updates for each member
       for (final member in members) {
         final listener = _firestore
             .collection('UserLocations')
@@ -172,7 +172,6 @@ void _listenToMembers() {
             final lat = locationData['latitude'];
             final lng = locationData['longitude'];
             final address = await _getAddressFromLatLng(LatLng(lat, lng));
-
             setState(() {
               final index = _members.indexWhere((m) => m['uid'] == member);
               if (index != -1) {
@@ -214,7 +213,6 @@ void _listenToMembers() {
       return;
     }
 
-    // Fetch the receiver's user ID from Firestore
     final receiverSnapshot = await _firestore
         .collection('Users')
         .where('email', isEqualTo: email)
@@ -229,11 +227,9 @@ void _listenToMembers() {
 
     final receiverID = receiverSnapshot.docs.first.id;
 
-    // Check if a verification code already exists and if it has expired
     final spaceSnapshot =
         await _firestore.collection('Spaces').doc(widget.activeSpaceId).get();
 
-    // Ensure the document exists
     if (!spaceSnapshot.exists) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Space not found')),
@@ -248,18 +244,13 @@ void _listenToMembers() {
     if (existingCode != null && codeTimestamp != null) {
       final now = DateTime.now();
       final difference = now.difference(codeTimestamp).inMinutes;
-
-      if (difference < 10) {
-        verificationCode = existingCode;
-      } else {
-        verificationCode = _generateVerificationCode();
-      }
+      verificationCode =
+          difference < 10 ? existingCode : _generateVerificationCode();
     } else {
       verificationCode = _generateVerificationCode();
     }
 
     final hasChatRoom = await _chatService.hasChatRoom(user.uid, receiverID);
-
     if (!hasChatRoom) {
       await _chatService.sendChatRequest(
         receiverID,
@@ -317,8 +308,6 @@ void _listenToMembers() {
     if (spaceName.isEmpty) return;
 
     final verificationCode = _generateVerificationCode();
-
-    // Add the space with the verification code and codeTimestamp
     await _firestore.collection('Spaces').add({
       'name': spaceName,
       'creator': user.uid,
@@ -359,7 +348,6 @@ void _listenToMembers() {
       if (codeTimestamp != null) {
         final now = DateTime.now();
         final difference = now.difference(codeTimestamp).inMinutes;
-
         if (difference > 10) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Verification code has expired')),
@@ -372,7 +360,9 @@ void _listenToMembers() {
         'members': FieldValue.arrayUnion([user.uid]),
       });
 
-      _verificationCodeControllers.forEach((controller) => controller.clear());
+      for (final controller in _verificationCodeControllers) {
+        controller.clear();
+      }
       setState(() {
         _showJoinSpace = false;
       });
@@ -392,245 +382,394 @@ void _listenToMembers() {
     return (100000 + random.nextInt(900000)).toString();
   }
 
-@override
-Widget build(BuildContext context) {
-  return DraggableScrollableSheet(
-    initialChildSize: 0.15,
-    minChildSize: 0.15,
-    maxChildSize: 0.8,
-    builder: (BuildContext context, ScrollController scrollController) {
-      return Column(
-        children: [
-          Expanded(
-            child: Container(
-              decoration: const BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.only(
-                  topLeft: Radius.circular(20),
-                  topRight: Radius.circular(20),
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black26,
-                    blurRadius: 10,
-                    offset: Offset(0, -5),
+  @override
+  Widget build(BuildContext context) {
+    return DraggableScrollableSheet(
+      initialChildSize: 0.15,
+      minChildSize: 0.15,
+      maxChildSize: 0.8,
+      builder: (BuildContext context, ScrollController scrollController) {
+        return Column(
+          children: [
+            Expanded(
+              child: Container(
+                decoration: const BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.only(
+                    topLeft: Radius.circular(20),
+                    topRight: Radius.circular(20),
                   ),
-                ],
-              ),
-              child: SingleChildScrollView(
-                controller: scrollController,
-                child: Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Column(
-                    children: [
-                      Container(
-                        width: 100,
-                        height: 2,
-                        color: Colors.grey.shade700,
-                        margin: const EdgeInsets.only(bottom: 8),
-                      ),
-                      const SizedBox(height: 5),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        height: 50,
-                        decoration: BoxDecoration(
-                          color: Colors.grey.shade200,
-                          borderRadius: BorderRadius.circular(25),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black26,
+                      blurRadius: 10,
+                      offset: Offset(0, -5),
+                    ),
+                  ],
+                ),
+                child: SingleChildScrollView(
+                  controller: scrollController,
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Column(
+                      children: [
+                        Container(
+                          width: 100,
+                          height: 2,
+                          color: Colors.grey.shade700,
+                          margin: const EdgeInsets.only(bottom: 8),
                         ),
-                        child: const Row(
-                          children: [
-                            Expanded(
-                              child: Text(
-                                "Text to Speech, Speech to Text",
-                                style: TextStyle(
-                                  color: Color(0xFF6750A4),
-                                  fontSize: 16,
+                        const SizedBox(height: 5),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          height: 50,
+                          decoration: BoxDecoration(
+                            color: Colors.grey.shade200,
+                            borderRadius: BorderRadius.circular(25),
+                          ),
+                          child: const Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  "Text to Speech, Speech to Text",
+                                  style: TextStyle(
+                                    color: Color(0xFF6750A4),
+                                    fontSize: 16,
+                                  ),
                                 ),
                               ),
-                            ),
-                            Icon(
-                              Icons.mic,
-                              color: Color(0xFF6750A4),
-                            ),
+                              Icon(
+                                Icons.mic,
+                                color: Color(0xFF6750A4),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 20),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                          children: [
+                            _buildButton(Icons.people, 0),
+                            _buildButton(Icons.business, 1),
+                            _buildButton(Icons.map, 2),
                           ],
                         ),
-                      ),
-                      const SizedBox(height: 20),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                        children: [
-                          _buildButton(Icons.people, 0),
-                          _buildButton(Icons.business, 1),
-                          _buildButton(Icons.map, 2),
+                        const SizedBox(height: 20),
+                        if (!_showCreateSpace &&
+                            !_showJoinSpace &&
+                            _activeIndex == 0 &&
+                            widget.activeSpaceId.isEmpty) ...[
+                          // Center the title and make it bold
+                          const Align(
+                            alignment: Alignment.center,
+                            child: Text(
+                              "My Space",
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 20,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 5),
+                          const Align(
+                            alignment: Alignment.center,
+                            child: Text(
+                              "Create a new space or join an existing one today", // Lengthened text
+                              style: TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w400,
+                                color: Colors.grey,
+                              ),
+                              textAlign: TextAlign
+                                  .center, // Ensures proper alignment if it wraps
+                            ),
+                          ),
+
+                          const SizedBox(height: 25),
+                          // const Padding(
+                          //   padding: EdgeInsets.only(left: 15.0),
+                          //   child: Row(
+                          //     mainAxisAlignment: MainAxisAlignment.start,
+                          //     crossAxisAlignment: CrossAxisAlignment.start,
+                          //     children: [
+                          //       Text(
+                          //         "My Space",
+                          //         style: TextStyle(
+                          //           fontWeight: FontWeight.w800,
+                          //           fontSize: 20,
+                          //         ),
+                          //       ),
+                          //     ],
+                          //   ),
+                          // ),
+                          // const SizedBox(height: 25),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              // Fixed width for "Create Space" button
+                              SizedBox(
+                                width: 150,
+                                child: ElevatedButton(
+                                  onPressed: () {
+                                    setState(() {
+                                      _showCreateSpace = true;
+                                    });
+                                  },
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: const Color(0xFF6750A4),
+                                    padding: const EdgeInsets.symmetric(
+                                        vertical: 15),
+                                  ),
+                                  child: const Text(
+                                    'Create Space',
+                                    style: TextStyle(color: Colors.white),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              // Fixed width for "Join Space" button
+                              SizedBox(
+                                width: 150,
+                                child: ElevatedButton(
+                                  onPressed: () {
+                                    setState(() {
+                                      _showJoinSpace = true;
+                                    });
+                                  },
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: const Color(0xFF6750A4),
+                                    padding: const EdgeInsets.symmetric(
+                                        vertical: 15),
+                                  ),
+                                  child: const Text(
+                                    'Join Space',
+                                    style: TextStyle(color: Colors.white),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
                         ],
-                      ),
-                      const SizedBox(height: 20),
-                      // Show the buttons only if neither create nor join space is active
-                      // AND the active index is 0 (People tab)
-                      if (!_showCreateSpace && !_showJoinSpace && _activeIndex == 0 && widget.activeSpaceId.isEmpty) ...[
-                        ElevatedButton(
-                          onPressed: () {
-                            setState(() {
-                              _showCreateSpace = true;
-                            });
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF6750A4),
-                            padding: const EdgeInsets.symmetric(horizontal: 50, vertical: 15),
+                        if (_showCreateSpace) _buildCreateSpaceForm(),
+                        if (_showJoinSpace) _buildJoinSpaceForm(),
+                        _buildContent(),
+                        if (_creatorId == _auth.currentUser?.uid &&
+                            _activeIndex == 0 &&
+                            widget.activeSpaceId.isNotEmpty)
+                          ElevatedButton(
+                            onPressed: _addPerson,
+                            style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFF6750A4)),
+                            child: const Text('Send code'),
                           ),
-                          child: const Text(
-                            'Create Space',
-                            style: TextStyle(color: Colors.white),
-                          ),
-                        ),
-                        const SizedBox(height: 10),
-                        ElevatedButton(
-                          onPressed: () {
-                            setState(() {
-                              _showJoinSpace = true;
-                            });
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF6750A4),
-                            padding: const EdgeInsets.symmetric(horizontal: 50, vertical: 15),
-                          ),
-                          child: const Text(
-                            'Join Space',
-                            style: TextStyle(color: Colors.white),
-                          ),
-                        ),
                       ],
-                      if (_showCreateSpace) _buildCreateSpaceForm(),
-                      if (_showJoinSpace) _buildJoinSpaceForm(),
-                      // Always show content for Buildings and Map tabs
-                      _buildContent(),
-                      if (_creatorId == _auth.currentUser?.uid && _activeIndex == 0 && widget.activeSpaceId.isNotEmpty)
-                        ElevatedButton(
-                          onPressed: _addPerson,
-                          style: ElevatedButton.styleFrom(backgroundColor: Color(0xFF6750A4)),
-                          child: const Text('Send code'),
-                        ),
-                    ],
+                    ),
                   ),
                 ),
               ),
             ),
-          ),
-        ],
-      );
-    },
-  );
-}
+          ],
+        );
+      },
+    );
+  }
 
   Widget _buildCreateSpaceForm() {
-    return Column(
-      children: [
-        const Text(
-          'Create my space',
-          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 20),
-        TextField(
-          controller: _spaceNameController,
-          decoration: const InputDecoration(
-            labelText: 'Space Name',
-            border: OutlineInputBorder(),
+    return Padding(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        children: [
+          // Header row with centered title and back button on the right
+          const Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                'Create my space',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              ),
+            ],
           ),
-        ),
-        const SizedBox(height: 20),
-        ElevatedButton(
-          onPressed: _createSpace,
-          style: ElevatedButton.styleFrom(
-            backgroundColor: const Color(0xFF6750A4),
-            padding: const EdgeInsets.symmetric(horizontal: 50, vertical: 15),
+          const SizedBox(height: 20),
+          TextField(
+            controller: _spaceNameController,
+            decoration: const InputDecoration(
+              labelText: 'Space Name',
+              border: OutlineInputBorder(),
+            ),
           ),
-          child: const Text(
-            'Create',
-            style: TextStyle(color: Colors.white),
-          ),
-        ),
-        const SizedBox(height: 10),
-        TextButton(
-          onPressed: () {
-            setState(() {
-              _showCreateSpace = false;
-            });
-          },
-          child: const Text('Back'),
-        ),
-      ],
+          const SizedBox(height: 20),
+          Row(
+            children: [
+              Expanded(
+                child: ElevatedButton(
+                  onPressed: _createSpace,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF6750A4),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 50, vertical: 15),
+                  ),
+                  child: const Text(
+                    'Create',
+                    style: TextStyle(color: Colors.white),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10), // Adds spacing between buttons
+
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: () {
+                    setState(() {
+                      _showCreateSpace = false;
+                    });
+                  },
+                  style: OutlinedButton.styleFrom(
+                    side: const BorderSide(
+                        color: Color(0xFF6750A4)), // Border color
+                    padding: const EdgeInsets.symmetric(vertical: 15),
+                    shape: RoundedRectangleBorder(
+                      borderRadius:
+                          BorderRadius.circular(10), // Same border radius
+                    ),
+                  ),
+                  child: const Text(
+                    'Back',
+                    style: TextStyle(
+                        color: Color(0xFF6750A4)), // Text color to match border
+                  ),
+                ),
+              ),
+            ],
+          )
+        ],
+      ),
     );
   }
 
   Widget _buildJoinSpaceForm() {
-    return Column(
-      children: [
-        const Text(
-          'Join a space',
-          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 20),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-          children: [
-            // First 3 fields
-            for (int i = 0; i < 3; i++)
-              SizedBox(
-                width: 40,
-                child: TextField(
-                  controller: _verificationCodeControllers[i],
-                  focusNode: _verificationCodeFocusNodes[i],
-                  textAlign: TextAlign.center,
-                  maxLength: 1,
-                  keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(
-                    counterText: '',
-                    border: OutlineInputBorder(),
+    return Padding(
+      padding: const EdgeInsets.all(16.0),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          // Main heading
+          const Text(
+            'Enter the Invite Code',
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 8),
+
+          // Subheading or helper text
+          const Text(
+            'Get the code from the person setting up your Space',
+            style: TextStyle(
+              fontSize: 14,
+              color: Colors.grey,
+            ),
+          ),
+          const SizedBox(height: 24),
+
+          // Code input fields
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              // First 3 fields
+              for (int i = 0; i < 3; i++)
+                Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 4),
+                  width: 40,
+                  child: TextField(
+                    controller: _verificationCodeControllers[i],
+                    focusNode: _verificationCodeFocusNodes[i],
+                    textAlign: TextAlign.center,
+                    maxLength: 1,
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(
+                      counterText: '',
+                      border: OutlineInputBorder(),
+                    ),
                   ),
                 ),
-              ),
-            // Dash between the 3rd and 4th fields
-            const Text('-', style: TextStyle(fontSize: 20)),
-            // Last 3 fields
-            for (int i = 3; i < 6; i++)
-              SizedBox(
-                width: 40,
-                child: TextField(
-                  controller: _verificationCodeControllers[i],
-                  focusNode: _verificationCodeFocusNodes[i],
-                  textAlign: TextAlign.center,
-                  maxLength: 1,
-                  keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(
-                    counterText: '',
-                    border: OutlineInputBorder(),
+              const SizedBox(width: 8),
+              const Text('-', style: TextStyle(fontSize: 20)),
+              const SizedBox(width: 8),
+              // Last 3 fields
+              for (int i = 3; i < 6; i++)
+                Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 4),
+                  width: 40,
+                  child: TextField(
+                    controller: _verificationCodeControllers[i],
+                    focusNode: _verificationCodeFocusNodes[i],
+                    textAlign: TextAlign.center,
+                    maxLength: 1,
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(
+                      counterText: '',
+                      border: OutlineInputBorder(),
+                    ),
                   ),
                 ),
-              ),
-          ],
-        ),
-        const SizedBox(height: 20),
-        ElevatedButton(
-          onPressed: _joinSpace,
-          style: ElevatedButton.styleFrom(
-            backgroundColor: const Color(0xFF6750A4),
-            padding: const EdgeInsets.symmetric(horizontal: 50, vertical: 15),
+            ],
           ),
-          child: const Text(
-            'Join',
-            style: TextStyle(color: Colors.white),
-          ),
-        ),
-        const SizedBox(height: 10),
-        TextButton(
-          onPressed: () {
-            setState(() {
-              _showJoinSpace = false;
-            });
-          },
-          child: const Text('Back'),
-        ),
-      ],
+          const SizedBox(height: 24),
+
+          // Submit button
+          Center(
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: _joinSpace,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF6750A4),
+                      padding: const EdgeInsets.symmetric(vertical: 15),
+                      shape: RoundedRectangleBorder(
+                        borderRadius:
+                            BorderRadius.circular(10), // Border radius 10
+                      ),
+                    ),
+                    child: const Text(
+                      'Submit',
+                      style: TextStyle(color: Colors.white),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10), // Adds spacing between buttons
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () {
+                      setState(() {
+                        _showJoinSpace = false;
+                      });
+                    },
+                    style: OutlinedButton.styleFrom(
+                      side: const BorderSide(
+                          color: Color(0xFF6750A4)), // Border color
+                      padding: const EdgeInsets.symmetric(vertical: 15),
+                      shape: RoundedRectangleBorder(
+                        borderRadius:
+                            BorderRadius.circular(10), // Same border radius
+                      ),
+                    ),
+                    child: const Text(
+                      'Back',
+                      style: TextStyle(
+                          color:
+                              Color(0xFF6750A4)), // Text color to match border
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          )
+        ],
+      ),
     );
   }
 
@@ -661,111 +800,107 @@ Widget build(BuildContext context) {
     );
   }
 
- Widget _buildContent() {
-  switch (_activeIndex) {
-    case 0:
-      // Only show members if a valid space is selected (not empty)
-      if (widget.activeSpaceId.isNotEmpty) {
-        return Column(
-          children: _members
-              .where((member) => member['uid'] != _auth.currentUser?.uid)
-              .map((member) => GestureDetector(
-                    onTap: () async {
-                      setState(() {
-                        _selectedMemberId = member['uid'];
-                      });
-
-                      final locationSnapshot = await _firestore
-                          .collection('UserLocations')
-                          .doc(member['uid'])
-                          .get();
-                      final locationData = locationSnapshot.data();
-                      if (locationData != null) {
-                        final lat = locationData['latitude'];
-                        final lng = locationData['longitude'];
-                        final address =
-                            await _getAddressFromLatLng(LatLng(lat, lng));
-
+  Widget _buildContent() {
+    switch (_activeIndex) {
+      case 0:
+        if (widget.activeSpaceId.isNotEmpty) {
+          return Column(
+            children: _members
+                .where((member) => member['uid'] != _auth.currentUser?.uid)
+                .map((member) => GestureDetector(
+                      onTap: () async {
                         setState(() {
-                          member['address'] = address;
-                          member['lastUpdate'] = locationData['timestamp'];
+                          _selectedMemberId = member['uid'];
                         });
 
-                        widget.onMemberPressed(LatLng(lat, lng), member['uid']);
-                      }
-                    },
-                    child: Container(
-                      color: _selectedMemberId == member['uid']
-                          ? const Color(0xFF6750A4)
-                          : Colors.white,
-                      child: ListTile(
-                        leading: CircleAvatar(
-                          backgroundImage: member['profilePicture'] != null &&
-                                  member['profilePicture'].startsWith('http')
-                              ? NetworkImage(member['profilePicture'])
-                              : const AssetImage(
-                                      'assets/images/others/default_profile.png')
-                                  as ImageProvider,
-                        ),
-                        title: Text(
-                          member['username'],
-                          style: const TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                        subtitle: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Current Location: ${member['address'] ?? 'Fetching address...'}',
-                              style: const TextStyle(
-                                  fontSize: 12, fontWeight: FontWeight.bold),
-                            ),
-                            if (member['lastUpdate'] != null)
+                        final locationSnapshot = await _firestore
+                            .collection('UserLocations')
+                            .doc(member['uid'])
+                            .get();
+                        final locationData = locationSnapshot.data();
+                        if (locationData != null) {
+                          final lat = locationData['latitude'];
+                          final lng = locationData['longitude'];
+                          final address =
+                              await _getAddressFromLatLng(LatLng(lat, lng));
+
+                          setState(() {
+                            member['address'] = address;
+                            member['lastUpdate'] = locationData['timestamp'];
+                          });
+
+                          widget.onMemberPressed(
+                              LatLng(lat, lng), member['uid']);
+                        }
+                      },
+                      child: Container(
+                        color: _selectedMemberId == member['uid']
+                            ? const Color(0xFF6750A4)
+                            : Colors.white,
+                        child: ListTile(
+                          leading: CircleAvatar(
+                            backgroundImage: member['profilePicture'] != null &&
+                                    member['profilePicture'].startsWith('http')
+                                ? NetworkImage(member['profilePicture'])
+                                : const AssetImage(
+                                        'assets/images/others/default_profile.png')
+                                    as ImageProvider,
+                          ),
+                          title: Text(
+                            member['username'],
+                            style: const TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                          subtitle: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
                               Text(
-                                'Last location update: ${_getTimeDifference((member['lastUpdate'] as Timestamp).toDate())}',
-                                style: const TextStyle(fontSize: 12),
+                                'Current Location: ${member['address'] ?? 'Fetching address...'}',
+                                style: const TextStyle(
+                                    fontSize: 12, fontWeight: FontWeight.bold),
                               ),
-                          ],
-                        ),
-                        trailing: IconButton(
-                          icon: const Icon(Icons.chat),
-                          onPressed: () {
-                            Navigator.pushNamed(
-                              context,
-                              '/chatconvo',
-                              arguments: {
-                                'receiverEmail': member['username'],
-                                'receiverID': member['uid'],
-                              },
-                            );
-                          },
+                              if (member['lastUpdate'] != null)
+                                Text(
+                                  'Last location update: ${_getTimeDifference((member['lastUpdate'] as Timestamp).toDate())}',
+                                  style: const TextStyle(fontSize: 12),
+                                ),
+                            ],
+                          ),
+                          trailing: IconButton(
+                            icon: const Icon(Icons.chat),
+                            onPressed: () {
+                              Navigator.pushNamed(
+                                context,
+                                '/chatconvo',
+                                arguments: {
+                                  'receiverEmail': member['username'],
+                                  'receiverID': member['uid'],
+                                },
+                              );
+                            },
+                          ),
                         ),
                       ),
-                    ),
-                  ))
-              .toList(),
+                    ))
+                .toList(),
+          );
+        } else {
+          return const Center(
+            child: Text(
+              '',
+              style: TextStyle(color: Colors.grey),
+            ),
+          );
+        }
+      case 1:
+        return const AddPlaceWidget();
+      case 2:
+        return MapContent(
+          onCategorySelected: widget.onCategorySelected,
         );
-      } else {
-        // Show a placeholder or empty state for the "People" tab when no space is selected
-        return const Center(
-          child: Text(
-            '',
-            style: TextStyle(color: Colors.grey),
-          ),
-        );
-      }
-    case 1:
-      // Always show the Buildings content
-      return const AddPlaceWidget();
-    case 2:
-      // Always show the Map content
-      return MapContent(
-        onCategorySelected: widget.onCategorySelected,
-      );
-    default:
-      return const SizedBox.shrink();
+      default:
+        return const SizedBox.shrink();
+    }
   }
-}
-
 
   Future<String> _getAddressFromLatLng(LatLng latLng) async {
     try {
@@ -781,7 +916,6 @@ Widget build(BuildContext context) {
   String _getTimeDifference(DateTime timestamp) {
     final now = DateTime.now();
     final difference = now.difference(timestamp);
-
     if (difference.inMinutes < 1) {
       return 'Just now';
     } else if (difference.inMinutes < 60) {

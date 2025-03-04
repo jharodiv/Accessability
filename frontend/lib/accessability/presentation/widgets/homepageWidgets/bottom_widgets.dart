@@ -55,31 +55,37 @@ class _BottomWidgetsState extends State<BottomWidgets> {
     _setupVerificationCodeFocusListeners();
   }
 
- @override
+@override
 void didUpdateWidget(BottomWidgets oldWidget) {
   super.didUpdateWidget(oldWidget);
   if (widget.activeSpaceId != oldWidget.activeSpaceId) {
-    if (widget.activeSpaceId == 'my_space') {
+    if (widget.activeSpaceId.isEmpty) {
       setState(() {
         _showCreateSpace = false;
         _showJoinSpace = false;
+        _members = []; // Clear members list
       });
     }
     _listenToMembers(); // Reinitialize the listener when activeSpaceId changes
   }
 }
+
   @override
-  void dispose() {
-    _membersListener?.cancel();
-    _locationListeners.forEach((listener) => listener.cancel());
-    super.dispose();
-  }
+void dispose() {
+  _membersListener?.cancel();
+  _membersListener = null; // Reset the listener
+  _locationListeners.forEach((listener) => listener.cancel());
+  _locationListeners.clear();
+  super.dispose();
+}
+
 
   // Listen to members in real time
 void _listenToMembers() {
-  // If activeSpaceId is empty or 'my_space', cancel any existing listeners and return early
-  if (widget.activeSpaceId.isEmpty || widget.activeSpaceId == 'my_space') {
+  // If activeSpaceId is empty, cancel any existing listeners and return early
+  if (widget.activeSpaceId.isEmpty) {
     _membersListener?.cancel();
+    _membersListener = null; // Reset the listener
     _locationListeners.forEach((listener) => listener.cancel());
     _locationListeners.clear();
     setState(() {
@@ -90,6 +96,7 @@ void _listenToMembers() {
 
   // Cancel any existing listeners
   _membersListener?.cancel();
+  _membersListener = null; // Reset the listener
   _locationListeners.forEach((listener) => listener.cancel());
   _locationListeners.clear();
 
@@ -453,7 +460,8 @@ Widget build(BuildContext context) {
                       ),
                       const SizedBox(height: 20),
                       // Show the buttons only if neither create nor join space is active
-                     if (!_showCreateSpace && !_showJoinSpace && (widget.activeSpaceId == 'my_space' || widget.activeSpaceId.isEmpty)) ...[
+                      // AND the active index is 0 (People tab)
+                      if (!_showCreateSpace && !_showJoinSpace && _activeIndex == 0 && widget.activeSpaceId.isEmpty) ...[
                         ElevatedButton(
                           onPressed: () {
                             setState(() {
@@ -488,8 +496,9 @@ Widget build(BuildContext context) {
                       ],
                       if (_showCreateSpace) _buildCreateSpaceForm(),
                       if (_showJoinSpace) _buildJoinSpaceForm(),
-                      if (widget.activeSpaceId != 'my_space' && widget.activeSpaceId.isNotEmpty) _buildContent(),
-                      if (_creatorId == _auth.currentUser?.uid && _activeIndex == 0 && widget.activeSpaceId.isNotEmpty && widget.activeSpaceId != 'my_space')
+                      // Always show content for Buildings and Map tabs
+                      _buildContent(),
+                      if (_creatorId == _auth.currentUser?.uid && _activeIndex == 0 && widget.activeSpaceId.isNotEmpty)
                         ElevatedButton(
                           onPressed: _addPerson,
                           style: ElevatedButton.styleFrom(backgroundColor: Color(0xFF6750A4)),
@@ -644,9 +653,11 @@ Widget build(BuildContext context) {
     );
   }
 
-  Widget _buildContent() {
-    switch (_activeIndex) {
-      case 0:
+ Widget _buildContent() {
+  switch (_activeIndex) {
+    case 0:
+      // Only show members if a valid space is selected (not empty)
+      if (widget.activeSpaceId.isNotEmpty) {
         return Column(
           children: _members
               .where((member) => member['uid'] != _auth.currentUser?.uid)
@@ -656,7 +667,10 @@ Widget build(BuildContext context) {
                         _selectedMemberId = member['uid'];
                       });
 
-                      final locationSnapshot = await _firestore.collection('UserLocations').doc(member['uid']).get();
+                      final locationSnapshot = await _firestore
+                          .collection('UserLocations')
+                          .doc(member['uid'])
+                          .get();
                       final locationData = locationSnapshot.data();
                       if (locationData != null) {
                         final lat = locationData['latitude'];
@@ -672,12 +686,17 @@ Widget build(BuildContext context) {
                       }
                     },
                     child: Container(
-                      color: _selectedMemberId == member['uid'] ? const Color(0xFF6750A4) : Colors.white,
+                      color: _selectedMemberId == member['uid']
+                          ? const Color(0xFF6750A4)
+                          : Colors.white,
                       child: ListTile(
                         leading: CircleAvatar(
-                          backgroundImage: member['profilePicture'] != null && member['profilePicture'].startsWith('http')
+                          backgroundImage: member['profilePicture'] != null &&
+                                  member['profilePicture'].startsWith('http')
                               ? NetworkImage(member['profilePicture'])
-                              : const AssetImage('assets/images/others/default_profile.png') as ImageProvider,
+                              : const AssetImage(
+                                      'assets/images/others/default_profile.png')
+                                  as ImageProvider,
                         ),
                         title: Text(
                           member['username'],
@@ -688,7 +707,8 @@ Widget build(BuildContext context) {
                           children: [
                             Text(
                               'Current Location: ${member['address'] ?? 'Fetching address...'}',
-                              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                              style: const TextStyle(
+                                  fontSize: 12, fontWeight: FontWeight.bold),
                             ),
                             if (member['lastUpdate'] != null)
                               Text(
@@ -715,16 +735,28 @@ Widget build(BuildContext context) {
                   ))
               .toList(),
         );
-      case 1:
-        return const AddPlaceWidget();
-      case 2:
-        return MapContent(
-          onCategorySelected: widget.onCategorySelected,
+      } else {
+        // Show a placeholder or empty state for the "People" tab when no space is selected
+        return const Center(
+          child: Text(
+            '',
+            style: TextStyle(color: Colors.grey),
+          ),
         );
-      default:
-        return const SizedBox.shrink();
-    }
+      }
+    case 1:
+      // Always show the Buildings content
+      return const AddPlaceWidget();
+    case 2:
+      // Always show the Map content
+      return MapContent(
+        onCategorySelected: widget.onCategorySelected,
+      );
+    default:
+      return const SizedBox.shrink();
   }
+}
+
 
   Future<String> _getAddressFromLatLng(LatLng latLng) async {
     try {

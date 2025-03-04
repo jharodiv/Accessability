@@ -195,6 +195,12 @@ class _GpsScreenState extends State<GpsScreen> {
     }
   }
 
+  void _onMySpaceSelected() {
+    setState(() {
+      _locationHandler.activeSpaceId = '';
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return BlocBuilder<UserBloc, UserState>(
@@ -263,6 +269,7 @@ class _GpsScreenState extends State<GpsScreen> {
                       setState(() {});
                     },
                     onSpaceSelected: _locationHandler.updateActiveSpaceId,
+                    onMySpaceSelected: _onMySpaceSelected,
                   ),
                   if (_locationHandler.currentIndex == 0)
                     BottomWidgets(

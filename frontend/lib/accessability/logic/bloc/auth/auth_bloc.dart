@@ -17,16 +17,13 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   final UserRepository userRepository; // Add UserRepository
   final UserBloc userBloc;
   final AuthService authService;
-   final FirebaseFirestore _firestore = FirebaseFirestore.instance; 
-  
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   AuthBloc({
     required this.authRepository,
     required this.userRepository, // Inject UserRepository
     required this.userBloc,
     required this.authService,
-    
-  
   }) : super(AuthInitial()) {
     on<LoginEvent>(_onLoginEvent);
     on<RegisterEvent>(_onRegisterEvent);
@@ -36,35 +33,39 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     on<CheckEmailVerification>(_onCheckEmailVerification);
     on<LoginWithBiometricEvent>(_onLoginWithBiometricEvent);
     on<ForgotPasswordEvent>(_onForgotPasswordEvent);
+    on<ChangePasswordEvent>(_onChangePasswordEvent);
   }
 
- Future<void> _onLoginEvent(LoginEvent event, Emitter<AuthState> emit) async {
-  emit(AuthLoading());
-  try {
-    final loginModel = await authRepository.login(event.email, event.password);
-    final user = authService.getCurrentUser(); // Use authService to get the current user
+  Future<void> _onLoginEvent(LoginEvent event, Emitter<AuthState> emit) async {
+    emit(AuthLoading());
+    try {
+      final loginModel =
+          await authRepository.login(event.email, event.password);
+      final user = authService
+          .getCurrentUser(); // Use authService to get the current user
 
-    if (user != null && !user.emailVerified) {
-      emit(AuthError('Please verify your email before logging in'));
-      return;
+      if (user != null && !user.emailVerified) {
+        emit(AuthError('Please verify your email before logging in'));
+        return;
+      }
+
+      await authService.saveFCMToken(loginModel.userId);
+      emit(AuthenticatedLogin(
+        loginModel,
+        hasCompletedOnboarding: loginModel.hasCompletedOnboarding,
+      ));
+      userBloc.add(FetchUserData());
+    } catch (e) {
+      emit(AuthError('Login failed: ${e.toString()}'));
     }
-
-    await authService.saveFCMToken(loginModel.userId);
-    emit(AuthenticatedLogin(
-      loginModel,
-      hasCompletedOnboarding: loginModel.hasCompletedOnboarding,
-    ));
-    userBloc.add(FetchUserData());
-  } catch (e) {
-    emit(AuthError('Login failed: ${e.toString()}'));
   }
-}
+
   // Handle RegisterEvent
   Future<void> _onRegisterEvent(
       RegisterEvent event, Emitter<AuthState> emit) async {
     emit(AuthLoading());
     try {
-       final userModel = await authRepository.register(
+      final userModel = await authRepository.register(
         event.signUpModel,
         event.profilePicture,
       );
@@ -74,7 +75,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     }
   }
 
-   Future<void> _onLoginWithBiometricEvent(
+  Future<void> _onLoginWithBiometricEvent(
     LoginWithBiometricEvent event,
     Emitter<AuthState> emit,
   ) async {
@@ -82,16 +83,19 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     try {
       final user = authService.getCurrentUser();
       if (user != null) {
-        final userDoc = await _firestore.collection('Users').doc(user.uid).get();
+        final userDoc =
+            await _firestore.collection('Users').doc(user.uid).get();
         if (userDoc.exists && userDoc.data()?['biometricEnabled'] == true) {
           emit(AuthenticatedLogin(
             LoginModel(
               token: user.uid,
               userId: user.uid,
-              hasCompletedOnboarding: userDoc.data()?['hasCompletedOnboarding'] ?? false,
+              hasCompletedOnboarding:
+                  userDoc.data()?['hasCompletedOnboarding'] ?? false,
               user: UserModel.fromJson(userDoc.data()!),
             ),
-            hasCompletedOnboarding: userDoc.data()?['hasCompletedOnboarding'] ?? false,
+            hasCompletedOnboarding:
+                userDoc.data()?['hasCompletedOnboarding'] ?? false,
           ));
           userBloc.add(FetchUserData());
         } else {
@@ -104,7 +108,6 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       emit(AuthError('Failed to login with biometrics: ${e.toString()}'));
     }
   }
-
 
   // Handle CheckAuthStatus
   Future<void> _onCheckAuthStatus(
@@ -131,43 +134,43 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   }
 
   // Handle CompleteOnboardingEvent
-Future<void> _onCompleteOnboardingEvent(
-  CompleteOnboardingEvent event,
-  Emitter<AuthState> emit,
-) async {
-  emit(AuthLoading());
-  try {
-    final user = await userRepository.getCachedUser();
-    if (user != null) {
-      await authRepository.completeOnboarding(user.uid);
+  Future<void> _onCompleteOnboardingEvent(
+    CompleteOnboardingEvent event,
+    Emitter<AuthState> emit,
+  ) async {
+    emit(AuthLoading());
+    try {
+      final user = await userRepository.getCachedUser();
+      if (user != null) {
+        await authRepository.completeOnboarding(user.uid);
 
-      // Fetch the updated user data
-      final updatedUser = await userRepository.fetchUserData(user.uid);
-      if (updatedUser != null) {
-        // Cache the updated user data
-        userRepository.cacheUserData(updatedUser);
+        // Fetch the updated user data
+        final updatedUser = await userRepository.fetchUserData(user.uid);
+        if (updatedUser != null) {
+          // Cache the updated user data
+          userRepository.cacheUserData(updatedUser);
 
-        emit(AuthenticatedLogin(
-          LoginModel(
-            token: updatedUser.uid,
-            userId: updatedUser.uid,
+          emit(AuthenticatedLogin(
+            LoginModel(
+              token: updatedUser.uid,
+              userId: updatedUser.uid,
+              hasCompletedOnboarding: updatedUser.hasCompletedOnboarding,
+              user: updatedUser,
+            ),
             hasCompletedOnboarding: updatedUser.hasCompletedOnboarding,
-            user: updatedUser,
-          ),
-          hasCompletedOnboarding: updatedUser.hasCompletedOnboarding,
-        ));
+          ));
 
-        emit(const AuthSuccess('Onboarding completed successfully'));
+          emit(const AuthSuccess('Onboarding completed successfully'));
+        } else {
+          emit(const AuthError('Failed to fetch updated user data'));
+        }
       } else {
-        emit(const AuthError('Failed to fetch updated user data'));
+        emit(const AuthError('User not found'));
       }
-    } else {
-      emit(const AuthError('User not found'));
+    } catch (e) {
+      emit(AuthError('Failed to complete onboarding: ${e.toString()}'));
     }
-  } catch (e) {
-    emit(AuthError('Failed to complete onboarding: ${e.toString()}'));
   }
-}
 
   // Handle LogoutEvent
   Future<void> _onLogoutEvent(
@@ -181,31 +184,48 @@ Future<void> _onCompleteOnboardingEvent(
     }
   }
 
- Future<void> _onCheckEmailVerification(
-  CheckEmailVerification event,
-  Emitter<AuthState> emit,
-) async {
-  final user = authService.getCurrentUser(); // Use authService to get the current user
-  if (user != null) {
-    await user.reload();
-    if (user.emailVerified) {
-      emit(EmailVerified());
-    } else {
-      emit(AuthError('Email not verified'));
+  Future<void> _onCheckEmailVerification(
+    CheckEmailVerification event,
+    Emitter<AuthState> emit,
+  ) async {
+    final user =
+        authService.getCurrentUser(); // Use authService to get the current user
+    if (user != null) {
+      await user.reload();
+      if (user.emailVerified) {
+        emit(EmailVerified());
+      } else {
+        emit(AuthError('Email not verified'));
+      }
     }
   }
-}
 
- Future<void> _onForgotPasswordEvent(
+  Future<void> _onForgotPasswordEvent(
     ForgotPasswordEvent event,
     Emitter<AuthState> emit,
   ) async {
     emit(AuthLoading());
     try {
       await authService.sendPasswordResetEmail(event.email);
-      emit(ForgotPasswordSuccess('Password reset email sent to ${event.email}'));
+      emit(
+          ForgotPasswordSuccess('Password reset email sent to ${event.email}'));
     } catch (e) {
       emit(AuthError('Failed to send password reset email: ${e.toString()}'));
+    }
+  }
+
+  Future<void> _onChangePasswordEvent(
+      ChangePasswordEvent event, Emitter<AuthState> emit) async {
+    emit(AuthLoading());
+    try {
+      await authRepository.changePassword(
+          event.currentPassword, event.newPassword);
+      // You can either emit a dedicated ChangePasswordSuccess or use AuthSuccess.
+      emit(AuthSuccess('Password changed successfully.'));
+      // If you created a dedicated state, you could instead:
+      // emit(ChangePasswordSuccess('Password changed successfully.'));
+    } catch (e) {
+      emit(AuthError('Change password failed: ${e.toString()}'));
     }
   }
 }

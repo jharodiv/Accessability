@@ -22,50 +22,53 @@ class AuthService {
 
   // Register with profile picture
   Future<UserCredential> signUpWithEmailAndPassword(
-  String email,
-  String password,
-  String username,
-  String contactNumber,
-  XFile? profilePicture,
-) async {
-  try {
-    // Step 1: Create the user
-    UserCredential userCredential = await _auth.createUserWithEmailAndPassword(
-      email: email,
-      password: password,
-    );
+    String email,
+    String password,
+    String username,
+    String contactNumber,
+    XFile? profilePicture,
+  ) async {
+    try {
+      // Step 1: Create the user
+      UserCredential userCredential =
+          await _auth.createUserWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
 
-    final user = userCredential.user;
-    if (user == null) {
-      throw Exception("User creation failed");
+      final user = userCredential.user;
+      if (user == null) {
+        throw Exception("User creation failed");
+      }
+
+      // Step 2: Send email verification
+      await user.sendEmailVerification();
+
+      // Step 3: Upload the profile picture (if provided)
+      String? profilePictureUrl;
+      if (profilePicture != null) {
+        profilePictureUrl =
+            await uploadProfilePicture(user.uid, profilePicture);
+      }
+
+      // Step 4: Save user data in Firestore
+      await _firestore.collection('Users').doc(user.uid).set({
+        'uid': user.uid,
+        'email': email,
+        'username': username,
+        'contactNumber': contactNumber,
+        'profilePicture': profilePictureUrl ??
+            'https://firebasestorage.googleapis.com/v0/b/accessability-71ef7.firebasestorage.app/o/profile_pictures%2Fdefault_profile.png?alt=media&token=bc7a75a7-a78e-4460-b816-026a8fc341ba',
+        'hasCompletedOnboarding': false,
+        'emailVerified': false, // Track email verification status
+      });
+
+      return userCredential;
+    } on FirebaseAuthException catch (e) {
+      throw Exception(e.code);
     }
-
-    // Step 2: Send email verification
-    await user.sendEmailVerification();
-
-    // Step 3: Upload the profile picture (if provided)
-    String? profilePictureUrl;
-    if (profilePicture != null) {
-      profilePictureUrl = await uploadProfilePicture(user.uid, profilePicture);
-    }
-
-    // Step 4: Save user data in Firestore
-    await _firestore.collection('Users').doc(user.uid).set({
-      'uid': user.uid,
-      'email': email,
-      'username': username,
-      'contactNumber': contactNumber,
-      'profilePicture': profilePictureUrl ??
-          'https://firebasestorage.googleapis.com/v0/b/accessability-71ef7.firebasestorage.app/o/profile_pictures%2Fdefault_profile.png?alt=media&token=bc7a75a7-a78e-4460-b816-026a8fc341ba',
-      'hasCompletedOnboarding': false,
-      'emailVerified': false, // Track email verification status
-    });
-
-    return userCredential;
-  } on FirebaseAuthException catch (e) {
-    throw Exception(e.code);
   }
-}
+
   // Upload profile picture to Firebase Storage
   Future<String?> uploadProfilePicture(String uid, XFile imageFile) async {
     try {
@@ -196,12 +199,39 @@ class AuthService {
     }
   }
 
-   // Forgot Password
+  // Forgot Password
   Future<void> sendPasswordResetEmail(String email) async {
     try {
       await _auth.sendPasswordResetEmail(email: email);
     } on FirebaseAuthException catch (e) {
       throw Exception(e.message);
+    }
+  }
+
+  Future<void> changePassword(
+      String currentPassword, String newPassword) async {
+    final user = _auth.currentUser;
+    if (user == null) {
+      throw Exception("No user is currently logged in");
+    }
+
+    // Reauthenticate the user using current password
+    final credential = EmailAuthProvider.credential(
+      email: user.email!,
+      password: currentPassword,
+    );
+    try {
+      await user.reauthenticateWithCredential(credential);
+    } on FirebaseAuthException catch (e) {
+      // This error might occur if the current password is wrong.
+      throw Exception("Reauthentication failed: ${e.message}");
+    }
+
+    // Update the password
+    try {
+      await user.updatePassword(newPassword);
+    } on FirebaseAuthException catch (e) {
+      throw Exception("Password update failed: ${e.message}");
     }
   }
 }

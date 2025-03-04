@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:AccessAbility/accessability/presentation/screens/settings/settingsScreens/change_password_screen.dart';
+import 'package:AccessAbility/accessability/presentation/screens/settings/settingsScreens/delete_account.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:AccessAbility/accessability/logic/bloc/user/user_bloc.dart';
@@ -258,7 +259,13 @@ class _AccountScreenState extends State<AccountScreen> {
                         'Delete Account',
                         style: TextStyle(color: Colors.redAccent),
                       ),
-                      onTap: () {},
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                              builder: (context) => const DeleteAccount()),
+                        );
+                      },
                     ),
                     const SizedBox(height: 20),
                     Row(
@@ -272,7 +279,10 @@ class _AccountScreenState extends State<AccountScreen> {
                               borderRadius: BorderRadius.circular(50),
                             ),
                           ),
-                          child: const Text('Cancel'),
+                          child: const Text(
+                            'Cancel',
+                            style: TextStyle(color: Color(0xFF6750A4)),
+                          ),
                         ),
                         ElevatedButton(
                           onPressed: () {

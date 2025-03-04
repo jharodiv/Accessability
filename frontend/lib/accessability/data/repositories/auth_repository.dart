@@ -117,4 +117,14 @@ class AuthRepository {
       throw Exception('Change password failed: ${e.toString()}');
     }
   }
+
+  Future<void> deleteAccount() async {
+    try {
+      await authService.deleteAccount();
+      userRepository.clearUserCache();
+    } catch (e) {
+      print('AuthRepository: Failed to delete account - ${e.toString()}');
+      throw Exception('Failed to delete account: ${e.toString()}');
+    }
+  }
 }

@@ -234,4 +234,38 @@ class AuthService {
       throw Exception("Password update failed: ${e.message}");
     }
   }
+
+  Future<void> deleteAccount() async {
+    final user = _auth.currentUser;
+    if (user == null) {
+      throw Exception("No user is currently logged in.");
+    }
+
+    // Remove the FCM token from Firestore.
+    await _firestore.collection('Users').doc(user.uid).update({
+      'fcmToken': FieldValue.delete(),
+    });
+
+    // Stop the background service if it is running.
+    final service = FlutterBackgroundService();
+    final isRunning = await service.isRunning();
+    if (isRunning) {
+      try {
+        service.invoke('stopService');
+      } catch (e) {
+        print('Error stopping background service: $e');
+      }
+    }
+
+    // Delete the user's Firestore document.
+    await _firestore.collection('Users').doc(user.uid).delete();
+
+    // Delete the FirebaseAuth user.
+    try {
+      await user.delete();
+    } on FirebaseAuthException catch (e) {
+      // Firebase may require reauthentication before deletion.
+      throw Exception("Account deletion failed: ${e.message}");
+    }
+  }
 }

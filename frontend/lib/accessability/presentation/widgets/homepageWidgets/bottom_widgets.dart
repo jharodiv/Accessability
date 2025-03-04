@@ -76,28 +76,51 @@ void didUpdateWidget(BottomWidgets oldWidget) {
   }
 
   // Listen to members in real time
-  void _listenToMembers() {
-  if (widget.activeSpaceId.isEmpty || widget.activeSpaceId == 'my_space') return;
+void _listenToMembers() {
+  // If activeSpaceId is empty or 'my_space', cancel any existing listeners and return early
+  if (widget.activeSpaceId.isEmpty || widget.activeSpaceId == 'my_space') {
+    _membersListener?.cancel();
+    _locationListeners.forEach((listener) => listener.cancel());
+    _locationListeners.clear();
+    setState(() {
+      _members = []; // Clear members list
+    });
+    return;
+  }
 
   // Cancel any existing listeners
   _membersListener?.cancel();
   _locationListeners.forEach((listener) => listener.cancel());
   _locationListeners.clear();
 
+  // Listen to the space document
   _membersListener = _firestore
       .collection('Spaces')
       .doc(widget.activeSpaceId)
       .snapshots()
       .listen((snapshot) async {
-    if (!snapshot.exists) return;
+    if (!snapshot.exists) {
+      // If the document doesn't exist, clear members and return
+      setState(() {
+        _members = [];
+      });
+      return;
+    }
 
     final members = snapshot['members'] != null
         ? List<String>.from(snapshot['members'])
         : [];
     final creatorId = snapshot['creator'];
 
-    if (members.isEmpty) return;
+    if (members.isEmpty) {
+      // If there are no members, clear the list and return
+      setState(() {
+        _members = [];
+      });
+      return;
+    }
 
+    // Fetch user details for each member
     final usersSnapshot = await _firestore
         .collection('Users')
         .where('uid', whereIn: members)
@@ -168,7 +191,7 @@ void didUpdateWidget(BottomWidgets oldWidget) {
     }
   }
 
-  Future<void> _addPerson() async {
+ Future<void> _addPerson() async {
   final user = _auth.currentUser;
   if (user == null) return;
 
@@ -199,6 +222,15 @@ void didUpdateWidget(BottomWidgets oldWidget) {
 
   // Check if a verification code already exists and if it has expired
   final spaceSnapshot = await _firestore.collection('Spaces').doc(widget.activeSpaceId).get();
+
+  // Ensure the document exists
+  if (!spaceSnapshot.exists) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Space not found')),
+    );
+    return;
+  }
+
   final existingCode = spaceSnapshot['verificationCode'];
   final codeTimestamp = spaceSnapshot['codeTimestamp']?.toDate();
 
@@ -240,6 +272,7 @@ void didUpdateWidget(BottomWidgets oldWidget) {
   );
 }
 
+
   Future<String?> _showAddPersonDialog() async {
     String? email;
     await showDialog(
@@ -267,32 +300,34 @@ void didUpdateWidget(BottomWidgets oldWidget) {
     return email;
   }
 
-  Future<void> _createSpace() async {
-    final user = _auth.currentUser;
-    if (user == null) return;
+ Future<void> _createSpace() async {
+  final user = _auth.currentUser;
+  if (user == null) return;
 
-    final spaceName = _spaceNameController.text;
-    if (spaceName.isEmpty) return;
+  final spaceName = _spaceNameController.text;
+  if (spaceName.isEmpty) return;
 
-    final verificationCode = _generateVerificationCode();
+  final verificationCode = _generateVerificationCode();
 
-    await _firestore.collection('Spaces').add({
-      'name': spaceName,
-      'creator': user.uid,
-      'members': [user.uid],
-      'verificationCode': verificationCode,
-      'createdAt': DateTime.now(),
-    });
+  // Add the space with the verification code and codeTimestamp
+  await _firestore.collection('Spaces').add({
+    'name': spaceName,
+    'creator': user.uid,
+    'members': [user.uid],
+    'verificationCode': verificationCode,
+    'codeTimestamp': DateTime.now(), 
+    'createdAt': DateTime.now(),
+  });
 
-    _spaceNameController.clear();
-    setState(() {
-      _showCreateSpace = false;
-    });
+  _spaceNameController.clear();
+  setState(() {
+    _showCreateSpace = false;
+  });
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Space created successfully')),
-    );
-  }
+  ScaffoldMessenger.of(context).showSnackBar(
+    const SnackBar(content: Text('Space created successfully')),
+  );
+}
 
  Future<void> _joinSpace() async {
   final user = _auth.currentUser;
@@ -337,12 +372,14 @@ void didUpdateWidget(BottomWidgets oldWidget) {
     );
   }
 }
+
+
   String _generateVerificationCode() {
     final random = Random();
     return (100000 + random.nextInt(900000)).toString();
   }
 
- @override
+@override
 Widget build(BuildContext context) {
   return DraggableScrollableSheet(
     initialChildSize: 0.15,
@@ -415,7 +452,8 @@ Widget build(BuildContext context) {
                         ],
                       ),
                       const SizedBox(height: 20),
-                      if (widget.activeSpaceId == 'my_space' && _activeIndex == 0 && !_showCreateSpace && !_showJoinSpace || widget.activeSpaceId.isEmpty) ...[
+                      // Show the buttons only if neither create nor join space is active
+                     if (!_showCreateSpace && !_showJoinSpace && (widget.activeSpaceId == 'my_space' || widget.activeSpaceId.isEmpty)) ...[
                         ElevatedButton(
                           onPressed: () {
                             setState(() {
@@ -468,7 +506,6 @@ Widget build(BuildContext context) {
     },
   );
 }
-
 
   Widget _buildCreateSpaceForm() {
     return Column(

@@ -1,88 +1,84 @@
 import 'package:flutter/material.dart';
 
-class CreateSpaceWidget extends StatefulWidget {
-  const CreateSpaceWidget({Key? key}) : super(key: key);
+class CreateSpaceWidget extends StatelessWidget {
+  final TextEditingController spaceNameController;
+  final VoidCallback onCreateSpace;
+  final VoidCallback onCancel;
 
-  @override
-  State<CreateSpaceWidget> createState() => _CreateSpaceWidgetState();
-}
-
-class _CreateSpaceWidgetState extends State<CreateSpaceWidget> {
-  final TextEditingController _spaceNameController = TextEditingController();
-
-  @override
-  void dispose() {
-    _spaceNameController.dispose();
-    super.dispose();
-  }
-
-  // Example create action
-  void _createSpace() {
-    final spaceName = _spaceNameController.text;
-    // Replace with your create-space logic
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Space Created: $spaceName')),
-    );
-  }
+  const CreateSpaceWidget({
+    Key? key,
+    required this.spaceNameController,
+    required this.onCreateSpace,
+    required this.onCancel,
+  }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      // AppBar with back button on the right side
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        // Remove default left back arrow
-        leading: const SizedBox.shrink(),
-        centerTitle: true,
-        title: const Text(
-          'Create my Space',
-          style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.arrow_back, color: Colors.black),
-            onPressed: () => Navigator.of(context).pop(),
+    return Padding(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        children: [
+          // Header row with centered title
+          const Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                'Create my space',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              ),
+            ],
           ),
-        ],
-      ),
-      body: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 40),
-        child: Column(
-          children: [
-            TextField(
-              controller: _spaceNameController,
-              decoration: const InputDecoration(
-                labelText: 'Space Name',
-                border: OutlineInputBorder(),
-              ),
+          const SizedBox(height: 20),
+          TextField(
+            controller: spaceNameController,
+            decoration: const InputDecoration(
+              labelText: 'Space Name',
+              border: OutlineInputBorder(),
             ),
-            const SizedBox(height: 20),
-            ElevatedButton(
-              onPressed: _createSpace,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF6750A4),
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 50, vertical: 15),
-              ),
-              child: const Text(
-                'Create',
-                style: TextStyle(color: Colors.white),
-              ),
-            ),
-            const SizedBox(height: 10),
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text(
-                'Back',
-                style: TextStyle(
-                  color: Color(0xFF6750A4),
-                  fontWeight: FontWeight.bold,
+          ),
+          const SizedBox(height: 20),
+          Row(
+            children: [
+              Expanded(
+                child: ElevatedButton(
+                  onPressed: onCreateSpace,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF6750A4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 50,
+                      vertical: 15,
+                    ),
+                  ),
+                  child: const Text(
+                    'Create',
+                    style: TextStyle(color: Colors.white),
+                  ),
                 ),
               ),
-            ),
-          ],
-        ),
+              const SizedBox(width: 10), // Adds spacing between buttons
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: onCancel,
+                  style: OutlinedButton.styleFrom(
+                    side: const BorderSide(
+                      color: Color(0xFF6750A4),
+                    ),
+                    padding: const EdgeInsets.symmetric(vertical: 15),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                  child: const Text(
+                    'Back',
+                    style: TextStyle(
+                      color: Color(0xFF6750A4),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }

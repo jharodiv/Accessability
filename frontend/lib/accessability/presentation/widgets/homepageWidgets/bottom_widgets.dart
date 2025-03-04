@@ -1,8 +1,8 @@
 import 'dart:async';
 import 'dart:math';
-
 import 'package:AccessAbility/accessability/firebaseServices/place/geocoding_service.dart';
 import 'package:AccessAbility/accessability/presentation/widgets/bottomSheetWidgets/create_space_widget.dart';
+import 'package:AccessAbility/accessability/presentation/widgets/bottomSheetWidgets/custom_button.dart';
 import 'package:AccessAbility/accessability/presentation/widgets/bottomSheetWidgets/join_space_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -36,10 +36,14 @@ class _BottomWidgetsState extends State<BottomWidgets> {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final ChatService _chatService = ChatService();
   List<Map<String, dynamic>> _members = [];
+  String? _spaceName;
+  String? _verificationCode;
+
   String? _creatorId;
   String? _selectedMemberId;
   bool _showCreateSpace = false;
   bool _showJoinSpace = false;
+  bool _showBuildContent = false;
   final TextEditingController _spaceNameController = TextEditingController();
   final List<TextEditingController> _verificationCodeControllers =
       List.generate(6, (index) => TextEditingController());
@@ -65,6 +69,7 @@ class _BottomWidgetsState extends State<BottomWidgets> {
         setState(() {
           _showCreateSpace = false;
           _showJoinSpace = false;
+          _showBuildContent = false;
           _members = []; // Clear members list
         });
       }
@@ -88,7 +93,6 @@ class _BottomWidgetsState extends State<BottomWidgets> {
     super.dispose();
   }
 
-  // Listen to members in real time
   void _listenToMembers() {
     if (widget.activeSpaceId.isEmpty) {
       _membersListener?.cancel();
@@ -97,6 +101,8 @@ class _BottomWidgetsState extends State<BottomWidgets> {
       _locationListeners.clear();
       setState(() {
         _members = [];
+        _spaceName = null;
+        _verificationCode = null;
       });
       return;
     }
@@ -114,6 +120,8 @@ class _BottomWidgetsState extends State<BottomWidgets> {
       if (!snapshot.exists) {
         setState(() {
           _members = [];
+          _spaceName = null;
+          _verificationCode = null;
         });
         return;
       }
@@ -122,10 +130,15 @@ class _BottomWidgetsState extends State<BottomWidgets> {
           ? List<String>.from(snapshot['members'])
           : [];
       final creatorId = snapshot['creator'];
+      final spaceName = snapshot['name'] ?? 'Unnamed Space';
+      final verificationCode = snapshot['verificationCode'];
 
       if (members.isEmpty) {
         setState(() {
           _members = [];
+          _spaceName = spaceName;
+          _verificationCode = verificationCode;
+          _creatorId = creatorId;
         });
         return;
       }
@@ -159,6 +172,8 @@ class _BottomWidgetsState extends State<BottomWidgets> {
       setState(() {
         _members = updatedMembers;
         _creatorId = creatorId;
+        _spaceName = spaceName;
+        _verificationCode = verificationCode;
       });
 
       for (final member in members) {
@@ -449,9 +464,36 @@ class _BottomWidgetsState extends State<BottomWidgets> {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                           children: [
-                            _buildButton(Icons.people, 0),
-                            _buildButton(Icons.business, 1),
-                            _buildButton(Icons.map, 2),
+                            CustomButton(
+                              icon: Icons.people,
+                              index: 0,
+                              activeIndex: _activeIndex,
+                              onPressed: (int newIndex) {
+                                setState(() {
+                                  _activeIndex = newIndex;
+                                });
+                              },
+                            ),
+                            CustomButton(
+                              icon: Icons.business,
+                              index: 1,
+                              activeIndex: _activeIndex,
+                              onPressed: (int newIndex) {
+                                setState(() {
+                                  _activeIndex = newIndex;
+                                });
+                              },
+                            ),
+                            CustomButton(
+                              icon: Icons.map,
+                              index: 2,
+                              activeIndex: _activeIndex,
+                              onPressed: (int newIndex) {
+                                setState(() {
+                                  _activeIndex = newIndex;
+                                });
+                              },
+                            ),
                           ],
                         ),
                         const SizedBox(height: 20),
@@ -486,23 +528,6 @@ class _BottomWidgetsState extends State<BottomWidgets> {
                           ),
 
                           const SizedBox(height: 25),
-                          // const Padding(
-                          //   padding: EdgeInsets.only(left: 15.0),
-                          //   child: Row(
-                          //     mainAxisAlignment: MainAxisAlignment.start,
-                          //     crossAxisAlignment: CrossAxisAlignment.start,
-                          //     children: [
-                          //       Text(
-                          //         "My Space",
-                          //         style: TextStyle(
-                          //           fontWeight: FontWeight.w800,
-                          //           fontSize: 20,
-                          //         ),
-                          //       ),
-                          //     ],
-                          //   ),
-                          // ),
-                          // const SizedBox(height: 25),
                           Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
@@ -550,17 +575,121 @@ class _BottomWidgetsState extends State<BottomWidgets> {
                             ],
                           ),
                         ],
-                        if (_showCreateSpace) _buildCreateSpaceForm(),
-                        if (_showJoinSpace) _buildJoinSpaceForm(),
+                        if (_showCreateSpace && !_showBuildContent)
+                          CreateSpaceWidget(
+                            spaceNameController: _spaceNameController,
+                            onCreateSpace: _createSpace,
+                            onCancel: () {
+                              setState(() {
+                                _showCreateSpace = false;
+                              });
+                            },
+                          ),
+                        if (_showJoinSpace && !_showBuildContent)
+                          JoinSpaceWidget(
+                            verificationCodeControllers:
+                                _verificationCodeControllers,
+                            verificationCodeFocusNodes:
+                                _verificationCodeFocusNodes,
+                            onJoinSpace: _joinSpace,
+                            onCancel: () {
+                              setState(() {
+                                _showJoinSpace = false;
+                              });
+                            },
+                          ),
                         _buildContent(),
                         if (_creatorId == _auth.currentUser?.uid &&
                             _activeIndex == 0 &&
                             widget.activeSpaceId.isNotEmpty)
-                          ElevatedButton(
-                            onPressed: _addPerson,
-                            style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFF6750A4)),
-                            child: const Text('Send code'),
+                          Column(
+                            children: [
+                              Text(
+                                'Invite members to the ($_spaceName) Space',
+                                style: const TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              const Text(
+                                'Share your code out loud or send it in a message',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: Colors.black54,
+                                ),
+                              ),
+                              const SizedBox(height: 5),
+                              Container(
+                                // Increased size
+                                width: double
+                                    .infinity, // Makes the container take full width
+                                padding: const EdgeInsets.all(
+                                    24), // Increased padding for a larger box
+                                margin: const EdgeInsets.symmetric(
+                                    vertical: 16,
+                                    horizontal: 16), // Added horizontal margin
+                                decoration: BoxDecoration(
+                                  color: const Color.fromARGB(255, 213, 205,
+                                      237), // Changed background color
+                                  borderRadius: BorderRadius.circular(12),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withOpacity(0.2),
+                                      blurRadius: 6,
+                                      offset: const Offset(0, 3),
+                                    ),
+                                  ],
+                                ),
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  crossAxisAlignment: CrossAxisAlignment.center,
+                                  children: [
+                                    Text(
+                                      _verificationCode ?? 'ABC - DEF',
+                                      style: const TextStyle(
+                                          fontSize: 28, // Increased font size
+                                          fontWeight: FontWeight.w800,
+                                          color: Color(
+                                              0xFF6750A4) // Text color changed to white for better contrast
+                                          ),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    const Text(
+                                      'This code will be active for 5 hours',
+                                      style: TextStyle(
+                                        fontSize: 14, // Slightly larger font
+                                        fontWeight: FontWeight.w400,
+                                        color: Colors
+                                            .black, // Changed color to black
+                                      ),
+                                    ),
+                                    const SizedBox(height: 16),
+                                    ElevatedButton(
+                                      onPressed: _addPerson,
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: const Color(
+                                            0xFF6750A4), // Button background white for contrast
+                                        foregroundColor: Colors
+                                            .white, // Text color to match theme
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 24, vertical: 12),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius:
+                                              BorderRadius.circular(8),
+                                        ),
+                                      ),
+                                      child: const Text(
+                                        'Send code',
+                                        style: TextStyle(
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.bold),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
                           ),
                       ],
                     ),
@@ -574,233 +703,9 @@ class _BottomWidgetsState extends State<BottomWidgets> {
     );
   }
 
-  Widget _buildCreateSpaceForm() {
-    return Padding(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        children: [
-          // Header row with centered title and back button on the right
-          const Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text(
-                'Create my space',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-              ),
-            ],
-          ),
-          const SizedBox(height: 20),
-          TextField(
-            controller: _spaceNameController,
-            decoration: const InputDecoration(
-              labelText: 'Space Name',
-              border: OutlineInputBorder(),
-            ),
-          ),
-          const SizedBox(height: 20),
-          Row(
-            children: [
-              Expanded(
-                child: ElevatedButton(
-                  onPressed: _createSpace,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF6750A4),
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 50, vertical: 15),
-                  ),
-                  child: const Text(
-                    'Create',
-                    style: TextStyle(color: Colors.white),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 10), // Adds spacing between buttons
-
-              Expanded(
-                child: OutlinedButton(
-                  onPressed: () {
-                    setState(() {
-                      _showCreateSpace = false;
-                    });
-                  },
-                  style: OutlinedButton.styleFrom(
-                    side: const BorderSide(
-                        color: Color(0xFF6750A4)), // Border color
-                    padding: const EdgeInsets.symmetric(vertical: 15),
-                    shape: RoundedRectangleBorder(
-                      borderRadius:
-                          BorderRadius.circular(10), // Same border radius
-                    ),
-                  ),
-                  child: const Text(
-                    'Back',
-                    style: TextStyle(
-                        color: Color(0xFF6750A4)), // Text color to match border
-                  ),
-                ),
-              ),
-            ],
-          )
-        ],
-      ),
-    );
-  }
-
-  Widget _buildJoinSpaceForm() {
-    return Padding(
-      padding: const EdgeInsets.all(16.0),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          // Main heading
-          const Text(
-            'Enter the Invite Code',
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 8),
-
-          // Subheading or helper text
-          const Text(
-            'Get the code from the person setting up your Space',
-            style: TextStyle(
-              fontSize: 14,
-              color: Colors.grey,
-            ),
-          ),
-          const SizedBox(height: 24),
-
-          // Code input fields
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              // First 3 fields
-              for (int i = 0; i < 3; i++)
-                Container(
-                  margin: const EdgeInsets.symmetric(horizontal: 4),
-                  width: 40,
-                  child: TextField(
-                    controller: _verificationCodeControllers[i],
-                    focusNode: _verificationCodeFocusNodes[i],
-                    textAlign: TextAlign.center,
-                    maxLength: 1,
-                    keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(
-                      counterText: '',
-                      border: OutlineInputBorder(),
-                    ),
-                  ),
-                ),
-              const SizedBox(width: 8),
-              const Text('-', style: TextStyle(fontSize: 20)),
-              const SizedBox(width: 8),
-              // Last 3 fields
-              for (int i = 3; i < 6; i++)
-                Container(
-                  margin: const EdgeInsets.symmetric(horizontal: 4),
-                  width: 40,
-                  child: TextField(
-                    controller: _verificationCodeControllers[i],
-                    focusNode: _verificationCodeFocusNodes[i],
-                    textAlign: TextAlign.center,
-                    maxLength: 1,
-                    keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(
-                      counterText: '',
-                      border: OutlineInputBorder(),
-                    ),
-                  ),
-                ),
-            ],
-          ),
-          const SizedBox(height: 24),
-
-          // Submit button
-          Center(
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: _joinSpace,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF6750A4),
-                      padding: const EdgeInsets.symmetric(vertical: 15),
-                      shape: RoundedRectangleBorder(
-                        borderRadius:
-                            BorderRadius.circular(10), // Border radius 10
-                      ),
-                    ),
-                    child: const Text(
-                      'Submit',
-                      style: TextStyle(color: Colors.white),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 10), // Adds spacing between buttons
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: () {
-                      setState(() {
-                        _showJoinSpace = false;
-                      });
-                    },
-                    style: OutlinedButton.styleFrom(
-                      side: const BorderSide(
-                          color: Color(0xFF6750A4)), // Border color
-                      padding: const EdgeInsets.symmetric(vertical: 15),
-                      shape: RoundedRectangleBorder(
-                        borderRadius:
-                            BorderRadius.circular(10), // Same border radius
-                      ),
-                    ),
-                    child: const Text(
-                      'Back',
-                      style: TextStyle(
-                          color:
-                              Color(0xFF6750A4)), // Text color to match border
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          )
-        ],
-      ),
-    );
-  }
-
-  Widget _buildButton(IconData icon, int index) {
-    bool isActive = _activeIndex == index;
-    return SizedBox(
-      width: 100,
-      child: ElevatedButton(
-        onPressed: () {
-          setState(() {
-            _activeIndex = index;
-          });
-        },
-        style: ElevatedButton.styleFrom(
-          backgroundColor: isActive
-              ? const Color(0xFF6750A4)
-              : const Color.fromARGB(255, 211, 198, 248),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-          ),
-          padding: const EdgeInsets.all(16),
-        ),
-        child: Icon(
-          icon,
-          color: isActive ? Colors.white : const Color(0xFF6750A4),
-        ),
-      ),
-    );
-  }
-
   Widget _buildContent() {
+    _showCreateSpace = false;
+    _showJoinSpace = false;
     switch (_activeIndex) {
       case 0:
         if (widget.activeSpaceId.isNotEmpty) {
@@ -866,7 +771,10 @@ class _BottomWidgetsState extends State<BottomWidgets> {
                             ],
                           ),
                           trailing: IconButton(
-                            icon: const Icon(Icons.chat),
+                            icon: const Icon(
+                              Icons.chat,
+                              color: Color(0xFF6750A4),
+                            ),
                             onPressed: () {
                               Navigator.pushNamed(
                                 context,

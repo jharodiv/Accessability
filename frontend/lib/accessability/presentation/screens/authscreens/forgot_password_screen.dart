@@ -10,14 +10,6 @@ class ForgotPasswordScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        leading: IconButton(
-          icon: Icon(Icons.arrow_back),
-          onPressed: () {
-            Navigator.pop(context); // Pops the current screen off the stack
-          },
-        ),
-      ),
       body: SafeArea(
         child: LayoutBuilder(
           builder: (context, constraints) {
@@ -35,7 +27,8 @@ class ForgotPasswordScreen extends StatelessWidget {
                   const SizedBox(height: 70),
                   Container(
                     padding: const EdgeInsets.all(16),
-                    child: Forgotpasswordconfirmation(emailController: emailController),
+                    child: Forgotpasswordconfirmation(
+                        emailController: emailController),
                   ),
                 ],
               ),

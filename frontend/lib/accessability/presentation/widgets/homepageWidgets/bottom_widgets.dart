@@ -78,28 +78,50 @@ class _BottomWidgetsState extends State<BottomWidgets> {
 
   // Listen to members in real time
   void _listenToMembers() {
-    if (widget.activeSpaceId.isEmpty || widget.activeSpaceId == 'my_space')
+    // If activeSpaceId is empty or 'my_space', cancel any existing listeners and return early
+    if (widget.activeSpaceId.isEmpty || widget.activeSpaceId == 'my_space') {
+      _membersListener?.cancel();
+      _locationListeners.forEach((listener) => listener.cancel());
+      _locationListeners.clear();
+      setState(() {
+        _members = []; // Clear members list
+      });
       return;
+    }
 
     // Cancel any existing listeners
     _membersListener?.cancel();
     _locationListeners.forEach((listener) => listener.cancel());
     _locationListeners.clear();
 
+    // Listen to the space document
     _membersListener = _firestore
         .collection('Spaces')
         .doc(widget.activeSpaceId)
         .snapshots()
         .listen((snapshot) async {
-      if (!snapshot.exists) return;
+      if (!snapshot.exists) {
+        // If the document doesn't exist, clear members and return
+        setState(() {
+          _members = [];
+        });
+        return;
+      }
 
       final members = snapshot['members'] != null
           ? List<String>.from(snapshot['members'])
           : [];
       final creatorId = snapshot['creator'];
 
-      if (members.isEmpty) return;
+      if (members.isEmpty) {
+        // If there are no members, clear the list and return
+        setState(() {
+          _members = [];
+        });
+        return;
+      }
 
+      // Fetch user details for each member
       final usersSnapshot = await _firestore
           .collection('Users')
           .where('uid', whereIn: members)
@@ -204,6 +226,15 @@ class _BottomWidgetsState extends State<BottomWidgets> {
     // Check if a verification code already exists and if it has expired
     final spaceSnapshot =
         await _firestore.collection('Spaces').doc(widget.activeSpaceId).get();
+
+    // Ensure the document exists
+    if (!spaceSnapshot.exists) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Space not found')),
+      );
+      return;
+    }
+
     final existingCode = spaceSnapshot['verificationCode'];
     final codeTimestamp = spaceSnapshot['codeTimestamp']?.toDate();
 
@@ -281,11 +312,13 @@ class _BottomWidgetsState extends State<BottomWidgets> {
 
     final verificationCode = _generateVerificationCode();
 
+    // Add the space with the verification code and codeTimestamp
     await _firestore.collection('Spaces').add({
       'name': spaceName,
       'creator': user.uid,
       'members': [user.uid],
       'verificationCode': verificationCode,
+      'codeTimestamp': DateTime.now(),
       'createdAt': DateTime.now(),
     });
 
@@ -426,60 +459,42 @@ class _BottomWidgetsState extends State<BottomWidgets> {
                           ],
                         ),
                         const SizedBox(height: 20),
-                        if (widget.activeSpaceId == 'my_space' &&
-                                _activeIndex == 0 &&
-                                !_showCreateSpace &&
-                                !_showJoinSpace ||
-                            widget.activeSpaceId.isEmpty) ...[
-                          // Create Space Button (Elevated - solid)
-                          Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 40),
-                            child: ElevatedButton(
-                              onPressed: () {
-                                setState(() {
-                                  _showCreateSpace = true;
-                                });
-                              },
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFF6750A4),
-                                minimumSize: const Size(double.infinity, 56),
-                                shape: const RoundedRectangleBorder(
-                                  borderRadius:
-                                      BorderRadius.zero, // Square corners
-                                ),
-                              ),
-                              child: const Text(
-                                'Create Space',
-                                style: TextStyle(
-                                    color: Colors.white, fontSize: 16),
-                              ),
+                        // Show the buttons only if neither create nor join space is active
+                        if (!_showCreateSpace &&
+                            !_showJoinSpace &&
+                            (widget.activeSpaceId == 'my_space' ||
+                                widget.activeSpaceId.isEmpty)) ...[
+                          ElevatedButton(
+                            onPressed: () {
+                              setState(() {
+                                _showCreateSpace = true;
+                              });
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF6750A4),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 50, vertical: 15),
+                            ),
+                            child: const Text(
+                              'Create Space',
+                              style: TextStyle(color: Colors.white),
                             ),
                           ),
-                          const SizedBox(height: 8),
-                          Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 40),
-                            child: OutlinedButton(
-                              onPressed: () {
-                                setState(() {
-                                  _showJoinSpace = true;
-                                });
-                              },
-                              style: OutlinedButton.styleFrom(
-                                minimumSize: const Size(500, 56),
-                                shape: const RoundedRectangleBorder(
-                                  borderRadius:
-                                      BorderRadius.zero, // Square corners
-                                ),
-                                side: const BorderSide(
-                                  color: Color(0xFF6750A4),
-                                  width: 2,
-                                ),
-                              ),
-                              child: const Text(
-                                'Join Space',
-                                style: TextStyle(
-                                    color: Color(0xFF6750A4), fontSize: 16),
-                              ),
+                          const SizedBox(height: 10),
+                          ElevatedButton(
+                            onPressed: () {
+                              setState(() {
+                                _showJoinSpace = true;
+                              });
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF6750A4),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 50, vertical: 15),
+                            ),
+                            child: const Text(
+                              'Join Space',
+                              style: TextStyle(color: Colors.white),
                             ),
                           ),
                         ],

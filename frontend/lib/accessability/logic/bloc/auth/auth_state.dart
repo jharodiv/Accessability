@@ -50,3 +50,12 @@ class ProfilePictureUpdated extends AuthState {
 }
 
 class EmailVerified extends AuthState {}
+
+class ForgotPasswordSuccess extends AuthState {
+  final String message;
+
+  ForgotPasswordSuccess(this.message);
+
+  @override
+  List<Object> get props => [message];
+}

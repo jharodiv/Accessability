@@ -1,8 +1,67 @@
 import 'package:flutter/material.dart';
-import 'package:AccessAbility/accessability/presentation/screens/authScreens/new_password.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:AccessAbility/accessability/logic/bloc/auth/auth_bloc.dart';
+import 'package:AccessAbility/accessability/logic/bloc/auth/auth_event.dart';
+import 'dart:async';
 
-class Forgotpasswordconfirmation extends StatelessWidget {
-  const Forgotpasswordconfirmation({super.key});
+class Forgotpasswordconfirmation extends StatefulWidget {
+  final TextEditingController emailController;
+
+  const Forgotpasswordconfirmation({super.key, required this.emailController});
+
+  @override
+  _ForgotpasswordconfirmationState createState() =>
+      _ForgotpasswordconfirmationState();
+}
+
+class _ForgotpasswordconfirmationState
+    extends State<Forgotpasswordconfirmation> {
+  bool isButtonDisabled = false;
+  int remainingTime = 60;  // Duration for the countdown (in seconds)
+  late Timer _timer;
+
+  @override
+  void dispose() {
+    _timer.cancel(); // Cancel the timer if the widget is disposed
+    super.dispose();
+  }
+
+  void _onContinuePressed(BuildContext context) {
+    final email = widget.emailController.text.trim();
+
+    if (email.isNotEmpty) {
+      // Disable the button and start the countdown
+      setState(() {
+        isButtonDisabled = true;
+      });
+
+      // Trigger the event to send the reset password link
+      context.read<AuthBloc>().add(ForgotPasswordEvent(email));
+
+      // Start the timer to enable the button after 1 minute
+      _timer = Timer.periodic(Duration(seconds: 1), (timer) {
+        if (remainingTime > 0) {
+          setState(() {
+            remainingTime--;
+          });
+        } else {
+          _timer.cancel(); // Stop the timer when the time is up
+          setState(() {
+            isButtonDisabled = false;
+          });
+        }
+      });
+
+      // Optionally, show a snackbar or other UI feedback that the request is sent
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Password reset link sent!')),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter your email')),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -26,6 +85,7 @@ class Forgotpasswordconfirmation extends StatelessWidget {
           SizedBox(
             width: double.infinity, // Makes it full-width
             child: TextField(
+              controller: widget.emailController,
               decoration: InputDecoration(
                 labelText: 'Email',
                 border: OutlineInputBorder(
@@ -37,16 +97,13 @@ class Forgotpasswordconfirmation extends StatelessWidget {
           ),
           const SizedBox(height: 25),
 
-          // Continue Button
+          // Continue Button with countdown
           SizedBox(
             width: double.infinity, // Makes it full-width
             child: ElevatedButton(
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const Newpassword()),
-                );
-              },
+              onPressed: isButtonDisabled
+                  ? null // Disable the button if the timer is running
+                  : () => _onContinuePressed(context),
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF6750A4),
                 padding: const EdgeInsets.symmetric(vertical: 16.0),
@@ -54,13 +111,46 @@ class Forgotpasswordconfirmation extends StatelessWidget {
                   borderRadius: BorderRadius.circular(8.0),
                 ),
               ),
-              child: const Text(
-                'Continue',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                ),
+              child: isButtonDisabled
+                  ? Text(
+                      'Please wait... ${remainingTime}s',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    )
+                  : const Text(
+                      'Continue',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
+            ),
+          ),
+
+          const SizedBox(height: 20),
+
+          // Back Button to Pop Context
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context); // Pops the current screen off the stack
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.grey, // You can change this color
+              padding: const EdgeInsets.symmetric(vertical: 16.0),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8.0),
+              ),
+            ),
+            child: const Text(
+              'Back',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
               ),
             ),
           ),
@@ -78,7 +168,7 @@ class Forgotpasswordconfirmation extends StatelessWidget {
               ),
               TextButton(
                 onPressed: () {
-                  Navigator.pushNamed(context, '/signup');
+                  Navigator.pushReplacementNamed(context, '/signup');
                 },
                 child: const Text(
                   'Signup',

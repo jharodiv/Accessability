@@ -1,11 +1,13 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter_background_service/flutter_background_service.dart';
+import 'package:flutter_background_service_android/flutter_background_service_android.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:location/location.dart';
 
 Future<void> initializeService() async {
   final service = FlutterBackgroundService();
+
   await service.configure(
     androidConfiguration: AndroidConfiguration(
       onStart: onStart,
@@ -21,12 +23,19 @@ Future<void> initializeService() async {
       onForeground: onStart,
     ),
   );
+
+  service.startService();
 }
 
 void onStart(ServiceInstance service) async {
   try {
     // Initialize Firebase
     await Firebase.initializeApp();
+
+    // Set the service as a foreground service immediately
+    if (service is AndroidServiceInstance) {
+      service.setAsForegroundService();
+    }
 
     // Check if the user is logged in
     final user = FirebaseAuth.instance.currentUser;
@@ -57,10 +66,18 @@ void onStart(ServiceInstance service) async {
       });
     });
 
-    // Handle service lifecycle
+
     service.on('stopService').listen((event) {
       service.stopSelf();
     });
+
+
+    // Keep the service alive
+    while (true) {
+      await Future.delayed(Duration(seconds: 5));
+    }
+
+    
   } catch (e) {
     print('Error in background service: $e');
   }

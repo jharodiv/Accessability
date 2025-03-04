@@ -261,24 +261,28 @@ class _LoginFormState extends State<LoginForm> {
                       ),
                     ),
                   ),
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: TextButton(
-                      onPressed: () => Navigator.push(
+                 Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton(
+                    onPressed: () {
+                      Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => const ForgotPasswordScreen(),
+                          builder: (context) => ForgotPasswordScreen(),
                         ),
-                      ),
-                      child: const Text(
-                        'Forgot Password?',
-                        style: TextStyle(
-                            color: Color(0xFF6750A4),
-                            fontSize: 17,
-                            fontWeight: FontWeight.w800),
+                      );
+                    },
+                    child: const Text(
+                      'Forgot Password?',
+                      style: TextStyle(
+                        color: Color(0xFF6750A4),
+                        fontSize: 17,
+                        fontWeight: FontWeight.w800,
                       ),
                     ),
                   ),
+                ),
+
                   const SizedBox(height: 5),
                   ElevatedButton(
                     onPressed: () => _login(context),

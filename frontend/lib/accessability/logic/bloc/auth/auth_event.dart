@@ -40,3 +40,11 @@ class LoginWithBiometricEvent extends AuthEvent {}
 
 class CheckEmailVerification extends AuthEvent {}
 
+class ForgotPasswordEvent extends AuthEvent {
+  final String email;
+
+  ForgotPasswordEvent(this.email);
+
+  @override
+  List<Object?> get props => [email];
+}

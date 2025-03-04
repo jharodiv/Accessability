@@ -35,6 +35,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     on<LogoutEvent>(_onLogoutEvent);
     on<CheckEmailVerification>(_onCheckEmailVerification);
     on<LoginWithBiometricEvent>(_onLoginWithBiometricEvent);
+    on<ForgotPasswordEvent>(_onForgotPasswordEvent);
   }
 
  Future<void> _onLoginEvent(LoginEvent event, Emitter<AuthState> emit) async {
@@ -194,4 +195,17 @@ Future<void> _onCompleteOnboardingEvent(
     }
   }
 }
+
+ Future<void> _onForgotPasswordEvent(
+    ForgotPasswordEvent event,
+    Emitter<AuthState> emit,
+  ) async {
+    emit(AuthLoading());
+    try {
+      await authService.sendPasswordResetEmail(event.email);
+      emit(ForgotPasswordSuccess('Password reset email sent to ${event.email}'));
+    } catch (e) {
+      emit(AuthError('Failed to send password reset email: ${e.toString()}'));
+    }
+  }
 }

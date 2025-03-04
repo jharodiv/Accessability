@@ -1,9 +1,12 @@
-import 'package:flutter/material.dart';
 import 'package:AccessAbility/accessability/presentation/widgets/accessability_header.dart';
-import 'package:AccessAbility/accessability/presentation/widgets/authwidgets/forgot_password_confirmation.dart';
+import 'package:AccessAbility/accessability/presentation/widgets/authWidgets/forgot_password_confirmation.dart';
+import 'package:flutter/material.dart';
+
 
 class ForgotPasswordScreen extends StatelessWidget {
-  const ForgotPasswordScreen({super.key});
+  final TextEditingController emailController = TextEditingController();
+
+  ForgotPasswordScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -25,7 +28,7 @@ class ForgotPasswordScreen extends StatelessWidget {
                   const SizedBox(height: 70),
                   Container(
                     padding: const EdgeInsets.all(16),
-                    child: const Forgotpasswordconfirmation(),
+                    child: Forgotpasswordconfirmation(emailController: emailController),
                   ),
                 ],
               ),

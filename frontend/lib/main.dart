@@ -42,8 +42,6 @@ void main() async {
 
   await createNotificationChannel();
 
-  await initializeService();
-
   // Initialize SharedPreferences
   final SharedPreferences sharedPreferences =
       await SharedPreferences.getInstance();

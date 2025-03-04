@@ -98,4 +98,12 @@ class AuthRepository {
       throw Exception('Failed to logout: ${e.toString()}');
     }
   }
+
+   Future<void> forgotPassword(String email) async {
+    try {
+      await authService.sendPasswordResetEmail(email);
+    } catch (e) {
+      throw Exception('Failed to send password reset email: ${e.toString()}');
+    }
+  }
 }

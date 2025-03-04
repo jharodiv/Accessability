@@ -34,6 +34,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     on<LoginWithBiometricEvent>(_onLoginWithBiometricEvent);
     on<ForgotPasswordEvent>(_onForgotPasswordEvent);
     on<ChangePasswordEvent>(_onChangePasswordEvent);
+    on<DeleteAccountEvent>(_onDeleteAccountEvent);
   }
 
   Future<void> _onLoginEvent(LoginEvent event, Emitter<AuthState> emit) async {
@@ -226,6 +227,17 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       // emit(ChangePasswordSuccess('Password changed successfully.'));
     } catch (e) {
       emit(AuthError('Change password failed: ${e.toString()}'));
+    }
+  }
+
+  Future<void> _onDeleteAccountEvent(
+      DeleteAccountEvent event, Emitter<AuthState> emit) async {
+    emit(AuthLoading());
+    try {
+      await authRepository.deleteAccount();
+      emit(AuthSuccess("Account deleted successfully."));
+    } catch (e) {
+      emit(AuthError("Failed to delete account: ${e.toString()}"));
     }
   }
 }

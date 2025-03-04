@@ -58,3 +58,5 @@ class ChangePasswordEvent extends AuthEvent {
     required this.newPassword,
   });
 }
+
+class DeleteAccountEvent extends AuthEvent {}

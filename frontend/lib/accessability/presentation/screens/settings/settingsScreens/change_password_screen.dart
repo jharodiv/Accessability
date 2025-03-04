@@ -1,4 +1,4 @@
-import 'package:AccessAbility/accessability/presentation/widgets/shimmer/ShimmerChangePasswordScreen.dart';
+import 'package:AccessAbility/accessability/presentation/widgets/shimmer/shimmer_change_password_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:AccessAbility/accessability/logic/bloc/auth/auth_bloc.dart';

@@ -130,31 +130,6 @@ class _ForgotpasswordconfirmationState
                     ),
             ),
           ),
-
-          const SizedBox(height: 20),
-
-          // Back Button to Pop Context
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context); // Pops the current screen off the stack
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.grey, // You can change this color
-              padding: const EdgeInsets.symmetric(vertical: 16.0),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8.0),
-              ),
-            ),
-            child: const Text(
-              'Back',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-              ),
-            ),
-          ),
-
           const SizedBox(height: 20),
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -171,7 +146,7 @@ class _ForgotpasswordconfirmationState
                   Navigator.pushReplacementNamed(context, '/signup');
                 },
                 child: const Text(
-                  'Signup',
+                  'Sign Up',
                   style: TextStyle(
                     color: Color(0xFF6750A4),
                     fontWeight: FontWeight.w800,

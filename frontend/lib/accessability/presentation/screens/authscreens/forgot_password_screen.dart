@@ -2,7 +2,6 @@ import 'package:AccessAbility/accessability/presentation/widgets/accessability_h
 import 'package:AccessAbility/accessability/presentation/widgets/authWidgets/forgot_password_confirmation.dart';
 import 'package:flutter/material.dart';
 
-
 class ForgotPasswordScreen extends StatelessWidget {
   final TextEditingController emailController = TextEditingController();
 
@@ -11,6 +10,14 @@ class ForgotPasswordScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      appBar: AppBar(
+        leading: IconButton(
+          icon: Icon(Icons.arrow_back),
+          onPressed: () {
+            Navigator.pop(context); // Pops the current screen off the stack
+          },
+        ),
+      ),
       body: SafeArea(
         child: LayoutBuilder(
           builder: (context, constraints) {

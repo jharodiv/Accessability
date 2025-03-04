@@ -99,11 +99,22 @@ class AuthRepository {
     }
   }
 
-   Future<void> forgotPassword(String email) async {
+  Future<void> forgotPassword(String email) async {
     try {
       await authService.sendPasswordResetEmail(email);
     } catch (e) {
       throw Exception('Failed to send password reset email: ${e.toString()}');
+    }
+  }
+
+  // Change Password
+  Future<void> changePassword(
+      String currentPassword, String newPassword) async {
+    try {
+      await authService.changePassword(currentPassword, newPassword);
+    } catch (e) {
+      print('AuthRepository: Change password failed - ${e.toString()}');
+      throw Exception('Change password failed: ${e.toString()}');
     }
   }
 }

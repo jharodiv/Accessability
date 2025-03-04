@@ -1,6 +1,7 @@
 import 'package:AccessAbility/accessability/logic/bloc/place/bloc/place_bloc.dart';
 import 'package:AccessAbility/accessability/logic/bloc/place/bloc/place_event.dart';
 import 'package:AccessAbility/accessability/logic/bloc/place/bloc/place_state.dart';
+import 'package:AccessAbility/accessability/presentation/widgets/shimmer/shimmer_place.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:AccessAbility/accessability/firebaseServices/models/place.dart';
@@ -64,11 +65,14 @@ class _AddPlaceWidgetState extends State<AddPlaceWidget> {
           child: BlocBuilder<PlaceBloc, PlaceState>(
             builder: (context, state) {
               if (state is PlaceOperationLoading) {
-                return const Center(child: CircularProgressIndicator());
+                return const Center(child: ShimmerPlaceWidget());
               } else if (state is PlacesLoaded) {
                 final List<Place> places = state.places;
                 if (places.isEmpty) {
-                  return const Center(child: Text("No places found."));
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 30),
+                    child: const Center(child: Text("No places found.")),
+                  );
                 }
                 return ListView.builder(
                   shrinkWrap: true, // Prevents large empty space

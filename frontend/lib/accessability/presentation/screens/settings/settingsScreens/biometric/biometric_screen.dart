@@ -67,7 +67,7 @@ class _BiometricScreenState extends State<BiometricScreen> {
               onPressed: () async {
 
                 final prefs = await SharedPreferences.getInstance();
-                prefs.remove('biometric_username');
+                prefs.remove('biometric_email');
                 prefs.remove('biometric_password');
 
                 context.read<UserBloc>().add(
@@ -198,12 +198,13 @@ class _BiometricScreenState extends State<BiometricScreen> {
                           if (result == true && _deviceId != null) {
                             
                             final prefs = await SharedPreferences.getInstance();
-                            final backupUsername = prefs.getString('backup_username');
+                            final backupUsername = prefs.getString('backup_email');
                             final backupPassword = prefs.getString('backup_password');
-
+                            print('backup email: ${backupUsername}');
+                            print('backup password: ${backupPassword}');
                             if (backupUsername != null && backupPassword != null) {
-                              
-                              prefs.setString('biometric_username', backupUsername);
+                               print('replacing real with backup');
+                              prefs.setString('biometric_email', backupUsername);
                               prefs.setString('biometric_password', backupPassword);
                             }
 

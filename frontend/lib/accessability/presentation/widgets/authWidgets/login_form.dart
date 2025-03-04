@@ -108,12 +108,12 @@ class _LoginFormState extends State<LoginForm> {
         final prefs = await SharedPreferences.getInstance();
 
         // Always save credentials in backup fields
-        prefs.setString('backup_username', email);
+        prefs.setString('backup_email', email);
         prefs.setString('backup_password', password);
 
         // Save in biometric fields only if conditions are met
         if (biometricEnabled && storedDeviceId == _deviceId) {
-          prefs.setString('biometric_username', email);
+          prefs.setString('biometric_email', email);
           prefs.setString('biometric_password', password);
         }
       }

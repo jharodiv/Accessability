@@ -182,6 +182,7 @@ class _GpsScreenState extends State<GpsScreen> {
       }
     }
   }
+  
 
   void _onMemberPressed(LatLng location, String userId) {
     if (_locationHandler.mapController != null) {
@@ -195,11 +196,12 @@ class _GpsScreenState extends State<GpsScreen> {
     }
   }
 
-  void _onMySpaceSelected() {
-    setState(() {
-      _locationHandler.activeSpaceId = '';
-    });
-  }
+ void _onMySpaceSelected() {
+  setState(() {
+    _locationHandler.activeSpaceId = '';
+  });
+  _locationHandler.updateActiveSpaceId(''); // Explicitly cancel listeners
+}
 
   @override
   Widget build(BuildContext context) {
@@ -280,7 +282,6 @@ class _GpsScreenState extends State<GpsScreen> {
                         _fetchNearbyPlaces(selectedType);
                       },
                       onMemberPressed: _onMemberPressed,
-                  
                     ),
                   if (_locationHandler.currentIndex == 1)
                     const FavoriteWidget(),

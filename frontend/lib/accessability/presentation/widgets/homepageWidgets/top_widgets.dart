@@ -59,13 +59,27 @@ class TopwidgetsState extends State<Topwidgets> {
     });
   }
 
-  void _selectSpace(String spaceId, String spaceName) {
-    widget.onSpaceSelected(spaceId);
+ void _selectSpace(String spaceId, String spaceName) {
+  if (mounted) {
+    widget.onSpaceSelected(spaceId); // Notify parent widget
     setState(() {
       _activeSpaceName = spaceName;
       _isDropdownOpen = false;
     });
   }
+}
+
+// Add this method to handle "My Space" selection
+void _selectMySpace() {
+  if (mounted) {
+    widget.onSpaceSelected(''); // Set activeSpaceId to empty string
+    widget.onMySpaceSelected(); // Notify parent widget to cancel listeners
+    setState(() {
+      _activeSpaceName = 'My Space';
+      _isDropdownOpen = false;
+    });
+  }
+}
 
   @override
   Widget build(BuildContext context) {
@@ -179,14 +193,7 @@ class TopwidgetsState extends State<Topwidgets> {
                       // Default "My Space" option
                       ListTile(
                         title: const Text('My Space'),
-                        onTap: () {
-                          setState(() {
-                            _activeSpaceName = 'My Space';
-                            _isDropdownOpen = false;
-                          });
-                          widget.onSpaceSelected(''); // Set activeSpaceId to empty string
-                          widget.onMySpaceSelected(); // Notify parent widget
-                        },
+                        onTap: _selectMySpace,
                       ),
                       // Other spaces
                       ..._spaces.map((space) {

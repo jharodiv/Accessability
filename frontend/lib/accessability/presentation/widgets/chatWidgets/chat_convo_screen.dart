@@ -61,15 +61,18 @@ class _ChatConvoScreenState extends State<ChatConvoScreen> {
   }
 
   void sendMessage() async {
-    if (messageController.text.isNotEmpty) {
-      await chatService.sendMessage(
-        widget.receiverID,
-        messageController.text,
-        isSpaceChat: widget.isSpaceChat,
-      );
-      messageController.clear();
-    }
+  if (messageController.text.isNotEmpty) {
+    await chatService.sendMessage(
+      widget.receiverID,
+      messageController.text,
+      isSpaceChat: widget.isSpaceChat,
+    );
+    messageController.clear();
+
+    // Scroll to the bottom after sending a message
+    WidgetsBinding.instance.addPostFrameCallback((_) => scrollDown());
   }
+}
 
   @override
   void dispose() {
@@ -147,10 +150,25 @@ class _ChatConvoScreenState extends State<ChatConvoScreen> {
           return const Center(child: CircularProgressIndicator());
         }
 
-        List<Widget> messageWidgets = [];
-        for (var doc in snapshot.data!.docs) {
-          messageWidgets.add(_buildMessageItem(doc));
+         // Extract messages from the snapshot
+      final messages = snapshot.data!.docs;
+
+      // Scroll to the bottom after messages are loaded
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (scrollController.hasClients) {
+          scrollController.animateTo(
+            scrollController.position.maxScrollExtent,
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeOut,
+          );
         }
+      });
+
+         // Build message widgets
+      List<Widget> messageWidgets = [];
+      for (var doc in messages) {
+        messageWidgets.add(_buildMessageItem(doc));
+      }
 
         return ListView(
           controller: scrollController,

@@ -151,86 +151,98 @@ class LocationHandler {
   }
 
   void updateActiveSpaceId(String spaceId) {
-    if (spaceId.isEmpty) return;
-    activeSpaceId = spaceId;
-    listenForLocationUpdates();
+  if (spaceId.isEmpty) {
+    // Cancel the Firestore listener if the spaceId is empty
+    _firestoreSubscription?.cancel();
+    _firestoreSubscription = null;
+    activeSpaceId = '';
+    return;
   }
+
+  if (spaceId == activeSpaceId) return; // No change needed
+
+  activeSpaceId = spaceId;
+  listenForLocationUpdates(); // Start listening for the new space
+}
 
   void updateCircles(Set<Circle> newCircles) {
     _circles = newCircles;
   }
 
   void listenForLocationUpdates() {
-    if (activeSpaceId.isEmpty) return;
-    // Cancel any previous Firestore subscription.
-    _firestoreSubscription?.cancel();
-    _firestoreSubscription = FirebaseFirestore.instance
-        .collection('Spaces')
-        .doc(activeSpaceId)
-        .snapshots()
-        .asyncMap((spaceSnapshot) async {
-          final members = List<String>.from(spaceSnapshot['members']);
-          return FirebaseFirestore.instance
-              .collection('UserLocations')
-              .where(FieldPath.documentId, whereIn: members)
-              .snapshots();
-        })
-        .asyncExpand((snapshotStream) => snapshotStream)
-        .listen((snapshot) async {
-          final updatedMarkers = <Marker>{};
-          final existingMarkers = _markers
-              .where((marker) => !marker.markerId.value.startsWith('user_'));
-          for (final doc in snapshot.docs) {
-            final data = doc.data();
-            final lat = data['latitude'];
-            final lng = data['longitude'];
-            final userId = doc.id;
+  if (activeSpaceId.isEmpty) return;
 
-            final userDoc = await FirebaseFirestore.instance
-                .collection('Users')
-                .doc(userId)
-                .get();
-            final username = userDoc['username'];
-            final profilePictureUrl = userDoc.data()?['profilePicture'] ?? '';
+  // Cancel any previous Firestore subscription.
+  _firestoreSubscription?.cancel();
 
-            print("🟢 Fetched user data for $username: $profilePictureUrl");
+  _firestoreSubscription = FirebaseFirestore.instance
+      .collection('Spaces')
+      .doc(activeSpaceId)
+      .snapshots()
+      .asyncMap((spaceSnapshot) async {
+        final members = List<String>.from(spaceSnapshot['members']);
+        return FirebaseFirestore.instance
+            .collection('UserLocations')
+            .where(FieldPath.documentId, whereIn: members)
+            .snapshots();
+      })
+      .asyncExpand((snapshotStream) => snapshotStream)
+      .listen((snapshot) async {
+        final updatedMarkers = <Marker>{};
+        final existingMarkers = _markers
+            .where((marker) => !marker.markerId.value.startsWith('user_'));
 
-            final isSelected = userId == selectedUserId;
-            BitmapDescriptor customIcon;
-            if (profilePictureUrl.isNotEmpty) {
-              try {
-                customIcon = await _createCustomMarkerIcon(profilePictureUrl,
-                    isSelected: isSelected);
-              } catch (e) {
-                print("❌ Error creating custom marker for $username: $e");
-                customIcon = await BitmapDescriptor.fromAssetImage(
-                  const ImageConfiguration(size: Size(24, 24)),
-                  'assets/images/others/default_profile.png',
-                );
-              }
-            } else {
+        for (final doc in snapshot.docs) {
+          final data = doc.data();
+          final lat = data['latitude'];
+          final lng = data['longitude'];
+          final userId = doc.id;
+
+          final userDoc = await FirebaseFirestore.instance
+              .collection('Users')
+              .doc(userId)
+              .get();
+          final username = userDoc['username'];
+          final profilePictureUrl = userDoc.data()?['profilePicture'] ?? '';
+
+          print("🟢 Fetched user data for $username: $profilePictureUrl");
+
+          final isSelected = userId == selectedUserId;
+          BitmapDescriptor customIcon;
+          if (profilePictureUrl.isNotEmpty) {
+            try {
+              customIcon = await _createCustomMarkerIcon(profilePictureUrl,
+                  isSelected: isSelected);
+            } catch (e) {
+              print("❌ Error creating custom marker for $username: $e");
               customIcon = await BitmapDescriptor.fromAssetImage(
                 const ImageConfiguration(size: Size(24, 24)),
                 'assets/images/others/default_profile.png',
               );
             }
-
-            updatedMarkers.add(
-              Marker(
-                markerId: MarkerId('user_$userId'),
-                position: LatLng(lat, lng),
-                infoWindow: InfoWindow(title: username),
-                icon: customIcon,
-                onTap: () => _onMarkerTapped(MarkerId('user_$userId')),
-              ),
+          } else {
+            customIcon = await BitmapDescriptor.fromAssetImage(
+              const ImageConfiguration(size: Size(24, 24)),
+              'assets/images/others/default_profile.png',
             );
           }
 
-          print("🟢 Updated ${updatedMarkers.length} user markers.");
-          _markers = existingMarkers.toSet().union(updatedMarkers);
-          onMarkersUpdated(_markers);
-        });
-  }
+          updatedMarkers.add(
+            Marker(
+              markerId: MarkerId('user_$userId'),
+              position: LatLng(lat, lng),
+              infoWindow: InfoWindow(title: username),
+              icon: customIcon,
+              onTap: () => _onMarkerTapped(MarkerId('user_$userId')),
+            ),
+          );
+        }
+
+        print("🟢 Updated ${updatedMarkers.length} user markers.");
+        _markers = existingMarkers.toSet().union(updatedMarkers);
+        onMarkersUpdated(_markers);
+      });
+}
 
   void _onMarkerTapped(MarkerId markerId) {
     if (markerId.value.startsWith('user_')) {
@@ -240,78 +252,88 @@ class LocationHandler {
     }
   }
 
-  Future<BitmapDescriptor> _createCustomMarkerIcon(String imageUrl,
-      {bool isSelected = false}) async {
-    print(
-        "🟢 Creating custom marker icon for: $imageUrl (isSelected: $isSelected)");
-    try {
-      final response = await http.get(Uri.parse(imageUrl));
-      if (response.statusCode != 200) {
-        print("❌ Failed to load image: ${response.statusCode}");
-        throw Exception('Failed to load image');
-      }
-      final profileBytes = response.bodyBytes;
-      final profileCodec = await ui.instantiateImageCodec(profileBytes);
-      final profileFrame = await profileCodec.getNextFrame();
-      final profileImage = profileFrame.image;
-
-      final markerShapeAsset = isSelected
-          ? 'assets/images/others/marker_shape_selected.png'
-          : 'assets/images/others/marker_shape.png';
-      final markerShapeBytes = await rootBundle.load(markerShapeAsset);
-      final markerShapeCodec =
-          await ui.instantiateImageCodec(markerShapeBytes.buffer.asUint8List());
-      final markerShapeFrame = await markerShapeCodec.getNextFrame();
-      final markerShapeImage = markerShapeFrame.image;
-
-      final pictureRecorder = ui.PictureRecorder();
-      final canvas = Canvas(pictureRecorder);
-
-      final markerWidth = markerShapeImage.width.toDouble();
-      final markerHeight = markerShapeImage.height.toDouble();
-
-      canvas.drawImage(markerShapeImage, Offset.zero, Paint());
-
-      const profileSize = 100.0;
-      final profileOffset = Offset(
-        (markerWidth - profileSize) / 1.8,
-        11,
-      );
-
-      final clipPath = Path()
-        ..addOval(Rect.fromCircle(
-          center: Offset(profileOffset.dx + profileSize / 2,
-              profileOffset.dy + profileSize / 2),
-          radius: profileSize / 2,
-        ));
-      canvas.clipPath(clipPath);
-
-      canvas.drawImageRect(
-        profileImage,
-        Rect.fromLTWH(0, 0, profileImage.width.toDouble(),
-            profileImage.height.toDouble()),
-        Rect.fromLTWH(
-            profileOffset.dx, profileOffset.dy, profileSize, profileSize),
-        Paint(),
-      );
-
-      final picture = pictureRecorder.endRecording();
-      final imageMarker =
-          await picture.toImage(markerWidth.toInt(), markerHeight.toInt());
-      final byteData =
-          await imageMarker.toByteData(format: ui.ImageByteFormat.png);
-
-      if (byteData == null) {
-        print("❌ Failed to convert image to bytes");
-        throw Exception('Failed to convert image to bytes');
-      }
-      print("🟢 Custom marker icon created successfully");
-      return BitmapDescriptor.fromBytes(byteData.buffer.asUint8List());
-    } catch (e) {
-      print("❌ Error creating custom marker icon: $e");
-      throw Exception('Failed to create custom marker icon: $e');
+ Future<BitmapDescriptor> _createCustomMarkerIcon(String imageUrl,
+    {bool isSelected = false}) async {
+  print("🟢 Creating custom marker icon for: $imageUrl (isSelected: $isSelected)");
+  try {
+    // Fetch the image from the network
+    final response = await http.get(Uri.parse(imageUrl));
+    if (response.statusCode != 200) {
+      print("❌ Failed to load image: ${response.statusCode}");
+      throw Exception('Failed to load image: ${response.statusCode}');
     }
+
+    // Decode the image
+    final profileBytes = response.bodyBytes;
+    final profileCodec = await ui.instantiateImageCodec(profileBytes);
+    final profileFrame = await profileCodec.getNextFrame();
+    final profileImage = profileFrame.image;
+
+    // Load the marker shape (background)
+    final markerShapeAsset = isSelected
+        ? 'assets/images/others/marker_shape_selected.png'
+        : 'assets/images/others/marker_shape.png';
+    final markerShapeBytes = await rootBundle.load(markerShapeAsset);
+    final markerShapeCodec =
+        await ui.instantiateImageCodec(markerShapeBytes.buffer.asUint8List());
+    final markerShapeFrame = await markerShapeCodec.getNextFrame();
+    final markerShapeImage = markerShapeFrame.image;
+
+    // Create a canvas to draw the marker
+    final pictureRecorder = ui.PictureRecorder();
+    final canvas = Canvas(pictureRecorder);
+
+    // Draw the marker shape
+    final markerWidth = markerShapeImage.width.toDouble();
+    final markerHeight = markerShapeImage.height.toDouble();
+    canvas.drawImage(markerShapeImage, Offset.zero, Paint());
+
+    // Draw the profile picture (clipped to a circle)
+    const profileSize = 100.0;
+    final profileOffset = Offset(
+      (markerWidth - profileSize) / 1.8,
+      11,
+    );
+
+    final clipPath = Path()
+      ..addOval(Rect.fromCircle(
+        center: Offset(profileOffset.dx + profileSize / 2,
+            profileOffset.dy + profileSize / 2),
+        radius: profileSize / 2,
+      ));
+    canvas.clipPath(clipPath);
+
+    canvas.drawImageRect(
+      profileImage,
+      Rect.fromLTWH(0, 0, profileImage.width.toDouble(),
+          profileImage.height.toDouble()),
+      Rect.fromLTWH(
+          profileOffset.dx, profileOffset.dy, profileSize, profileSize),
+      Paint(),
+    );
+
+    // Convert the canvas to an image
+    final picture = pictureRecorder.endRecording();
+    final imageMarker =
+        await picture.toImage(markerWidth.toInt(), markerHeight.toInt());
+    final byteData =
+        await imageMarker.toByteData(format: ui.ImageByteFormat.png);
+
+    if (byteData == null) {
+      print("❌ Failed to convert image to bytes");
+      throw Exception('Failed to convert image to bytes');
+    }
+
+    print("🟢 Custom marker icon created successfully");
+    return BitmapDescriptor.fromBytes(byteData.buffer.asUint8List());
+  } catch (e) {
+    print("❌ Error creating custom marker icon: $e");
+    // Use a default marker icon if the custom icon fails to load
+    return BitmapDescriptor.defaultMarker;
   }
+}
+
+
 
   Future<bool> onWillPop(BuildContext context) async {
     return await showDialog(

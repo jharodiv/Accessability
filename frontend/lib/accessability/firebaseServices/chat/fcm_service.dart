@@ -1,6 +1,5 @@
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
-
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 class FCMService {
@@ -23,7 +22,7 @@ class FCMService {
 
     // Create a notification channel for high importance notifications
     const AndroidNotificationChannel channel = AndroidNotificationChannel(
-      'high_importance_channel', // Channel ID (must match the one in the Firebase Cloud Function)
+      'high_importance_channel', // Channel ID
       'High Importance Notifications', // Channel Name
       importance: Importance.high, // Set importance to high for heads-up notifications
       sound: RawResourceAndroidNotificationSound('default'), // Use default sound
@@ -107,15 +106,28 @@ class FCMService {
   void _handleNotificationClick(Map<String, dynamic> data) {
     final String senderEmail = data['senderEmail'];
     final String senderID = data['senderID'];
+    final String spaceId = data['spaceId'];
 
-    // Navigate to the chat screen
-    navigatorKey.currentState?.pushNamed(
-      '/chatconvo',
-      arguments: {
-        'receiverEmail': senderEmail,
-        'receiverID': senderID,
-      },
-    );
+    if (spaceId != null) {
+      // Navigate to the space chat room
+      navigatorKey.currentState?.pushNamed(
+        '/chatconvo',
+        arguments: {
+          'receiverUsername': 'Space Chat',
+          'receiverID': spaceId,
+          'isSpaceChat': true,
+        },
+      );
+    } else {
+      // Navigate to the private chat room
+      navigatorKey.currentState?.pushNamed(
+        '/chatconvo',
+        arguments: {
+          'receiverEmail': senderEmail,
+          'receiverID': senderID,
+        },
+      );
+    }
   }
 
   // Get the FCM token

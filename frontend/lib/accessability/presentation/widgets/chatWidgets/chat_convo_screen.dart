@@ -12,12 +12,12 @@ class ChatConvoScreen extends StatefulWidget {
     super.key,
     required this.receiverUsername,
     required this.receiverID,
-    this.isSpaceChat = false, 
+    this.isSpaceChat = false,
   });
 
   final String receiverUsername;
   final String receiverID;
-  final bool isSpaceChat; 
+  final bool isSpaceChat;
 
   @override
   State<ChatConvoScreen> createState() => _ChatConvoScreenState();
@@ -37,14 +37,11 @@ class _ChatConvoScreenState extends State<ChatConvoScreen> {
   void initState() {
     super.initState();
     _checkChatRequest();
-
     focusNode.addListener(() {
       if (focusNode.hasFocus) {
         WidgetsBinding.instance.addPostFrameCallback((_) => scrollDown());
       }
     });
-
-    // Use addPostFrameCallback instead of Future.delayed
     WidgetsBinding.instance.addPostFrameCallback((_) => scrollDown());
   }
 
@@ -63,16 +60,16 @@ class _ChatConvoScreenState extends State<ChatConvoScreen> {
     });
   }
 
-void sendMessage() async {
-  if (messageController.text.isNotEmpty) {
-    await chatService.sendMessage(
-      widget.receiverID,
-      messageController.text,
-      isSpaceChat: widget.isSpaceChat, // Pass the isSpaceChat flag
-    );
-    messageController.clear();
+  void sendMessage() async {
+    if (messageController.text.isNotEmpty) {
+      await chatService.sendMessage(
+        widget.receiverID,
+        messageController.text,
+        isSpaceChat: widget.isSpaceChat,
+      );
+      messageController.clear();
+    }
   }
-}
 
   @override
   void dispose() {
@@ -96,8 +93,6 @@ void sendMessage() async {
   Widget build(BuildContext context) {
     final Map<String, dynamic>? args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
 
-    print('Received arguments in ChatConvoScreen: $args'); // Debugging
-
     if (args == null) {
       return const Scaffold(
         body: Center(
@@ -108,7 +103,10 @@ void sendMessage() async {
 
     final String receiverUsername = args['receiverUsername'] as String;
     final String receiverID = args['receiverID'] as String;
-    final String receiverProfilePicture = args['receiverProfilePicture'] as String? ?? 'https://firebasestorage.googleapis.com/v0/b/accessability-71ef7.appspot.com/o/profile_pictures%2Fdefault_profile.png?alt=media&token=bc7a75a7-a78e-4460-b816-026a8fc341ba'; // Default image if none
+    final String receiverProfilePicture = args['receiverProfilePicture'] as String? ??
+        (widget.isSpaceChat
+            ? 'https://firebasestorage.googleapis.com/v0/b/accessability-71ef7.firebasestorage.app/o/profile_pictures%2Fgroup_chat_icon.jpg?alt=media&token=7604bd51-2edf-4514-b979-e3fa84dce389'
+            : 'https://firebasestorage.googleapis.com/v0/b/accessability-71ef7.appspot.com/o/profile_pictures%2Fdefault_profile.png?alt=media&token=bc7a75a7-a78e-4460-b816-026a8fc341ba');
 
     return Scaffold(
       appBar: AppBar(
@@ -121,6 +119,7 @@ void sendMessage() async {
             Text(receiverUsername),
           ],
         ),
+        elevation: 0,
       ),
       body: SafeArea(
         child: Column(
@@ -133,42 +132,34 @@ void sendMessage() async {
     );
   }
 
- Widget _buildMessageList() {
-  return StreamBuilder(
-    stream: chatService.getMessages(
-      widget.receiverID,
-      isSpaceChat: widget.isSpaceChat, // Pass the isSpaceChat flag
-    ),
-    builder: (context, snapshot) {
-      if (snapshot.hasError) {
-        return const Text('Error');
-      }
+  Widget _buildMessageList() {
+    return StreamBuilder(
+      stream: chatService.getMessages(
+        widget.receiverID,
+        isSpaceChat: widget.isSpaceChat,
+      ),
+      builder: (context, snapshot) {
+        if (snapshot.hasError) {
+          return const Center(child: Text('Error loading messages.'));
+        }
 
-      if (snapshot.connectionState == ConnectionState.waiting) {
-        return const Center(child: CircularProgressIndicator());
-      }
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
 
-      List<Widget> messageWidgets = [];
-      Timestamp? lastTimestamp;
+        List<Widget> messageWidgets = [];
+        for (var doc in snapshot.data!.docs) {
+          messageWidgets.add(_buildMessageItem(doc));
+        }
 
-      for (var doc in snapshot.data!.docs) {
-        Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
-        bool isCurrentUser = data['senderID'] == _auth.currentUser!.uid;
-
-        // Add the message item
-        messageWidgets.add(_buildMessageItem(doc));
-        lastTimestamp = data['timestamp'];
-      }
-
-      return ListView(
-        controller: scrollController,
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        children: messageWidgets,
-      );
-    },
-  );
-}
-
+        return ListView(
+          controller: scrollController,
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          children: messageWidgets,
+        );
+      },
+    );
+  }
 
   Widget _buildMessageItem(DocumentSnapshot doc) {
     Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
@@ -180,29 +171,17 @@ void sendMessage() async {
           .doc(data['senderID'])
           .get(),
       builder: (context, snapshot) {
-        // Handle loading state
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
-        }
-
-        // Handle error state
-        if (snapshot.hasError) {
-          return const Text('Error loading user data');
-        }
-
-        // Handle case where user data is not found
-        if (!snapshot.hasData || !snapshot.data!.exists) {
+        if (snapshot.hasError || !snapshot.hasData || !snapshot.data!.exists) {
           return ChatConvoBubble(
             isCurrentUser: isCurrentUser,
             message: data['message'],
             timestamp: data['timestamp'],
-            profilePicture: 'https://firebasestorage.googleapis.com/v0/b/accessability-71ef7.appspot.com/o/profile_pictures%2Fdefault_profile.png?alt=media&token=bc7a75a7-a78e-4460-b816-026a8fc341ba', // Default image
+            profilePicture: 'https://firebasestorage.googleapis.com/v0/b/accessability-71ef7.appspot.com/o/profile_pictures%2Fdefault_profile.png?alt=media&token=bc7a75a7-a78e-4460-b816-026a8fc341ba',
           );
         }
 
-        // Fetch and use the user's profile picture
         final userData = snapshot.data!.data() as Map<String, dynamic>;
-        final profilePicture = userData['profilePicture'] ?? 'https://firebasestorage.googleapis.com/v0/b/accessability-71ef7.appspot.com/o/profile_pictures%2Fdefault_profile.png?alt=media&token=bc7a75a7-a78e-4460-b816-026a8fc341ba'; // Default image if none
+        final profilePicture = userData['profilePicture'] ?? 'https://firebasestorage.googleapis.com/v0/b/accessability-71ef7.appspot.com/o/profile_pictures%2Fdefault_profile.png?alt=media&token=bc7a75a7-a78e-4460-b816-026a8fc341ba';
 
         return ChatConvoBubble(
           isCurrentUser: isCurrentUser,
@@ -228,7 +207,7 @@ void sendMessage() async {
               obscureText: false,
             ),
           ),
-          const SizedBox(width: 8), // Add spacing between text field and button
+          const SizedBox(width: 8),
           Container(
             decoration: const BoxDecoration(
               color: Color(0xFF6750A4),

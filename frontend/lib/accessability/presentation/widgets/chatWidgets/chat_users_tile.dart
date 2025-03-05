@@ -4,7 +4,7 @@ class ChatUsersTile extends StatelessWidget {
   final String username;
   final String lastMessage;
   final String lastMessageTime;
-  final String profilePicture; // Add profile picture URL
+  final String profilePicture;
   final VoidCallback onTap;
 
   const ChatUsersTile({
@@ -12,44 +12,35 @@ class ChatUsersTile extends StatelessWidget {
     required this.username,
     required this.lastMessage,
     required this.lastMessageTime,
-    required this.profilePicture, // Add profile picture URL
+    required this.profilePicture,
     required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    
-    const double tileHeight = 80.0;
-
     return Column(
       children: [
-        Divider(
-          color: Colors.grey[300],
-          thickness: 1,
-        ),
-        Container(
-          height: tileHeight, 
-          child: ListTile(
-            leading: CircleAvatar(
-              backgroundImage: NetworkImage(profilePicture), 
-            ),
-            title: Expanded( 
-              child: Text(
-                username,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-            subtitle: Expanded( 
-              child: Text(
-                lastMessage,
-                overflow: TextOverflow.ellipsis, 
-              ),
-            ),
-            trailing: Text(lastMessageTime),
-            onTap: onTap,
-            isThreeLine: true,
+        ListTile(
+          leading: CircleAvatar(
+            backgroundImage: NetworkImage(profilePicture),
           ),
+          title: Text(
+            username,
+            style: const TextStyle(fontWeight: FontWeight.bold),
+          ),
+          subtitle: Text(
+            lastMessage,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(color: Colors.grey[600]),
+          ),
+          trailing: Text(
+            lastMessageTime,
+            style: TextStyle(color: Colors.grey[600], fontSize: 12),
+          ),
+          onTap: onTap,
+          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         ),
+        const Divider(height: 1, thickness: 1),
       ],
     );
   }

@@ -36,8 +36,6 @@ void main() async {
   // Initialize Firebase
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
-  await createNotificationChannel();
-
   await initializeService();
 
   await createNotificationChannel();

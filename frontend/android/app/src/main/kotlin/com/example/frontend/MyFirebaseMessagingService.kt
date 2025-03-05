@@ -31,6 +31,16 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
             notificationManager.createNotificationChannel(channel)
         }
 
+        // Create a separate channel for space chat notifications
+         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val spaceChatChannel = NotificationChannel(
+                "space_chat", // Channel ID for space chat notifications
+                "Space Chat Notifications",
+                 NotificationManager.IMPORTANCE_HIGH // Set importance to HIGH
+            )
+                notificationManager.createNotificationChannel(spaceChatChannel)
+        }
+
         val notificationBuilder = NotificationCompat.Builder(this, channelId)
             .setContentTitle(title)
             .setContentText(messageBody)

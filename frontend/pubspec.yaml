@@ -104,6 +104,7 @@ flutter:
     - assets/images/others/default_profile.png
     - assets/images/others/marker_shape.png
     - assets/images/others/marker_shape_selected.png
+    - assets/images/others/group_chat_icon.jpg
     - .env
 
   fonts:

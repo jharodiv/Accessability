@@ -17,18 +17,16 @@ class CreateSpaceWidget extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.all(16),
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          // Header row with centered title
-          const Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text(
-                'Create my space',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-              ),
-            ],
+          // Header
+          const Text(
+            'Create my space',
+            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            textAlign: TextAlign.center,
           ),
           const SizedBox(height: 20),
+          // Space Name Input
           TextField(
             controller: spaceNameController,
             decoration: const InputDecoration(
@@ -37,6 +35,7 @@ class CreateSpaceWidget extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 20),
+          // Buttons Row
           Row(
             children: [
               Expanded(
@@ -44,34 +43,30 @@ class CreateSpaceWidget extends StatelessWidget {
                   onPressed: onCreateSpace,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF6750A4),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 50,
-                      vertical: 15,
-                    ),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
                   ),
-                  child: const Text(
-                    'Create',
-                    style: TextStyle(color: Colors.white),
+                  child: const FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(
+                      'Create',
+                      style: TextStyle(color: Colors.white),
+                    ),
                   ),
                 ),
               ),
-              const SizedBox(width: 10), // Adds spacing between buttons
+              const SizedBox(width: 10),
               Expanded(
                 child: OutlinedButton(
                   onPressed: onCancel,
                   style: OutlinedButton.styleFrom(
-                    side: const BorderSide(
-                      color: Color(0xFF6750A4),
-                    ),
-                    padding: const EdgeInsets.symmetric(vertical: 15),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
+                    side: const BorderSide(color: Color(0xFF6750A4)),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
                   ),
-                  child: const Text(
-                    'Back',
-                    style: TextStyle(
-                      color: Color(0xFF6750A4),
+                  child: const FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(
+                      'Back',
+                      style: TextStyle(color: Color(0xFF6750A4)),
                     ),
                   ),
                 ),

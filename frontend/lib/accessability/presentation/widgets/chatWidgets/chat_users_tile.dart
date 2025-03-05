@@ -30,7 +30,7 @@ class ChatUsersTile extends StatelessWidget {
           ),
           subtitle: Text(
             lastMessage,
-            overflow: TextOverflow.ellipsis,
+            overflow: TextOverflow.ellipsis, maxLines: 1,
             style: TextStyle(color: Colors.grey[600]),
           ),
           trailing: Text(

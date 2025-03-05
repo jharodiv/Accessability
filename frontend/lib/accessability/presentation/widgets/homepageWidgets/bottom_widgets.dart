@@ -397,115 +397,114 @@ void didUpdateWidget(BottomWidgets oldWidget) {
   }
 
   @override
-  Widget build(BuildContext context) {
-    return DraggableScrollableSheet(
-      initialChildSize: 0.15,
-      minChildSize: 0.15,
-      maxChildSize: 0.8,
-      builder: (context, scrollController) {
-        return Column(
-          children: [
-            ServiceButtons(onButtonPressed: (label) {
-              if (label == 'SOS') {
-                Navigator.pushNamed(context, '/sos');
-              }
-            }),
-            const SizedBox(height: 10),
-            Expanded(
-              child: Container(
-                decoration: const BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.only(
-                    topLeft: Radius.circular(20),
-                    topRight: Radius.circular(20),
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black26,
-                      blurRadius: 10,
-                      offset: Offset(0, -5),
-                    ),
-                  ],
+Widget build(BuildContext context) {
+  return DraggableScrollableSheet(
+    initialChildSize: 0.15,
+    minChildSize: 0.15,
+    maxChildSize: 0.8,
+    builder: (context, scrollController) {
+      return Column(
+        children: [
+          ServiceButtons(onButtonPressed: (label) {
+            if (label == 'SOS') {
+              Navigator.pushNamed(context, '/sos');
+            }
+          }),
+          const SizedBox(height: 10),
+          Expanded(
+            child: Container(
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.only(
+                  topLeft: Radius.circular(20),
+                  topRight: Radius.circular(20),
                 ),
-                child: SingleChildScrollView(
-                  controller: scrollController,
-                  child: Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Column(
-                      children: [
-                         Container(
-                          width: 100,
-                          height: 2,
-                          color: Colors.grey.shade700,
-                          margin: const EdgeInsets.only(bottom: 8),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black26,
+                    blurRadius: 10,
+                    offset: Offset(0, -5),
+                  ),
+                ],
+              ),
+              child: SingleChildScrollView(
+                controller: scrollController,
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    children: [
+                      Container(
+                        width: 100,
+                        height: 2,
+                        color: Colors.grey.shade700,
+                        margin: const EdgeInsets.only(bottom: 8),
+                      ),
+                      const SizedBox(height: 5),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        height: 50,
+                        decoration: BoxDecoration(
+                          color: Colors.grey.shade200,
+                          borderRadius: BorderRadius.circular(25),
                         ),
-                        const SizedBox(height: 5),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 16),
-                          height: 50,
-                          decoration: BoxDecoration(
-                            color: Colors.grey.shade200,
-                            borderRadius: BorderRadius.circular(25),
-                          ),
-                          child: const Row(
-                            children: [
-                              Expanded(
-                                child: Text(
-                                  "Text to Speech, Speech to Text",
-                                  style: TextStyle(
-                                    color: Color(0xFF6750A4),
-                                    fontSize: 16,
-                                  ),
+                        child: const Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                "Text to Speech, Speech to Text",
+                                style: TextStyle(
+                                  color: Color(0xFF6750A4),
+                                  fontSize: 16,
                                 ),
                               ),
-                              Icon(
-                                Icons.mic,
-                                color: Color(0xFF6750A4),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 20),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                          children: [
-                            CustomButton(
-                              icon: Icons.people,
-                              index: 0,
-                              activeIndex: _activeIndex,
-                              onPressed: (int newIndex) {
-                                setState(() {
-                                  _activeIndex = newIndex;
-                                });
-                              },
                             ),
-                            CustomButton(
-                              icon: Icons.business,
-                              index: 1,
-                              activeIndex: _activeIndex,
-                              onPressed: (int newIndex) {
-                                setState(() {
-                                  _activeIndex = newIndex;
-                                });
-                              },
-                            ),
-                            CustomButton(
-                              icon: Icons.map,
-                              index: 2,
-                              activeIndex: _activeIndex,
-                              onPressed: (int newIndex) {
-                                setState(() {
-                                  _activeIndex = newIndex;
-                                });
-                              },
+                            Icon(
+                              Icons.mic,
+                              color: Color(0xFF6750A4),
                             ),
                           ],
                         ),
-                        const SizedBox(height: 20),
-                        if (!_showCreateSpace &&
-                            !_showJoinSpace &&
-                            _activeIndex == 0 &&
-                            widget.activeSpaceId.isEmpty) ...[
+                      ),
+                      const SizedBox(height: 20),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                        children: [
+                          CustomButton(
+                            icon: Icons.people,
+                            index: 0,
+                            activeIndex: _activeIndex,
+                            onPressed: (int newIndex) {
+                              setState(() {
+                                _activeIndex = newIndex;
+                              });
+                            },
+                          ),
+                          CustomButton(
+                            icon: Icons.business,
+                            index: 1,
+                            activeIndex: _activeIndex,
+                            onPressed: (int newIndex) {
+                              setState(() {
+                                _activeIndex = newIndex;
+                              });
+                            },
+                          ),
+                          CustomButton(
+                            icon: Icons.map,
+                            index: 2,
+                            activeIndex: _activeIndex,
+                            onPressed: (int newIndex) {
+                              setState(() {
+                                _activeIndex = newIndex;
+                              });
+                            },
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 20),
+                      // Show Create/Join Space buttons only in the People tab (_activeIndex == 0)
+                      if (_activeIndex == 0 && widget.activeSpaceId.isEmpty) ...[
+                        if (!_showCreateSpace && !_showJoinSpace) ...[
                           const Align(
                             alignment: Alignment.center,
                             child: Text(
@@ -596,39 +595,44 @@ void didUpdateWidget(BottomWidgets oldWidget) {
                               });
                             },
                           ),
-                        if (_activeIndex == 0 && widget.activeSpaceId.isNotEmpty)
-                          MemberListWidget(
-                            members: _members,
-                            onMemberPressed: widget.onMemberPressed,
-                            selectedMemberId: _selectedMemberId,
-                            activeSpaceId: widget.activeSpaceId,
-                          ),
-                          if (_activeIndex == 1)
-                          const AddPlaceWidget(),
-                        if (_activeIndex == 2)
-                          MapContent(
-                            onCategorySelected: (category) {
-                              widget.onCategorySelected;
-                            },
-                          ),
-                        if (_creatorId == _auth.currentUser?.uid &&
-                            _activeIndex == 0 &&
-                            widget.activeSpaceId.isNotEmpty)
-                          VerificationCodeWidget(
-                            verificationCode: _verificationCode ?? 'ABC - DEF',
-                            onSendCode: _addPerson,
-                          ),
                       ],
-                    ),
+                      // Show MemberListWidget only in the People tab (_activeIndex == 0)
+                      if (_activeIndex == 0 && widget.activeSpaceId.isNotEmpty)
+                        MemberListWidget(
+                          members: _members,
+                          onMemberPressed: widget.onMemberPressed,
+                          selectedMemberId: _selectedMemberId,
+                          activeSpaceId: widget.activeSpaceId,
+                        ),
+                      // Show AddPlaceWidget in the Business tab (_activeIndex == 1)
+                      if (_activeIndex == 1)
+                        const AddPlaceWidget(),
+                      // Show MapContent in the Map tab (_activeIndex == 2)
+                      if (_activeIndex == 2)
+                        MapContent(
+                          onCategorySelected: (category) {
+                            widget.onCategorySelected;
+                          },
+                        ),
+                      // Show VerificationCodeWidget in the People tab (_activeIndex == 0)
+                      if (_creatorId == _auth.currentUser?.uid &&
+                          _activeIndex == 0 &&
+                          widget.activeSpaceId.isNotEmpty)
+                        VerificationCodeWidget(
+                          verificationCode: _verificationCode ?? 'ABC - DEF',
+                          onSendCode: _addPerson,
+                        ),
+                    ],
                   ),
                 ),
               ),
             ),
-          ],
-        );
-      },
-    );
-  }
+          ),
+        ],
+      );
+    },
+  );
+}
 
    Future<String> _getAddressFromLatLng(LatLng latLng) async {
     try {

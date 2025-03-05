@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:AccessAbility/accessability/firebaseServices/auth/auth_service.dart';
 import 'package:AccessAbility/accessability/firebaseServices/chat/chat_service.dart';
@@ -11,10 +12,12 @@ class ChatConvoScreen extends StatefulWidget {
     super.key,
     required this.receiverUsername,
     required this.receiverID,
+    this.isSpaceChat = false, 
   });
 
   final String receiverUsername;
   final String receiverID;
+  final bool isSpaceChat; 
 
   @override
   State<ChatConvoScreen> createState() => _ChatConvoScreenState();
@@ -28,6 +31,7 @@ class _ChatConvoScreenState extends State<ChatConvoScreen> {
   final FirebaseFirestore firebaseFirestore = FirebaseFirestore.instance;
   FocusNode focusNode = FocusNode();
   bool _isRequestPending = true;
+  final FirebaseAuth _auth = FirebaseAuth.instance;
 
   @override
   void initState() {
@@ -59,12 +63,16 @@ class _ChatConvoScreenState extends State<ChatConvoScreen> {
     });
   }
 
-  void sendMessage() async {
-    if (messageController.text.isNotEmpty) {
-      await chatService.sendMessage(widget.receiverID, messageController.text);
-      messageController.clear();
-    }
+void sendMessage() async {
+  if (messageController.text.isNotEmpty) {
+    await chatService.sendMessage(
+      widget.receiverID,
+      messageController.text,
+      isSpaceChat: widget.isSpaceChat, // Pass the isSpaceChat flag
+    );
+    messageController.clear();
   }
+}
 
   @override
   void dispose() {
@@ -125,70 +133,42 @@ class _ChatConvoScreenState extends State<ChatConvoScreen> {
     );
   }
 
-  Widget _buildMessageList() {
-    String senderID = authService.getCurrentUser()!.uid;
-    return StreamBuilder(
-      stream: chatService.getMessages(widget.receiverID, senderID),
-      builder: (context, snapshot) {
-        if (snapshot.hasError) {
-          return const Text('Error');
-        }
+ Widget _buildMessageList() {
+  return StreamBuilder(
+    stream: chatService.getMessages(
+      widget.receiverID,
+      isSpaceChat: widget.isSpaceChat, // Pass the isSpaceChat flag
+    ),
+    builder: (context, snapshot) {
+      if (snapshot.hasError) {
+        return const Text('Error');
+      }
 
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
-        }
+      if (snapshot.connectionState == ConnectionState.waiting) {
+        return const Center(child: CircularProgressIndicator());
+      }
 
-        List<Widget> messageWidgets = [];
-        Timestamp? lastTimestamp;
+      List<Widget> messageWidgets = [];
+      Timestamp? lastTimestamp;
 
-        for (var doc in snapshot.data!.docs) {
-          Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
-          bool isCurrentUser = data['senderID'] == senderID;
+      for (var doc in snapshot.data!.docs) {
+        Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+        bool isCurrentUser = data['senderID'] == _auth.currentUser!.uid;
 
-          // Check if we need to add a timestamp divider
-          if (lastTimestamp != null) {
-            final currentTimestamp = data['timestamp'] as Timestamp;
-            final difference = currentTimestamp
-                .toDate()
-                .difference(lastTimestamp.toDate())
-                .inMinutes;
+        // Add the message item
+        messageWidgets.add(_buildMessageItem(doc));
+        lastTimestamp = data['timestamp'];
+      }
 
-            if (difference >= 10) {
-              messageWidgets.add(
-                Column(
-                  children: [
-                    const Divider(),
-                    Text(
-                      DateFormat('MMM d, yyyy hh:mm a').format(currentTimestamp.toDate()), // Full date and time
-                      style: const TextStyle(color: Colors.grey),
-                    ),
-                    const Divider(),
-                  ],
-                ),
-              );
-            }
-          }
+      return ListView(
+        controller: scrollController,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        children: messageWidgets,
+      );
+    },
+  );
+}
 
-          // Add the message item
-          messageWidgets.add(_buildMessageItem(doc));
-          lastTimestamp = data['timestamp'];
-        }
-
-        // Automatically scroll down when new messages are added
-        if (snapshot.hasData && messageWidgets.isNotEmpty) {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            scrollDown();
-          });
-        }
-
-        return ListView(
-          controller: scrollController,
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          children: messageWidgets,
-        );
-      },
-    );
-  }
 
   Widget _buildMessageItem(DocumentSnapshot doc) {
     Map<String, dynamic> data = doc.data() as Map<String, dynamic>;

@@ -23,6 +23,7 @@ class ChatUsersList extends StatelessWidget {
     stream: CombineLatestStream.list([
       chatService.getUsersInSameSpaces(),
       chatService.getUsersWithAcceptedChatRequests(),
+      chatService.getSpaceChatRooms(), // Include space chat rooms
     ]),
     builder: (context, snapshot) {
       if (snapshot.hasError) {
@@ -35,8 +36,9 @@ class ChatUsersList extends StatelessWidget {
 
       final List<Map<String, dynamic>> usersInSameSpaces = snapshot.data![0];
       final List<Map<String, dynamic>> usersWithAcceptedRequests = snapshot.data![1];
+      final List<Map<String, dynamic>> spaceChatRooms = snapshot.data![2]; // Space chat rooms
 
-      // Combine the two lists and remove duplicates using a Map
+      // Combine the lists and remove duplicates using a Map
       final Map<String, Map<String, dynamic>> uniqueUsers = {};
 
       for (var user in usersInSameSpaces) {
@@ -47,6 +49,15 @@ class ChatUsersList extends StatelessWidget {
         uniqueUsers[user['uid']] = user;
       }
 
+      // Add space chat rooms to the list
+      for (var space in spaceChatRooms) {
+        uniqueUsers[space['id']] = {
+          'uid': space['id'],
+          'username': space['name'],
+          'isSpaceChat': true, // Add a flag to identify space chat rooms
+        };
+      }
+
       if (uniqueUsers.isEmpty) {
         return const Center(
           child: Column(
@@ -54,7 +65,7 @@ class ChatUsersList extends StatelessWidget {
             children: [
               Text('No users found.'),
               SizedBox(height: 16),
-              Text('Create or join a space in the main screen')
+              Text('Create or join a space in the main screen'),
             ],
           ),
         );
@@ -77,47 +88,67 @@ class ChatUsersList extends StatelessWidget {
   );
 }
 
-  Widget _buildUserListItem(Map<String, dynamic> userData, BuildContext context) {
-  if (userData['email'] != authService.getCurrentUser()!.email) {
-    return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance
-          .collection('chat_rooms')
-          .doc(_getChatRoomID(userData['uid']))
-          .collection('messages')
-          .orderBy('timestamp', descending: true)
-          .limit(1)
-          .snapshots(),
-      builder: (context, snapshot) {
-        String lastMessage = '';
-        String lastMessageTime = '';
-        Timestamp lastMessageTimestamp = Timestamp(0, 0);
-
-        if (snapshot.hasData && snapshot.data!.docs.isNotEmpty) {
-          final messageData =
-              snapshot.data!.docs.first.data() as Map<String, dynamic>;
-          lastMessage = messageData['message'];
-          lastMessageTime =
-              DateFormat('hh:mm a').format(messageData['timestamp'].toDate());
-          lastMessageTimestamp = messageData['timestamp'];
-        }
-
-        return ChatUsersTile(
-          username: userData['username'], // Use username
-          lastMessage: lastMessage,
-          lastMessageTime: lastMessageTime,
-          profilePicture: userData['profilePicture'] ?? 'https://via.placeholder.com/150',
-          onTap: () {
-            Navigator.pushNamed(context, '/chatconvo', arguments: {
-              'receiverUsername': userData['username'], // Pass username
-              'receiverID': userData['uid'],
-              'receiverProfilePicture': userData['profilePicture'],
-            });
+ Widget _buildUserListItem(Map<String, dynamic> userData, BuildContext context) {
+  if (userData['isSpaceChat'] == true) {
+    // Handle space chat rooms
+    return ListTile(
+      title: Text(userData['username']),
+      subtitle: const Text('Space Chat Room'),
+      onTap: () {
+        Navigator.pushNamed(
+          context,
+          '/chatconvo',
+          arguments: {
+            'receiverUsername': userData['username'],
+            'receiverID': userData['uid'], // Use userData['uid'] for the space ID
+            'isSpaceChat': true,
           },
         );
       },
     );
   } else {
-    return const SizedBox.shrink();
+    // Handle regular users
+    if (userData['email'] != authService.getCurrentUser()!.email) {
+      return StreamBuilder<QuerySnapshot>(
+        stream: FirebaseFirestore.instance
+            .collection('chat_rooms')
+            .doc(_getChatRoomID(userData['uid']))
+            .collection('messages')
+            .orderBy('timestamp', descending: true)
+            .limit(1)
+            .snapshots(),
+        builder: (context, snapshot) {
+          String lastMessage = '';
+          String lastMessageTime = '';
+          Timestamp lastMessageTimestamp = Timestamp(0, 0);
+
+          if (snapshot.hasData && snapshot.data!.docs.isNotEmpty) {
+            final messageData =
+                snapshot.data!.docs.first.data() as Map<String, dynamic>;
+            lastMessage = messageData['message'];
+            lastMessageTime =
+                DateFormat('hh:mm a').format(messageData['timestamp'].toDate());
+            lastMessageTimestamp = messageData['timestamp'];
+          }
+
+          return ChatUsersTile(
+            username: userData['username'],
+            lastMessage: lastMessage,
+            lastMessageTime: lastMessageTime,
+            profilePicture: userData['profilePicture'] ?? 'https://via.placeholder.com/150',
+            onTap: () {
+              Navigator.pushNamed(context, '/chatconvo', arguments: {
+                'receiverUsername': userData['username'],
+                'receiverID': userData['uid'],
+                'receiverProfilePicture': userData['profilePicture'],
+              });
+            },
+          );
+        },
+      );
+    } else {
+      return const SizedBox.shrink();
+    }
   }
 }
  String _getChatRoomID(String userID) {

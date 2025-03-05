@@ -315,82 +315,89 @@ class _BottomWidgetsState extends State<BottomWidgets> {
     return email;
   }
 
-  Future<void> _createSpace() async {
-    final user = _auth.currentUser;
-    if (user == null) return;
+  
+Future<void> _createSpace() async {
+  final user = _auth.currentUser;
+  if (user == null) return;
 
-    final spaceName = _spaceNameController.text;
-    if (spaceName.isEmpty) return;
+  final spaceName = _spaceNameController.text;
+  if (spaceName.isEmpty) return;
 
-    final verificationCode = _generateVerificationCode();
-    await _firestore.collection('Spaces').add({
-      'name': spaceName,
-      'creator': user.uid,
-      'members': [user.uid],
-      'verificationCode': verificationCode,
-      'codeTimestamp': DateTime.now(),
-      'createdAt': DateTime.now(),
+  final verificationCode = _generateVerificationCode();
+  final spaceRef = await _firestore.collection('Spaces').add({
+    'name': spaceName,
+    'creator': user.uid,
+    'members': [user.uid], // Add the creator as the first member
+    'verificationCode': verificationCode,
+    'codeTimestamp': DateTime.now(),
+    'createdAt': DateTime.now(),
+  });
+
+  // Create a chat room for the space and add the creator as the first member
+  await _chatService.createSpaceChatRoom(spaceRef.id, spaceName);
+
+  _spaceNameController.clear();
+  setState(() {
+    _showCreateSpace = false;
+  });
+
+  ScaffoldMessenger.of(context).showSnackBar(
+    const SnackBar(content: Text('Space created successfully')),
+  );
+}
+
+ Future<void> _joinSpace() async {
+  final user = _auth.currentUser;
+  if (user == null) return;
+
+  final verificationCode = _verificationCodeControllers
+      .map((controller) => controller.text)
+      .join();
+  if (verificationCode.isEmpty) return;
+
+  final snapshot = await _firestore
+      .collection('Spaces')
+      .where('verificationCode', isEqualTo: verificationCode)
+      .get();
+
+  if (snapshot.docs.isNotEmpty) {
+    final spaceId = snapshot.docs.first.id;
+    final codeTimestamp = snapshot.docs.first['codeTimestamp']?.toDate();
+
+    if (codeTimestamp != null) {
+      final now = DateTime.now();
+      final difference = now.difference(codeTimestamp).inMinutes;
+      if (difference > 10) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Verification code has expired')),
+        );
+        return;
+      }
+    }
+
+    await _firestore.collection('Spaces').doc(spaceId).update({
+      'members': FieldValue.arrayUnion([user.uid]),
     });
 
-    _spaceNameController.clear();
+    // Add the user to the space chat room
+    await _chatService.addMemberToSpaceChatRoom(spaceId, user.uid);
+
+    for (final controller in _verificationCodeControllers) {
+      controller.clear();
+    }
     setState(() {
-      _showCreateSpace = false;
+      _showJoinSpace = false;
     });
 
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Space created successfully')),
+      const SnackBar(content: Text('Joined space successfully')),
+    );
+  } else {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Invalid verification code')),
     );
   }
-
-  Future<void> _joinSpace() async {
-    final user = _auth.currentUser;
-    if (user == null) return;
-
-    final verificationCode = _verificationCodeControllers
-        .map((controller) => controller.text)
-        .join();
-    if (verificationCode.isEmpty) return;
-
-    final snapshot = await _firestore
-        .collection('Spaces')
-        .where('verificationCode', isEqualTo: verificationCode)
-        .get();
-
-    if (snapshot.docs.isNotEmpty) {
-      final spaceId = snapshot.docs.first.id;
-      final codeTimestamp = snapshot.docs.first['codeTimestamp']?.toDate();
-
-      if (codeTimestamp != null) {
-        final now = DateTime.now();
-        final difference = now.difference(codeTimestamp).inMinutes;
-        if (difference > 10) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Verification code has expired')),
-          );
-          return;
-        }
-      }
-
-      await _firestore.collection('Spaces').doc(spaceId).update({
-        'members': FieldValue.arrayUnion([user.uid]),
-      });
-
-      for (final controller in _verificationCodeControllers) {
-        controller.clear();
-      }
-      setState(() {
-        _showJoinSpace = false;
-      });
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Joined space successfully')),
-      );
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Invalid verification code')),
-      );
-    }
-  }
+}
 
   String _generateVerificationCode() {
     final random = Random();

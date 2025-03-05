@@ -75,20 +75,28 @@ class ChatService {
   });
 }
 
-  // Send a message
-  Future<void> sendMessage(String receiverID, message) async {
-    final String currentUserID = _auth.currentUser!.uid;
-    final String currentUserEmail = _auth.currentUser!.email!;
-    final Timestamp timestamp = Timestamp.now();
+  Future<void> sendMessage(String receiverID, String message, {bool isSpaceChat = false}) async {
+  final String currentUserID = _auth.currentUser!.uid;
+  final String currentUserEmail = _auth.currentUser!.email!;
+  final Timestamp timestamp = Timestamp.now();
 
-    Message newMessage = Message(
-      senderID: currentUserID,
-      senderEmail: currentUserEmail,
-      receiverID: receiverID,
-      message: message,
-      timestamp: timestamp,
-    );
+  Message newMessage = Message(
+    senderID: currentUserID,
+    senderEmail: currentUserEmail,
+    receiverID: receiverID,
+    message: message,
+    timestamp: timestamp,
+  );
 
+  if (isSpaceChat) {
+    // Send message to the space chat room
+    await firebaseFirestore
+        .collection('space_chat_rooms')
+        .doc(receiverID) // Use the spaceId as the document ID
+        .collection('messages')
+        .add(newMessage.toMap());
+  } else {
+    // Send message to a private chat room
     List<String> ids = [currentUserID, receiverID];
     ids.sort();
     String chatRoomID = ids.join('_');
@@ -99,20 +107,8 @@ class ChatService {
         .collection('messages')
         .add(newMessage.toMap());
   }
+}
 
-  // Get messages for a chat room
-  Stream<QuerySnapshot> getMessages(String userID, otherUserID) {
-    List<String> ids = [userID, otherUserID];
-    ids.sort();
-    String chatRoomID = ids.join('_');
-
-    return firebaseFirestore
-        .collection('chat_rooms')
-        .doc(chatRoomID)
-        .collection('messages')
-        .orderBy('timestamp', descending: false) // Ensure ascending order
-        .snapshots();
-  }
 
    // Send a chat request
   Future<void> sendChatRequest(String receiverID, String message) async {
@@ -214,4 +210,121 @@ class ChatService {
     return snapshot.exists;
   }
 
+   // Create a chat room for a space
+ Future<void> createSpaceChatRoom(String spaceId, String spaceName) async {
+  final String creatorId = _auth.currentUser!.uid; // Get the current user's ID
+
+  await firebaseFirestore.collection('space_chat_rooms').doc(spaceId).set({
+    'name': spaceName,
+    'createdAt': Timestamp.now(),
+    'members': [creatorId], // Add the creator as the first member
+  });
+
+  await sendSpaceChatMessage(spaceId, 'Welcome to the $spaceName space!');
+}
+
+  // Add a member to the space chat room
+Future<void> addMemberToSpaceChatRoom(String spaceId, String userId) async {
+  print('Adding user $userId to space $spaceId'); // Debugging
+
+  // Fetch the user's data from Firestore
+  final userSnapshot = await firebaseFirestore.collection('Users').doc(userId).get();
+  if (!userSnapshot.exists) {
+    print('User $userId does not exist in Firestore'); // Debugging
+    return;
+  }
+
+  final username = userSnapshot.data()?['username'] ?? 'Unknown User';
+
+  // Check if the space chat room exists
+  final spaceSnapshot = await firebaseFirestore.collection('space_chat_rooms').doc(spaceId).get();
+  if (!spaceSnapshot.exists) {
+    print('Space chat room $spaceId does not exist'); // Debugging
+    return;
+  }
+
+  // Add the user to the space chat room members list
+  await firebaseFirestore.collection('space_chat_rooms').doc(spaceId).update({
+    'members': FieldValue.arrayUnion([userId]),
+  });
+
+  print('User $userId added to space $spaceId successfully'); // Debugging
+
+  // Send a message indicating the user has joined the space
+  await sendSpaceChatMessage(spaceId, '$username has joined the space!');
+}
+
+  // Send a message to the space chat room
+  Future<void> sendSpaceChatMessage(String spaceId, String message) async {
+    final String currentUserID = _auth.currentUser!.uid;
+    final String currentUserEmail = _auth.currentUser!.email!;
+    final Timestamp timestamp = Timestamp.now();
+
+    Message newMessage = Message(
+      senderID: currentUserID,
+      senderEmail: currentUserEmail,
+      receiverID: spaceId, // Using spaceId as receiverID for space chat
+      message: message,
+      timestamp: timestamp,
+    );
+
+    await firebaseFirestore
+        .collection('space_chat_rooms')
+        .doc(spaceId)
+        .collection('messages')
+        .add(newMessage.toMap());
+  }
+
+  // Get messages for a space chat room
+  Stream<QuerySnapshot> getSpaceChatMessages(String spaceId) {
+    return firebaseFirestore
+        .collection('space_chat_rooms')
+        .doc(spaceId)
+        .collection('messages')
+        .orderBy('timestamp', descending: false)
+        .snapshots();
+  }
+
+  Stream<List<Map<String, dynamic>>> getSpaceChatRooms() {
+  final String currentUserID = _auth.currentUser!.uid;
+
+  return firebaseFirestore
+      .collection('space_chat_rooms')
+      .where('members', arrayContains: currentUserID)
+      .snapshots()
+      .map((snapshot) {
+    return snapshot.docs.map((doc) {
+      return {
+        'id': doc.id,
+        'name': doc['name'],
+        'createdAt': doc['createdAt'],
+      };
+    }).toList();
+  });
+}
+
+Stream<QuerySnapshot> getMessages(String receiverID, {bool isSpaceChat = false}) {
+  if (isSpaceChat) {
+    // Fetch messages for a space chat room
+    return firebaseFirestore
+        .collection('space_chat_rooms')
+        .doc(receiverID) // Use the spaceId as the document ID
+        .collection('messages')
+        .orderBy('timestamp', descending: false)
+        .snapshots();
+  } else {
+    // Fetch messages for a private chat room
+    final String currentUserID = _auth.currentUser!.uid;
+    List<String> ids = [currentUserID, receiverID];
+    ids.sort();
+    String chatRoomID = ids.join('_');
+
+    return firebaseFirestore
+        .collection('chat_rooms')
+        .doc(chatRoomID)
+        .collection('messages')
+        .orderBy('timestamp', descending: false)
+        .snapshots();
+  }
+}
 } 

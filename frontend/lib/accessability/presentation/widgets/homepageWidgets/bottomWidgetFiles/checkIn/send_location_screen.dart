@@ -75,115 +75,115 @@ class _SendLocationScreenState extends State<SendLocationScreen> {
   }
 
   Widget _buildChatList() {
-    return StreamBuilder(
-      stream: CombineLatestStream.list([
-        _chatService.getUsersInSameSpaces(),
-        _chatService.getUsersWithAcceptedChatRequests(),
-        _chatService.getSpaceChatRooms(),
-      ]),
-      builder: (context, snapshot) {
-        if (snapshot.hasError) {
-          return const Center(child: Text('Error loading chats.'));
-        }
+  return StreamBuilder(
+    stream: CombineLatestStream.list([
+      _chatService.getUsersInSameSpaces(),
+      _chatService.getUsersWithAcceptedChatRequests(),
+      _chatService.getSpaceChatRooms(),
+    ]),
+    builder: (context, snapshot) {
+      if (snapshot.hasError) {
+        return const Center(child: Text('Error loading chats.'));
+      }
 
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
-        }
+      if (snapshot.connectionState == ConnectionState.waiting) {
+        return const Center(child: CircularProgressIndicator());
+      }
 
-        final List<Map<String, dynamic>> usersInSameSpaces = snapshot.data![0];
-        final List<Map<String, dynamic>> usersWithAcceptedRequests = snapshot.data![1];
-        final List<Map<String, dynamic>> spaceChatRooms = snapshot.data![2];
+      final List<Map<String, dynamic>> usersInSameSpaces = snapshot.data![0];
+      final List<Map<String, dynamic>> usersWithAcceptedRequests = snapshot.data![1];
+      final List<Map<String, dynamic>> spaceChatRooms = snapshot.data![2];
 
-        // Combine the lists and remove duplicates
-        final Map<String, Map<String, dynamic>> uniqueUsers = {};
+      // Combine the lists and remove duplicates
+      final Map<String, Map<String, dynamic>> uniqueUsers = {};
 
-        for (var user in usersInSameSpaces) {
-          uniqueUsers[user['uid']] = user;
-        }
+      for (var user in usersInSameSpaces) {
+        uniqueUsers[user['uid']] = user;
+      }
 
-        for (var user in usersWithAcceptedRequests) {
-          uniqueUsers[user['uid']] = user;
-        }
+      for (var user in usersWithAcceptedRequests) {
+        uniqueUsers[user['uid']] = user;
+      }
 
-        for (var space in spaceChatRooms) {
-          uniqueUsers[space['id']] = {
-            'uid': space['id'],
-            'username': space['name'],
-            'isSpaceChat': true,
-          };
-        }
+      for (var space in spaceChatRooms) {
+        uniqueUsers[space['id']] = {
+          'uid': space['id'],
+          'username': space['name'],
+          'isSpaceChat': true, // Mark space chats explicitly
+        };
+      }
 
-        if (uniqueUsers.isEmpty) {
-          return const Center(
-            child: Text('No chats available.'),
-          );
-        }
-
-        // Separate space chats and individual users
-        final List<Map<String, dynamic>> spaceChats = uniqueUsers.values
-            .where((user) => user['isSpaceChat'] == true)
-            .toList();
-        final List<Map<String, dynamic>> individualUsers = uniqueUsers.values
-            .where((user) => user['isSpaceChat'] != true)
-            .toList();
-
-        return ListView(
-          padding: const EdgeInsets.symmetric(vertical: 8),
-          children: [
-            if (spaceChats.isNotEmpty) ...[
-              const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                child: Text(
-                  'Space Chats',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.grey,
-                  ),
-                ),
-              ),
-              ...spaceChats.map((userData) => _buildChatListItem(userData)),
-              const Divider(thickness: 1, height: 20),
-            ],
-            if (individualUsers.isNotEmpty) ...[
-              const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                child: Text(
-                  'People',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.grey,
-                  ),
-                ),
-              ),
-              ...individualUsers.map((userData) => _buildChatListItem(userData)),
-            ],
-          ],
+      if (uniqueUsers.isEmpty) {
+        return const Center(
+          child: Text('No chats available.'),
         );
-      },
-    );
-  }
+      }
+
+      // Separate space chats and individual users
+      final List<Map<String, dynamic>> spaceChats = uniqueUsers.values
+          .where((user) => user['isSpaceChat'] == true)
+          .toList();
+      final List<Map<String, dynamic>> individualUsers = uniqueUsers.values
+          .where((user) => user['isSpaceChat'] != true)
+          .toList();
+
+      return ListView(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        children: [
+          if (spaceChats.isNotEmpty) ...[
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: Text(
+                'Space Chats',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.grey,
+                ),
+              ),
+            ),
+            ...spaceChats.map((userData) => _buildChatListItem(userData)),
+            const Divider(thickness: 1, height: 20),
+          ],
+          if (individualUsers.isNotEmpty) ...[
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: Text(
+                'People',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.grey,
+                ),
+              ),
+            ),
+            ...individualUsers.map((userData) => _buildChatListItem(userData)),
+          ],
+        ],
+      );
+    },
+  );
+}
 
   Widget _buildChatListItem(Map<String, dynamic> userData) {
-    final bool isSpaceChat = userData['isSpaceChat'] == true;
-    final String chatId = userData['uid'];
-    final String username = userData['username'];
+  final bool isSpaceChat = userData['isSpaceChat'] == true;
+  final String chatId = userData['uid'];
+  final String username = userData['username'];
 
-    return CheckboxListTile(
-      title: Text(username),
-      value: _selectedChats.contains(chatId),
-      onChanged: (value) {
-        setState(() {
-          if (value == true) {
-            _selectedChats.add(chatId);
-          } else {
-            _selectedChats.remove(chatId);
-          }
-        });
-      },
-    );
-  }
+  return CheckboxListTile(
+    title: Text(username),
+    value: _selectedChats.contains(chatId),
+    onChanged: (value) {
+      setState(() {
+        if (value == true) {
+          _selectedChats.add(chatId);
+        } else {
+          _selectedChats.remove(chatId);
+        }
+      });
+    },
+  );
+}
 
   Future<void> _sendLocation() async {
   if (_selectedChats.isEmpty) {
@@ -207,10 +207,14 @@ class _SendLocationScreenState extends State<SendLocationScreen> {
 
   // Send the location to each selected chat
   for (final chatId in _selectedChats) {
+    // Check if the chatId exists in the space_chat_rooms collection
+    final spaceChatDoc = await _firestore.collection('space_chat_rooms').doc(chatId).get();
+    final isSpaceChat = spaceChatDoc.exists;
+
     await _chatService.sendMessage(
       chatId,
       locationMessage,
-      isSpaceChat: widget.isSpaceChat, // Use the isSpaceChat flag
+      isSpaceChat: isSpaceChat, // Pass the correct isSpaceChat value
     );
   }
 

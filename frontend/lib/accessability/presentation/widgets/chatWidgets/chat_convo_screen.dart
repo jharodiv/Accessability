@@ -136,21 +136,21 @@ class _ChatConvoScreenState extends State<ChatConvoScreen> {
   }
 
   Widget _buildMessageList() {
-    return StreamBuilder(
-      stream: chatService.getMessages(
-        widget.receiverID,
-        isSpaceChat: widget.isSpaceChat,
-      ),
-      builder: (context, snapshot) {
-        if (snapshot.hasError) {
-          return const Center(child: Text('Error loading messages.'));
-        }
+  return StreamBuilder(
+    stream: chatService.getMessages(
+      widget.receiverID,
+      isSpaceChat: widget.isSpaceChat,
+    ),
+    builder: (context, snapshot) {
+      if (snapshot.hasError) {
+        return const Center(child: Text('Error loading messages.'));
+      }
 
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
-        }
+      if (snapshot.connectionState == ConnectionState.waiting) {
+        return const Center(child: CircularProgressIndicator());
+      }
 
-         // Extract messages from the snapshot
+      // Extract messages from the snapshot
       final messages = snapshot.data!.docs;
 
       // Scroll to the bottom after messages are loaded
@@ -164,20 +164,32 @@ class _ChatConvoScreenState extends State<ChatConvoScreen> {
         }
       });
 
-         // Build message widgets
+      // Group messages by time intervals and add dividers
       List<Widget> messageWidgets = [];
+      DateTime? previousMessageTime;
+
       for (var doc in messages) {
+        final data = doc.data() as Map<String, dynamic>;
+        final messageTime = (data['timestamp'] as Timestamp).toDate();
+
+        // Add a divider if the time difference is more than 10 minutes
+        if (previousMessageTime != null &&
+            messageTime.difference(previousMessageTime).inMinutes > 10) {
+          messageWidgets.add(_buildTimeDivider(messageTime));
+        }
+
         messageWidgets.add(_buildMessageItem(doc));
+        previousMessageTime = messageTime;
       }
 
-        return ListView(
-          controller: scrollController,
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          children: messageWidgets,
-        );
-      },
-    );
-  }
+      return ListView(
+        controller: scrollController,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        children: messageWidgets,
+      );
+    },
+  );
+}
 
   Widget _buildMessageItem(DocumentSnapshot doc) {
     Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
@@ -241,4 +253,43 @@ class _ChatConvoScreenState extends State<ChatConvoScreen> {
       ),
     );
   }
+
+  Widget _buildTimeDivider(DateTime messageTime) {
+  final now = DateTime.now();
+  final today = DateTime(now.year, now.month, now.day);
+  final yesterday = DateTime(now.year, now.month, now.day - 1);
+
+  String formattedTime;
+  if (messageTime.isAfter(today)) {
+    // Today: Use AM/PM
+    formattedTime = DateFormat('h:mm a').format(messageTime);
+  } else if (messageTime.isAfter(yesterday)) {
+    // Yesterday: Show "Yesterday"
+    formattedTime = 'Yesterday ${DateFormat('h:mm a').format(messageTime)}';
+  } else if (now.difference(messageTime).inDays <= 3) {
+    // Within 3 days: Show day and time
+    formattedTime = DateFormat('EEE h:mm a').format(messageTime);
+  } else {
+    // More than 3 days: Show date and time
+    formattedTime = DateFormat('MMM d, yyyy h:mm a').format(messageTime);
+  }
+
+  return Center(
+    child: Container(
+      margin: const EdgeInsets.symmetric(vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      decoration: BoxDecoration(
+        color: Colors.grey[300],
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Text(
+        formattedTime,
+        style: const TextStyle(
+          fontSize: 12,
+          color: Colors.black87,
+        ),
+      ),
+    ),
+  );
+}
 }

@@ -20,13 +20,13 @@ class ServiceButtons extends StatelessWidget {
         _buildServiceButton(Icons.check_circle, 'Check-in', () {
           if (currentLocation != null) {
             Navigator.pushNamed(
-                context,
-                '/send-location',
-                arguments: {
-                  'currentLocation': currentLocation ?? const LatLng(0, 0),
-                  'isSpaceChat': true,
-                },
-              );
+              context,
+              '/send-location',
+              arguments: {
+                'currentLocation': currentLocation ?? const LatLng(0, 0),
+                'isSpaceChat': false, // Default to false for individual chats
+              },
+            );
           } else {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(content: Text('Unable to fetch current location.')),

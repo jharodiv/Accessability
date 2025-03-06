@@ -5,11 +5,13 @@ import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import 'package:emoji_picker_flutter/emoji_picker_flutter.dart';
 
+import 'package:google_maps_flutter/google_maps_flutter.dart';
+
 class ChatConvoBubble extends StatefulWidget {
   final String message;
   final bool isCurrentUser;
   final Timestamp timestamp;
-  final String profilePicture; // Add profile picture
+  final String profilePicture;
   final Function()? onEdit;
   final Function()? onDelete;
   final Function(String emoji)? onReact;
@@ -19,7 +21,7 @@ class ChatConvoBubble extends StatefulWidget {
     required this.isCurrentUser,
     required this.message,
     required this.timestamp,
-    required this.profilePicture, // Add profile picture
+    required this.profilePicture,
     this.onEdit,
     this.onDelete,
     this.onReact,
@@ -31,8 +33,28 @@ class ChatConvoBubble extends StatefulWidget {
 
 class _ChatConvoBubbleState extends State<ChatConvoBubble> {
   bool _showTimestamp = false;
+  LatLng? _location;
 
-  void _showOptionsMenu(BuildContext context) {
+  @override
+  void initState() {
+    super.initState();
+    _location = _extractLatLngFromMessage(widget.message);
+  }
+
+  LatLng? _extractLatLngFromMessage(String message) {
+    final regex = RegExp(r'https://www\.google\.com/maps\?q=([\d\.]+),([\d\.]+)');
+    final match = regex.firstMatch(message);
+    if (match != null) {
+      final lat = double.tryParse(match.group(1)!);
+      final lng = double.tryParse(match.group(2)!);
+      if (lat != null && lng != null) {
+        return LatLng(lat, lng);
+      }
+    }
+    return null;
+  }
+
+   void _showOptionsMenu(BuildContext context) {
     showModalBottomSheet(
       context: context,
       builder: (context) {
@@ -83,22 +105,19 @@ class _ChatConvoBubbleState extends State<ChatConvoBubble> {
     );
   }
 
- @override
+  @override
 Widget build(BuildContext context) {
-  bool isDarkMode =
-      Provider.of<ThemeProvider>(context, listen: false).isDarkMode;
+  bool isDarkMode = Provider.of<ThemeProvider>(context, listen: false).isDarkMode;
   final DateTime messageDate = widget.timestamp.toDate();
   final DateTime now = DateTime.now();
   final bool isThisWeek = now.difference(messageDate).inDays <= 7;
 
   String formattedTime = isThisWeek
-      ? DateFormat('E hh:mm a').format(messageDate) // Day and time for this week
-      : DateFormat('MMM d, yyyy hh:mm a').format(messageDate); // Full date for older messages
+      ? DateFormat('E hh:mm a').format(messageDate)
+      : DateFormat('MMM d, yyyy hh:mm a').format(messageDate);
 
   return Row(
-    mainAxisAlignment: widget.isCurrentUser
-        ? MainAxisAlignment.end
-        : MainAxisAlignment.start,
+    mainAxisAlignment: widget.isCurrentUser ? MainAxisAlignment.end : MainAxisAlignment.start,
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
       if (!widget.isCurrentUser)
@@ -107,13 +126,14 @@ Widget build(BuildContext context) {
         ),
       const SizedBox(width: 8),
       Flexible(
-        child: GestureDetector(
+        child: InkWell(
           onTap: () {
             setState(() {
               _showTimestamp = !_showTimestamp;
             });
           },
           onLongPress: () => _showOptionsMenu(context),
+          borderRadius: BorderRadius.circular(12),
           child: Container(
             constraints: BoxConstraints(
               maxWidth: MediaQuery.of(context).size.width * 0.7,
@@ -131,6 +151,8 @@ Widget build(BuildContext context) {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                if (_location != null)
+                  _buildMapPreview(_location!),
                 Text(
                   widget.message,
                   style: TextStyle(
@@ -159,4 +181,35 @@ Widget build(BuildContext context) {
     ],
   );
 }
+
+  Widget _buildMapPreview(LatLng location) {
+    return Container(
+      height: 150,
+      width: double.infinity,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        color: Colors.grey[200],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(12),
+        child: GoogleMap(
+          initialCameraPosition: CameraPosition(
+            target: location,
+            zoom: 15,
+          ),
+          markers: {
+            Marker(
+              markerId: const MarkerId('location'),
+              position: location,
+            ),
+          },
+          zoomControlsEnabled: false,
+          scrollGesturesEnabled: false,
+          tiltGesturesEnabled: false,
+          rotateGesturesEnabled: false,
+          zoomGesturesEnabled: false,
+        ),
+      ),
+    );
+  }
 }

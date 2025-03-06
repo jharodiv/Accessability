@@ -101,6 +101,10 @@ class _FavoriteWidgetState extends State<FavoriteWidget> {
                     padding: const EdgeInsets.all(16),
                     child: ElevatedButton(
                       onPressed: () async {
+                        // Fetch all places before opening the modal.
+                        context
+                            .read<PlaceBloc>()
+                            .add(const GetAllPlacesEvent());
                         context.read<PlaceBloc>().add(const GetAllPlacesEvent());
 
                         final result =
@@ -242,17 +246,27 @@ class _FavoriteWidgetState extends State<FavoriteWidget> {
                                             color: Colors.red),
                                         onSelected: (value) {
                                           if (value == 'remove') {
+                                            // Update the place's category to an empty string (or null) to effectively remove it.
                                             context.read<PlaceBloc>().add(
-                                                    RemovePlaceFromCategoryEvent(
-                                                  placeId: place.id,
-                                                ));
+                                                  UpdatePlaceCategoryEvent(
+                                                    placeId: place.id,
+                                                    newCategory:
+                                                        'none', // Use '' or null instead of 'none'
+                                                  ),
+                                                );
+                                            // Refresh after updating
                                             context
                                                 .read<PlaceBloc>()
                                                 .add(const GetAllPlacesEvent());
                                           } else if (value == 'delete') {
                                             context.read<PlaceBloc>().add(
-                                                DeletePlaceEvent(
-                                                    placeId: place.id));
+                                                  UpdatePlaceCategoryEvent(
+                                                    placeId: place.id,
+                                                    newCategory:
+                                                        'none', // Use '' or null instead of 'none'
+                                                  ),
+                                                );
+                                            // Refresh after updating
                                             context
                                                 .read<PlaceBloc>()
                                                 .add(const GetAllPlacesEvent());

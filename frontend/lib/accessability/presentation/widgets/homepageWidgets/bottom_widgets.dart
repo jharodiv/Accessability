@@ -2,11 +2,13 @@ import 'dart:async';
 import 'dart:math';
 
 import 'package:AccessAbility/accessability/firebaseServices/chat/chat_service.dart';
+import 'package:AccessAbility/accessability/firebaseServices/models/place.dart';
 import 'package:AccessAbility/accessability/firebaseServices/place/geocoding_service.dart';
 import 'package:AccessAbility/accessability/presentation/screens/gpsscreen/location_handler.dart';
 import 'package:AccessAbility/accessability/presentation/widgets/bottomSheetWidgets/add_place.dart';
 import 'package:AccessAbility/accessability/presentation/widgets/bottomSheetWidgets/custom_button.dart';
 import 'package:AccessAbility/accessability/presentation/widgets/bottomSheetWidgets/map_content.dart';
+import 'package:AccessAbility/accessability/presentation/widgets/gpsWidgets/establishment_details_card.dart';
 import 'package:AccessAbility/accessability/presentation/widgets/homepageWidgets/bottomWidgetFiles/member_list_widget.dart';
 import 'package:AccessAbility/accessability/presentation/widgets/homepageWidgets/bottomWidgetFiles/service_buttons.dart';
 import 'package:AccessAbility/accessability/presentation/widgets/homepageWidgets/bottomWidgetFiles/verification_code_widget.dart';
@@ -19,11 +21,16 @@ import 'package:AccessAbility/accessability/presentation/widgets/bottomSheetWidg
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:provider/provider.dart';
 
+// Import your EstablishmentDetailsCard widget.
+
 class BottomWidgets extends StatefulWidget {
   final ScrollController scrollController;
   final String activeSpaceId;
   final Function(String) onCategorySelected;
   final Function(LatLng, String) onMemberPressed;
+  final Place? selectedPlace; // New: Selected establishment details to show
+  final VoidCallback?
+      onCloseSelectedPlace; // New: Callback to clear the selection
 
   const BottomWidgets({
     super.key,
@@ -31,6 +38,8 @@ class BottomWidgets extends StatefulWidget {
     required this.activeSpaceId,
     required this.onCategorySelected,
     required this.onMemberPressed,
+    this.selectedPlace,
+    this.onCloseSelectedPlace,
   });
 
   @override
@@ -71,23 +80,22 @@ class _BottomWidgetsState extends State<BottomWidgets> {
     _initializeLocation();
   }
 
-   Future<void> _initializeLocation() async {
+  Future<void> _initializeLocation() async {
     try {
       await _locationHandler.getUserLocation();
       setState(() {}); // Trigger a rebuild after location is fetched
     } catch (e) {
       print("Error fetching user location: $e");
-      // Handle the error gracefully (e.g., show a snackbar or log the error)
     }
   }
 
   @override
-void didUpdateWidget(BottomWidgets oldWidget) {
-  super.didUpdateWidget(oldWidget);
-  if (widget.activeSpaceId != oldWidget.activeSpaceId) {
-    _listenToMembers(); // Re-fetch members when activeSpaceId changes
+  void didUpdateWidget(BottomWidgets oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.activeSpaceId != oldWidget.activeSpaceId) {
+      _listenToMembers(); // Re-fetch members when activeSpaceId changes
+    }
   }
-}
 
   @override
   void dispose() {
@@ -105,30 +113,11 @@ void didUpdateWidget(BottomWidgets oldWidget) {
   }
 
   void _listenToMembers() {
-  if (widget.activeSpaceId.isEmpty || widget.activeSpaceId == '') {
-    _membersListener?.cancel();
-    _membersListener = null;
-    _locationListeners.forEach((listener) => listener.cancel());
-    _locationListeners.clear();
-    setState(() {
-      _members = [];
-      _spaceName = null;
-      _verificationCode = null;
-    });
-    return;
-  }
-
-  _membersListener?.cancel();
-  _membersListener = null;
-  _locationListeners.forEach((listener) => listener.cancel());
-  _locationListeners.clear();
-
-  _membersListener = _firestore
-      .collection('Spaces')
-      .doc(widget.activeSpaceId)
-      .snapshots()
-      .listen((snapshot) async {
-    if (!snapshot.exists) {
+    if (widget.activeSpaceId.isEmpty) {
+      _membersListener?.cancel();
+      _membersListener = null;
+      _locationListeners.forEach((listener) => listener.cancel());
+      _locationListeners.clear();
       setState(() {
         _members = [];
         _spaceName = null;
@@ -137,81 +126,99 @@ void didUpdateWidget(BottomWidgets oldWidget) {
       return;
     }
 
-    final members = snapshot['members'] != null
-        ? List<String>.from(snapshot['members'])
-        : [];
-    final creatorId = snapshot['creator'];
-    final spaceName = snapshot['name'] ?? 'Unnamed Space';
-    final verificationCode = snapshot['verificationCode'];
+    _membersListener?.cancel();
+    _membersListener = null;
+    _locationListeners.forEach((listener) => listener.cancel());
+    _locationListeners.clear();
 
-    if (members.isEmpty) {
-      setState(() {
-        _members = [];
-        _spaceName = spaceName;
-        _verificationCode = verificationCode;
-        _creatorId = creatorId;
-      });
-      return;
-    }
-
-    final usersSnapshot = await _firestore
-        .collection('Users')
-        .where('uid', whereIn: members)
-        .get();
-
-    final updatedMembers =
-        await Future.wait(usersSnapshot.docs.map((doc) async {
-      final locationSnapshot =
-          await _firestore.collection('UserLocations').doc(doc['uid']).get();
-      final locationData = locationSnapshot.data();
-      String address = 'Fetching address...';
-      if (locationData != null) {
-        final lat = locationData['latitude'];
-        final lng = locationData['longitude'];
-        address = await _getAddressFromLatLng(LatLng(lat, lng));
+    _membersListener = _firestore
+        .collection('Spaces')
+        .doc(widget.activeSpaceId)
+        .snapshots()
+        .listen((snapshot) async {
+      if (!snapshot.exists) {
+        setState(() {
+          _members = [];
+          _spaceName = null;
+          _verificationCode = null;
+        });
+        return;
       }
-      return {
-        'uid': doc['uid'],
-        'username': doc['username'] ?? 'Unknown',
-        'profilePicture': doc['profilePicture'] ??
-            'https://firebasestorage.googleapis.com/v0/b/accessability-71ef7.appspot.com/o/profile_pictures%2Fdefault_profile.png?alt=media&token=bc7a75a7-a78e-4460-b816-026a8fc341ba',
-        'address': address,
-        'lastUpdate': locationData?['timestamp'],
-      };
-    }));
 
-    setState(() {
-      _members = updatedMembers;
-      _creatorId = creatorId;
-      _spaceName = spaceName;
-      _verificationCode = verificationCode;
-    });
+      final members = snapshot['members'] != null
+          ? List<String>.from(snapshot['members'])
+          : [];
+      final creatorId = snapshot['creator'];
+      final spaceName = snapshot['name'] ?? 'Unnamed Space';
+      final verificationCode = snapshot['verificationCode'];
 
-    for (final member in members) {
-      final listener = _firestore
-          .collection('UserLocations')
-          .doc(member)
-          .snapshots()
-          .listen((locationSnapshot) async {
+      if (members.isEmpty) {
+        setState(() {
+          _members = [];
+          _spaceName = spaceName;
+          _verificationCode = verificationCode;
+          _creatorId = creatorId;
+        });
+        return;
+      }
+
+      final usersSnapshot = await _firestore
+          .collection('Users')
+          .where('uid', whereIn: members)
+          .get();
+
+      final updatedMembers =
+          await Future.wait(usersSnapshot.docs.map((doc) async {
+        final locationSnapshot =
+            await _firestore.collection('UserLocations').doc(doc['uid']).get();
         final locationData = locationSnapshot.data();
+        String address = 'Fetching address...';
         if (locationData != null) {
           final lat = locationData['latitude'];
           final lng = locationData['longitude'];
-          final address = await _getAddressFromLatLng(LatLng(lat, lng));
-          setState(() {
-            final index = _members.indexWhere((m) => m['uid'] == member);
-            if (index != -1) {
-              _members[index]['address'] = address;
-              _members[index]['lastUpdate'] = locationData['timestamp'];
-            }
-          });
+          address = await _getAddressFromLatLng(LatLng(lat, lng));
         }
-      });
-      _locationListeners.add(listener);
-    }
-  });
-}
+        return {
+          'uid': doc['uid'],
+          'username': doc['username'] ?? 'Unknown',
+          'profilePicture': doc['profilePicture'] ??
+              'https://firebasestorage.googleapis.com/v0/b/accessability-71ef7.appspot.com/o/profile_pictures%2Fdefault_profile.png?alt=media&token=bc7a75a7-a78e-4460-b816-026a8fc341ba',
+          'address': address,
+          'lastUpdate': locationData?['timestamp'],
+        };
+      }));
 
+      setState(() {
+        _members = updatedMembers;
+        _creatorId = creatorId;
+        _spaceName = spaceName;
+        _verificationCode = verificationCode;
+      });
+
+      for (final member in members) {
+        final listener = _firestore
+            .collection('UserLocations')
+            .doc(member)
+            .snapshots()
+            .listen((locationSnapshot) async {
+          final locationData = locationSnapshot.data();
+          if (locationData != null) {
+            final lat = locationData['latitude'];
+            final lng = locationData['longitude'];
+            final address = await _getAddressFromLatLng(LatLng(lat, lng));
+            setState(() {
+              final index = _members.indexWhere((m) => m['uid'] == member);
+              if (index != -1) {
+                _members[index]['address'] = address;
+                _members[index]['lastUpdate'] = locationData['timestamp'];
+              }
+            });
+          }
+        });
+        _locationListeners.add(listener);
+      }
+    });
+  }
 
   void _setupVerificationCodeFocusListeners() {
     for (int i = 0; i < _verificationCodeControllers.length; i++) {
@@ -305,18 +312,57 @@ void didUpdateWidget(BottomWidgets oldWidget) {
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: const Text('Send Code'),
-          content: TextField(
-            decoration: const InputDecoration(labelText: 'Email'),
-            onChanged: (value) => email = value,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16.0),
+          ),
+          title: const Text(
+            'Send Code',
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: Color(0xFF6750A4),
+            ),
+          ),
+          content: Padding(
+            padding: const EdgeInsets.only(top: 8.0),
+            child: TextField(
+              decoration: InputDecoration(
+                labelText: 'Email',
+                labelStyle: const TextStyle(color: Colors.grey),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8.0),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderSide: const BorderSide(
+                      color: Color(0xFF6750A4)), // Outline when not focused
+                  borderRadius: BorderRadius.circular(8.0),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderSide: const BorderSide(
+                      color: Color(0xFF6750A4),
+                      width: 2.0), // Outline when focused
+                  borderRadius: BorderRadius.circular(8.0),
+                ),
+              ),
+              onChanged: (value) => email = value,
+            ),
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel'),
+              child: const Text(
+                'Cancel',
+                style: TextStyle(color: const Color(0xFF6750A4)),
+              ),
             ),
-            TextButton(
+            ElevatedButton(
               onPressed: () => Navigator.pop(context),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF6750A4),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8.0),
+                ),
+              ),
               child: const Text('Send'),
             ),
           ],
@@ -326,340 +372,94 @@ void didUpdateWidget(BottomWidgets oldWidget) {
     return email;
   }
 
-
   Future<void> _createSpace() async {
-  final user = _auth.currentUser;
-  if (user == null) return;
+    final user = _auth.currentUser;
+    if (user == null) return;
 
-  final spaceName = _spaceNameController.text;
-  if (spaceName.isEmpty) return;
+    final spaceName = _spaceNameController.text;
+    if (spaceName.isEmpty) return;
 
-  final verificationCode = _generateVerificationCode();
-  final spaceRef = await _firestore.collection('Spaces').add({
-    'name': spaceName,
-    'creator': user.uid,
-    'members': [user.uid], // Add the creator as the first member
-    'verificationCode': verificationCode,
-    'codeTimestamp': DateTime.now(),
-    'createdAt': DateTime.now(),
-  });
-
-  // Create a chat room for the space and add the creator as the first member
-  await _chatService.createSpaceChatRoom(spaceRef.id, spaceName);
-
-  _spaceNameController.clear();
-  setState(() {
-    _showCreateSpace = false;
-  });
-
-  ScaffoldMessenger.of(context).showSnackBar(
-    const SnackBar(content: Text('Space created successfully')),
-  );
-}
-
-   Future<void> _joinSpace() async {
-  final user = _auth.currentUser;
-  if (user == null) return;
-
-  final verificationCode = _verificationCodeControllers
-      .map((controller) => controller.text)
-      .join();
-  if (verificationCode.isEmpty) return;
-
-  final snapshot = await _firestore
-      .collection('Spaces')
-      .where('verificationCode', isEqualTo: verificationCode)
-      .get();
-
-  if (snapshot.docs.isNotEmpty) {
-    final spaceId = snapshot.docs.first.id;
-    final codeTimestamp = snapshot.docs.first['codeTimestamp']?.toDate();
-
-    if (codeTimestamp != null) {
-      final now = DateTime.now();
-      final difference = now.difference(codeTimestamp).inMinutes;
-      if (difference > 10) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Verification code has expired')),
-        );
-        return;
-      }
-    }
-
-    await _firestore.collection('Spaces').doc(spaceId).update({
-      'members': FieldValue.arrayUnion([user.uid]),
+    final verificationCode = _generateVerificationCode();
+    final spaceRef = await _firestore.collection('Spaces').add({
+      'name': spaceName,
+      'creator': user.uid,
+      'members': [user.uid],
+      'verificationCode': verificationCode,
+      'codeTimestamp': DateTime.now(),
+      'createdAt': DateTime.now(),
     });
 
-    // Add the user to the space chat room
-    await _chatService.addMemberToSpaceChatRoom(spaceId, user.uid);
+    await _chatService.createSpaceChatRoom(spaceRef.id, spaceName);
 
-    for (final controller in _verificationCodeControllers) {
-      controller.clear();
-    }
+    _spaceNameController.clear();
     setState(() {
-      _showJoinSpace = false;
+      _showCreateSpace = false;
     });
 
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Joined space successfully')),
-    );
-  } else {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Invalid verification code')),
+      const SnackBar(content: Text('Space created successfully')),
     );
   }
-}
+
+  Future<void> _joinSpace() async {
+    final user = _auth.currentUser;
+    if (user == null) return;
+
+    final verificationCode = _verificationCodeControllers
+        .map((controller) => controller.text)
+        .join();
+    if (verificationCode.isEmpty) return;
+
+    final snapshot = await _firestore
+        .collection('Spaces')
+        .where('verificationCode', isEqualTo: verificationCode)
+        .get();
+
+    if (snapshot.docs.isNotEmpty) {
+      final spaceId = snapshot.docs.first.id;
+      final codeTimestamp = snapshot.docs.first['codeTimestamp']?.toDate();
+
+      if (codeTimestamp != null) {
+        final now = DateTime.now();
+        final difference = now.difference(codeTimestamp).inMinutes;
+        if (difference > 10) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Verification code has expired')),
+          );
+          return;
+        }
+      }
+
+      await _firestore.collection('Spaces').doc(spaceId).update({
+        'members': FieldValue.arrayUnion([_auth.currentUser!.uid]),
+      });
+
+      await _chatService.addMemberToSpaceChatRoom(
+          spaceId, _auth.currentUser!.uid);
+
+      for (final controller in _verificationCodeControllers) {
+        controller.clear();
+      }
+      setState(() {
+        _showJoinSpace = false;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Joined space successfully')),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Invalid verification code')),
+      );
+    }
+  }
 
   String _generateVerificationCode() {
     final random = Random();
     return (100000 + random.nextInt(900000)).toString();
   }
 
-  @override
-Widget build(BuildContext context) {
-  final bool isDarkMode = Provider.of<ThemeProvider>(context).isDarkMode;
-
-  return DraggableScrollableSheet(
-    initialChildSize: 0.15,
-    minChildSize: 0.15,
-    maxChildSize: 0.8,
-    builder: (context, scrollController) {
-      return Column(
-        children: [
-          ServiceButtons(
-            onButtonPressed: (label) {
-              if (label == 'SOS') {
-                Navigator.pushNamed(context, '/sos');
-              }
-            },
-            currentLocation: _locationHandler.currentLocation,
-          ),
-          const SizedBox(height: 10),
-          Expanded(
-            child: Container(
-              decoration: BoxDecoration(
-                color: isDarkMode ? Colors.grey[900] : Colors.white,
-                borderRadius: const BorderRadius.only(
-                  topLeft: Radius.circular(20),
-                  topRight: Radius.circular(20),
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black26,
-                    blurRadius: 10,
-                    offset: Offset(0, -5),
-                  ),
-                ],
-              ),
-              child: SingleChildScrollView(
-                controller: scrollController,
-                child: Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Column(
-                    children: [
-                      Container(
-                        width: 100,
-                        height: 2,
-                        color: isDarkMode ? Colors.grey[700] : Colors.grey.shade700,
-                        margin: const EdgeInsets.only(bottom: 8),
-                      ),
-                      const SizedBox(height: 5),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        height: 50,
-                        decoration: BoxDecoration(
-                          color: isDarkMode ? Colors.grey[800] : Colors.grey.shade200,
-                          borderRadius: BorderRadius.circular(25),
-                        ),
-                        child: Row(
-                          children: [
-                            Expanded(
-                              child: Text(
-                                "Text to Speech, Speech to Text",
-                                style: TextStyle(
-                                  color: isDarkMode ? Colors.white : const Color(0xFF6750A4),
-                                  fontSize: 16,
-                                ),
-                              ),
-                            ),
-                            Icon(
-                              Icons.mic,
-                              color: isDarkMode ? Colors.white : const Color(0xFF6750A4),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 20),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                        children: [
-                          CustomButton(
-                            icon: Icons.people,
-                            index: 0,
-                            activeIndex: _activeIndex,
-                            onPressed: (int newIndex) {
-                              setState(() {
-                                _activeIndex = newIndex;
-                              });
-                            },
-                          ),
-                          CustomButton(
-                            icon: Icons.business,
-                            index: 1,
-                            activeIndex: _activeIndex,
-                            onPressed: (int newIndex) {
-                              setState(() {
-                                _activeIndex = newIndex;
-                              });
-                            },
-                          ),
-                          CustomButton(
-                            icon: Icons.map,
-                            index: 2,
-                            activeIndex: _activeIndex,
-                            onPressed: (int newIndex) {
-                              setState(() {
-                                _activeIndex = newIndex;
-                              });
-                            },
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 20),
-                      // Show Create/Join Space buttons only in the People tab (_activeIndex == 0)
-                      if (_activeIndex == 0 && widget.activeSpaceId.isEmpty) ...[
-                        if (!_showCreateSpace && !_showJoinSpace) ...[
-                          Align(
-                            alignment: Alignment.center,
-                            child: Text(
-                              "My Space",
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 20,
-                                color: isDarkMode ? Colors.white : Colors.black,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 5),
-                          Align(
-                            alignment: Alignment.center,
-                            child: Text(
-                              "Create a new space or join an existing one today",
-                              style: TextStyle(
-                                fontSize: 15,
-                                fontWeight: FontWeight.w400,
-                                color: isDarkMode ? Colors.grey[400] : Colors.grey,
-                              ),
-                              textAlign: TextAlign.center,
-                            ),
-                          ),
-                          const SizedBox(height: 25),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              SizedBox(
-                                width: 150,
-                                child: ElevatedButton(
-                                  onPressed: () {
-                                    setState(() {
-                                      _showCreateSpace = true;
-                                    });
-                                  },
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: const Color(0xFF6750A4),
-                                    padding: const EdgeInsets.symmetric(
-                                        vertical: 15),
-                                  ),
-                                  child: const Text(
-                                    'Create Space',
-                                    style: TextStyle(color: Colors.white),
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 10),
-                              SizedBox(
-                                width: 150,
-                                child: ElevatedButton(
-                                  onPressed: () {
-                                    setState(() {
-                                      _showJoinSpace = true;
-                                    });
-                                  },
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: const Color(0xFF6750A4),
-                                    padding: const EdgeInsets.symmetric(
-                                        vertical: 15),
-                                  ),
-                                  child: const Text(
-                                    'Join Space',
-                                    style: TextStyle(color: Colors.white),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                        if (_showCreateSpace)
-                          CreateSpaceWidget(
-                            spaceNameController: _spaceNameController,
-                            onCreateSpace: _createSpace,
-                            onCancel: () {
-                              setState(() {
-                                _showCreateSpace = false;
-                              });
-                            },
-                          ),
-                        if (_showJoinSpace)
-                          JoinSpaceWidget(
-                            verificationCodeControllers: _verificationCodeControllers,
-                            verificationCodeFocusNodes: _verificationCodeFocusNodes,
-                            onJoinSpace: _joinSpace,
-                            onCancel: () {
-                              setState(() {
-                                _showJoinSpace = false;
-                              });
-                            },
-                          ),
-                      ],
-                      // Show MemberListWidget only in the People tab (_activeIndex == 0)
-                      if (_activeIndex == 0 && widget.activeSpaceId.isNotEmpty)
-                        MemberListWidget(
-                          members: _members,
-                          onMemberPressed: widget.onMemberPressed,
-                          selectedMemberId: _selectedMemberId,
-                          activeSpaceId: widget.activeSpaceId,
-                        ),
-                      // Show AddPlaceWidget in the Business tab (_activeIndex == 1)
-                      if (_activeIndex == 1)
-                        const AddPlaceWidget(),
-                      // Show MapContent in the Map tab (_activeIndex == 2)
-                      if (_activeIndex == 2)
-                        MapContent(
-                          onCategorySelected: (category) {
-                            widget.onCategorySelected;
-                          },
-                        ),
-                      // Show VerificationCodeWidget in the People tab (_activeIndex == 0)
-                      if (_creatorId == _auth.currentUser?.uid &&
-                          _activeIndex == 0 &&
-                          widget.activeSpaceId.isNotEmpty)
-                        VerificationCodeWidget(
-                          verificationCode: _verificationCode ?? 'ABC - DEF',
-                          onSendCode: _addPerson,
-                        ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ],
-      );
-    },
-  );
-}
-
-   Future<String> _getAddressFromLatLng(LatLng latLng) async {
+  Future<String> _getAddressFromLatLng(LatLng latLng) async {
     try {
       final geocodingService = GeocodingService();
       final address = await geocodingService.getAddressFromLatLng(latLng);
@@ -668,5 +468,271 @@ Widget build(BuildContext context) {
       print('Error fetching address: $e');
       return 'Address unavailable';
     }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bool isDarkMode = Provider.of<ThemeProvider>(context).isDarkMode;
+
+    return DraggableScrollableSheet(
+      initialChildSize: 0.15,
+      minChildSize: 0.15,
+      maxChildSize: 0.8,
+      builder: (context, scrollController) {
+        return Column(
+          children: [
+            ServiceButtons(
+              onButtonPressed: (label) {
+                if (label == 'SOS') {
+                  Navigator.pushNamed(context, '/sos');
+                }
+              },
+              currentLocation: _locationHandler.currentLocation,
+            ),
+            const SizedBox(height: 10),
+            Expanded(
+              child: Container(
+                decoration: BoxDecoration(
+                  color: isDarkMode ? Colors.grey[900] : Colors.white,
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(20),
+                    topRight: Radius.circular(20),
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black26,
+                      blurRadius: 10,
+                      offset: const Offset(0, -5),
+                    ),
+                  ],
+                ),
+                child: SingleChildScrollView(
+                  controller: scrollController,
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Column(
+                      children: [
+                        // If a place is selected, show the EstablishmentDetailsCard here.
+                        if (widget.selectedPlace != null) ...[
+                          EstablishmentDetailsCard(
+                            place: widget.selectedPlace!,
+                            onClose: widget.onCloseSelectedPlace,
+                          ),
+                          const SizedBox(height: 20),
+                        ],
+                        Container(
+                          width: 100,
+                          height: 2,
+                          color: isDarkMode
+                              ? Colors.grey[700]
+                              : Colors.grey.shade700,
+                          margin: const EdgeInsets.only(bottom: 8),
+                        ),
+                        const SizedBox(height: 5),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          height: 50,
+                          decoration: BoxDecoration(
+                            color: isDarkMode
+                                ? Colors.grey[800]
+                                : Colors.grey.shade200,
+                            borderRadius: BorderRadius.circular(25),
+                          ),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  "Text to Speech, Speech to Text",
+                                  style: TextStyle(
+                                    color: isDarkMode
+                                        ? Colors.white
+                                        : const Color(0xFF6750A4),
+                                    fontSize: 16,
+                                  ),
+                                ),
+                              ),
+                              Icon(
+                                Icons.mic,
+                                color: isDarkMode
+                                    ? Colors.white
+                                    : const Color(0xFF6750A4),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 20),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                          children: [
+                            CustomButton(
+                              icon: Icons.people,
+                              index: 0,
+                              activeIndex: _activeIndex,
+                              onPressed: (int newIndex) {
+                                setState(() {
+                                  _activeIndex = newIndex;
+                                });
+                              },
+                            ),
+                            CustomButton(
+                              icon: Icons.business,
+                              index: 1,
+                              activeIndex: _activeIndex,
+                              onPressed: (int newIndex) {
+                                setState(() {
+                                  _activeIndex = newIndex;
+                                });
+                              },
+                            ),
+                            CustomButton(
+                              icon: Icons.map,
+                              index: 2,
+                              activeIndex: _activeIndex,
+                              onPressed: (int newIndex) {
+                                setState(() {
+                                  _activeIndex = newIndex;
+                                });
+                              },
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 20),
+                        // People Tab: Show Create/Join Space buttons if no active space.
+                        if (_activeIndex == 0 &&
+                            widget.activeSpaceId.isEmpty) ...[
+                          if (!_showCreateSpace && !_showJoinSpace) ...[
+                            Align(
+                              alignment: Alignment.center,
+                              child: Text(
+                                "My Space",
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 20,
+                                  color:
+                                      isDarkMode ? Colors.white : Colors.black,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 5),
+                            Align(
+                              alignment: Alignment.center,
+                              child: Text(
+                                "Create a new space or join an existing one today",
+                                style: TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w400,
+                                  color: isDarkMode
+                                      ? Colors.grey[400]
+                                      : Colors.grey,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                            ),
+                            const SizedBox(height: 25),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                SizedBox(
+                                  width: 150,
+                                  child: ElevatedButton(
+                                    onPressed: () {
+                                      setState(() {
+                                        _showCreateSpace = true;
+                                      });
+                                    },
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: const Color(0xFF6750A4),
+                                      padding: const EdgeInsets.symmetric(
+                                          vertical: 15),
+                                    ),
+                                    child: const Text(
+                                      'Create Space',
+                                      style: TextStyle(color: Colors.white),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 10),
+                                SizedBox(
+                                  width: 150,
+                                  child: ElevatedButton(
+                                    onPressed: () {
+                                      setState(() {
+                                        _showJoinSpace = true;
+                                      });
+                                    },
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: const Color(0xFF6750A4),
+                                      padding: const EdgeInsets.symmetric(
+                                          vertical: 15),
+                                    ),
+                                    child: const Text(
+                                      'Join Space',
+                                      style: TextStyle(color: Colors.white),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                          if (_showCreateSpace)
+                            CreateSpaceWidget(
+                              spaceNameController: _spaceNameController,
+                              onCreateSpace: _createSpace,
+                              onCancel: () {
+                                setState(() {
+                                  _showCreateSpace = false;
+                                });
+                              },
+                            ),
+                          if (_showJoinSpace)
+                            JoinSpaceWidget(
+                              verificationCodeControllers:
+                                  _verificationCodeControllers,
+                              verificationCodeFocusNodes:
+                                  _verificationCodeFocusNodes,
+                              onJoinSpace: _joinSpace,
+                              onCancel: () {
+                                setState(() {
+                                  _showJoinSpace = false;
+                                });
+                              },
+                            ),
+                        ],
+                        // People Tab: Show MemberListWidget if active space is set.
+                        if (_activeIndex == 0 &&
+                            widget.activeSpaceId.isNotEmpty)
+                          MemberListWidget(
+                            members: _members,
+                            onMemberPressed: widget.onMemberPressed,
+                            selectedMemberId: _selectedMemberId,
+                            activeSpaceId: widget.activeSpaceId,
+                          ),
+                        // Business Tab: Show AddPlaceWidget.
+                        if (_activeIndex == 1) const AddPlaceWidget(),
+                        // Map Tab: Show MapContent.
+                        if (_activeIndex == 2)
+                          MapContent(
+                            onCategorySelected: (category) {
+                              widget.onCategorySelected(category);
+                            },
+                          ),
+                        // People Tab: Show VerificationCodeWidget if current user is creator.
+                        if (_creatorId == _auth.currentUser?.uid &&
+                            _activeIndex == 0 &&
+                            widget.activeSpaceId.isNotEmpty)
+                          VerificationCodeWidget(
+                            verificationCode: _verificationCode ?? 'ABC - DEF',
+                            onSendCode: _addPerson,
+                          ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
   }
 }

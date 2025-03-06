@@ -164,11 +164,18 @@ class _GpsScreenState extends State<GpsScreen> {
       _locationHandler.currentLocation!,
     );
 
+    // Remove existing nearby place markers before adding new ones.
+    setState(() {
+      _markers
+          .removeWhere((marker) => marker.markerId.value.startsWith("place_"));
+      _circles.clear();
+    });
+
     if (result.isNotEmpty) {
       final Set<Marker> nearbyMarkers = result["markers"];
       final Set<Circle> nearbyCircles = result["circles"];
 
-      // Preserve existing PWD-friendly and user markers
+      // Preserve existing PWD-friendly and user markers.
       final existingMarkers = _markers
           .where((marker) =>
               marker.markerId.value.startsWith("pwd_") ||
@@ -181,7 +188,7 @@ class _GpsScreenState extends State<GpsScreen> {
         _circles = nearbyCircles;
       });
 
-      // Adjust the camera to fit all markers
+      // Adjust the camera to fit all markers.
       if (_locationHandler.mapController != null && updatedMarkers.isNotEmpty) {
         final bounds = _locationHandler.getLatLngBounds(
           updatedMarkers.map((marker) => marker.position).toList(),
@@ -192,6 +199,8 @@ class _GpsScreenState extends State<GpsScreen> {
       } else {
         print("⚠️ No bounds to adjust camera.");
       }
+    } else {
+      print("No nearby results for $placeType. Cleared previous markers.");
     }
   }
 

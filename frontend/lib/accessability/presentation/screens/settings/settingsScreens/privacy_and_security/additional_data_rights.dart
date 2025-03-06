@@ -1,26 +1,30 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:AccessAbility/accessability/themes/theme_provider.dart';
 
 class AdditionalDataRights extends StatelessWidget {
   const AdditionalDataRights({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final bool isDarkMode = Provider.of<ThemeProvider>(context).isDarkMode;
+
     return Scaffold(
       appBar: PreferredSize(
         preferredSize: const Size.fromHeight(65),
         child: Container(
-          decoration: const BoxDecoration(
-            color: Colors.white, // Set the AppBar background color
-            boxShadow: [
+          decoration: BoxDecoration(
+            color: isDarkMode ? Colors.grey[900] : Colors.white,
+            boxShadow: const [
               BoxShadow(
-                color: Colors.black26, // Shadow color
-                offset: Offset(0, 1), // Horizontal and Vertical offset
-                blurRadius: 2, // How much to blur the shadow
+                color: Colors.black26,
+                offset: Offset(0, 1),
+                blurRadius: 2,
               ),
             ],
           ),
           child: AppBar(
-            elevation: 0, // Remove default elevation
+            elevation: 0,
             leading: IconButton(
               onPressed: () {
                 Navigator.of(context).pop();
@@ -33,6 +37,7 @@ class AdditionalDataRights extends StatelessWidget {
               style: TextStyle(fontWeight: FontWeight.bold),
             ),
             centerTitle: true,
+            backgroundColor: Colors.transparent,
           ),
         ),
       ),
@@ -41,19 +46,19 @@ class AdditionalDataRights extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
+            Text(
               'Additional Data Rights',
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
-                color: Colors.black87,
+                color: isDarkMode ? Colors.white : Colors.black87,
               ),
             ),
             const SizedBox(height: 20),
             Container(
               padding: const EdgeInsets.all(15),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: isDarkMode ? Colors.grey[800] : Colors.white,
                 borderRadius: BorderRadius.circular(10),
                 boxShadow: const [
                   BoxShadow(
@@ -64,37 +69,40 @@ class AdditionalDataRights extends StatelessWidget {
                 ],
               ),
               child: RichText(
-                text: const TextSpan(
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black,
+                text: TextSpan(
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    color: isDarkMode ? Colors.white : Colors.black,
+                  ),
+                  children: const [
+                    TextSpan(
+                      text:
+                          'Here you may exercise your additional data rights. You may:\n',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 18,
+                      ),
                     ),
-                    children: [
-                      TextSpan(
-                          text:
-                              'Here you may exercise your additional data rights. You may:\n',
-                          style: TextStyle(
-                              fontWeight: FontWeight.bold, fontSize: 18)),
-                      TextSpan(
-                        text:
-                            '\n⚫Request to delete your account. To proceed, please the',
-                      ),
-                      TextSpan(
-                        text: ' Delete Your Account ',
-                        style: TextStyle(color: Colors.red),
-                      ),
-                      TextSpan(
-                          text:
-                              'button. \n\n ⚫You may exercise your rights by emailing us at accessability@gmail.com and including your full account name and phone number and the nature of your request.\n\n⚫You may have additional rights under applicable law. as described in our Privacy Policy.'),
-                    ]),
+                    TextSpan(
+                      text:
+                          '\n⚫Request to delete your account. To proceed, please the',
+                    ),
+                    TextSpan(
+                      text: ' Delete Your Account ',
+                      style: TextStyle(color: Colors.red),
+                    ),
+                    TextSpan(
+                      text:
+                          'button. \n\n ⚫You may exercise your rights by emailing us at accessability@gmail.com and including your full account name and phone number and the nature of your request.\n\n⚫You may have additional rights under applicable law. as described in our Privacy Policy.',
+                    ),
+                  ],
+                ),
               ),
             ),
-            const SizedBox(
-              height: 20,
-            ),
+            const SizedBox(height: 20),
             Container(
-              color: Colors.red, // Set the background color to red
+              color: Colors.red,
               child: ListTile(
                 onTap: () {
                   // Add your onTap functionality here
@@ -104,7 +112,7 @@ class AdditionalDataRights extends StatelessWidget {
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
                     fontSize: 16,
-                    color: Colors.white, // Set the text color to white
+                    color: Colors.white,
                   ),
                 ),
               ),

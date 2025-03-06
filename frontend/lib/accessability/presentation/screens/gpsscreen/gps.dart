@@ -23,6 +23,7 @@ import 'package:AccessAbility/accessability/logic/bloc/place/bloc/place_bloc.dar
 import 'package:AccessAbility/accessability/logic/bloc/place/bloc/place_state.dart'
     as placeState;
 import 'package:AccessAbility/accessability/firebaseServices/models/place.dart';
+import 'package:provider/provider.dart';
 
 class GpsScreen extends StatefulWidget {
   const GpsScreen({super.key});
@@ -215,6 +216,10 @@ class _GpsScreenState extends State<GpsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final bool isDarkMode = Provider.of<ThemeProvider>(context).isDarkMode;
+
+    _mapKey = ValueKey(isDarkMode);
+
     return BlocListener<PlaceBloc, placeState.PlaceState>(
       listener: (context, state) {
         if (state is placeState.PlacesLoaded) {
@@ -273,6 +278,7 @@ class _GpsScreenState extends State<GpsScreen> {
                 body: Stack(
                   children: [
                     GoogleMap(
+                      key: _mapKey,
                       initialCameraPosition: CameraPosition(
                         target: _locationHandler.currentLocation ??
                             const LatLng(16.0430, 120.3333),
@@ -283,7 +289,7 @@ class _GpsScreenState extends State<GpsScreen> {
                       markers: _markers,
                       circles: _circles,
                       onMapCreated: (controller) {
-                        _locationHandler.onMapCreated(controller);
+                        _locationHandler.onMapCreated(controller, isDarkMode);
                         if (_isLocationFetched &&
                             _locationHandler.currentLocation != null) {
                           controller.animateCamera(

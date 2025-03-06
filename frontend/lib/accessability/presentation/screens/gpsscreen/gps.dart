@@ -3,6 +3,7 @@ import 'package:AccessAbility/accessability/logic/bloc/user/user_event.dart';
 import 'package:AccessAbility/accessability/presentation/screens/gpsscreen/location_handler.dart';
 import 'package:AccessAbility/accessability/presentation/screens/gpsscreen/pwd_friendly_locations.dart';
 import 'package:AccessAbility/accessability/presentation/widgets/accessability_footer.dart';
+import 'package:AccessAbility/accessability/presentation/widgets/google_helper/google_place_helper.dart';
 import 'package:AccessAbility/accessability/presentation/widgets/homepageWidgets/top_widgets.dart';
 import 'package:AccessAbility/accessability/themes/theme_provider.dart';
 import 'package:flutter/material.dart';
@@ -42,11 +43,14 @@ class _GpsScreenState extends State<GpsScreen> {
   final GlobalKey youKey = GlobalKey();
   final GlobalKey locationKey = GlobalKey();
   final GlobalKey securityKey = GlobalKey();
-  final GlobalKey<TopwidgetsState> _topWidgetsKey = GlobalKey(); // Add this key
+  final GlobalKey<TopwidgetsState> _topWidgetsKey = GlobalKey();
   Set<Marker> _markers = {};
   Set<Circle> _circles = {};
   bool _isLocationFetched = false;
   late Key _mapKey = UniqueKey();
+
+  // Added: Holds the detailed info for a selected establishment.
+  Place? _selectedPlace;
 
   @override
   void initState() {
@@ -57,17 +61,17 @@ class _GpsScreenState extends State<GpsScreen> {
     context.read<UserBloc>().add(FetchUserData());
     context.read<PlaceBloc>().add(GetAllPlacesEvent());
 
-    // Initialize _tutorialWidget with keys
+    // Initialize tutorial widget.
     _tutorialWidget = TutorialWidget(
       inboxKey: inboxKey,
       settingsKey: settingsKey,
       youKey: youKey,
       locationKey: locationKey,
       securityKey: securityKey,
-      onTutorialComplete: _onTutorialComplete, // Add this callback
+      onTutorialComplete: _onTutorialComplete,
     );
 
-    // Initialize LocationHandler
+    // Initialize LocationHandler.
     _locationHandler = LocationHandler(
       onMarkersUpdated: (markers) {
         // Merge new markers with existing markers (excluding user markers)
@@ -75,23 +79,18 @@ class _GpsScreenState extends State<GpsScreen> {
             .where((marker) => !marker.markerId.value.startsWith('user_'))
             .toSet();
         final updatedMarkers = existingMarkers.union(markers);
-
         setState(() {
           _markers = updatedMarkers;
         });
       },
     );
 
-    // Get user location and initialize marker and camera
+    // Get user location and initialize marker and camera.
     _locationHandler.getUserLocation().then((_) {
       setState(() {
         _isLocationFetched = true;
       });
-
-      // Initialize the user's marker
       _locationHandler.initializeUserMarker();
-
-      // Animate the camera to the user's location once it's available
       if (_locationHandler.currentLocation != null &&
           _locationHandler.mapController != null) {
         _locationHandler.mapController!.animateCamera(
@@ -100,20 +99,19 @@ class _GpsScreenState extends State<GpsScreen> {
       }
     });
 
-    // Create markers for PWD-friendly locations
+    // Create markers for PWD-friendly locations.
     _markerHandler.createMarkers(pwdFriendlyLocations).then((markers) {
       setState(() {
         _markers.addAll(markers);
       });
     });
 
-    // Check if onboarding is completed before showing the tutorial
+    // Check if onboarding is completed before showing the tutorial.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final authBloc = context.read<AuthBloc>();
       final hasCompletedOnboarding = authBloc.state is AuthenticatedLogin
           ? (authBloc.state as AuthenticatedLogin).hasCompletedOnboarding
           : false;
-
       if (!hasCompletedOnboarding) {
         _tutorialWidget.showTutorial(context);
       }
@@ -126,26 +124,20 @@ class _GpsScreenState extends State<GpsScreen> {
     super.dispose();
   }
 
-  // Callback when the tutorial is completed
+  // Callback when the tutorial is completed.
   void _onTutorialComplete() {
-    // Re-trigger the map and marker initialization logic
     _locationHandler.getUserLocation().then((_) {
       setState(() {
         _isLocationFetched = true;
       });
-
       if (_locationHandler.currentLocation != null &&
           _locationHandler.mapController != null) {
         _locationHandler.mapController!.animateCamera(
           CameraUpdate.newLatLng(_locationHandler.currentLocation!),
         );
       }
-
-      // Re-initialize the user's marker
       _locationHandler.initializeUserMarker();
     });
-
-    // Re-create markers for PWD-friendly locations
     _markerHandler.createMarkers(pwdFriendlyLocations).then((markers) {
       setState(() {
         _markers.addAll(markers);
@@ -158,37 +150,28 @@ class _GpsScreenState extends State<GpsScreen> {
       print("🚨 Current position is null, cannot fetch nearby places.");
       return;
     }
-
     final result = await _nearbyPlacesHandler.fetchNearbyPlaces(
       placeType,
       _locationHandler.currentLocation!,
     );
-
-    // Remove existing nearby place markers before adding new ones.
     setState(() {
       _markers
           .removeWhere((marker) => marker.markerId.value.startsWith("place_"));
       _circles.clear();
     });
-
     if (result.isNotEmpty) {
       final Set<Marker> nearbyMarkers = result["markers"];
       final Set<Circle> nearbyCircles = result["circles"];
-
-      // Preserve existing PWD-friendly and user markers.
       final existingMarkers = _markers
           .where((marker) =>
               marker.markerId.value.startsWith("pwd_") ||
               marker.markerId.value.startsWith("user_"))
           .toSet();
       final updatedMarkers = existingMarkers.union(nearbyMarkers);
-
       setState(() {
         _markers = updatedMarkers;
         _circles = nearbyCircles;
       });
-
-      // Adjust the camera to fit all markers.
       if (_locationHandler.mapController != null && updatedMarkers.isNotEmpty) {
         final bounds = _locationHandler.getLatLngBounds(
           updatedMarkers.map((marker) => marker.position).toList(),
@@ -209,7 +192,6 @@ class _GpsScreenState extends State<GpsScreen> {
       _locationHandler.mapController!.animateCamera(
         CameraUpdate.newLatLng(location),
       );
-
       // Trigger marker selection
       _locationHandler.selectedUserId = userId;
       _locationHandler.listenForLocationUpdates();
@@ -226,30 +208,44 @@ class _GpsScreenState extends State<GpsScreen> {
   @override
   Widget build(BuildContext context) {
     final bool isDarkMode = Provider.of<ThemeProvider>(context).isDarkMode;
-
     _mapKey = ValueKey(isDarkMode);
 
     return BlocListener<PlaceBloc, placeState.PlaceState>(
       listener: (context, state) {
         if (state is placeState.PlacesLoaded) {
-          // Create markers for every place regardless of category.
+          // Create markers for every place.
           Set<Marker> placeMarkers = {};
           for (Place place in state.places) {
             Marker marker = Marker(
               markerId: MarkerId('place_${place.id}'),
               position: LatLng(place.latitude, place.longitude),
-              icon: BitmapDescriptor.defaultMarkerWithHue(
-                  256.43), // Use specified color hue
+              icon: BitmapDescriptor.defaultMarkerWithHue(256.43),
               infoWindow: InfoWindow(
                 title: place.name,
                 snippet: 'Category: ${place.category}',
               ),
+              // Added onTap callback to fetch detailed info from Google Places.
+              onTap: () async {
+                if (place.placeId != null && place.placeId!.isNotEmpty) {
+                  try {
+                    final googlePlacesHelper = GooglePlacesHelper();
+                    final detailedPlace =
+                        await googlePlacesHelper.fetchPlaceDetails(
+                      place.placeId!,
+                      place.name,
+                    );
+                    setState(() {
+                      _selectedPlace = detailedPlace;
+                    });
+                  } catch (e) {
+                    print('Error fetching place details: $e');
+                  }
+                }
+              },
             );
             placeMarkers.add(marker);
           }
-
           setState(() {
-            // Remove any previous place markers before adding the new ones.
             _markers.removeWhere(
                 (marker) => marker.markerId.value.startsWith('place_'));
             _markers.addAll(placeMarkers);
@@ -261,8 +257,6 @@ class _GpsScreenState extends State<GpsScreen> {
       child: BlocBuilder<UserBloc, UserState>(
         builder: (context, userState) {
           print("🟢🟢🟢🟢🟢 Current user state: $userState");
-
-          // Handle initial state as loading
           if (userState is UserInitial || userState is UserLoading) {
             return const Center(child: CircularProgressIndicator());
           } else if (userState is UserError) {
@@ -311,11 +305,14 @@ class _GpsScreenState extends State<GpsScreen> {
                       polygons:
                           _markerHandler.createPolygons(pwdFriendlyLocations),
                       onTap: (LatLng position) {
-                        // Handle map tap if needed
+                        // Hide the establishment details card when tapping elsewhere.
+                        setState(() {
+                          _selectedPlace = null;
+                        });
                       },
                     ),
                     Topwidgets(
-                      key: _topWidgetsKey, // Use the GlobalKey here
+                      key: _topWidgetsKey,
                       inboxKey: inboxKey,
                       settingsKey: settingsKey,
                       onCategorySelected: (selectedType) {
@@ -327,6 +324,7 @@ class _GpsScreenState extends State<GpsScreen> {
                       onSpaceSelected: _locationHandler.updateActiveSpaceId,
                       onMySpaceSelected: _onMySpaceSelected,
                     ),
+                    // When in People tab (currentIndex==0), show BottomWidgets with establishment details.
                     if (_locationHandler.currentIndex == 0)
                       BottomWidgets(
                         key: ValueKey(_locationHandler.activeSpaceId),
@@ -336,11 +334,17 @@ class _GpsScreenState extends State<GpsScreen> {
                           _fetchNearbyPlaces(selectedType);
                         },
                         onMemberPressed: _onMemberPressed,
+                        // Pass the selected establishment details.
+                        selectedPlace: _selectedPlace,
+                        onCloseSelectedPlace: () {
+                          setState(() {
+                            _selectedPlace = null;
+                          });
+                        },
                       ),
                     if (_locationHandler.currentIndex == 1)
                       const FavoriteWidget(),
                     if (_locationHandler.currentIndex == 2)
-                      // Pass the user’s UID from the UserLoaded state.
                       SafetyAssistWidget(uid: userState.user.uid),
                   ],
                 ),

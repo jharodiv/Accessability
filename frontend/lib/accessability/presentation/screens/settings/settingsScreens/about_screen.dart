@@ -69,7 +69,7 @@ class AboutScreen extends StatelessWidget {
                 ],
               ),
               child: Text(
-                "Accessability is an innovative GPS navigation application...",
+                "Accessability is an innovative GPS navigation application created as part of a student capstone project to support persons with disabilities (PWD). Designed with inclusivity and accessibility at its core, Accessability aims to empower individuals by providing reliable, user-friendly navigation tools that enhance mobility and independence. Whether navigating city streets, public transportation, or unfamiliar locations, this app is tailored to meet the unique needs of PWD, offering a seamless and supportive experience.\n\nDeveloped by a dedicated student passionate about creating meaningful solutions, Accessability integrates advanced features such as voice-guided navigation, step-free route suggestions, and real-time accessibility updates for paths, buildings, and transit systems. The app's customizable interface ensures it caters to a diverse range of disabilities, making it a versatile and practical tool for everyday use. As a capstone project, Accessability reflects a commitment to leveraging technology to address real-world challenges and improve lives.\n\nAccessability is more than just a navigation tool—it’s a testament to the power of innovation and determination in creating a more inclusive world. By prioritizing safety, accessibility, and convenience, this project aims to redefine mobility for PWD, demonstrating how student-driven initiatives can have a lasting, positive impact.",
                 style: TextStyle(
                   fontSize: 14,
                   color: isDarkMode ? Colors.white : Colors.black87,

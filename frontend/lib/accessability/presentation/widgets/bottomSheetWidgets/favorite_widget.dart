@@ -1,9 +1,11 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:AccessAbility/accessability/logic/bloc/place/bloc/place_bloc.dart';
 import 'package:AccessAbility/accessability/logic/bloc/place/bloc/place_event.dart';
 import 'package:AccessAbility/accessability/logic/bloc/place/bloc/place_state.dart';
 import 'package:AccessAbility/accessability/firebaseServices/models/place.dart';
-import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:provider/provider.dart';
+import 'package:AccessAbility/accessability/themes/theme_provider.dart';
 import 'add_list_modal.dart'; // Import the modal widget
 
 class FavoriteWidget extends StatefulWidget {
@@ -16,7 +18,6 @@ class FavoriteWidget extends StatefulWidget {
 }
 
 class _FavoriteWidgetState extends State<FavoriteWidget> {
-  // Fixed list of categories (plus potential new ones).
   final List<Map<String, dynamic>> lists = [
     {
       "icon": Icons.favorite_border,
@@ -38,18 +39,14 @@ class _FavoriteWidgetState extends State<FavoriteWidget> {
     },
   ];
 
-  /// Collapses all categories, expands the one matching [categoryName].
   void _expandCategory(String categoryName) {
     setState(() {
       for (int i = 0; i < lists.length; i++) {
-        // Expand only the matched category, collapse others
         lists[i]['expanded'] = (lists[i]['title'] == categoryName);
       }
     });
   }
 
-  /// When toggling expansion, collapse all other lists.
-  /// If the tapped list is expanding, trigger a fetch of all places.
   void toggleExpansion(int index) {
     setState(() {
       for (int i = 0; i < lists.length; i++) {
@@ -58,26 +55,27 @@ class _FavoriteWidgetState extends State<FavoriteWidget> {
     });
 
     if (lists[index]['expanded'] == true) {
-      // Fetch all places; we'll filter them by category in the UI.
       context.read<PlaceBloc>().add(const GetAllPlacesEvent());
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final bool isDarkMode = Provider.of<ThemeProvider>(context).isDarkMode;
+
     return DraggableScrollableSheet(
-      initialChildSize: 0.3, // Adjust the initial size as needed
+      initialChildSize: 0.3,
       minChildSize: 0.3,
       maxChildSize: 0.8,
       builder: (BuildContext context, ScrollController scrollController) {
         return Container(
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.only(
+          decoration: BoxDecoration(
+            color: isDarkMode ? Colors.grey[900] : Colors.white,
+            borderRadius: const BorderRadius.only(
               topLeft: Radius.circular(20),
               topRight: Radius.circular(20),
             ),
-            boxShadow: [
+            boxShadow: const [
               BoxShadow(
                 color: Colors.black26,
                 blurRadius: 10,
@@ -99,7 +97,6 @@ class _FavoriteWidgetState extends State<FavoriteWidget> {
                     margin: const EdgeInsets.only(bottom: 8),
                   ),
                   const SizedBox(height: 5),
-                  // "+ New List" button opens a modal bottom sheet.
                   Padding(
                     padding: const EdgeInsets.all(16),
                     child: ElevatedButton(
@@ -108,6 +105,7 @@ class _FavoriteWidgetState extends State<FavoriteWidget> {
                         context
                             .read<PlaceBloc>()
                             .add(const GetAllPlacesEvent());
+                        context.read<PlaceBloc>().add(const GetAllPlacesEvent());
 
                         final result =
                             await showModalBottomSheet<Map<String, dynamic>>(
@@ -125,7 +123,6 @@ class _FavoriteWidgetState extends State<FavoriteWidget> {
                           final placesToUpdate =
                               result["places"] as List<Place>;
 
-                          // For each selected place, update its category in Firestore.
                           for (Place place in placesToUpdate) {
                             context.read<PlaceBloc>().add(
                                   UpdatePlaceCategoryEvent(
@@ -135,13 +132,11 @@ class _FavoriteWidgetState extends State<FavoriteWidget> {
                                 );
                           }
 
-                          // See if this category already exists
                           final existingIndex = lists.indexWhere(
                             (item) => item["title"] == newCategory,
                           );
 
                           if (existingIndex == -1) {
-                            // If not found, add a new category (0 places as a placeholder).
                             setState(() {
                               lists.add({
                                 "icon": Icons.list,
@@ -152,15 +147,8 @@ class _FavoriteWidgetState extends State<FavoriteWidget> {
                             });
                           }
 
-                          // Expand the relevant category so user sees it immediately.
                           _expandCategory(newCategory);
-
-                          // Re-fetch places so the new count is reflected in the UI.
-                          context
-                              .read<PlaceBloc>()
-                              .add(const GetAllPlacesEvent());
-
-                          // Notify parent if needed
+                          context.read<PlaceBloc>().add(const GetAllPlacesEvent());
                           widget.onPlaceAdded?.call();
                         }
                       },
@@ -176,7 +164,6 @@ class _FavoriteWidgetState extends State<FavoriteWidget> {
                       child: const Center(child: Text("+ New List")),
                     ),
                   ),
-                  // "Your lists" Title
                   const Row(
                     mainAxisAlignment: MainAxisAlignment.start,
                     children: [
@@ -193,7 +180,6 @@ class _FavoriteWidgetState extends State<FavoriteWidget> {
                       ),
                     ],
                   ),
-                  // Generate list items for each category.
                   ...List.generate(lists.length, (index) {
                     return Column(
                       children: [
@@ -204,11 +190,16 @@ class _FavoriteWidgetState extends State<FavoriteWidget> {
                           ),
                           title: Text(
                             lists[index]["title"],
-                            style: const TextStyle(fontWeight: FontWeight.bold),
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: isDarkMode ? Colors.white : Colors.black,
+                            ),
                           ),
                           subtitle: Text(
                             lists[index]["subtitle"],
-                            style: const TextStyle(color: Colors.grey),
+                            style: TextStyle(
+                              color: isDarkMode ? Colors.white : Colors.grey,
+                            ),
                           ),
                           trailing: IconButton(
                             icon: Icon(
@@ -221,7 +212,6 @@ class _FavoriteWidgetState extends State<FavoriteWidget> {
                           ),
                           onTap: () => toggleExpansion(index),
                         ),
-                        // Expanded Section: show places for the category.
                         if (lists[index]['expanded'])
                           BlocBuilder<PlaceBloc, PlaceState>(
                             builder: (context, state) {
@@ -233,21 +223,24 @@ class _FavoriteWidgetState extends State<FavoriteWidget> {
                                   ),
                                 );
                               } else if (state is PlacesLoaded) {
-                                // Filter all places based on the current category.
                                 final categoryTitle = lists[index]['title'];
                                 final filteredPlaces = state.places
                                     .where((place) =>
                                         place.category == categoryTitle)
                                     .toList();
 
-                                // Update subtitle to show correct count.
                                 lists[index]['subtitle'] =
                                     "Private · ${filteredPlaces.length} places";
 
                                 return Column(
                                   children: filteredPlaces.map((Place place) {
                                     return ListTile(
-                                      title: Text(place.name),
+                                      title: Text(
+                                        place.name,
+                                        style: TextStyle(
+                                          color: isDarkMode ? Colors.white : Colors.black,
+                                        ),
+                                      ),
                                       trailing: PopupMenuButton<String>(
                                         icon: const Icon(Icons.more_vert,
                                             color: Colors.red),
@@ -266,7 +259,6 @@ class _FavoriteWidgetState extends State<FavoriteWidget> {
                                                 .read<PlaceBloc>()
                                                 .add(const GetAllPlacesEvent());
                                           } else if (value == 'delete') {
-                                            // Delete the place entirely
                                             context.read<PlaceBloc>().add(
                                                   UpdatePlaceCategoryEvent(
                                                     placeId: place.id,
@@ -298,7 +290,12 @@ class _FavoriteWidgetState extends State<FavoriteWidget> {
                               } else if (state is PlaceOperationError) {
                                 return Padding(
                                   padding: const EdgeInsets.all(16.0),
-                                  child: Text(state.message),
+                                  child: Text(
+                                    state.message,
+                                    style: TextStyle(
+                                      color: isDarkMode ? Colors.white : Colors.black,
+                                    ),
+                                  ),
                                 );
                               }
                               return const SizedBox.shrink();

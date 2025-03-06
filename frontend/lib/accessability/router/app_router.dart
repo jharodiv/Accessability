@@ -1,4 +1,5 @@
 import 'package:AccessAbility/accessability/presentation/screens/gpsscreen/gps.dart';
+import 'package:AccessAbility/accessability/presentation/widgets/homepageWidgets/bottomWidgetFiles/checkIn/send_location_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:AccessAbility/accessability/logic/firebase_logic/SignupModel.dart';
 import 'package:AccessAbility/accessability/presentation/screens/authScreens/login_screen.dart';
@@ -8,7 +9,7 @@ import 'package:AccessAbility/accessability/presentation/screens/authscreens/upl
 import 'package:AccessAbility/accessability/presentation/screens/chat_system/inbox_screen.dart';
 import 'package:AccessAbility/accessability/presentation/screens/gpsscreen/add_new_place.dart';
 import 'package:AccessAbility/accessability/presentation/screens/settings/settings_screen.dart';
-import 'package:AccessAbility/accessability/presentation/screens/sos/sos_screen.dart';
+import 'package:AccessAbility/accessability/presentation/widgets/homepageWidgets/bottomWidgetFiles/sos/sos_screen.dart';
 import 'package:AccessAbility/accessability/presentation/screens/splash_screen.dart';
 import 'package:AccessAbility/accessability/presentation/screens/settings/settingsScreens/account_screen.dart';
 import 'package:AccessAbility/accessability/presentation/screens/settings/settingsScreens/biometric/biometric_screen.dart';
@@ -17,6 +18,7 @@ import 'package:AccessAbility/accessability/presentation/screens/settings/settin
 import 'package:AccessAbility/accessability/presentation/screens/settings/settingsScreens/privacy_security_screen.dart';
 import 'package:AccessAbility/accessability/presentation/screens/settings/settingsScreens/about_screen.dart';
 import 'package:AccessAbility/accessability/presentation/widgets/chatWidgets/chat_convo_screen.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 class AppRouter {
   Route<dynamic>? onGenerateRoute(RouteSettings routeSettings) {
@@ -55,6 +57,21 @@ class AppRouter {
         return _buildRoute(SOSScreen());
       case '/about':
         return _buildRoute(const AboutScreen());
+      
+      case '/send-location':
+        final args = routeSettings.arguments as Map<String, dynamic>?;
+        if (args == null) {
+          throw ArgumentError('Arguments must not be null for /send-location route');
+        }
+        final currentLocation = args['currentLocation'] as LatLng;
+        final isSpaceChat = args['isSpaceChat'] as bool? ?? false; // Add isSpaceChat flag
+        return MaterialPageRoute(
+          builder: (context) => SendLocationScreen(
+            currentLocation: currentLocation,
+            isSpaceChat: isSpaceChat, // Pass the isSpaceChat flag
+          ),
+        );
+
       case '/chatconvo':
         final args = routeSettings.arguments as Map<String, dynamic>?;
         if (args == null) {

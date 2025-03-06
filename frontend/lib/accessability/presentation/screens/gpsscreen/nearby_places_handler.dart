@@ -104,13 +104,14 @@ class NearbyPlacesHandler {
       for (var place in places) {
         final lat = place["geometry"]["location"]["lat"];
         final lng = place["geometry"]["location"]["lng"];
+        final String placeId = place["place_id"]; // Use the unique place_id
         final name = place["name"];
         final position = LatLng(lat, lng);
 
         // Add a Marker with the custom circular icon.
         nearbyMarkers.add(
           Marker(
-            markerId: MarkerId(name),
+            markerId: MarkerId(placeId), // Use place_id for uniqueness
             position: position,
             infoWindow: InfoWindow(title: name),
             icon: customIcon,
@@ -120,7 +121,7 @@ class NearbyPlacesHandler {
         // Add a Circle overlay with the same color.
         nearbyCircles.add(
           Circle(
-            circleId: CircleId(name),
+            circleId: CircleId(placeId),
             center: position,
             radius: 30, // Adjust radius as needed.
             strokeWidth: 2,

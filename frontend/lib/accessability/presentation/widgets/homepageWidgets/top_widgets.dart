@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:AccessAbility/accessability/presentation/widgets/homepageWidgets/category_item.dart';
+import 'package:provider/provider.dart';
+import 'package:AccessAbility/accessability/themes/theme_provider.dart';
 
 class Topwidgets extends StatefulWidget {
   final Function(bool) onOverlayChange;
@@ -9,7 +11,7 @@ class Topwidgets extends StatefulWidget {
   final GlobalKey inboxKey;
   final GlobalKey settingsKey;
   final Function(String) onSpaceSelected;
-  final VoidCallback onMySpaceSelected; // Add this callback
+  final VoidCallback onMySpaceSelected;
 
   const Topwidgets({
     super.key,
@@ -18,7 +20,7 @@ class Topwidgets extends StatefulWidget {
     required this.inboxKey,
     required this.settingsKey,
     required this.onSpaceSelected,
-    required this.onMySpaceSelected, // Add this parameter
+    required this.onMySpaceSelected,
   });
 
   @override
@@ -30,7 +32,8 @@ class TopwidgetsState extends State<Topwidgets> {
   List<Map<String, dynamic>> _spaces = [];
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
-  String _activeSpaceName = 'My Space'; // Default to "My Space"
+  String _activeSpaceName = 'My Space';
+  String? _selectedCategory;
 
   @override
   void initState() {
@@ -59,30 +62,42 @@ class TopwidgetsState extends State<Topwidgets> {
     });
   }
 
- void _selectSpace(String spaceId, String spaceName) {
-  if (mounted) {
-    widget.onSpaceSelected(spaceId); // Notify parent widget
-    setState(() {
-      _activeSpaceName = spaceName;
-      _isDropdownOpen = false;
-    });
+  void _selectSpace(String spaceId, String spaceName) {
+    if (mounted) {
+      widget.onSpaceSelected(spaceId);
+      setState(() {
+        _activeSpaceName = spaceName;
+        _isDropdownOpen = false;
+      });
+    }
   }
-}
 
-// Add this method to handle "My Space" selection
-void _selectMySpace() {
-  if (mounted) {
-    widget.onSpaceSelected(''); // Set activeSpaceId to empty string
-    widget.onMySpaceSelected(); // Notify parent widget to cancel listeners
-    setState(() {
-      _activeSpaceName = 'My Space';
-      _isDropdownOpen = false;
-    });
+  void _selectMySpace() {
+    if (mounted) {
+      widget.onSpaceSelected('');
+      widget.onMySpaceSelected();
+      setState(() {
+        _activeSpaceName = 'My Space';
+        _isDropdownOpen = false;
+      });
+    }
   }
-}
+
+  void _handleCategorySelection(String category) {
+    setState(() {
+      if (_selectedCategory == category) {
+        _selectedCategory = null; // Untoggle if already selected
+      } else {
+        _selectedCategory = category; // Toggle the selected category
+      }
+    });
+    widget.onCategorySelected(_selectedCategory ?? ''); // Notify parent widget
+  }
 
   @override
   Widget build(BuildContext context) {
+    final bool isDarkMode = Provider.of<ThemeProvider>(context).isDarkMode;
+
     return Positioned(
       top: 0,
       left: 0,
@@ -102,10 +117,13 @@ void _selectMySpace() {
                     onTap: () {
                       Navigator.pushNamed(context, '/settings');
                     },
-                    child: const CircleAvatar(
+                    child: CircleAvatar(
                       radius: 20,
-                      backgroundColor: Colors.white,
-                      child: Icon(Icons.settings, color: Color(0xFF6750A4)),
+                      backgroundColor: isDarkMode ? Colors.grey[800] : Colors.white,
+                      child: Icon(
+                        Icons.settings,
+                        color: isDarkMode ? Colors.white : const Color(0xFF6750A4),
+                      ),
                     ),
                   ),
                   // My Space Dropdown Button
@@ -120,7 +138,7 @@ void _selectMySpace() {
                       width: 175,
                       height: 30,
                       decoration: BoxDecoration(
-                        color: Colors.white,
+                        color: isDarkMode ? Colors.grey[800] : Colors.white,
                         borderRadius: BorderRadius.circular(20),
                         boxShadow: const [
                           BoxShadow(
@@ -139,8 +157,8 @@ void _selectMySpace() {
                               _activeSpaceName.length > 8
                                   ? '${_activeSpaceName.substring(0, 8)}...'
                                   : _activeSpaceName,
-                              style: const TextStyle(
-                                color: Color(0xFF6750A4),
+                              style: TextStyle(
+                                color: isDarkMode ? Colors.white : const Color(0xFF6750A4),
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
@@ -151,7 +169,7 @@ void _selectMySpace() {
                               _isDropdownOpen
                                   ? Icons.arrow_drop_up
                                   : Icons.arrow_drop_down,
-                              color: Colors.black,
+                              color: isDarkMode ? Colors.white : Colors.black,
                             ),
                           ),
                         ],
@@ -164,10 +182,13 @@ void _selectMySpace() {
                     onTap: () {
                       Navigator.pushNamed(context, '/inbox');
                     },
-                    child: const CircleAvatar(
+                    child: CircleAvatar(
                       radius: 20,
-                      backgroundColor: Colors.white,
-                      child: Icon(Icons.chat, color: Color(0xFF6750A4)),
+                      backgroundColor: isDarkMode ? Colors.grey[800] : Colors.white,
+                      child: Icon(
+                        Icons.chat,
+                        color: isDarkMode ? Colors.white : const Color(0xFF6750A4),
+                      ),
                     ),
                   ),
                 ],
@@ -178,7 +199,7 @@ void _selectMySpace() {
                   margin: const EdgeInsets.only(top: 10),
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: isDarkMode ? Colors.grey[800] : Colors.white,
                     borderRadius: BorderRadius.circular(10),
                     boxShadow: const [
                       BoxShadow(
@@ -192,13 +213,23 @@ void _selectMySpace() {
                     children: [
                       // Default "My Space" option
                       ListTile(
-                        title: const Text('My Space'),
+                        title: Text(
+                          'My Space',
+                          style: TextStyle(
+                            color: isDarkMode ? Colors.white : Colors.black,
+                          ),
+                        ),
                         onTap: _selectMySpace,
                       ),
                       // Other spaces
                       ..._spaces.map((space) {
                         return ListTile(
-                          title: Text(space['name']),
+                          title: Text(
+                            space['name'],
+                            style: TextStyle(
+                              color: isDarkMode ? Colors.white : Colors.black,
+                            ),
+                          ),
                           onTap: () => _selectSpace(space['id'], space['name']),
                         );
                       }),
@@ -215,27 +246,32 @@ void _selectMySpace() {
                       CategoryItem(
                         title: 'Hotel',
                         icon: Icons.hotel,
-                        onCategorySelected: widget.onCategorySelected,
+                        onCategorySelected: _handleCategorySelection,
+                        isSelected: _selectedCategory == 'Hotel',
                       ),
                       CategoryItem(
                         title: 'Restaurant',
                         icon: Icons.restaurant,
-                        onCategorySelected: widget.onCategorySelected,
+                        onCategorySelected: _handleCategorySelection,
+                        isSelected: _selectedCategory == 'Restaurant',
                       ),
                       CategoryItem(
                         title: 'Bus',
                         icon: Icons.directions_bus,
-                        onCategorySelected: widget.onCategorySelected,
+                        onCategorySelected: _handleCategorySelection,
+                        isSelected: _selectedCategory == 'Bus',
                       ),
                       CategoryItem(
                         title: 'Shopping',
                         icon: Icons.shop_2,
-                        onCategorySelected: widget.onCategorySelected,
+                        onCategorySelected: _handleCategorySelection,
+                        isSelected: _selectedCategory == 'Shopping',
                       ),
                       CategoryItem(
                         title: 'Groceries',
                         icon: Icons.shopping_cart,
-                        onCategorySelected: widget.onCategorySelected,
+                        onCategorySelected: _handleCategorySelection,
+                        isSelected: _selectedCategory == 'Groceries',
                       ),
                     ],
                   ),

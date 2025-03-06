@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:AccessAbility/accessability/themes/theme_provider.dart'; // Import ThemeProvider
 
 class Accessabilityfooter extends StatefulWidget {
   final Function(bool) onOverlayChange;
   final GlobalKey locationKey;
   final GlobalKey youKey;
   final GlobalKey securityKey;
-  final Function(int) onTap; // Add this line
+  final Function(int) onTap;
 
   const Accessabilityfooter({
     super.key,
@@ -13,7 +15,7 @@ class Accessabilityfooter extends StatefulWidget {
     required this.locationKey,
     required this.youKey,
     required this.securityKey,
-    required this.onTap, // Add this line
+    required this.onTap,
   });
 
   @override
@@ -25,8 +27,10 @@ class AccessabilityfooterState extends State<Accessabilityfooter> {
 
   @override
   Widget build(BuildContext context) {
+    final bool isDarkMode = Provider.of<ThemeProvider>(context).isDarkMode;
+
     return BottomNavigationBar(
-      backgroundColor: Colors.white,
+      backgroundColor: isDarkMode ? Colors.grey[900] : Colors.white,
       currentIndex: currentIndex,
       onTap: (index) {
         setState(() {
@@ -36,26 +40,41 @@ class AccessabilityfooterState extends State<Accessabilityfooter> {
         });
       },
       selectedItemColor: const Color(0xFF6750A4),
-      unselectedItemColor: Colors.grey,
+      unselectedItemColor: isDarkMode ? Colors.grey[400] : Colors.grey,
       items: [
         BottomNavigationBarItem(
           icon: GestureDetector(
             key: widget.locationKey,
-            child: const Icon(Icons.location_on),
+            child: Icon(
+              Icons.location_on,
+              color: currentIndex == 0
+                  ? const Color(0xFF6750A4)
+                  : (isDarkMode ? Colors.grey[400] : Colors.grey),
+            ),
           ),
           label: 'Location',
         ),
         BottomNavigationBarItem(
           icon: GestureDetector(
             key: widget.youKey,
-            child: const Icon(Icons.bookmark),
+            child: Icon(
+              Icons.bookmark,
+              color: currentIndex == 1
+                  ? const Color(0xFF6750A4)
+                  : (isDarkMode ? Colors.grey[400] : Colors.grey),
+            ),
           ),
           label: 'Favorite',
         ),
         BottomNavigationBarItem(
           icon: GestureDetector(
             key: widget.securityKey,
-            child: const Icon(Icons.security_outlined),
+            child: Icon(
+              Icons.security_outlined,
+              color: currentIndex == 2
+                  ? const Color(0xFF6750A4)
+                  : (isDarkMode ? Colors.grey[400] : Colors.grey),
+            ),
           ),
           label: 'Safety',
         ),

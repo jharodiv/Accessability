@@ -3,18 +3,21 @@ import 'dart:math';
 
 import 'package:AccessAbility/accessability/firebaseServices/chat/chat_service.dart';
 import 'package:AccessAbility/accessability/firebaseServices/place/geocoding_service.dart';
+import 'package:AccessAbility/accessability/presentation/screens/gpsscreen/location_handler.dart';
 import 'package:AccessAbility/accessability/presentation/widgets/bottomSheetWidgets/add_place.dart';
 import 'package:AccessAbility/accessability/presentation/widgets/bottomSheetWidgets/custom_button.dart';
 import 'package:AccessAbility/accessability/presentation/widgets/bottomSheetWidgets/map_content.dart';
 import 'package:AccessAbility/accessability/presentation/widgets/homepageWidgets/bottomWidgetFiles/member_list_widget.dart';
 import 'package:AccessAbility/accessability/presentation/widgets/homepageWidgets/bottomWidgetFiles/service_buttons.dart';
 import 'package:AccessAbility/accessability/presentation/widgets/homepageWidgets/bottomWidgetFiles/verification_code_widget.dart';
+import 'package:AccessAbility/accessability/themes/theme_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:AccessAbility/accessability/presentation/widgets/bottomSheetWidgets/create_space_widget.dart';
 import 'package:AccessAbility/accessability/presentation/widgets/bottomSheetWidgets/join_space_widget.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:provider/provider.dart';
 
 class BottomWidgets extends StatefulWidget {
   final ScrollController scrollController;
@@ -35,6 +38,11 @@ class BottomWidgets extends StatefulWidget {
 }
 
 class _BottomWidgetsState extends State<BottomWidgets> {
+  final LocationHandler _locationHandler = LocationHandler(
+    onMarkersUpdated: (markers) {
+      // Handle marker updates if needed
+    },
+  );
   int _activeIndex = 0; // 0: People, 1: Buildings, 2: Map
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -60,6 +68,17 @@ class _BottomWidgetsState extends State<BottomWidgets> {
     super.initState();
     _listenToMembers();
     _setupVerificationCodeFocusListeners();
+    _initializeLocation();
+  }
+
+   Future<void> _initializeLocation() async {
+    try {
+      await _locationHandler.getUserLocation();
+      setState(() {}); // Trigger a rebuild after location is fetched
+    } catch (e) {
+      print("Error fetching user location: $e");
+      // Handle the error gracefully (e.g., show a snackbar or log the error)
+    }
   }
 
   @override
@@ -398,6 +417,8 @@ void didUpdateWidget(BottomWidgets oldWidget) {
 
   @override
 Widget build(BuildContext context) {
+  final bool isDarkMode = Provider.of<ThemeProvider>(context).isDarkMode;
+
   return DraggableScrollableSheet(
     initialChildSize: 0.15,
     minChildSize: 0.15,
@@ -405,17 +426,20 @@ Widget build(BuildContext context) {
     builder: (context, scrollController) {
       return Column(
         children: [
-          ServiceButtons(onButtonPressed: (label) {
-            if (label == 'SOS') {
-              Navigator.pushNamed(context, '/sos');
-            }
-          }),
+          ServiceButtons(
+            onButtonPressed: (label) {
+              if (label == 'SOS') {
+                Navigator.pushNamed(context, '/sos');
+              }
+            },
+            currentLocation: _locationHandler.currentLocation,
+          ),
           const SizedBox(height: 10),
           Expanded(
             child: Container(
-              decoration: const BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.only(
+              decoration: BoxDecoration(
+                color: isDarkMode ? Colors.grey[900] : Colors.white,
+                borderRadius: const BorderRadius.only(
                   topLeft: Radius.circular(20),
                   topRight: Radius.circular(20),
                 ),
@@ -436,7 +460,7 @@ Widget build(BuildContext context) {
                       Container(
                         width: 100,
                         height: 2,
-                        color: Colors.grey.shade700,
+                        color: isDarkMode ? Colors.grey[700] : Colors.grey.shade700,
                         margin: const EdgeInsets.only(bottom: 8),
                       ),
                       const SizedBox(height: 5),
@@ -444,23 +468,23 @@ Widget build(BuildContext context) {
                         padding: const EdgeInsets.symmetric(horizontal: 16),
                         height: 50,
                         decoration: BoxDecoration(
-                          color: Colors.grey.shade200,
+                          color: isDarkMode ? Colors.grey[800] : Colors.grey.shade200,
                           borderRadius: BorderRadius.circular(25),
                         ),
-                        child: const Row(
+                        child: Row(
                           children: [
                             Expanded(
                               child: Text(
                                 "Text to Speech, Speech to Text",
                                 style: TextStyle(
-                                  color: Color(0xFF6750A4),
+                                  color: isDarkMode ? Colors.white : const Color(0xFF6750A4),
                                   fontSize: 16,
                                 ),
                               ),
                             ),
                             Icon(
                               Icons.mic,
-                              color: Color(0xFF6750A4),
+                              color: isDarkMode ? Colors.white : const Color(0xFF6750A4),
                             ),
                           ],
                         ),
@@ -505,25 +529,26 @@ Widget build(BuildContext context) {
                       // Show Create/Join Space buttons only in the People tab (_activeIndex == 0)
                       if (_activeIndex == 0 && widget.activeSpaceId.isEmpty) ...[
                         if (!_showCreateSpace && !_showJoinSpace) ...[
-                          const Align(
+                          Align(
                             alignment: Alignment.center,
                             child: Text(
                               "My Space",
                               style: TextStyle(
                                 fontWeight: FontWeight.bold,
                                 fontSize: 20,
+                                color: isDarkMode ? Colors.white : Colors.black,
                               ),
                             ),
                           ),
                           const SizedBox(height: 5),
-                          const Align(
+                          Align(
                             alignment: Alignment.center,
                             child: Text(
                               "Create a new space or join an existing one today",
                               style: TextStyle(
                                 fontSize: 15,
                                 fontWeight: FontWeight.w400,
-                                color: Colors.grey,
+                                color: isDarkMode ? Colors.grey[400] : Colors.grey,
                               ),
                               textAlign: TextAlign.center,
                             ),

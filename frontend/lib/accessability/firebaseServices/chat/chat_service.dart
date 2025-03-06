@@ -76,7 +76,7 @@ class ChatService {
   }
 
   // Send a message (handles both space and private chat rooms)
-  Future<void> sendMessage(String receiverID, String message, {bool isSpaceChat = false}) async {
+  Future<void> sendMessage(String chatId, String message, {bool isSpaceChat = false}) async {
     final String currentUserID = _auth.currentUser!.uid;
     final String currentUserEmail = _auth.currentUser!.email!;
     final Timestamp timestamp = Timestamp.now();
@@ -84,7 +84,7 @@ class ChatService {
     Message newMessage = Message(
       senderID: currentUserID,
       senderEmail: currentUserEmail,
-      receiverID: receiverID,
+      receiverID: chatId,
       message: message,
       timestamp: timestamp,
     );
@@ -93,12 +93,12 @@ class ChatService {
       // Send message to the space chat room
       await firebaseFirestore
           .collection('space_chat_rooms')
-          .doc(receiverID) // Use the spaceId as the document ID
+          .doc(chatId) // Use the spaceId as the document ID
           .collection('messages')
           .add(newMessage.toMap());
     } else {
       // Send message to a private chat room
-      List<String> ids = [currentUserID, receiverID];
+      List<String> ids = [currentUserID, chatId];
       ids.sort();
       String chatRoomID = ids.join('_');
 

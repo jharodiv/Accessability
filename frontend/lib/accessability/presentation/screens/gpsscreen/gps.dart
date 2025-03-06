@@ -4,7 +4,9 @@ import 'package:AccessAbility/accessability/presentation/screens/gpsscreen/locat
 import 'package:AccessAbility/accessability/presentation/screens/gpsscreen/pwd_friendly_locations.dart';
 import 'package:AccessAbility/accessability/presentation/widgets/accessability_footer.dart';
 import 'package:AccessAbility/accessability/presentation/widgets/homepageWidgets/top_widgets.dart';
+import 'package:AccessAbility/accessability/themes/theme_provider.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:AccessAbility/accessability/logic/bloc/user/user_bloc.dart';
@@ -43,10 +45,12 @@ class _GpsScreenState extends State<GpsScreen> {
   Set<Marker> _markers = {};
   Set<Circle> _circles = {};
   bool _isLocationFetched = false;
+  late Key _mapKey = UniqueKey();
 
   @override
   void initState() {
     super.initState();
+    _mapKey = UniqueKey();
 
     // Fetch user data and places.
     context.read<UserBloc>().add(FetchUserData());

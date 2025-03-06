@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:AccessAbility/accessability/themes/theme_provider.dart';
 
 class ChatUsersTile extends StatelessWidget {
   final String username;
@@ -18,6 +20,8 @@ class ChatUsersTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final bool isDarkMode = Provider.of<ThemeProvider>(context).isDarkMode;
+
     return Column(
       children: [
         ListTile(
@@ -26,16 +30,20 @@ class ChatUsersTile extends StatelessWidget {
           ),
           title: Text(
             username,
-            style: const TextStyle(fontWeight: FontWeight.bold),
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              color: isDarkMode ? Colors.white : Colors.black,
+            ),
           ),
           subtitle: Text(
             lastMessage,
-            overflow: TextOverflow.ellipsis, maxLines: 1,
-            style: TextStyle(color: Colors.grey[600]),
+            overflow: TextOverflow.ellipsis,
+            maxLines: 1,
+            style: TextStyle(color: isDarkMode ? Colors.white : Colors.grey[600]),
           ),
           trailing: Text(
             lastMessageTime,
-            style: TextStyle(color: Colors.grey[600], fontSize: 12),
+            style: TextStyle(color: isDarkMode ? Colors.white : Colors.grey[600], fontSize: 12),
           ),
           onTap: onTap,
           contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),

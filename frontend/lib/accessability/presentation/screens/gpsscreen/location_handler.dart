@@ -389,9 +389,23 @@ class LocationHandler {
     });
   }
 
-  void onMapCreated(GoogleMapController controller) {
-    mapController = controller;
+  void onMapCreated(GoogleMapController controller, bool isDarkMode) {
+  mapController = controller;
+  setMapStyle(controller, isDarkMode);
+}
+
+Future<void> setMapStyle(GoogleMapController controller, bool isDarkMode) async {
+    if (isDarkMode) {
+      // Load dark mode JSON
+      String style = await rootBundle.loadString('assets/map_styles/dark_mode.json');
+      controller.setMapStyle(style);
+    } else {
+      // Use default light mode (no custom style)
+      controller.setMapStyle(null);
+    }
   }
+
+
 
   // Dispose both subscriptions
   void disposeHandler() {

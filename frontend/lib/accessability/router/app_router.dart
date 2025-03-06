@@ -44,7 +44,7 @@ class AppRouter {
       case '/preferences':
         return _buildRoute(const PreferencesScreen());
       case '/privacy':
-        return _buildRoute(const PrivacySecurity());
+        return _buildRoute(PrivacySecurity());
       case '/chatsupport':
         return _buildRoute(const ChatAndSupport());
       case '/biometric':

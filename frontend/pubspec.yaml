@@ -105,6 +105,7 @@ flutter:
     - assets/images/others/marker_shape.png
     - assets/images/others/marker_shape_selected.png
     - assets/images/others/group_chat_icon.jpg
+    - assets/map_styles/dark_mode.json
     - .env
 
   fonts:

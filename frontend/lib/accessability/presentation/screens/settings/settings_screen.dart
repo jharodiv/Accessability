@@ -5,6 +5,8 @@ import 'package:AccessAbility/accessability/firebaseServices/auth/auth_service.d
 import 'package:AccessAbility/accessability/logic/bloc/auth/auth_bloc.dart';
 import 'package:AccessAbility/accessability/logic/bloc/auth/auth_event.dart';
 import 'package:AccessAbility/main.dart';
+import 'package:provider/provider.dart';
+import 'package:AccessAbility/accessability/themes/theme_provider.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -46,16 +48,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final bool isDarkMode = Provider.of<ThemeProvider>(context).isDarkMode;
+
     return Scaffold(
       appBar: PreferredSize(
         preferredSize: const Size.fromHeight(65),
         child: Container(
-          decoration: const BoxDecoration(
-            color: Colors.white, // Set the AppBar background color
+          decoration: BoxDecoration(
+            color: isDarkMode ? Colors.grey[900] : Colors.white, // AppBar background color
             boxShadow: [
               BoxShadow(
-                color: Colors.black26, // Shadow color
-                offset: Offset(0, 1), // Horizontal and Vertical offset
+                color: Colors.black.withOpacity(0.1), // Shadow color
+                offset: const Offset(0, 1), // Horizontal and Vertical offset
                 blurRadius: 2, // How much to blur the shadow
               ),
             ],
@@ -74,94 +78,89 @@ class _SettingsScreenState extends State<SettingsScreen> {
               style: TextStyle(fontWeight: FontWeight.bold),
             ),
             centerTitle: true,
+            backgroundColor: Colors.transparent, // Make AppBar transparent
           ),
         ),
       ),
-      body: ListView(
-        children: [
-          ListTile(
-            leading:
-                const Icon(Icons.person_2_outlined, color: Color(0xFF6750A4)),
-            title: const Text('Account',
-                style: TextStyle(fontWeight: FontWeight.bold)),
-            onTap: () {
-              Navigator.pushNamed(context, '/account');
-            },
-          ),
-          const Divider(),
-          ListTile(
-            leading: const Icon(Icons.tune, color: Color(0xFF6750A4)),
-            title: const Text('Preference',
-                style: TextStyle(fontWeight: FontWeight.bold)),
-            onTap: () {
-              Navigator.pushNamed(context, '/preferences');
-            },
-          ),
-          const Divider(),
-          ListTile(
-            leading: const Icon(Icons.notifications_active_outlined,
-                color: Color(0xFF6750A4)),
-            title: const Text('Notification',
-                style: TextStyle(fontWeight: FontWeight.bold)),
-            trailing: Switch(
-              activeColor: const Color(0xFF6750A4),
-              value: isNotificationEnabled,
-              onChanged: (bool value) {
-                setState(
-                  () {
-                    isNotificationEnabled = value;
-                  },
-                );
+      body: Container(
+        color: isDarkMode ? Colors.grey[900] : Colors.white, // Background color
+        child: ListView(
+          children: [
+            ListTile(
+              leading:
+                  const Icon(Icons.person_2_outlined, color: Color(0xFF6750A4)),
+              title: const Text('Account',
+                  style: TextStyle(fontWeight: FontWeight.bold)),
+              onTap: () {
+                Navigator.pushNamed(context, '/account');
               },
             ),
-          ),
-          const Divider(),
-          ListTile(
-            leading:
-                const Icon(Icons.security_outlined, color: Color(0xFF6750A4)),
-            title: const Text('Privacy & Security',
-                style: TextStyle(fontWeight: FontWeight.bold)),
-            onTap: () {
-              Navigator.pushNamed(context, '/privacy');
-            },
-          ),
-          // const Divider(),
-          // ListTile(
-          //   leading: const Icon(Icons.chat_outlined, color: Color(0xFF6750A4)),
-          //   title: const Text('Chat and Support',
-          //       style: TextStyle(fontWeight: FontWeight.bold)),
-          //   onTap: () {
-          //     Navigator.pushNamed(context, '/chat');
-          //   },
-          // ),
-          const Divider(),
-          ListTile(
-            leading: const Icon(Icons.fingerprint, color: Color(0xFF6750A4)),
-            title: const Text('Biometric Login',
-                style: TextStyle(fontWeight: FontWeight.bold)),
-            onTap: () {
-              Navigator.pushNamed(context, '/biometric');
-            },
-          ),
-          const Divider(),
-          ListTile(
-            leading: const Icon(Icons.info_outline, color: Color(0xFF6750A4)),
-            title: const Text('About',
-                style: TextStyle(fontWeight: FontWeight.bold)),
-            onTap: () {
-              Navigator.pushNamed(context, '/about');
-            },
-          ),
-          const Divider(),
-          ListTile(
-            leading: const Icon(Icons.logout, color: Color(0xFF6750A4)),
-            title: const Text(
-              'Log out',
-              style: TextStyle(fontWeight: FontWeight.bold),
+            const Divider(),
+            ListTile(
+              leading: const Icon(Icons.tune, color: Color(0xFF6750A4)),
+              title: const Text('Preference',
+                  style: TextStyle(fontWeight: FontWeight.bold)),
+              onTap: () {
+                Navigator.pushNamed(context, '/preferences');
+              },
             ),
-            onTap: () => logout(context), // Call the logout function here
-          ),
-        ],
+            const Divider(),
+            ListTile(
+              leading: const Icon(Icons.notifications_active_outlined,
+                  color: Color(0xFF6750A4)),
+              title: const Text('Notification',
+                  style: TextStyle(fontWeight: FontWeight.bold)),
+              trailing: Switch(
+                activeColor: const Color(0xFF6750A4),
+                value: isNotificationEnabled,
+                onChanged: (bool value) {
+                  setState(
+                    () {
+                      isNotificationEnabled = value;
+                    },
+                  );
+                },
+              ),
+            ),
+            const Divider(),
+            ListTile(
+              leading:
+                  const Icon(Icons.security_outlined, color: Color(0xFF6750A4)),
+              title: const Text('Privacy & Security',
+                  style: TextStyle(fontWeight: FontWeight.bold)),
+              onTap: () {
+                Navigator.pushNamed(context, '/privacy');
+              },
+            ),
+            const Divider(),
+            ListTile(
+              leading: const Icon(Icons.fingerprint, color: Color(0xFF6750A4)),
+              title: const Text('Biometric Login',
+                  style: TextStyle(fontWeight: FontWeight.bold)),
+              onTap: () {
+                Navigator.pushNamed(context, '/biometric');
+              },
+            ),
+            const Divider(),
+            ListTile(
+              leading: const Icon(Icons.info_outline, color: Color(0xFF6750A4)),
+              title: const Text('About',
+                  style: TextStyle(fontWeight: FontWeight.bold)),
+              onTap: () {
+                Navigator.pushNamed(context, '/about');
+              },
+            ),
+            const Divider(),
+            ListTile(
+              leading: const Icon(Icons.logout, color: Color(0xFF6750A4)),
+              title: const Text(
+                'Log out',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              onTap: () => logout(context), // Call the logout function here
+            ),
+          ],
+        ),
       ),
     );
   }

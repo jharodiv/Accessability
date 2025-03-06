@@ -2,12 +2,14 @@ import 'dart:io';
 
 import 'package:AccessAbility/accessability/presentation/screens/settings/settingsScreens/change_password_screen.dart';
 import 'package:AccessAbility/accessability/presentation/screens/settings/settingsScreens/delete_account.dart';
+import 'package:AccessAbility/accessability/themes/theme_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:AccessAbility/accessability/logic/bloc/user/user_bloc.dart';
 import 'package:AccessAbility/accessability/logic/bloc/user/user_event.dart';
 import 'package:AccessAbility/accessability/logic/bloc/user/user_state.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:provider/provider.dart';
 
 class AccountScreen extends StatefulWidget {
   const AccountScreen({super.key});
@@ -55,14 +57,15 @@ class _AccountScreenState extends State<AccountScreen> {
     }
   }
 
-  @override
+   @override
   Widget build(BuildContext context) {
+    final bool isDarkMode = Provider.of<ThemeProvider>(context).isDarkMode;
+
     return BlocListener<UserBloc, UserState>(
       listener: (context, state) {
         if (state is UserLoaded) {
-          print('Profile picture updated successfully');
           setState(() {
-            _isUpdatingProfilePicture = false; // Hide loading indicator
+            _isUpdatingProfilePicture = false;
           });
 
           ScaffoldMessenger.of(context).showSnackBar(
@@ -72,9 +75,8 @@ class _AccountScreenState extends State<AccountScreen> {
             ),
           );
         } else if (state is UserError) {
-          print('Profile picture update error: ${state.message}');
           setState(() {
-            _isUpdatingProfilePicture = false; // Hide loading indicator
+            _isUpdatingProfilePicture = false;
           });
 
           ScaffoldMessenger.of(context).showSnackBar(
@@ -94,9 +96,7 @@ class _AccountScreenState extends State<AccountScreen> {
           } else if (state is UserLoaded) {
             final user = state.user;
 
-            // Show loading indicator while updating profile picture
             if (_isUpdatingProfilePicture) {
-              print('Profile picture updating...');
               return const Center(child: CircularProgressIndicator());
             }
 
@@ -104,12 +104,12 @@ class _AccountScreenState extends State<AccountScreen> {
               appBar: PreferredSize(
                 preferredSize: const Size.fromHeight(65),
                 child: Container(
-                  decoration: const BoxDecoration(
-                    color: Colors.white,
+                  decoration: BoxDecoration(
+                    color: isDarkMode ? Colors.grey[900] : Colors.white,
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black26,
-                        offset: Offset(0, 1),
+                        color: Colors.black.withOpacity(0.1),
+                        offset: const Offset(0, 1),
                         blurRadius: 2,
                       ),
                     ],
@@ -128,6 +128,7 @@ class _AccountScreenState extends State<AccountScreen> {
                       style: TextStyle(fontWeight: FontWeight.bold),
                     ),
                     centerTitle: true,
+                    backgroundColor: Colors.transparent,
                   ),
                 ),
               ),
@@ -180,16 +181,16 @@ class _AccountScreenState extends State<AccountScreen> {
                     const SizedBox(height: 20),
                     Container(
                       width: double.infinity,
-                      color: const Color(0xFFF0F0F0),
+                      color: isDarkMode ? Colors.grey[800] : const Color(0xFFF0F0F0),
                       padding: const EdgeInsets.all(8.0),
-                      child: const Padding(
-                        padding: EdgeInsets.only(left: 8.0),
+                      child: Padding(
+                        padding: const EdgeInsets.only(left: 8.0),
                         child: Text(
                           'Account Details',
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w800,
-                            color: Color(0xFF919191),
+                            color: isDarkMode ? Colors.white : const Color(0xFF919191),
                           ),
                         ),
                       ),
@@ -199,10 +200,9 @@ class _AccountScreenState extends State<AccountScreen> {
                           color: Color(0xFF6750A4)),
                       title: const Text('Phone Number'),
                       subtitle: Text(
-                        (user.contactNumber.isNotEmpty)
-                            ? user
-                                .contactNumber // Use the contact number directly
-                            : 'Not provided', // Fallback if contact number is null or empty
+                        user.contactNumber.isNotEmpty
+                            ? user.contactNumber
+                            : 'Not provided',
                         style: const TextStyle(fontWeight: FontWeight.bold),
                       ),
                     ),
@@ -212,8 +212,7 @@ class _AccountScreenState extends State<AccountScreen> {
                           color: Color(0xFF6750A4)),
                       title: const Text('Email Address'),
                       subtitle: Text(
-                        obfuscateEmail(
-                            user.email), // <-- use the utility function here
+                        obfuscateEmail(user.email),
                         style: const TextStyle(fontWeight: FontWeight.bold),
                       ),
                     ),
@@ -238,16 +237,16 @@ class _AccountScreenState extends State<AccountScreen> {
                     const SizedBox(height: 20),
                     Container(
                       width: double.infinity,
-                      color: const Color(0xFFF0F0F0),
+                      color: isDarkMode ? Colors.grey[800] : const Color(0xFFF0F0F0),
                       padding: const EdgeInsets.all(8.0),
-                      child: const Padding(
-                        padding: EdgeInsets.only(left: 8),
+                      child: Padding(
+                        padding: const EdgeInsets.only(left: 8),
                         child: Text(
                           'Account Management',
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w800,
-                            color: Color(0xFF919191),
+                            color: isDarkMode ? Colors.white : const Color(0xFF919191),
                           ),
                         ),
                       ),
@@ -285,9 +284,7 @@ class _AccountScreenState extends State<AccountScreen> {
                           ),
                         ),
                         ElevatedButton(
-                          onPressed: () {
-                            // Save other changes if needed
-                          },
+                          onPressed: () {},
                           style: ElevatedButton.styleFrom(
                             backgroundColor: const Color(0xFF6750A4),
                             shape: RoundedRectangleBorder(
@@ -312,7 +309,6 @@ class _AccountScreenState extends State<AccountScreen> {
       ),
     );
   }
-}
 
 String obfuscateEmail(String email) {
   // Find the @ symbol
@@ -339,4 +335,5 @@ String obfuscateEmail(String email) {
   final middleAsterisks = '*' * (username.length - 4);
 
   return '$firstTwo$middleAsterisks$lastTwo$domain';
+}
 }

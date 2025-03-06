@@ -3,7 +3,9 @@ import 'package:AccessAbility/accessability/presentation/screens/gpsscreen/locat
 import 'package:AccessAbility/accessability/presentation/screens/gpsscreen/pwd_friendly_locations.dart';
 import 'package:AccessAbility/accessability/presentation/widgets/accessability_footer.dart';
 import 'package:AccessAbility/accessability/presentation/widgets/homepageWidgets/top_widgets.dart';
+import 'package:AccessAbility/accessability/themes/theme_provider.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:AccessAbility/accessability/logic/bloc/user/user_bloc.dart';
@@ -16,6 +18,7 @@ import 'package:AccessAbility/accessability/presentation/widgets/bottomSheetWidg
 import 'package:AccessAbility/accessability/presentation/widgets/bottomSheetWidgets/safety_assist_widget.dart';
 import 'package:AccessAbility/accessability/logic/bloc/auth/auth_bloc.dart';
 import 'package:AccessAbility/accessability/logic/bloc/auth/auth_state.dart';
+import 'package:provider/provider.dart';
 
 class GpsScreen extends StatefulWidget {
   const GpsScreen({super.key});
@@ -38,10 +41,12 @@ class _GpsScreenState extends State<GpsScreen> {
   Set<Marker> _markers = {};
   Set<Circle> _circles = {};
   bool _isLocationFetched = false;
+  late Key _mapKey = UniqueKey();
 
   @override
   void initState() {
     super.initState();
+  _mapKey = UniqueKey();
 
     context.read<UserBloc>().add(FetchUserData());
 
@@ -203,114 +208,115 @@ class _GpsScreenState extends State<GpsScreen> {
   _locationHandler.updateActiveSpaceId(''); // Explicitly cancel listeners
 }
 
-  @override
-  Widget build(BuildContext context) {
-    return BlocBuilder<UserBloc, UserState>(
-      builder: (context, userState) {
-        print("🟢🟢🟢🟢🟢 Current user state: $userState");
 
-        // Handle initial state as loading
-        if (userState is UserInitial || userState is UserLoading) {
-          return const Center(child: CircularProgressIndicator());
-        } else if (userState is UserError) {
-          return Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
+
+  @override
+Widget build(BuildContext context) {
+  final bool isDarkMode = Provider.of<ThemeProvider>(context).isDarkMode;
+
+  _mapKey = ValueKey(isDarkMode);
+
+  return BlocBuilder<UserBloc, UserState>(
+    builder: (context, userState) {
+      if (userState is UserInitial || userState is UserLoading) {
+        return const Center(child: CircularProgressIndicator());
+      } else if (userState is UserError) {
+        return Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text('Error: ${userState.message}'),
+              ElevatedButton(
+                onPressed: () {
+                  context.read<UserBloc>().add(FetchUserData());
+                },
+                child: const Text('Retry'),
+              ),
+            ],
+          ),
+        );
+      } else if (userState is UserLoaded) {
+        return WillPopScope(
+          onWillPop: () => _locationHandler.onWillPop(context),
+          child: Scaffold(
+            body: Stack(
               children: [
-                Text('Error: ${userState.message}'),
-                ElevatedButton(
-                  onPressed: () {
-                    context.read<UserBloc>().add(FetchUserData());
-                  },
-                  child: const Text('Retry'),
-                ),
-              ],
-            ),
-          );
-        } else if (userState is UserLoaded) {
-          return WillPopScope(
-            onWillPop: () => _locationHandler.onWillPop(context),
-            child: Scaffold(
-              body: Stack(
-                children: [
-                  GoogleMap(
-                    initialCameraPosition: CameraPosition(
-                      target: _locationHandler.currentLocation ??
-                          const LatLng(16.0430, 120.3333),
-                      zoom: 14,
-                    ),
-                    myLocationEnabled: true,
-                    myLocationButtonEnabled: true,
-                    markers: _markers,
-                    circles: _circles,
-                    onMapCreated: (controller) {
-                      _locationHandler.onMapCreated(controller);
-                      if (_isLocationFetched &&
-                          _locationHandler.currentLocation != null) {
-                        controller.animateCamera(
-                          CameraUpdate.newLatLng(
-                            _locationHandler.currentLocation!,
-                          ),
-                        );
-                      }
-                    },
-                    polygons:
-                        _markerHandler.createPolygons(pwdFriendlyLocations),
-                    onTap: (LatLng position) {
-                      // Handle map tap if needed
-                    },
+                GoogleMap(
+                  key: _mapKey,
+                  initialCameraPosition: CameraPosition(
+                    target: _locationHandler.currentLocation ??
+                        const LatLng(16.0430, 120.3333),
+                    zoom: 14,
                   ),
-                  Topwidgets(
-                    key: _topWidgetsKey, // Use the GlobalKey here
-                    inboxKey: inboxKey,
-                    settingsKey: settingsKey,
+                  myLocationEnabled: true,
+                  myLocationButtonEnabled: true,
+                  markers: _markers,
+                  circles: _circles,
+                  onMapCreated: (controller) {
+                    _locationHandler.onMapCreated(controller, isDarkMode);
+                    if (_isLocationFetched &&
+                        _locationHandler.currentLocation != null) {
+                      controller.animateCamera(
+                        CameraUpdate.newLatLng(
+                          _locationHandler.currentLocation!,
+                        ),
+                      );
+                    }
+                  },
+                  polygons: _markerHandler.createPolygons(pwdFriendlyLocations),
+                  onTap: (LatLng position) {
+                    // Handle map tap if needed
+                  },
+                ),
+                Topwidgets(
+                  key: _topWidgetsKey,
+                  inboxKey: inboxKey,
+                  settingsKey: settingsKey,
+                  onCategorySelected: (selectedType) {
+                    _fetchNearbyPlaces(selectedType);
+                  },
+                  onOverlayChange: (isVisible) {
+                    setState(() {});
+                  },
+                  onSpaceSelected: _locationHandler.updateActiveSpaceId,
+                  onMySpaceSelected: _onMySpaceSelected,
+                ),
+                if (_locationHandler.currentIndex == 0)
+                  BottomWidgets(
+                    key: ValueKey(_locationHandler.activeSpaceId),
+                    scrollController: ScrollController(),
+                    activeSpaceId: _locationHandler.activeSpaceId,
                     onCategorySelected: (selectedType) {
                       _fetchNearbyPlaces(selectedType);
                     },
-                    onOverlayChange: (isVisible) {
-                      setState(() {});
-                    },
-                    onSpaceSelected: _locationHandler.updateActiveSpaceId,
-                    onMySpaceSelected: _onMySpaceSelected,
+                    onMemberPressed: _onMemberPressed,
                   ),
-                  if (_locationHandler.currentIndex == 0)
-                    BottomWidgets(
-                      key: ValueKey(_locationHandler.activeSpaceId),
-                      scrollController: ScrollController(),
-                      activeSpaceId: _locationHandler.activeSpaceId,
-                      onCategorySelected: (selectedType) {
-                        _fetchNearbyPlaces(selectedType);
-                      },
-                      onMemberPressed: _onMemberPressed,
-                    ),
-                  if (_locationHandler.currentIndex == 1)
-                    const FavoriteWidget(),
-                  if (_locationHandler.currentIndex == 2)
-                    // Pass the user’s UID from the UserLoaded state.
-                    SafetyAssistWidget(uid: userState.user.uid),
-                ],
-              ),
-              bottomNavigationBar: Accessabilityfooter(
-                securityKey: securityKey,
-                locationKey: locationKey,
-                youKey: youKey,
-                onOverlayChange: (isVisible) {
-                  setState(() {});
-                },
-                onTap: (index) {
-                  print("Bottom nav index tapped: $index");
-
-                  setState(() {
-                    _locationHandler.currentIndex = index;
-                  });
-                },
-              ),
+                if (_locationHandler.currentIndex == 1)
+                  const FavoriteWidget(),
+                if (_locationHandler.currentIndex == 2)
+                  SafetyAssistWidget(uid: userState.user.uid),
+              ],
             ),
-          );
-        } else {
-          return const Center(child: Text('No user data available'));
-        }
-      },
-    );
-  }
+            bottomNavigationBar: Accessabilityfooter(
+              securityKey: securityKey,
+              locationKey: locationKey,
+              youKey: youKey,
+              onOverlayChange: (isVisible) {
+                setState(() {});
+              },
+              onTap: (index) {
+                 print("Bottom nav index tapped: $index");
+                setState(() {
+                  _locationHandler.currentIndex = index;
+                });
+              },
+            ),
+          ),
+        );
+      } else {
+        return const Center(child: Text('No user data available'));
+      }
+    },
+  );
+}
 }

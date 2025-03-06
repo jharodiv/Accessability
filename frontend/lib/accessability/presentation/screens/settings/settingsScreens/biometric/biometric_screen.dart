@@ -1,15 +1,17 @@
+import 'package:flutter/material.dart';
 import 'package:AccessAbility/accessability/data/model/user_model.dart';
 import 'package:AccessAbility/accessability/logic/bloc/user/user_bloc.dart';
 import 'package:AccessAbility/accessability/logic/bloc/user/user_event.dart';
 import 'package:AccessAbility/accessability/logic/bloc/user/user_state.dart';
 import 'package:AccessAbility/accessability/presentation/screens/settings/settingsScreens/biometric/fingerprint_enrollment_screen.dart';
 import 'package:device_info_plus/device_info_plus.dart';
-import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:local_auth/local_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:provider/provider.dart';
+import 'package:AccessAbility/accessability/themes/theme_provider.dart';
 
 class BiometricScreen extends StatefulWidget {
   const BiometricScreen({super.key});
@@ -46,7 +48,7 @@ class _BiometricScreenState extends State<BiometricScreen> {
   Future<void> _showDisableBiometricDialog(BuildContext context, UserModel user) async {
     return showDialog<void>(
       context: context,
-      barrierDismissible: false, 
+      barrierDismissible: false,
       builder: (BuildContext context) {
         return AlertDialog(
           title: const Text('Disable Biometric Login'),
@@ -56,7 +58,7 @@ class _BiometricScreenState extends State<BiometricScreen> {
           actions: <Widget>[
             TextButton(
               onPressed: () {
-                Navigator.of(context).pop(); 
+                Navigator.of(context).pop();
               },
               child: const Text(
                 'Cancel',
@@ -65,7 +67,6 @@ class _BiometricScreenState extends State<BiometricScreen> {
             ),
             TextButton(
               onPressed: () async {
-
                 final prefs = await SharedPreferences.getInstance();
                 prefs.remove('biometric_email');
                 prefs.remove('biometric_password');
@@ -76,7 +77,7 @@ class _BiometricScreenState extends State<BiometricScreen> {
                 setState(() {
                   isBiometricEnabled = false;
                 });
-                Navigator.of(context).pop(); 
+                Navigator.of(context).pop();
               },
               child: const Text(
                 'Disable',
@@ -91,6 +92,8 @@ class _BiometricScreenState extends State<BiometricScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final bool isDarkMode = Provider.of<ThemeProvider>(context).isDarkMode;
+
     return BlocBuilder<UserBloc, UserState>(
       builder: (context, state) {
         final user = (state is UserLoaded) ? state.user : null;
@@ -101,12 +104,12 @@ class _BiometricScreenState extends State<BiometricScreen> {
           appBar: PreferredSize(
             preferredSize: const Size.fromHeight(65),
             child: Container(
-              decoration: const BoxDecoration(
-                color: Colors.white,
+              decoration: BoxDecoration(
+                color: isDarkMode ? Colors.grey[900] : Colors.white,
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black26,
-                    offset: Offset(0, 1),
+                    color: Colors.black.withOpacity(0.1),
+                    offset: const Offset(0, 1),
                     blurRadius: 2,
                   ),
                 ],
@@ -125,6 +128,7 @@ class _BiometricScreenState extends State<BiometricScreen> {
                   style: TextStyle(fontWeight: FontWeight.bold),
                 ),
                 centerTitle: true,
+                backgroundColor: Colors.transparent,
               ),
             ),
           ),
@@ -142,7 +146,7 @@ class _BiometricScreenState extends State<BiometricScreen> {
                   ),
                 ),
               ),
-              const Positioned(
+              Positioned(
                 top: 320,
                 left: 0,
                 right: 0,
@@ -152,23 +156,23 @@ class _BiometricScreenState extends State<BiometricScreen> {
                   style: TextStyle(
                     fontSize: 25,
                     fontWeight: FontWeight.bold,
-                    color: Colors.black,
+                    color: isDarkMode ? Colors.white : Colors.black,
                   ),
                 ),
               ),
-              const Positioned(
+              Positioned(
                 top: 350,
                 left: 0,
                 right: 0,
                 child: Padding(
-                  padding: EdgeInsets.only(top: 8),
+                  padding: const EdgeInsets.only(top: 8),
                   child: Text(
                     'Sign in to your account faster using Biometrics \n login',
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.bold,
-                      color: Colors.black,
+                      color: isDarkMode ? Colors.white : Colors.black,
                     ),
                   ),
                 ),
@@ -180,9 +184,13 @@ class _BiometricScreenState extends State<BiometricScreen> {
                 child: Padding(
                   padding: const EdgeInsets.only(left: 8, right: 8),
                   child: ListTile(
-                    title: const Text(
+                    title: Text(
                       'Enable Biometric Login',
-                      style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
+                      style: TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.bold,
+                        color: isDarkMode ? Colors.white : Colors.black,
+                      ),
                     ),
                     trailing: Switch(
                       value: isBiometricEnabled,
@@ -196,14 +204,10 @@ class _BiometricScreenState extends State<BiometricScreen> {
                           );
 
                           if (result == true && _deviceId != null) {
-                            
                             final prefs = await SharedPreferences.getInstance();
                             final backupUsername = prefs.getString('backup_email');
                             final backupPassword = prefs.getString('backup_password');
-                            print('backup email: ${backupUsername}');
-                            print('backup password: ${backupPassword}');
                             if (backupUsername != null && backupPassword != null) {
-                               print('replacing real with backup');
                               prefs.setString('biometric_email', backupUsername);
                               prefs.setString('biometric_password', backupPassword);
                             }
@@ -224,21 +228,21 @@ class _BiometricScreenState extends State<BiometricScreen> {
                   ),
                 ),
               ),
-              const Positioned(
+              Positioned(
                 bottom: 50,
                 left: 0,
                 right: 0,
                 child: Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 20),
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
                   child: Center(
                     child: Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 20),
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
                       child: Text(
                         'By enabling biometrics login, you will allow Accessability to access your saved biometrics data in your device to create and save data in Accessability that shall be used for securing your login. The data will not be used for any other purposes.',
                         textAlign: TextAlign.center,
                         style: TextStyle(
                           fontSize: 12,
-                          color: Colors.black54,
+                          color: isDarkMode ? Colors.white : Colors.black54,
                         ),
                       ),
                     ),
@@ -248,7 +252,7 @@ class _BiometricScreenState extends State<BiometricScreen> {
             ],
           ),
         );
-      }
+      },
     );
   }
 }

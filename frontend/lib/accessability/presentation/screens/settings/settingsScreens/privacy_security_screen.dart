@@ -2,28 +2,32 @@ import 'package:flutter/material.dart';
 import 'package:AccessAbility/accessability/presentation/screens/settings/settingsScreens/privacy_and_security/additional_data_rights.dart';
 import 'package:AccessAbility/accessability/presentation/screens/settings/settingsScreens/privacy_and_security/data_security.dart';
 import 'package:AccessAbility/accessability/presentation/screens/settings/settingsScreens/privacy_and_security/privacy_policy.dart';
+import 'package:provider/provider.dart';
+import 'package:AccessAbility/accessability/themes/theme_provider.dart';
 
 class PrivacySecurity extends StatelessWidget {
   const PrivacySecurity({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final bool isDarkMode = Provider.of<ThemeProvider>(context).isDarkMode;
+
     return Scaffold(
       appBar: PreferredSize(
         preferredSize: const Size.fromHeight(65),
         child: Container(
-          decoration: const BoxDecoration(
-            color: Colors.white, // Set the AppBar background color
+          decoration: BoxDecoration(
+            color: isDarkMode ? Colors.grey[900] : Colors.white,
             boxShadow: [
               BoxShadow(
-                color: Colors.black26, // Shadow color
-                offset: Offset(0, 1), // Horizontal and Vertical offset
-                blurRadius: 2, // How much to blur the shadow
+                color: Colors.black.withOpacity(0.1),
+                offset: const Offset(0, 1),
+                blurRadius: 2,
               ),
             ],
           ),
           child: AppBar(
-            elevation: 0, // Remove default elevation
+            elevation: 0,
             leading: IconButton(
               onPressed: () {
                 Navigator.of(context).pop();
@@ -36,6 +40,7 @@ class PrivacySecurity extends StatelessWidget {
               style: TextStyle(fontWeight: FontWeight.bold),
             ),
             centerTitle: true,
+            backgroundColor: Colors.transparent,
           ),
         ),
       ),
@@ -46,7 +51,7 @@ class PrivacySecurity extends StatelessWidget {
             Container(
               width: double.infinity,
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: isDarkMode ? Colors.grey[800] : Colors.white,
                 borderRadius: BorderRadius.circular(10),
                 boxShadow: const [
                   BoxShadow(
@@ -57,55 +62,70 @@ class PrivacySecurity extends StatelessWidget {
                 ],
               ),
               child: Container(
-                  margin: const EdgeInsets.all(10),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Padding(
-                          padding: const EdgeInsets.only(right: 10),
-                          child: Container(
-                            width: 100,
-                            height: 100,
-                            decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(10),
-                                image: const DecorationImage(
-                                  image: AssetImage(
-                                      'assets/images/settings/privacy_and_security.png'),
-                                  fit: BoxFit.cover,
-                                )),
-                          )),
-                      const Expanded(
-                          child: Column(
+                margin: const EdgeInsets.all(10),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.only(right: 10),
+                      child: Container(
+                        width: 100,
+                        height: 100,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(10),
+                          image: const DecorationImage(
+                            image: AssetImage(
+                                'assets/images/settings/privacy_and_security.png'),
+                            fit: BoxFit.cover,
+                          ),
+                        ),
+                      ),
+                    ),
+                    Expanded(
+                      child: Column(
                         mainAxisAlignment: MainAxisAlignment.start,
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
                             'Your privacy is our priority',
                             style: TextStyle(
-                                fontSize: 12, fontWeight: FontWeight.bold),
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              color: isDarkMode ? Colors.white : Colors.black,
+                            ),
                           ),
                           Text(
-                            'We prioritize your privacy and security by securely storing your information, using it responsibly, and implementing advanced encryption and safeguards to protect against unauthorized access',
+                            'We prioritize your privacy and security...',
                             style: TextStyle(
-                                fontSize: 12, fontWeight: FontWeight.w300),
+                              fontSize: 12,
+                              fontWeight: FontWeight.w300,
+                              color: isDarkMode ? Colors.white : Colors.black,
+                            ),
                           ),
                         ],
-                      ))
-                    ],
-                  )),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ),
             const SizedBox(height: 10),
             ListTile(
-              title: const Text(
+              title: Text(
                 'Data Security',
-                style: TextStyle(fontWeight: FontWeight.w600),
+                style: TextStyle(
+                  fontWeight: FontWeight.w600,
+                  color: isDarkMode ? Colors.white : Colors.black,
+                ),
               ),
               contentPadding: EdgeInsets.zero,
               onTap: () {
                 Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                        builder: (context) => const DataSecurity()));
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const DataSecurity(),
+                  ),
+                );
               },
             ),
             const Divider(
@@ -113,16 +133,21 @@ class PrivacySecurity extends StatelessWidget {
               color: Colors.black12,
             ),
             ListTile(
-              title: const Text(
+              title: Text(
                 'Additional Data Rights',
-                style: TextStyle(fontWeight: FontWeight.w600),
+                style: TextStyle(
+                  fontWeight: FontWeight.w600,
+                  color: isDarkMode ? Colors.white : Colors.black,
+                ),
               ),
               contentPadding: EdgeInsets.zero,
               onTap: () {
                 Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                        builder: (context) => const AdditionalDataRights()));
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const AdditionalDataRights(),
+                  ),
+                );
               },
             ),
             const Divider(
@@ -132,14 +157,19 @@ class PrivacySecurity extends StatelessWidget {
             GestureDetector(
               onTap: () {
                 Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                        builder: (context) => const PrivacyPolicy()));
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const PrivacyPolicy(),
+                  ),
+                );
               },
-              child: const ListTile(
+              child: ListTile(
                 title: Text(
                   'Privacy Policy',
-                  style: TextStyle(fontWeight: FontWeight.w600),
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                    color: isDarkMode ? Colors.white : Colors.black,
+                  ),
                 ),
                 contentPadding: EdgeInsets.zero,
               ),

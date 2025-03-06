@@ -1,10 +1,13 @@
 import 'package:AccessAbility/accessability/firebaseServices/auth/auth_service.dart';
+import 'package:AccessAbility/accessability/presentation/screens/gpsscreen/location_handler.dart';
+import 'package:AccessAbility/accessability/themes/theme_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:AccessAbility/accessability/firebaseServices/chat/chat_service.dart';
 import 'package:AccessAbility/accessability/firebaseServices/place/geocoding_service.dart';
+import 'package:provider/provider.dart';
 import 'package:rxdart/rxdart.dart';
 
 class SendLocationScreen extends StatefulWidget {
@@ -23,56 +26,67 @@ class _SendLocationScreenState extends State<SendLocationScreen> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final GeocodingService _geocodingService = GeocodingService();
+  final LocationHandler _locationHandler = LocationHandler(
+    onMarkersUpdated: (markers) {
+      // Handle marker updates if needed
+    },
+  );
 
   Set<String> _selectedChats = {}; // Stores selected chat room IDs
 
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Send Location'),
-        actions: [
-          IconButton(
-            onPressed: _sendLocation,
-            icon: const Icon(Icons.send),
-          ),
-        ],
-      ),
-      body: Column(
-        children: [
-          Expanded(
-            child: GoogleMap(
-              initialCameraPosition: CameraPosition(
-                target: widget.currentLocation,
-                zoom: 15,
+Widget build(BuildContext context) {
+  final bool isDarkMode = Provider.of<ThemeProvider>(context).isDarkMode;
+
+  return Scaffold(
+    appBar: AppBar(
+      title: const Text('Send Location'),
+      actions: [
+        IconButton(
+          onPressed: _sendLocation,
+          icon: const Icon(Icons.send),
+        ),
+      ],
+    ),
+    body: Column(
+      children: [
+        Expanded(
+          child: GoogleMap(
+            initialCameraPosition: CameraPosition(
+              target: widget.currentLocation,
+              zoom: 15,
+            ),
+            markers: {
+              Marker(
+                markerId: const MarkerId('current_location'),
+                position: widget.currentLocation,
+                infoWindow: const InfoWindow(title: 'Your Location'),
               ),
-              markers: {
-                Marker(
-                  markerId: const MarkerId('current_location'),
-                  position: widget.currentLocation,
-                  infoWindow: const InfoWindow(title: 'Your Location'),
-                ),
-              },
+            },
+            onMapCreated: (controller) {
+              _locationHandler.setMapStyle(controller, isDarkMode);
+            },
+          ),
+        ),
+        const SizedBox(height: 10),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          child: Text(
+            'Select Chat Rooms or Spaces',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: isDarkMode ? Colors.white : Colors.black,
             ),
           ),
-          const SizedBox(height: 10),
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: Text(
-              'Select Chat Rooms or Spaces',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ),
-          Expanded(
-            child: _buildChatList(),
-          ),
-        ],
-      ),
-    );
-  }
+        ),
+        Expanded(
+          child: _buildChatList(),
+        ),
+      ],
+    ),
+  );
+}
 
   Widget _buildChatList() {
   return StreamBuilder(

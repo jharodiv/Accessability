@@ -12,6 +12,7 @@ class Topwidgets extends StatefulWidget {
   final GlobalKey settingsKey;
   final Function(String) onSpaceSelected;
   final VoidCallback onMySpaceSelected;
+  final Function(String) onSpaceIdChanged;
 
   const Topwidgets({
     super.key,
@@ -21,6 +22,7 @@ class Topwidgets extends StatefulWidget {
     required this.settingsKey,
     required this.onSpaceSelected,
     required this.onMySpaceSelected,
+    required this.onSpaceIdChanged
   });
 
   @override
@@ -65,23 +67,26 @@ class TopwidgetsState extends State<Topwidgets> {
   void _selectSpace(String spaceId, String spaceName) {
     if (mounted) {
       widget.onSpaceSelected(spaceId);
+      widget.onSpaceIdChanged(spaceId); 
       setState(() {
         _activeSpaceName = spaceName;
         _isDropdownOpen = false;
       });
     }
   }
+  
 
   void _selectMySpace() {
     if (mounted) {
       widget.onSpaceSelected('');
+      widget.onSpaceIdChanged(''); // Notify parent of space ID change
       widget.onMySpaceSelected();
       setState(() {
         _activeSpaceName = 'My Space';
         _isDropdownOpen = false;
       });
     }
-  }
+  } 
 
   void _handleCategorySelection(String category) {
     setState(() {

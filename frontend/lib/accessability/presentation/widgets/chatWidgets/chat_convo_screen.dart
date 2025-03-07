@@ -63,16 +63,28 @@ class _ChatConvoScreenState extends State<ChatConvoScreen> {
   }
 
   void sendMessage() async {
-  if (messageController.text.isNotEmpty) {
+  // Trim the message to remove leading and trailing spaces
+  final trimmedMessage = messageController.text.trim();
+
+  // Check if the trimmed message is not empty
+  if (trimmedMessage.isNotEmpty) {
     await chatService.sendMessage(
       widget.receiverID,
-      messageController.text,
+      trimmedMessage,
       isSpaceChat: widget.isSpaceChat,
     );
     messageController.clear();
 
     // Scroll to the bottom after sending a message
     WidgetsBinding.instance.addPostFrameCallback((_) => scrollDown());
+  } else {
+    // Optionally, you can show a message to the user indicating that empty messages are not allowed
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Message cannot be empty'),
+        duration: Duration(seconds: 2),
+      ),
+    );
   }
 }
 

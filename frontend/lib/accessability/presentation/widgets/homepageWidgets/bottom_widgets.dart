@@ -72,6 +72,7 @@ class _BottomWidgetsState extends State<BottomWidgets> {
   final List<FocusNode> _verificationCodeFocusNodes =
       List.generate(6, (index) => FocusNode());
   final FlutterTts flutterTts = FlutterTts();
+  bool _isLoading = false; 
 
   StreamSubscription<DocumentSnapshot>? _membersListener;
   final List<StreamSubscription<DocumentSnapshot>> _locationListeners = [];
@@ -98,7 +99,11 @@ class _BottomWidgetsState extends State<BottomWidgets> {
   void didUpdateWidget(BottomWidgets oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (widget.activeSpaceId != oldWidget.activeSpaceId) {
-      _listenToMembers(); // Re-fetch members when activeSpaceId changes
+      // Set loading state when space ID changes
+      setState(() {
+        _isLoading = true;
+      });
+      _listenToMembers(); // Re-fetch members
     }
   }
 
@@ -118,7 +123,7 @@ class _BottomWidgetsState extends State<BottomWidgets> {
     super.dispose();
   }
 
-  void _listenToMembers() {
+  void _listenToMembers() async {
     if (widget.activeSpaceId.isEmpty) {
       _membersListener?.cancel();
       _membersListener = null;
@@ -128,6 +133,7 @@ class _BottomWidgetsState extends State<BottomWidgets> {
         _members = [];
         _spaceName = null;
         _verificationCode = null;
+        _isLoading = false; // Reset loading state
       });
       return;
     }
@@ -147,10 +153,12 @@ class _BottomWidgetsState extends State<BottomWidgets> {
           _members = [];
           _spaceName = null;
           _verificationCode = null;
+          _isLoading = false; // Reset loading state
         });
         return;
       }
 
+      
       final members = snapshot['members'] != null
           ? List<String>.from(snapshot['members'])
           : [];
@@ -199,6 +207,7 @@ class _BottomWidgetsState extends State<BottomWidgets> {
         _creatorId = creatorId;
         _spaceName = spaceName;
         _verificationCode = verificationCode;
+        _isLoading = false;
       });
 
       for (final member in members) {
@@ -561,61 +570,66 @@ Widget build(BuildContext context) {
                   padding: const EdgeInsets.all(16.0),
                   child: Column(
                     children: [
-                      if (widget.selectedPlace != null) ...[
-                        EstablishmentDetailsCard(
-                          place: widget.selectedPlace!,
-                          onClose: widget.onCloseSelectedPlace,
+                      if (_isLoading) // Show loading indicator
+                        const Center(
+                          child: CircularProgressIndicator(),
+                        ),
+                      if (!_isLoading) ...[
+                        if (widget.selectedPlace != null) ...[
+                          EstablishmentDetailsCard(
+                            place: widget.selectedPlace!,
+                            onClose: widget.onCloseSelectedPlace,
+                          ),
+                          const SizedBox(height: 20),
+                        ],
+                        Container(
+                          width: 100,
+                          height: 2,
+                          color: isDarkMode ? Colors.grey[700] : Colors.grey.shade700,
+                          margin: const EdgeInsets.only(bottom: 8),
+                        ),
+                        const SizedBox(height: 5),
+                        SearchBarWithAutocomplete(
+                          onSearch: _searchLocation,
                         ),
                         const SizedBox(height: 20),
-                      ],
-                      Container(
-                        width: 100,
-                        height: 2,
-                        color: isDarkMode ? Colors.grey[700] : Colors.grey.shade700,
-                        margin: const EdgeInsets.only(bottom: 8),
-                      ),
-                      const SizedBox(height: 5),
-                      SearchBarWithAutocomplete(
-                        onSearch: _searchLocation,
-                      ),
-                      const SizedBox(height: 20),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                        children: [
-                          CustomButton(
-                            icon: Icons.people,
-                            index: 0,
-                            activeIndex: _activeIndex,
-                            onPressed: (int newIndex) {
-                              setState(() {
-                                _activeIndex = newIndex;
-                              });
-                            },
-                          ),
-                          CustomButton(
-                            icon: Icons.business,
-                            index: 1,
-                            activeIndex: _activeIndex,
-                            onPressed: (int newIndex) {
-                              setState(() {
-                                _activeIndex = newIndex;
-                              });
-                            },
-                          ),
-                          CustomButton(
-                            icon: Icons.map,
-                            index: 2,
-                            activeIndex: _activeIndex,
-                            onPressed: (int newIndex) {
-                              setState(() {
-                                _activeIndex = newIndex;
-                              });
-                            },
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 20),
-                       // People Tab: Show Create/Join Space buttons if no active space.
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                          children: [
+                            CustomButton(
+                              icon: Icons.people,
+                              index: 0,
+                              activeIndex: _activeIndex,
+                              onPressed: (int newIndex) {
+                                setState(() {
+                                  _activeIndex = newIndex;
+                                });
+                              },
+                            ),
+                            CustomButton(
+                              icon: Icons.business,
+                              index: 1,
+                              activeIndex: _activeIndex,
+                              onPressed: (int newIndex) {
+                                setState(() {
+                                  _activeIndex = newIndex;
+                                });
+                              },
+                            ),
+                            CustomButton(
+                              icon: Icons.map,
+                              index: 2,
+                              activeIndex: _activeIndex,
+                              onPressed: (int newIndex) {
+                                setState(() {
+                                  _activeIndex = newIndex;
+                                });
+                              },
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 20),
+                        // People Tab: Show Create/Join Space buttons if no active space.
                         if (_activeIndex == 0 &&
                             widget.activeSpaceId.isEmpty) ...[
                           if (!_showCreateSpace && !_showJoinSpace) ...[
@@ -727,12 +741,13 @@ Widget build(BuildContext context) {
                           ),
                         // Business Tab: Show AddPlaceWidget.
                         if (_activeIndex == 1) const AddPlaceWidget(),
-                      if (_activeIndex == 2)
-                        MapContent(
-                          onCategorySelected: (category) {
-                            widget.fetchNearbyPlaces(category); // Use the callback here
-                          },
-                        ),
+                        if (_activeIndex == 2)
+                          MapContent(
+                            onCategorySelected: (category) {
+                              widget.fetchNearbyPlaces(category); // Use the callback here
+                            },
+                          ),
+                      ],
                     ],
                   ),
                 ),

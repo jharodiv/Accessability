@@ -48,6 +48,8 @@ class _GpsScreenState extends State<GpsScreen> {
   Set<Circle> _circles = {};
   bool _isLocationFetched = false;
   late Key _mapKey = UniqueKey();
+  String _activeSpaceId = '';
+  bool _isLoading = false;
 
   // Added: Holds the detailed info for a selected establishment.
   Place? _selectedPlace;
@@ -144,6 +146,13 @@ class _GpsScreenState extends State<GpsScreen> {
       });
     });
   }
+
+  void _handleSpaceIdChanged(String spaceId) {
+  setState(() {
+    _activeSpaceId = spaceId;
+    _isLoading = true; // Set loading state in parent
+  });
+}
 
     Future<void> _fetchNearbyPlaces(String placeType) async {
       if (_locationHandler.currentLocation == null) {
@@ -320,6 +329,7 @@ Widget build(BuildContext context) {
                     },
                     onSpaceSelected: _locationHandler.updateActiveSpaceId,
                     onMySpaceSelected: _onMySpaceSelected,
+                    onSpaceIdChanged: _handleSpaceIdChanged,
                   ),
                   if (_locationHandler.currentIndex == 0)
                     BottomWidgets(

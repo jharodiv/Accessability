@@ -31,6 +31,7 @@ class BottomWidgets extends StatefulWidget {
   final Place? selectedPlace;
   final VoidCallback? onCloseSelectedPlace;
   final Function(String) fetchNearbyPlaces;
+  final Future<void> Function()? onMapViewPressed; // New callback property
 
   const BottomWidgets({
     super.key,
@@ -41,6 +42,7 @@ class BottomWidgets extends StatefulWidget {
     required this.fetchNearbyPlaces,
     this.selectedPlace,
     this.onCloseSelectedPlace,
+    this.onMapViewPressed, // Add it here
   });
 
   @override
@@ -544,6 +546,8 @@ class _BottomWidgetsState extends State<BottomWidgets> {
                 }
               },
               currentLocation: _locationHandler.currentLocation,
+              onMapViewPressed:
+                  widget.onMapViewPressed, // Pass the callback here
             ),
             const SizedBox(height: 10),
             Expanded(

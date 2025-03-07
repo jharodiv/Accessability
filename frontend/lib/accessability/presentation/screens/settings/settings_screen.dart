@@ -1,3 +1,4 @@
+import 'package:AccessAbility/accessability/presentation/widgets/google_helper/map_view_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:AccessAbility/accessability/data/repositories/auth_repository.dart';
@@ -25,7 +26,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     try {
       await authService.signOut();
       authBloc.add(LogoutEvent());
-
       Navigator.pushReplacementNamed(context, '/login');
     } catch (e) {
       showDialog(
@@ -55,17 +55,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
         preferredSize: const Size.fromHeight(65),
         child: Container(
           decoration: BoxDecoration(
-            color: isDarkMode ? Colors.grey[900] : Colors.white, // AppBar background color
+            color: isDarkMode ? Colors.grey[900] : Colors.white,
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.1), // Shadow color
-                offset: const Offset(0, 1), // Horizontal and Vertical offset
-                blurRadius: 2, // How much to blur the shadow
+                color: Colors.black.withOpacity(0.1),
+                offset: const Offset(0, 1),
+                blurRadius: 2,
               ),
             ],
           ),
           child: AppBar(
-            elevation: 0, // Remove default elevation
+            elevation: 0,
             leading: IconButton(
               onPressed: () {
                 Navigator.of(context).pop();
@@ -78,12 +78,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
               style: TextStyle(fontWeight: FontWeight.bold),
             ),
             centerTitle: true,
-            backgroundColor: Colors.transparent, // Make AppBar transparent
+            backgroundColor: Colors.transparent,
           ),
         ),
       ),
       body: Container(
-        color: isDarkMode ? Colors.grey[900] : Colors.white, // Background color
+        color: isDarkMode ? Colors.grey[900] : Colors.white,
         child: ListView(
           children: [
             ListTile(
@@ -114,11 +114,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 activeColor: const Color(0xFF6750A4),
                 value: isNotificationEnabled,
                 onChanged: (bool value) {
-                  setState(
-                    () {
-                      isNotificationEnabled = value;
-                    },
-                  );
+                  setState(() {
+                    isNotificationEnabled = value;
+                  });
                 },
               ),
             ),
@@ -152,12 +150,34 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
             const Divider(),
             ListTile(
+              leading: const Icon(Icons.map, color: Color(0xFF6750A4)),
+              title: const Text('Map View',
+                  style: TextStyle(fontWeight: FontWeight.bold)),
+              onTap: () async {
+                // Open MapViewScreen. You can pass an initial perspective if needed.
+                final perspective = await Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const MapViewScreen(),
+                  ),
+                );
+                if (perspective != null && perspective is MapPerspective) {
+                  // Pass the selected perspective into the homescreen/GpsScreen.
+                  Navigator.pushNamedAndRemoveUntil(
+                    context,
+                    '/homescreen',
+                    (route) => false,
+                    arguments: perspective,
+                  );
+                }
+              },
+            ),
+            const Divider(),
+            ListTile(
               leading: const Icon(Icons.logout, color: Color(0xFF6750A4)),
-              title: const Text(
-                'Log out',
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-              onTap: () => logout(context), // Call the logout function here
+              title: const Text('Log out',
+                  style: TextStyle(fontWeight: FontWeight.bold)),
+              onTap: () => logout(context),
             ),
           ],
         ),

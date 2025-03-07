@@ -11,11 +11,13 @@ class AddPlaceEvent extends PlaceEvent {
   final String name;
   final double latitude;
   final double longitude;
+  final String? category; // Optional category
 
   const AddPlaceEvent({
     required this.name,
     required this.latitude,
     required this.longitude,
+    this.category,
   });
 
   @override

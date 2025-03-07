@@ -1,7 +1,10 @@
+import 'package:AccessAbility/accessability/logic/bloc/place/bloc/place_bloc.dart';
+import 'package:AccessAbility/accessability/logic/bloc/place/bloc/place_event.dart';
 import 'package:flutter/material.dart';
 import 'package:AccessAbility/accessability/firebaseServices/models/place.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
-class EstablishmentDetailsCard extends StatelessWidget {
+class EstablishmentDetailsCard extends StatefulWidget {
   final Place place;
   final VoidCallback? onClose;
 
@@ -12,68 +15,60 @@ class EstablishmentDetailsCard extends StatelessWidget {
   }) : super(key: key);
 
   @override
-  Widget build(BuildContext context) {
-    // Retrieve fields from the Place model (populated via Google Places details)
-    final String placeName = place.name;
-    final double placeRating = place.rating ?? 0.0;
-    final int reviewsCount = place.reviewsCount ?? 0;
-    final String locationText = place.address ?? 'No address available';
-    final String? imageUrl = place.imageUrl;
+  _EstablishmentDetailsCardState createState() =>
+      _EstablishmentDetailsCardState();
+}
 
-    return Container(
-      margin: const EdgeInsets.all(16),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: const [
-          BoxShadow(
-            color: Colors.black12,
-            blurRadius: 4,
-            offset: Offset(0, 2),
-          ),
-        ],
-      ),
+class _EstablishmentDetailsCardState extends State<EstablishmentDetailsCard> {
+  bool isFavorite = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final String placeName = widget.place.name;
+    final double placeRating = widget.place.rating ?? 0.0;
+    final int reviewsCount = widget.place.reviewsCount ?? 0;
+    final String locationText = widget.place.address ?? 'No address available';
+    final String? imageUrl = widget.place.imageUrl;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 15),
       child: Column(
-        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header row for text-to-speech and close functionality
+          // Top row: Name and Favorite Icon
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              TextButton(
-                onPressed: () {
-                  // Implement text-to-speech or speech-to-text here
-                },
-                child: const Text('Text to Speech, Speech to Text'),
-              ),
-              if (onClose != null)
-                IconButton(
-                  icon: const Icon(Icons.close),
-                  onPressed: onClose,
-                ),
-            ],
-          ),
-          const SizedBox(height: 8),
-
-          // Place name display
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(
                 child: Text(
                   placeName,
                   style: const TextStyle(
-                    fontSize: 20,
+                    fontSize: 18,
                     fontWeight: FontWeight.bold,
+                    color: Colors.black,
                   ),
                 ),
               ),
+              IconButton(
+                icon: Icon(isFavorite ? Icons.favorite : Icons.favorite_border),
+                color: isFavorite ? Colors.red : const Color(0xFF6750A4),
+                onPressed: () {
+                  setState(() {
+                    isFavorite = !isFavorite;
+                  });
+
+                  // Dispatch events as needed
+                  context.read<PlaceBloc>().add(AddPlaceEvent(
+                        name: widget.place.name,
+                        latitude: widget.place.latitude,
+                        longitude: widget.place.longitude,
+                        category: "Favorites",
+                      ));
+                },
+              ),
             ],
           ),
-          const SizedBox(height: 4),
-
-          // Rating and reviews count
+          // Rating row: numeric rating, stars, review count
           Row(
             children: [
               Text(
@@ -81,6 +76,7 @@ class EstablishmentDetailsCard extends StatelessWidget {
                 style: const TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
+                  color: Color(0xFF6750A4),
                 ),
               ),
               const SizedBox(width: 4),
@@ -92,24 +88,31 @@ class EstablishmentDetailsCard extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 8),
-
-          // Address display
+          const SizedBox(height: 4),
+          // Location row
           Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              const Icon(Icons.location_on, color: Colors.grey, size: 16),
-              const SizedBox(width: 4),
+              const Icon(
+                Icons.location_on,
+                color: Color(0xFF6750A4),
+                size: 16,
+              ),
+              const SizedBox(width: 10),
               Expanded(
                 child: Text(
                   locationText,
-                  style: const TextStyle(fontSize: 14),
+                  style: const TextStyle(
+                    fontSize: 14,
+                    color: Colors.grey,
+                  ),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 12),
-
-          // Display the establishment's image
+          const SizedBox(height: 8),
+          // Image or placeholder
           if (imageUrl != null && imageUrl.isNotEmpty)
             ClipRRect(
               borderRadius: BorderRadius.circular(8),
@@ -135,14 +138,6 @@ class EstablishmentDetailsCard extends StatelessWidget {
               ),
             ),
           const SizedBox(height: 12),
-
-          // Button to navigate to a full reviews screen or expand more details
-          ElevatedButton(
-            onPressed: () {
-              // e.g. Navigate to a full reviews screen
-            },
-            child: const Text('View Reviews'),
-          ),
         ],
       ),
     );

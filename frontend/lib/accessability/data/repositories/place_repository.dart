@@ -6,9 +6,11 @@ class PlaceRepository {
 
   PlaceRepository({required this.placeService});
 
-  Future<void> addPlace(String name, double latitude, double longitude) async {
+  Future<void> addPlace(String name, double latitude, double longitude,
+      {String? category}) async {
     try {
-      await placeService.addPlace(name, latitude, longitude);
+      await placeService.addPlace(name, latitude, longitude,
+          category: category);
     } catch (e) {
       throw Exception('Failed to add place: ${e.toString()}');
     }

@@ -9,20 +9,21 @@ class PlaceService {
   Future<void> addPlace(
     String name,
     double latitude,
-    double longitude,
-  ) async {
+    double longitude, {
+    String? category,
+  }) async {
     try {
       final user = _auth.currentUser;
       if (user == null) {
         throw Exception("User not authenticated");
       }
 
-      // Assign default category ("none") when adding a new place.
+      // Use the provided category if available, otherwise default to "none".
       Place place = Place(
         id: '', // Firestore will generate an ID
         userId: user.uid,
         name: name,
-        category: 'none', // default category value
+        category: category ?? 'none',
         latitude: latitude,
         longitude: longitude,
         timestamp: DateTime.now(),

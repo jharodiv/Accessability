@@ -21,7 +21,11 @@ class PlaceBloc extends Bloc<PlaceEvent, PlaceState> {
     emit(PlaceOperationLoading());
     try {
       await placeRepository.addPlace(
-          event.name, event.latitude, event.longitude);
+        event.name,
+        event.latitude,
+        event.longitude,
+        category: event.category, // Optional category passed if available.
+      );
       emit(PlaceOperationSuccess());
     } catch (e) {
       emit(PlaceOperationError('Failed to add place: ${e.toString()}'));

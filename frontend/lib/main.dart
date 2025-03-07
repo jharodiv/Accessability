@@ -65,13 +65,13 @@ void main() async {
   // Initialize ThemeProvider
   runApp(
     ChangeNotifierProvider(
-      create: (context) => ThemeProvider(),
+      create: (context) => ThemeProvider(sharedPreferences),
       child: MyApp(
         sharedPreferences: sharedPreferences,
         navigatorKey: navigatorKey,
         fcmService: fcmService,
         authService: authService,
-        placeService: placeService, // Pass PlaceService
+        placeService: placeService, 
       ),
     ),
   );
@@ -91,7 +91,7 @@ class MyApp extends StatelessWidget {
     required this.navigatorKey,
     required this.fcmService,
     required this.authService,
-    required this.placeService, // Initialize it
+    required this.placeService, 
   });
 
   @override

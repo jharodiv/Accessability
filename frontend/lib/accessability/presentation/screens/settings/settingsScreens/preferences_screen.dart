@@ -15,7 +15,8 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final bool isDarkMode = Provider.of<ThemeProvider>(context).isDarkMode;
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    final bool isDarkMode = themeProvider.isDarkMode;
 
     return Scaffold(
       appBar: PreferredSize(
@@ -39,7 +40,7 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
               },
               icon: const Icon(Icons.arrow_back),
               color: const Color(0xFF6750A4),
-            ),
+              ),
             title: const Text(
               'Preference',
               style: TextStyle(fontWeight: FontWeight.bold),
@@ -67,7 +68,7 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
                   activeColor: const Color(0xFF6750A4),
                   value: isDarkMode,
                   onChanged: (value) {
-                    Provider.of<ThemeProvider>(context, listen: false).toggleTheme();
+                    themeProvider.toggleTheme();
                   },
                 ),
               ),

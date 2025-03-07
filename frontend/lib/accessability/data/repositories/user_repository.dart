@@ -64,6 +64,7 @@ class UserRepository {
         _sharedPrefs?.getBool('user_hasCompletedOnboarding') ?? false;
     final biometricEnabled = _sharedPrefs?.getBool('user_biometricEnabled') ?? false;
     final deviceId = _sharedPrefs?.getString('user_deviceId'); 
+    final isDarkMode = _sharedPrefs?.getBool('isDarkMode') ?? false;
 
     if (userId != null && userName != null && userEmail != null) {
       return UserModel(

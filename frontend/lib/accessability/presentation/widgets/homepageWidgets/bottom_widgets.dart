@@ -10,6 +10,7 @@ import 'package:AccessAbility/accessability/presentation/widgets/bottomSheetWidg
 import 'package:AccessAbility/accessability/presentation/widgets/bottomSheetWidgets/map_content.dart';
 import 'package:AccessAbility/accessability/presentation/widgets/gpsWidgets/establishment_details_card.dart';
 import 'package:AccessAbility/accessability/presentation/widgets/homepageWidgets/bottomWidgetFiles/member_list_widget.dart';
+import 'package:AccessAbility/accessability/presentation/widgets/homepageWidgets/bottomWidgetFiles/searchBar/searchbar_with_autocomplete_suggestions.dart';
 import 'package:AccessAbility/accessability/presentation/widgets/homepageWidgets/bottomWidgetFiles/service_buttons.dart';
 import 'package:AccessAbility/accessability/presentation/widgets/homepageWidgets/bottomWidgetFiles/verification_code_widget.dart';
 import 'package:AccessAbility/accessability/themes/theme_provider.dart';
@@ -18,19 +19,18 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:AccessAbility/accessability/presentation/widgets/bottomSheetWidgets/create_space_widget.dart';
 import 'package:AccessAbility/accessability/presentation/widgets/bottomSheetWidgets/join_space_widget.dart';
+import 'package:flutter_tts/flutter_tts.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:provider/provider.dart';
-
-// Import your EstablishmentDetailsCard widget.
 
 class BottomWidgets extends StatefulWidget {
   final ScrollController scrollController;
   final String activeSpaceId;
-  final Function(String) onCategorySelected;
+  final Function(LatLng) onCategorySelected;
   final Function(LatLng, String) onMemberPressed;
-  final Place? selectedPlace; // New: Selected establishment details to show
-  final VoidCallback?
-      onCloseSelectedPlace; // New: Callback to clear the selection
+  final Place? selectedPlace;
+  final VoidCallback? onCloseSelectedPlace;
+  final Function(String) fetchNearbyPlaces;
 
   const BottomWidgets({
     super.key,
@@ -38,8 +38,11 @@ class BottomWidgets extends StatefulWidget {
     required this.activeSpaceId,
     required this.onCategorySelected,
     required this.onMemberPressed,
+    required this.fetchNearbyPlaces,
     this.selectedPlace,
     this.onCloseSelectedPlace,
+    
+    
   });
 
   @override
@@ -68,6 +71,7 @@ class _BottomWidgetsState extends State<BottomWidgets> {
       List.generate(6, (index) => TextEditingController());
   final List<FocusNode> _verificationCodeFocusNodes =
       List.generate(6, (index) => FocusNode());
+  final FlutterTts flutterTts = FlutterTts();
 
   StreamSubscription<DocumentSnapshot>? _membersListener;
   final List<StreamSubscription<DocumentSnapshot>> _locationListeners = [];
@@ -78,6 +82,7 @@ class _BottomWidgetsState extends State<BottomWidgets> {
     _listenToMembers();
     _setupVerificationCodeFocusListeners();
     _initializeLocation();
+    _initializeTts();
   }
 
   Future<void> _initializeLocation() async {
@@ -102,6 +107,7 @@ class _BottomWidgetsState extends State<BottomWidgets> {
     _membersListener?.cancel();
     _locationListeners.forEach((listener) => listener.cancel());
     _locationListeners.clear();
+    flutterTts.stop();
     _spaceNameController.dispose();
     for (final controller in _verificationCodeControllers) {
       controller.dispose();
@@ -228,6 +234,49 @@ class _BottomWidgetsState extends State<BottomWidgets> {
               .requestFocus(_verificationCodeFocusNodes[i + 1]);
         }
       });
+    }
+  }
+
+  Future<void> _initializeTts() async {
+    await flutterTts.setLanguage("en-US");
+    await flutterTts.setSpeechRate(0.5);
+  }
+
+  Future<void> _speak(String text) async {
+    await flutterTts.speak(text);
+  }
+
+  Future<void> _searchLocation(String query) async {
+    if (query.isEmpty) {
+      await _speak("Please enter a location to search.");
+      return;
+    }
+
+    try {
+      final geocodingService = GeocodingService();
+      final results = await geocodingService.searchLocation(query);
+
+      if (results.isNotEmpty) {
+        final firstResult = results.first;
+        final address = firstResult.formattedAddress;
+
+        // Announce the result using TTS
+        await _speak("Location found: $address");
+
+        // Pan the camera to the searched location
+        final location = LatLng(
+          firstResult.geometry.location.lat,
+          firstResult.geometry.location.lng,
+        );
+        _locationHandler.panCameraToLocation(location);
+
+        // Update the map to show the location
+        widget.onCategorySelected(location);
+      } else {
+        await _speak("No results found for $query. Please try a different search.");
+      }
+    } catch (e) {
+      await _speak("Error: ${e.toString()}");
     }
   }
 
@@ -470,134 +519,103 @@ class _BottomWidgetsState extends State<BottomWidgets> {
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final bool isDarkMode = Provider.of<ThemeProvider>(context).isDarkMode;
+@override
+Widget build(BuildContext context) {
+  final bool isDarkMode = Provider.of<ThemeProvider>(context).isDarkMode;
 
-    return DraggableScrollableSheet(
-      initialChildSize: 0.15,
-      minChildSize: 0.15,
-      maxChildSize: 0.8,
-      builder: (context, scrollController) {
-        return Column(
-          children: [
-            ServiceButtons(
-              onButtonPressed: (label) {
-                if (label == 'SOS') {
-                  Navigator.pushNamed(context, '/sos');
-                }
-              },
-              currentLocation: _locationHandler.currentLocation,
-            ),
-            const SizedBox(height: 10),
-            Expanded(
-              child: Container(
-                decoration: BoxDecoration(
-                  color: isDarkMode ? Colors.grey[900] : Colors.white,
-                  borderRadius: const BorderRadius.only(
-                    topLeft: Radius.circular(20),
-                    topRight: Radius.circular(20),
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black26,
-                      blurRadius: 10,
-                      offset: const Offset(0, -5),
-                    ),
-                  ],
+  return DraggableScrollableSheet(
+    initialChildSize: 0.15,
+    minChildSize: 0.15,
+    maxChildSize: 0.8,
+    builder: (context, scrollController) {
+      return Column(
+        children: [
+          ServiceButtons(
+            onButtonPressed: (label) {
+              if (label == 'SOS') {
+                Navigator.pushNamed(context, '/sos');
+              }
+            },
+            currentLocation: _locationHandler.currentLocation,
+          ),
+          const SizedBox(height: 10),
+          Expanded(
+            child: Container(
+              decoration: BoxDecoration(
+                color: isDarkMode ? Colors.grey[900] : Colors.white,
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(20),
+                  topRight: Radius.circular(20),
                 ),
-                child: SingleChildScrollView(
-                  controller: scrollController,
-                  child: Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Column(
-                      children: [
-                        // If a place is selected, show the EstablishmentDetailsCard here.
-                        if (widget.selectedPlace != null) ...[
-                          EstablishmentDetailsCard(
-                            place: widget.selectedPlace!,
-                            onClose: widget.onCloseSelectedPlace,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black26,
+                    blurRadius: 10,
+                    offset: const Offset(0, -5),
+                  ),
+                ],
+              ),
+              child: SingleChildScrollView(
+                controller: scrollController,
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    children: [
+                      if (widget.selectedPlace != null) ...[
+                        EstablishmentDetailsCard(
+                          place: widget.selectedPlace!,
+                          onClose: widget.onCloseSelectedPlace,
+                        ),
+                        const SizedBox(height: 20),
+                      ],
+                      Container(
+                        width: 100,
+                        height: 2,
+                        color: isDarkMode ? Colors.grey[700] : Colors.grey.shade700,
+                        margin: const EdgeInsets.only(bottom: 8),
+                      ),
+                      const SizedBox(height: 5),
+                      SearchBarWithAutocomplete(
+                        onSearch: _searchLocation,
+                      ),
+                      const SizedBox(height: 20),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                        children: [
+                          CustomButton(
+                            icon: Icons.people,
+                            index: 0,
+                            activeIndex: _activeIndex,
+                            onPressed: (int newIndex) {
+                              setState(() {
+                                _activeIndex = newIndex;
+                              });
+                            },
                           ),
-                          const SizedBox(height: 20),
+                          CustomButton(
+                            icon: Icons.business,
+                            index: 1,
+                            activeIndex: _activeIndex,
+                            onPressed: (int newIndex) {
+                              setState(() {
+                                _activeIndex = newIndex;
+                              });
+                            },
+                          ),
+                          CustomButton(
+                            icon: Icons.map,
+                            index: 2,
+                            activeIndex: _activeIndex,
+                            onPressed: (int newIndex) {
+                              setState(() {
+                                _activeIndex = newIndex;
+                              });
+                            },
+                          ),
                         ],
-                        Container(
-                          width: 100,
-                          height: 2,
-                          color: isDarkMode
-                              ? Colors.grey[700]
-                              : Colors.grey.shade700,
-                          margin: const EdgeInsets.only(bottom: 8),
-                        ),
-                        const SizedBox(height: 5),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 16),
-                          height: 50,
-                          decoration: BoxDecoration(
-                            color: isDarkMode
-                                ? Colors.grey[800]
-                                : Colors.grey.shade200,
-                            borderRadius: BorderRadius.circular(25),
-                          ),
-                          child: Row(
-                            children: [
-                              Expanded(
-                                child: Text(
-                                  "Text to Speech, Speech to Text",
-                                  style: TextStyle(
-                                    color: isDarkMode
-                                        ? Colors.white
-                                        : const Color(0xFF6750A4),
-                                    fontSize: 16,
-                                  ),
-                                ),
-                              ),
-                              Icon(
-                                Icons.mic,
-                                color: isDarkMode
-                                    ? Colors.white
-                                    : const Color(0xFF6750A4),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 20),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                          children: [
-                            CustomButton(
-                              icon: Icons.people,
-                              index: 0,
-                              activeIndex: _activeIndex,
-                              onPressed: (int newIndex) {
-                                setState(() {
-                                  _activeIndex = newIndex;
-                                });
-                              },
-                            ),
-                            CustomButton(
-                              icon: Icons.business,
-                              index: 1,
-                              activeIndex: _activeIndex,
-                              onPressed: (int newIndex) {
-                                setState(() {
-                                  _activeIndex = newIndex;
-                                });
-                              },
-                            ),
-                            CustomButton(
-                              icon: Icons.map,
-                              index: 2,
-                              activeIndex: _activeIndex,
-                              onPressed: (int newIndex) {
-                                setState(() {
-                                  _activeIndex = newIndex;
-                                });
-                              },
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 20),
-                        // People Tab: Show Create/Join Space buttons if no active space.
+                      ),
+                      const SizedBox(height: 20),
+                       // People Tab: Show Create/Join Space buttons if no active space.
                         if (_activeIndex == 0 &&
                             widget.activeSpaceId.isEmpty) ...[
                           if (!_showCreateSpace && !_showJoinSpace) ...[
@@ -709,30 +727,21 @@ class _BottomWidgetsState extends State<BottomWidgets> {
                           ),
                         // Business Tab: Show AddPlaceWidget.
                         if (_activeIndex == 1) const AddPlaceWidget(),
-                        // Map Tab: Show MapContent.
-                        if (_activeIndex == 2)
-                          MapContent(
-                            onCategorySelected: (category) {
-                              widget.onCategorySelected(category);
-                            },
-                          ),
-                        // People Tab: Show VerificationCodeWidget if current user is creator.
-                        if (_creatorId == _auth.currentUser?.uid &&
-                            _activeIndex == 0 &&
-                            widget.activeSpaceId.isNotEmpty)
-                          VerificationCodeWidget(
-                            verificationCode: _verificationCode ?? 'ABC - DEF',
-                            onSendCode: _addPerson,
-                          ),
-                      ],
-                    ),
+                      if (_activeIndex == 2)
+                        MapContent(
+                          onCategorySelected: (category) {
+                            widget.fetchNearbyPlaces(category); // Use the callback here
+                          },
+                        ),
+                    ],
                   ),
                 ),
               ),
             ),
-          ],
-        );
-      },
-    );
-  }
+          ),
+        ],
+      );
+    },
+  );
+}
 }

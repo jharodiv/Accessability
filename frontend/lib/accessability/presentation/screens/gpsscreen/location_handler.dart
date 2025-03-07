@@ -394,6 +394,14 @@ class LocationHandler {
   setMapStyle(controller, isDarkMode);
 }
 
+Future<void> panCameraToLocation(LatLng location) async {
+    if (mapController != null) {
+      await mapController!.animateCamera(
+        CameraUpdate.newLatLngZoom(location, 14.0), // Adjust zoom level as needed
+      );
+    }
+  }
+
 Future<void> setMapStyle(GoogleMapController controller, bool isDarkMode) async {
     if (isDarkMode) {
       // Load dark mode JSON

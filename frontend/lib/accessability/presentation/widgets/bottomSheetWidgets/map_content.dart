@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 class MapContent extends StatelessWidget {
-  final Function(String) onCategorySelected; // New callback
+  final Function(String) onCategorySelected;
 
   const MapContent({super.key, required this.onCategorySelected});
 
@@ -63,12 +64,10 @@ class MapContent extends StatelessWidget {
     );
   }
 
-  // Updated to wrap with GestureDetector and call onCategorySelected
   Widget _buildLegendItem(IconData icon, String label) {
     return GestureDetector(
       onTap: () {
-        // Call the callback with the label, assuming label matches the category in fetch logic.
-        onCategorySelected(label);
+        onCategorySelected(label); // Trigger the callback
       },
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),

@@ -583,7 +583,7 @@ class _BottomWidgetsState extends State<BottomWidgets> {
                         SearchBarWithAutocomplete(
                           onSearch: _searchLocation,
                         ),
-                        const SizedBox(height: 20),
+                        const SizedBox(height: 10),
                         // --- If a place is selected, show only the EstablishmentDetailsCard ---
                         if (widget.selectedPlace != null)
                           EstablishmentDetailsCard(
@@ -632,6 +632,9 @@ class _BottomWidgetsState extends State<BottomWidgets> {
                           if (_activeIndex == 0 &&
                               widget.activeSpaceId.isEmpty) ...[
                             if (!_showCreateSpace && !_showJoinSpace) ...[
+                              const SizedBox(
+                                height: 10,
+                              ),
                               Align(
                                 alignment: Alignment.center,
                                 child: Text(

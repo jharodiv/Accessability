@@ -14,9 +14,9 @@ class VerificationCodeWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        Text(
+        const Text(
           'Invite members to the Space',
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 18,
             fontWeight: FontWeight.bold,
           ),
@@ -66,6 +66,10 @@ class VerificationCodeWidget extends StatelessWidget {
               ),
               const SizedBox(height: 16),
               ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor:
+                      const Color(0xFF6750A4), // sets the desired color
+                ),
                 onPressed: onSendCode,
                 child: const Text('Send code'),
               ),

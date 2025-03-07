@@ -1,5 +1,6 @@
-import 'package:AccessAbility/accessability/firebaseServices/place/geocoding_service.dart';
 import 'package:flutter/material.dart';
+import 'package:speech_to_text/speech_to_text.dart' as stt;
+import 'package:AccessAbility/accessability/firebaseServices/place/geocoding_service.dart';
 
 class SearchBarWithAutocomplete extends StatefulWidget {
   final Function(String) onSearch;
@@ -13,8 +14,27 @@ class SearchBarWithAutocomplete extends StatefulWidget {
 class _SearchBarWithAutocompleteState extends State<SearchBarWithAutocomplete> {
   final TextEditingController _searchController = TextEditingController();
   final GeocodingService _geocodingService = GeocodingService();
+  final stt.SpeechToText _speech = stt.SpeechToText();
   List<String> _suggestions = [];
   final FocusNode _focusNode = FocusNode();
+  bool _isListening = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _initializeSpeech();
+  }
+
+  void _initializeSpeech() async {
+    bool available = await _speech.initialize();
+    if (available) {
+      setState(() {});
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Speech recognition not available')),
+      );
+    }
+  }
 
   void _onSearchChanged(String query) async {
     if (query.isNotEmpty) {
@@ -50,10 +70,50 @@ class _SearchBarWithAutocompleteState extends State<SearchBarWithAutocomplete> {
     });
   }
 
+  void _startListening() async {
+    if (!_isListening) {
+      bool available = await _speech.initialize();
+      if (available) {
+        setState(() {
+          _isListening = true;
+        });
+        _speech.listen(
+          onResult: (result) {
+            setState(() {
+              _searchController.text = result.recognizedWords;
+              _onSearchChanged(result.recognizedWords);
+            });
+
+            // Check if speech recognition has stopped
+            if (result.finalResult) {
+              setState(() {
+                _isListening = false;
+              });
+            }
+          },
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Speech recognition not available')),
+        );
+      }
+    }
+  }
+
+  void _stopListening() {
+    if (_isListening) {
+      _speech.stop();
+      setState(() {
+        _isListening = false;
+      });
+    }
+  }
+
   @override
   void dispose() {
     _focusNode.dispose();
     _searchController.dispose();
+    _speech.stop();
     super.dispose();
   }
 
@@ -96,6 +156,19 @@ class _SearchBarWithAutocompleteState extends State<SearchBarWithAutocomplete> {
                   ),
                   onPressed: _clearSearch,
                 ),
+              IconButton(
+                icon: Icon(
+                  _isListening ? Icons.mic : Icons.mic_none,
+                  color: _isListening ? Colors.red : (isDarkMode ? Colors.grey[400] : Colors.grey[700]),
+                ),
+                onPressed: () {
+                  if (_isListening) {
+                    _stopListening();
+                  } else {
+                    _startListening();
+                  }
+                },
+              ),
             ],
           ),
         ),

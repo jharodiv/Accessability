@@ -58,6 +58,10 @@
 	<key>UIBackgroundModes</key>
 	<array>
 	<string>location</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>We need access to the microphone for speech recognition.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>We need access to speech recognition for voice search.</string>
 	</array>
 </dict>
 </plist>

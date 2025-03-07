@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 class Place {
   final String id;
@@ -62,5 +63,24 @@ class Place {
       'longitude': longitude,
       'timestamp': timestamp,
     };
+  }
+
+  /// Creates a Place from a nearby Marker.
+  /// This is used when setting _selectedPlace from a nearby marker's onTap callback.
+  factory Place.fromNearbyMarker(Marker marker) {
+    return Place(
+      id: marker.markerId.value,
+      userId: '',
+      placeId: marker.markerId.value,
+      name: marker.infoWindow.title ?? 'Unknown Place',
+      rating: 0.0,
+      reviewsCount: 0,
+      address: marker.infoWindow.snippet ?? 'No address available',
+      imageUrl: '',
+      category: '',
+      latitude: marker.position.latitude,
+      longitude: marker.position.longitude,
+      timestamp: DateTime.now(),
+    );
   }
 }

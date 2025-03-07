@@ -4,6 +4,7 @@ import 'package:AccessAbility/accessability/presentation/screens/gpsscreen/locat
 import 'package:AccessAbility/accessability/presentation/screens/gpsscreen/pwd_friendly_locations.dart';
 import 'package:AccessAbility/accessability/presentation/widgets/accessability_footer.dart';
 import 'package:AccessAbility/accessability/presentation/widgets/google_helper/google_place_helper.dart';
+import 'package:AccessAbility/accessability/presentation/widgets/google_helper/map_view_screen.dart';
 import 'package:AccessAbility/accessability/presentation/widgets/homepageWidgets/top_widgets.dart';
 import 'package:AccessAbility/accessability/themes/theme_provider.dart';
 import 'package:flutter/material.dart';
@@ -50,9 +51,10 @@ class _GpsScreenState extends State<GpsScreen> {
   late Key _mapKey = UniqueKey();
   String _activeSpaceId = '';
   bool _isLoading = false;
-
-  // Holds the detailed info for a selected establishment.
   Place? _selectedPlace;
+
+  MapType _currentMapType = MapType.normal;
+  MapPerspective? _pendingPerspective; // New field
 
   @override
   void initState() {
@@ -99,6 +101,11 @@ class _GpsScreenState extends State<GpsScreen> {
           CameraUpdate.newLatLng(_locationHandler.currentLocation!),
         );
       }
+      // If a perspective was passed before the location was ready, apply it now.
+      if (_pendingPerspective != null) {
+        applyMapPerspective(_pendingPerspective!);
+        _pendingPerspective = null;
+      }
     });
 
     // Create markers for PWD-friendly locations.
@@ -118,6 +125,21 @@ class _GpsScreenState extends State<GpsScreen> {
         _tutorialWidget.showTutorial(context);
       }
     });
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final args = ModalRoute.of(context)?.settings.arguments;
+    if (args != null && args is MapPerspective) {
+      // Save the perspective for later.
+      _pendingPerspective = args;
+      // If the location is already fetched, apply immediately.
+      if (_isLocationFetched && _locationHandler.mapController != null) {
+        applyMapPerspective(_pendingPerspective!);
+        _pendingPerspective = null;
+      }
+    }
   }
 
   @override
@@ -244,6 +266,57 @@ class _GpsScreenState extends State<GpsScreen> {
     _locationHandler.updateActiveSpaceId(''); // Explicitly cancel listeners
   }
 
+  // Apply the chosen perspective by updating both the map type and camera position.
+  void applyMapPerspective(MapPerspective perspective) {
+    CameraPosition newPosition;
+    MapType newMapType;
+    final currentLatLng =
+        _locationHandler.currentLocation ?? const LatLng(16.0430, 120.3333);
+
+    switch (perspective) {
+      case MapPerspective.classic:
+        newMapType = MapType.normal;
+        newPosition = CameraPosition(target: currentLatLng, zoom: 14.4746);
+        break;
+      case MapPerspective.aerial:
+        newMapType = MapType.satellite;
+        newPosition = CameraPosition(target: currentLatLng, zoom: 14.4746);
+        break;
+      case MapPerspective.terrain:
+        newMapType = MapType.terrain;
+        newPosition = CameraPosition(target: currentLatLng, zoom: 14.4746);
+        break;
+      case MapPerspective.street:
+        newMapType = MapType.hybrid;
+        newPosition = CameraPosition(target: currentLatLng, zoom: 18);
+        break;
+      case MapPerspective.perspective:
+        newMapType = MapType.normal;
+        newPosition = CameraPosition(
+            target: currentLatLng, zoom: 18, tilt: 60, bearing: 45);
+        break;
+    }
+    setState(() {
+      _currentMapType = newMapType;
+    });
+    if (_locationHandler.mapController != null) {
+      _locationHandler.mapController!.animateCamera(
+        CameraUpdate.newCameraPosition(newPosition),
+      );
+    }
+  }
+
+  // Opens the MapViewScreen and awaits the selected perspective.
+  Future<void> _openMapSettings() async {
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const MapViewScreen()),
+    );
+    if (result != null && result is MapPerspective) {
+      applyMapPerspective(result);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final bool isDarkMode = Provider.of<ThemeProvider>(context).isDarkMode;
@@ -326,6 +399,9 @@ class _GpsScreenState extends State<GpsScreen> {
                       ),
                       myLocationEnabled: true,
                       myLocationButtonEnabled: true,
+                      mapType:
+                          _currentMapType, // Updated to use the selected map type.
+
                       markers: _markers,
                       circles: _circles,
                       onMapCreated: (controller) {
@@ -337,6 +413,11 @@ class _GpsScreenState extends State<GpsScreen> {
                               _locationHandler.currentLocation!,
                             ),
                           );
+                        }
+                        // Also check if there's a pending perspective.
+                        if (_pendingPerspective != null) {
+                          applyMapPerspective(_pendingPerspective!);
+                          _pendingPerspective = null;
                         }
                       },
                       polygons:
@@ -369,6 +450,9 @@ class _GpsScreenState extends State<GpsScreen> {
                         onCategorySelected: (LatLng location) {
                           _locationHandler.panCameraToLocation(location);
                         },
+                        onMapViewPressed:
+                            _openMapSettings, // Pass your _openMapSettings callback here
+
                         onMemberPressed: _onMemberPressed,
                         selectedPlace: _selectedPlace,
                         onCloseSelectedPlace: () {

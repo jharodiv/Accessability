@@ -1,4 +1,5 @@
 import 'package:AccessAbility/accessability/presentation/screens/gpsscreen/gps.dart';
+import 'package:AccessAbility/accessability/presentation/widgets/google_helper/map_view_screen.dart';
 import 'package:AccessAbility/accessability/presentation/widgets/homepageWidgets/bottomWidgetFiles/checkIn/send_location_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:AccessAbility/accessability/logic/firebase_logic/SignupModel.dart';
@@ -24,77 +25,87 @@ class AppRouter {
   Route<dynamic>? onGenerateRoute(RouteSettings routeSettings) {
     switch (routeSettings.name) {
       case '/':
-        return _buildRoute(const SplashScreen(), clearStack: true);
+        return _buildRoute(const SplashScreen(),
+            clearStack: true, settings: routeSettings);
       case SignupScreen.routeName:
-        return _buildRoute(const SignupScreen());
+        return _buildRoute(const SignupScreen(), settings: routeSettings);
       case '/login':
-        return _buildRoute(const LoginScreen(), clearStack: true);
+        return _buildRoute(const LoginScreen(),
+            clearStack: true, settings: routeSettings);
       case '/uploadProfilePicture':
         final args = routeSettings.arguments as SignUpModel;
         return _buildRoute(UploadProfileScreen(signUpModel: args),
-            clearStack: true);
+            clearStack: true, settings: routeSettings);
       case '/addPlace':
-        return _buildRoute(const AddNewPlaceScreen());
+        return _buildRoute(const AddNewPlaceScreen(), settings: routeSettings);
+      case '/mapviewsettings':
+        return _buildRoute(const MapViewScreen(), settings: routeSettings);
       case '/onboarding':
-        return _buildRoute(const OnboardingScreen(), clearStack: true);
+        return _buildRoute(const OnboardingScreen(),
+            clearStack: true, settings: routeSettings);
       case '/homescreen':
-        return _buildRoute(const GpsScreen(), clearStack: true);
+        // Pass the routeSettings so that GpsScreen can read any arguments (e.g. MapPerspective)
+        return _buildRoute(const GpsScreen(),
+            clearStack: true, settings: routeSettings);
       case '/account':
-        return _buildRoute(const AccountScreen());
+        return _buildRoute(const AccountScreen(), settings: routeSettings);
       case '/preferences':
-        return _buildRoute(const PreferencesScreen());
+        return _buildRoute(const PreferencesScreen(), settings: routeSettings);
       case '/privacy':
-        return _buildRoute(PrivacySecurity());
+        return _buildRoute(PrivacySecurity(), settings: routeSettings);
       case '/chatsupport':
-        return _buildRoute(const ChatAndSupport());
+        return _buildRoute(const ChatAndSupport(), settings: routeSettings);
       case '/biometric':
-        return _buildRoute(const BiometricScreen());
+        return _buildRoute(const BiometricScreen(), settings: routeSettings);
       case '/settings':
-        return _buildRoute(const SettingsScreen());
+        return _buildRoute(const SettingsScreen(), settings: routeSettings);
       case '/inbox':
-        return _buildRoute(const InboxScreen());
+        return _buildRoute(const InboxScreen(), settings: routeSettings);
       case '/sos':
-        return _buildRoute(SOSScreen());
+        return _buildRoute(SOSScreen(), settings: routeSettings);
       case '/about':
-        return _buildRoute(const AboutScreen());
-      
+        return _buildRoute(const AboutScreen(), settings: routeSettings);
       case '/send-location':
         final args = routeSettings.arguments as Map<String, dynamic>?;
         if (args == null) {
-          throw ArgumentError('Arguments must not be null for /send-location route');
+          throw ArgumentError(
+              'Arguments must not be null for /send-location route');
         }
         final currentLocation = args['currentLocation'] as LatLng;
-        final isSpaceChat = args['isSpaceChat'] as bool? ?? false; // Add isSpaceChat flag
+        final isSpaceChat = args['isSpaceChat'] as bool? ?? false;
         return MaterialPageRoute(
           builder: (context) => SendLocationScreen(
             currentLocation: currentLocation,
-            isSpaceChat: isSpaceChat, // Pass the isSpaceChat flag
+            isSpaceChat: isSpaceChat,
           ),
+          settings: routeSettings,
         );
-
       case '/chatconvo':
         final args = routeSettings.arguments as Map<String, dynamic>?;
         if (args == null) {
-          throw ArgumentError('Arguments must not be null for /chatconvo route');
+          throw ArgumentError(
+              'Arguments must not be null for /chatconvo route');
         }
         final receiverUsername = args['receiverUsername'] as String;
         final receiverID = args['receiverID'] as String;
-        final isSpaceChat = args['isSpaceChat'] as bool? ?? false; // Add isSpaceChat flag
-        final receiverProfilePicture = args['receiverProfilePicture'] as String? ?? 'https://firebasestorage.googleapis.com/v0/b/accessability-71ef7.appspot.com/o/profile_pictures%2Fdefault_profile.png?alt=media&token=bc7a75a7-a78e-4460-b816-026a8fc341ba'; // Default image if none
+        final isSpaceChat = args['isSpaceChat'] as bool? ?? false;
+        final receiverProfilePicture = args['receiverProfilePicture']
+                as String? ??
+            'https://firebasestorage.googleapis.com/v0/b/accessability-71ef7.appspot.com/o/profile_pictures%2Fdefault_profile.png?alt=media';
         return MaterialPageRoute(
           builder: (context) => ChatConvoScreen(
             receiverUsername: receiverUsername,
             receiverID: receiverID,
-            isSpaceChat: isSpaceChat, // Pass the isSpaceChat flag
+            isSpaceChat: isSpaceChat,
           ),
-          settings: routeSettings, // Pass the route settings
+          settings: routeSettings,
         );
     }
     return null;
   }
 
   MaterialPageRoute<Map<String, dynamic>?> _buildRoute(Widget child,
-      {bool clearStack = false}) {
+      {bool clearStack = false, RouteSettings? settings}) {
     return MaterialPageRoute<Map<String, dynamic>?>(
       builder: (context) {
         if (clearStack) {
@@ -102,6 +113,7 @@ class AppRouter {
             Navigator.of(context).pushAndRemoveUntil(
               MaterialPageRoute<Map<String, dynamic>?>(
                 builder: (_) => child,
+                settings: settings,
               ),
               (route) => false,
             );
@@ -110,6 +122,7 @@ class AppRouter {
         }
         return child;
       },
+      settings: settings,
     );
   }
 }

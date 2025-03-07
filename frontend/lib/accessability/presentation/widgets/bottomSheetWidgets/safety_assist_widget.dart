@@ -1,3 +1,4 @@
+import 'package:AccessAbility/accessability/presentation/widgets/bottomSheetWidgets/safety_assist_helper_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:AccessAbility/accessability/firebaseServices/models/emergency_contact.dart';
@@ -9,13 +10,16 @@ import 'package:AccessAbility/accessability/themes/theme_provider.dart';
 
 class SafetyAssistWidget extends StatefulWidget {
   final String uid;
-  const SafetyAssistWidget({super.key, required this.uid});
+  const SafetyAssistWidget({Key? key, required this.uid}) : super(key: key);
 
   @override
   State<SafetyAssistWidget> createState() => _SafetyAssistWidgetState();
 }
 
 class _SafetyAssistWidgetState extends State<SafetyAssistWidget> {
+  // Boolean state variable to determine which design to display
+  bool _showHelper = false;
+
   @override
   void initState() {
     super.initState();
@@ -112,160 +116,208 @@ class _SafetyAssistWidgetState extends State<SafetyAssistWidget> {
             controller: scrollController,
             child: Padding(
               padding: const EdgeInsets.all(16.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  Container(
-                    width: 100,
-                    height: 2,
-                    color: Colors.grey.shade700,
-                    margin: const EdgeInsets.only(bottom: 8),
-                  ),
-                  const SizedBox(height: 15),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        "Safety Assist",
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w900,
-                          color: isDarkMode ? Colors.white : Colors.black,
+              // Toggle between the helper widget and the main design
+              child: _showHelper
+                  ? SafetyAssistHelperWidget(
+                      onBack: () {
+                        setState(() {
+                          _showHelper = false;
+                        });
+                      },
+                    )
+                  : Column(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        Container(
+                          width: 100,
+                          height: 2,
+                          color: Colors.grey.shade700,
+                          margin: const EdgeInsets.only(bottom: 8),
                         ),
-                      ),
-                      Icon(
-                        Icons.help_outline,
-                        color: isDarkMode ? Colors.white : const Color(0xFF6750A4),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 20),
-                  InkWell(
-                    onTap: _showAddEmergencyContactDialog,
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 12),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          Icon(
-                            Icons.person_add_outlined,
-                            color: isDarkMode ? Colors.white : const Color(0xFF6750A4),
-                            size: 30,
-                          ),
-                          const SizedBox(width: 15),
-                          Text(
-                            "Add Emergency Contact",
-                            style: TextStyle(
-                              color: isDarkMode ? Colors.white : Colors.black,
-                              fontWeight: FontWeight.bold,
+                        const SizedBox(height: 15),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              "Safety Assist",
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w900,
+                                color: isDarkMode ? Colors.white : Colors.black,
+                              ),
                             ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  const Divider(),
-                  BlocBuilder<EmergencyBloc, EmergencyState>(
-                    builder: (context, state) {
-                      if (state is EmergencyLoading) {
-                        return const Center(child: CircularProgressIndicator());
-                      } else if (state is EmergencyContactsLoaded) {
-                        final contacts = state.contacts;
-                        if (contacts.isEmpty) {
-                          return Text(
-                            "No emergency contacts added yet.",
-                            style: TextStyle(
-                              color: isDarkMode ? Colors.white : Colors.black,
+                            // Help icon toggles the helper widget
+                            GestureDetector(
+                              onTap: () {
+                                setState(() {
+                                  _showHelper = true;
+                                });
+                              },
+                              child: Icon(
+                                Icons.help_outline,
+                                color: isDarkMode
+                                    ? Colors.white
+                                    : const Color(0xFF6750A4),
+                              ),
                             ),
-                          );
-                        }
-                        return Column(
-                          children: contacts.map((contact) {
-                            return Column(
+                          ],
+                        ),
+                        const SizedBox(height: 20),
+                        InkWell(
+                          onTap: _showAddEmergencyContactDialog,
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 12),
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.end,
                               children: [
-                                ListTile(
-                                  leading: CircleAvatar(
-                                    backgroundColor: Colors.grey,
-                                    child: Icon(Icons.person, color: Colors.white),
-                                  ),
-                                  title: Text(
-                                    contact.name,
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      color: isDarkMode ? Colors.white : Colors.black,
-                                    ),
-                                  ),
-                                  subtitle: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        contact.location,
-                                        style: TextStyle(
-                                          color: isDarkMode ? Colors.white : Colors.grey,
-                                        ),
-                                      ),
-                                      Text(
-                                        contact.arrival,
-                                        style: TextStyle(
-                                          color: isDarkMode ? Colors.white : Colors.grey,
-                                        ),
-                                      ),
-                                      Text(
-                                        contact.update,
-                                        style: TextStyle(
-                                          color: isDarkMode ? Colors.white : Colors.grey,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  trailing: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      IconButton(
-                                        icon: Icon(Icons.call,
-                                            color: isDarkMode ? Colors.white : const Color(0xFF6750A4)),
-                                        onPressed: () {},
-                                      ),
-                                      IconButton(
-                                        icon: Icon(Icons.message,
-                                            color: isDarkMode ? Colors.white : const Color(0xFF6750A4)),
-                                        onPressed: () {},
-                                      ),
-                                      IconButton(
-                                        icon: const Icon(Icons.delete,
-                                            color: Colors.red),
-                                        onPressed: () {
-                                          if (contact.id != null) {
-                                            BlocProvider.of<EmergencyBloc>(context)
-                                                .add(
-                                              DeleteEmergencyContactEvent(
-                                                  uid: widget.uid,
-                                                  contactId: contact.id!),
-                                            );
-                                          }
-                                        },
-                                      ),
-                                    ],
+                                Icon(
+                                  Icons.person_add_outlined,
+                                  color: isDarkMode
+                                      ? Colors.white
+                                      : const Color(0xFF6750A4),
+                                  size: 30,
+                                ),
+                                const SizedBox(width: 15),
+                                Text(
+                                  "Add Emergency Contact",
+                                  style: TextStyle(
+                                    color: isDarkMode
+                                        ? Colors.white
+                                        : Colors.black,
+                                    fontWeight: FontWeight.bold,
                                   ),
                                 ),
-                                const Divider(),
                               ],
-                            );
-                          }).toList(),
-                        );
-                      } else if (state is EmergencyOperationError) {
-                        return Text(
-                          state.message,
-                          style: TextStyle(
-                            color: isDarkMode ? Colors.white : Colors.black,
+                            ),
                           ),
-                        );
-                      }
-                      return const SizedBox.shrink();
-                    },
-                  ),
-                ],
-              ),
+                        ),
+                        const Divider(),
+                        BlocBuilder<EmergencyBloc, EmergencyState>(
+                          builder: (context, state) {
+                            if (state is EmergencyLoading) {
+                              return const Center(
+                                  child: CircularProgressIndicator());
+                            } else if (state is EmergencyContactsLoaded) {
+                              final contacts = state.contacts;
+                              if (contacts.isEmpty) {
+                                return Padding(
+                                  padding: const EdgeInsets.only(top: 10),
+                                  child: Text(
+                                    "No emergency contacts added yet.",
+                                    style: TextStyle(
+                                      color: isDarkMode
+                                          ? Colors.white
+                                          : Colors.black,
+                                    ),
+                                  ),
+                                );
+                              }
+                              return Column(
+                                children: contacts.map((contact) {
+                                  return Column(
+                                    children: [
+                                      ListTile(
+                                        leading: CircleAvatar(
+                                          backgroundColor: Colors.grey,
+                                          child: Icon(Icons.person,
+                                              color: Colors.white),
+                                        ),
+                                        title: Text(
+                                          contact.name,
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            color: isDarkMode
+                                                ? Colors.white
+                                                : Colors.black,
+                                          ),
+                                        ),
+                                        subtitle: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              contact.location,
+                                              style: TextStyle(
+                                                color: isDarkMode
+                                                    ? Colors.white
+                                                    : Colors.grey,
+                                              ),
+                                            ),
+                                            Text(
+                                              contact.arrival,
+                                              style: TextStyle(
+                                                color: isDarkMode
+                                                    ? Colors.white
+                                                    : Colors.grey,
+                                              ),
+                                            ),
+                                            Text(
+                                              contact.update,
+                                              style: TextStyle(
+                                                color: isDarkMode
+                                                    ? Colors.white
+                                                    : Colors.grey,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                        trailing: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            IconButton(
+                                              icon: Icon(Icons.call,
+                                                  color: isDarkMode
+                                                      ? Colors.white
+                                                      : const Color(
+                                                          0xFF6750A4)),
+                                              onPressed: () {},
+                                            ),
+                                            IconButton(
+                                              icon: Icon(Icons.message,
+                                                  color: isDarkMode
+                                                      ? Colors.white
+                                                      : const Color(
+                                                          0xFF6750A4)),
+                                              onPressed: () {},
+                                            ),
+                                            IconButton(
+                                              icon: const Icon(Icons.delete,
+                                                  color: Colors.red),
+                                              onPressed: () {
+                                                if (contact.id != null) {
+                                                  BlocProvider.of<
+                                                              EmergencyBloc>(
+                                                          context)
+                                                      .add(
+                                                    DeleteEmergencyContactEvent(
+                                                        uid: widget.uid,
+                                                        contactId: contact.id!),
+                                                  );
+                                                }
+                                              },
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      const Divider(),
+                                    ],
+                                  );
+                                }).toList(),
+                              );
+                            } else if (state is EmergencyOperationError) {
+                              return Text(
+                                state.message,
+                                style: TextStyle(
+                                  color:
+                                      isDarkMode ? Colors.white : Colors.black,
+                                ),
+                              );
+                            }
+                            return const SizedBox.shrink();
+                          },
+                        ),
+                      ],
+                    ),
             ),
           ),
         );

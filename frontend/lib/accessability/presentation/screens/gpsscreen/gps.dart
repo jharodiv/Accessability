@@ -379,7 +379,16 @@ class _GpsScreenState extends State<GpsScreen> {
                         fetchNearbyPlaces: _fetchNearbyPlaces,
                       ),
                     if (_locationHandler.currentIndex == 1)
-                      const FavoriteWidget(),
+                      FavoriteWidget(
+                        onShowPlace: (Place place) {
+                          if (_locationHandler.mapController != null) {
+                            _locationHandler.mapController!.animateCamera(
+                              CameraUpdate.newLatLng(
+                                  LatLng(place.latitude, place.longitude)),
+                            );
+                          }
+                        },
+                      ),
                     if (_locationHandler.currentIndex == 2)
                       SafetyAssistWidget(uid: userState.user.uid),
                   ],

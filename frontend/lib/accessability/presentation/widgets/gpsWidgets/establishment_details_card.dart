@@ -45,7 +45,7 @@ class _EstablishmentDetailsCardState extends State<EstablishmentDetailsCard> {
                   style: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
-                    color: Colors.black,
+                    color: const Color(0xFF6750A4),
                   ),
                 ),
               ),

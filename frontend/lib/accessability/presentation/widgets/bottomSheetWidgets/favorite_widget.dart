@@ -10,8 +10,11 @@ import 'add_list_modal.dart'; // Import the modal widget
 
 class FavoriteWidget extends StatefulWidget {
   final VoidCallback? onPlaceAdded;
+  final void Function(Place)?
+      onShowPlace; // Callback to show a place on the map
 
-  const FavoriteWidget({super.key, this.onPlaceAdded});
+  const FavoriteWidget({Key? key, this.onShowPlace, this.onPlaceAdded})
+      : super(key: key);
 
   @override
   State<FavoriteWidget> createState() => _FavoriteWidgetState();
@@ -22,19 +25,16 @@ class _FavoriteWidgetState extends State<FavoriteWidget> {
     {
       "icon": Icons.favorite_border,
       "title": "Favorites",
-      "subtitle": "Private · 0 places",
       "expanded": false,
     },
     {
       "icon": Icons.outlined_flag,
       "title": "Want to go",
-      "subtitle": "Private · 0 places",
       "expanded": false,
     },
     {
       "icon": Icons.navigation_outlined,
       "title": "Visited",
-      "subtitle": "Private · 0 places",
       "expanded": false,
     },
   ];
@@ -105,7 +105,6 @@ class _FavoriteWidgetState extends State<FavoriteWidget> {
                         context
                             .read<PlaceBloc>()
                             .add(const GetAllPlacesEvent());
-                        context.read<PlaceBloc>().add(const GetAllPlacesEvent());
 
                         final result =
                             await showModalBottomSheet<Map<String, dynamic>>(
@@ -141,14 +140,15 @@ class _FavoriteWidgetState extends State<FavoriteWidget> {
                               lists.add({
                                 "icon": Icons.list,
                                 "title": newCategory,
-                                "subtitle": "Private · 0 places",
                                 "expanded": false,
                               });
                             });
                           }
 
                           _expandCategory(newCategory);
-                          context.read<PlaceBloc>().add(const GetAllPlacesEvent());
+                          context
+                              .read<PlaceBloc>()
+                              .add(const GetAllPlacesEvent());
                           widget.onPlaceAdded?.call();
                         }
                       },
@@ -181,128 +181,101 @@ class _FavoriteWidgetState extends State<FavoriteWidget> {
                     ],
                   ),
                   ...List.generate(lists.length, (index) {
-                    return Column(
-                      children: [
-                        ListTile(
-                          leading: Icon(
-                            lists[index]["icon"],
-                            color: const Color(0xFF6750A4),
-                          ),
-                          title: Text(
-                            lists[index]["title"],
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              color: isDarkMode ? Colors.white : Colors.black,
+                    final categoryTitle = lists[index]['title'];
+                    return BlocBuilder<PlaceBloc, PlaceState>(
+                      builder: (context, state) {
+                        int count = 0;
+                        if (state is PlacesLoaded) {
+                          count = state.places
+                              .where((place) => place.category == categoryTitle)
+                              .length;
+                        }
+                        return Column(
+                          children: [
+                            ListTile(
+                              leading: Icon(
+                                lists[index]["icon"],
+                                color: const Color(0xFF6750A4),
+                              ),
+                              title: Text(
+                                categoryTitle,
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color:
+                                      isDarkMode ? Colors.white : Colors.black,
+                                ),
+                              ),
+                              subtitle: Text(
+                                "Private · $count places",
+                                style: TextStyle(
+                                  color:
+                                      isDarkMode ? Colors.white : Colors.grey,
+                                ),
+                              ),
+                              trailing: IconButton(
+                                icon: Icon(
+                                  lists[index]['expanded']
+                                      ? Icons.keyboard_arrow_up
+                                      : Icons.keyboard_arrow_down,
+                                  color: Colors.grey.shade600,
+                                ),
+                                onPressed: () => toggleExpansion(index),
+                              ),
+                              onTap: () => toggleExpansion(index),
                             ),
-                          ),
-                          subtitle: Text(
-                            lists[index]["subtitle"],
-                            style: TextStyle(
-                              color: isDarkMode ? Colors.white : Colors.grey,
-                            ),
-                          ),
-                          trailing: IconButton(
-                            icon: Icon(
-                              lists[index]['expanded']
-                                  ? Icons.keyboard_arrow_up
-                                  : Icons.keyboard_arrow_down,
-                              color: Colors.grey.shade600,
-                            ),
-                            onPressed: () => toggleExpansion(index),
-                          ),
-                          onTap: () => toggleExpansion(index),
-                        ),
-                        if (lists[index]['expanded'])
-                          BlocBuilder<PlaceBloc, PlaceState>(
-                            builder: (context, state) {
-                              if (state is PlaceOperationLoading) {
-                                return const Padding(
-                                  padding: EdgeInsets.all(16.0),
-                                  child: Center(
-                                    child: CircularProgressIndicator(),
-                                  ),
-                                );
-                              } else if (state is PlacesLoaded) {
-                                final categoryTitle = lists[index]['title'];
-                                final filteredPlaces = state.places
+                            if (lists[index]['expanded'] &&
+                                state is PlacesLoaded)
+                              Column(
+                                children: state.places
                                     .where((place) =>
                                         place.category == categoryTitle)
-                                    .toList();
-
-                                lists[index]['subtitle'] =
-                                    "Private · ${filteredPlaces.length} places";
-
-                                return Column(
-                                  children: filteredPlaces.map((Place place) {
-                                    return ListTile(
-                                      title: Text(
-                                        place.name,
-                                        style: TextStyle(
-                                          color: isDarkMode ? Colors.white : Colors.black,
-                                        ),
+                                    .map((Place place) {
+                                  return ListTile(
+                                    title: Text(
+                                      place.name,
+                                      style: TextStyle(
+                                        color: isDarkMode
+                                            ? Colors.white
+                                            : Colors.black,
                                       ),
-                                      trailing: PopupMenuButton<String>(
-                                        icon: const Icon(Icons.more_vert,
-                                            color: Colors.red),
-                                        onSelected: (value) {
-                                          if (value == 'remove') {
-                                            // Update the place's category to an empty string (or null) to effectively remove it.
-                                            context.read<PlaceBloc>().add(
-                                                  UpdatePlaceCategoryEvent(
-                                                    placeId: place.id,
-                                                    newCategory:
-                                                        'none', // Use '' or null instead of 'none'
-                                                  ),
-                                                );
-                                            // Refresh after updating
-                                            context
-                                                .read<PlaceBloc>()
-                                                .add(const GetAllPlacesEvent());
-                                          } else if (value == 'delete') {
-                                            context.read<PlaceBloc>().add(
-                                                  UpdatePlaceCategoryEvent(
-                                                    placeId: place.id,
-                                                    newCategory:
-                                                        'none', // Use '' or null instead of 'none'
-                                                  ),
-                                                );
-                                            // Refresh after updating
-                                            context
-                                                .read<PlaceBloc>()
-                                                .add(const GetAllPlacesEvent());
-                                          }
-                                        },
-                                        itemBuilder: (BuildContext context) =>
-                                            <PopupMenuEntry<String>>[
-                                          const PopupMenuItem<String>(
-                                            value: 'remove',
-                                            child: Text('Remove from Category'),
-                                          ),
-                                          const PopupMenuItem<String>(
-                                            value: 'delete',
-                                            child: Text('Delete'),
-                                          ),
-                                        ],
-                                      ),
-                                    );
-                                  }).toList(),
-                                );
-                              } else if (state is PlaceOperationError) {
-                                return Padding(
-                                  padding: const EdgeInsets.all(16.0),
-                                  child: Text(
-                                    state.message,
-                                    style: TextStyle(
-                                      color: isDarkMode ? Colors.white : Colors.black,
                                     ),
-                                  ),
-                                );
-                              }
-                              return const SizedBox.shrink();
-                            },
-                          ),
-                        const Divider(indent: 16, endIndent: 16, height: 0),
-                      ],
+                                    trailing: PopupMenuButton<String>(
+                                      icon: const Icon(Icons.more_vert,
+                                          color: Colors.red),
+                                      onSelected: (value) {
+                                        if (value == 'show') {
+                                          widget.onShowPlace?.call(place);
+                                        } else if (value == 'delete') {
+                                          context.read<PlaceBloc>().add(
+                                                UpdatePlaceCategoryEvent(
+                                                  placeId: place.id,
+                                                  newCategory: 'none',
+                                                ),
+                                              );
+                                          context
+                                              .read<PlaceBloc>()
+                                              .add(const GetAllPlacesEvent());
+                                        }
+                                      },
+                                      itemBuilder: (BuildContext context) =>
+                                          <PopupMenuEntry<String>>[
+                                        const PopupMenuItem<String>(
+                                          value: 'show',
+                                          child: Text('Show on Map'),
+                                        ),
+                                        const PopupMenuItem<String>(
+                                          value: 'delete',
+                                          child: Text('Delete'),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                }).toList(),
+                              ),
+                            const Divider(indent: 16, endIndent: 16, height: 0),
+                          ],
+                        );
+                      },
                     );
                   }),
                 ],

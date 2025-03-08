@@ -1,6 +1,11 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
+import 'package:AccessAbility/accessability/firebaseServices/chat/chat_service.dart';
+import 'package:AccessAbility/accessability/firebaseServices/place/geocoding_service.dart';
+import 'package:AccessAbility/accessability/presentation/screens/gpsscreen/location_handler.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class SOSScreen extends StatefulWidget {
   const SOSScreen({super.key});
@@ -15,6 +20,15 @@ class _SOSScreenState extends State<SOSScreen> {
   bool _isCounting = false;
   bool _isHolding = false;
   Timer? _timer;
+  final ChatService _chatService = ChatService();
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+  final GeocodingService _geocodingService = GeocodingService();
+  final LocationHandler _locationHandler = LocationHandler(
+    onMarkersUpdated: (markers) {
+      // Handle marker updates if needed
+    },
+  );
 
   void _startHoldEffect() {
     setState(() {
@@ -48,6 +62,7 @@ class _SOSScreenState extends State<SOSScreen> {
           _isCounting = false;
         });
         _timer?.cancel();
+        _sendSOSLocation(); // Send SOS location when countdown ends
       }
     });
   }
@@ -60,6 +75,57 @@ class _SOSScreenState extends State<SOSScreen> {
       _countdown = 10;
     });
   }
+
+ Future<void> _sendSOSLocation() async {
+  try {
+    final user = _auth.currentUser;
+    if (user == null) return;
+
+    // Fetch the user's current location using the LocationHandler.
+    final currentLocation = await _locationHandler.getUserLocationOnce();
+    if (currentLocation == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Unable to fetch current location')),
+      );
+      return;
+    }
+
+    // Fetch the address using GeocodingService.
+    final String address = await _geocodingService.getAddressFromLatLng(currentLocation);
+
+    // Create an alarming SOS message.
+    final String sosMessage =
+        '🚨 **SOS Alert** 🚨\n'
+        '${user.displayName ?? "A user"} needs immediate assistance at this location:\n'
+        '📍 $address\n'
+        'https://www.google.com/maps?q=${currentLocation.latitude},${currentLocation.longitude}\n'
+        '**Please call paramedics or emergency services immediately!**';
+
+    // Fetch all space chat rooms the user is part of.
+    final userSpaces = await _firestore
+        .collection('Spaces')
+        .where('members', arrayContains: user.uid)
+        .get();
+
+    // Send the SOS message to all space chat rooms.
+    for (final space in userSpaces.docs) {
+      final spaceId = space.id;
+      await _chatService.sendMessage(
+        spaceId,
+        sosMessage,
+        isSpaceChat: true,
+      );
+    }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('SOS alert sent to all space chat rooms!')),
+    );
+  } catch (e) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Failed to send SOS alert: $e')),
+    );
+  }
+}
 
   @override
   void dispose() {
@@ -169,7 +235,7 @@ class _SOSScreenState extends State<SOSScreen> {
             ),
           ),
           const SizedBox(height: 100),
-          const Text('Your SOS will be sent to 1 person',
+          const Text('Your SOS will be sent to all space chat rooms',
               style: TextStyle(
                   fontSize: 16,
                   color: Colors.black,
@@ -199,7 +265,7 @@ class _SOSScreenState extends State<SOSScreen> {
         const Padding(
           padding: EdgeInsets.symmetric(horizontal: 16),
           child: Text(
-            'After 10 seconds, your SOS and location will be sent to your Space and emergency contact',
+            'After 10 seconds, your SOS and location will be sent to all your space chat rooms',
             style: TextStyle(
               fontWeight: FontWeight.w400, // Set font weight to 400
               color: Colors.white, // Set text color to white
@@ -252,7 +318,7 @@ class _SOSScreenState extends State<SOSScreen> {
         const Padding(
           padding: EdgeInsets.only(top: 50), // Add padding at the top
           child: Text(
-            'Slide to cancel',
+            'SOS Activated!',
             style: TextStyle(
               fontWeight: FontWeight.bold, // Make it bold
               color: Colors.white, // Set text color to white
@@ -264,7 +330,7 @@ class _SOSScreenState extends State<SOSScreen> {
         const Padding(
           padding: EdgeInsets.symmetric(horizontal: 16),
           child: Text(
-            'After 10 seconds, your SOS and location will be sent to your Space and emergency contact',
+            'Your SOS and location have been sent to all your space chat rooms.',
             style: TextStyle(
               fontWeight: FontWeight.w400, // Set font weight to 400
               color: Colors.white, // Set text color to white
@@ -279,11 +345,6 @@ class _SOSScreenState extends State<SOSScreen> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Text(
-                  'SOS Activated!',
-                  style: TextStyle(color: Colors.white, fontSize: 22),
-                ),
-                SizedBox(height: 10),
                 CircleAvatar(
                   radius: 100,
                   backgroundColor: Colors.white,
@@ -360,3 +421,4 @@ class _SOSScreenState extends State<SOSScreen> {
     );
   }
 }
+

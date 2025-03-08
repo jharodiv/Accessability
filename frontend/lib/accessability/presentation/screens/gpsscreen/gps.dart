@@ -268,54 +268,59 @@ class _GpsScreenState extends State<GpsScreen> {
 
   // Apply the chosen perspective by updating both the map type and camera position.
   void applyMapPerspective(MapPerspective perspective) {
-    CameraPosition newPosition;
-    MapType newMapType;
-    final currentLatLng =
-        _locationHandler.currentLocation ?? const LatLng(16.0430, 120.3333);
+  CameraPosition newPosition;
+  MapType newMapType;
+  final currentLatLng =
+      _locationHandler.currentLocation ?? const LatLng(16.0430, 120.3333);
 
-    switch (perspective) {
-      case MapPerspective.classic:
-        newMapType = MapType.normal;
-        newPosition = CameraPosition(target: currentLatLng, zoom: 14.4746);
-        break;
-      case MapPerspective.aerial:
-        newMapType = MapType.satellite;
-        newPosition = CameraPosition(target: currentLatLng, zoom: 14.4746);
-        break;
-      case MapPerspective.terrain:
-        newMapType = MapType.terrain;
-        newPosition = CameraPosition(target: currentLatLng, zoom: 14.4746);
-        break;
-      case MapPerspective.street:
-        newMapType = MapType.hybrid;
-        newPosition = CameraPosition(target: currentLatLng, zoom: 18);
-        break;
-      case MapPerspective.perspective:
-        newMapType = MapType.normal;
-        newPosition = CameraPosition(
-            target: currentLatLng, zoom: 18, tilt: 60, bearing: 45);
-        break;
-    }
-    setState(() {
-      _currentMapType = newMapType;
-    });
-    if (_locationHandler.mapController != null) {
-      _locationHandler.mapController!.animateCamera(
-        CameraUpdate.newCameraPosition(newPosition),
-      );
-    }
+  switch (perspective) {
+    case MapPerspective.classic:
+      newMapType = MapType.normal;
+      newPosition = CameraPosition(target: currentLatLng, zoom: 14.4746);
+      break;
+    case MapPerspective.aerial:
+      newMapType = MapType.satellite;
+      newPosition = CameraPosition(target: currentLatLng, zoom: 14.4746);
+      break;
+    case MapPerspective.terrain:
+      newMapType = MapType.terrain;
+      newPosition = CameraPosition(target: currentLatLng, zoom: 14.4746);
+      break;
+    case MapPerspective.street:
+      newMapType = MapType.hybrid;
+      newPosition = CameraPosition(target: currentLatLng, zoom: 18);
+      break;
+    case MapPerspective.perspective:
+      newMapType = MapType.normal;
+      newPosition = CameraPosition(
+          target: currentLatLng, zoom: 18, tilt: 60, bearing: 45);
+      break;
+  }
+  setState(() {
+    _currentMapType = newMapType;
+  });
+  if (_locationHandler.mapController != null) {
+    _locationHandler.mapController!.animateCamera(
+      CameraUpdate.newCameraPosition(newPosition),
+    );
+  }
   }
 
   // Opens the MapViewScreen and awaits the selected perspective.
   Future<void> _openMapSettings() async {
-    final result = await Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => const MapViewScreen()),
-    );
-    if (result != null && result is MapPerspective) {
-      applyMapPerspective(result);
-    }
+  final result = await Navigator.push(
+    context,
+    MaterialPageRoute(builder: (_) => const MapViewScreen()),
+  );
+
+  print("Returned from MapViewScreen: $result"); // Debugging
+
+  if (result != null && result is Map<String, dynamic>) {
+    final perspective = result['perspective'] as MapPerspective;
+    print("Applying perspective: $perspective"); // Debugging
+    applyMapPerspective(perspective);
   }
+}
 
   @override
   Widget build(BuildContext context) {

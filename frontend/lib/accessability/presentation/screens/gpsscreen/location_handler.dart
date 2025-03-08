@@ -37,7 +37,7 @@ class LocationHandler {
 
   LocationHandler({required this.onMarkersUpdated});
 
-  Future<void> getUserLocation() async {
+Future<void> getUserLocation() async {
     // Check if the location service is enabled.
     bool serviceEnabled = await _location.serviceEnabled();
     if (!serviceEnabled) {
@@ -70,6 +70,38 @@ class LocationHandler {
     }, onError: (error) {
       print("Error receiving location updates: $error");
     });
+  }
+
+  Future<LatLng?> getUserLocationOnce() async {
+    try {
+      // Check if the location service is enabled.
+      bool serviceEnabled = await _location.serviceEnabled();
+      if (!serviceEnabled) {
+        serviceEnabled = await _location.requestService();
+        if (!serviceEnabled) return null;
+      }
+
+      // Check for permission.
+      PermissionStatus permissionGranted = await _location.hasPermission();
+      if (permissionGranted == PermissionStatus.denied) {
+        permissionGranted = await _location.requestPermission();
+        if (permissionGranted != PermissionStatus.granted) return null;
+      }
+
+      // Fetch the current location.
+      final locationData = await _location.getLocation();
+      if (locationData.latitude == null || locationData.longitude == null) {
+        return null;
+      }
+
+      final latLng = LatLng(locationData.latitude!, locationData.longitude!);
+      currentLocation = latLng;
+      _updateUserLocation(latLng); // Update Firestore with the new location.
+      return latLng;
+    } catch (e) {
+      print("Error fetching user location: $e");
+      return null;
+    }
   }
 
   Future<void> initializeUserMarker() async {
@@ -421,3 +453,6 @@ Future<void> setMapStyle(GoogleMapController controller, bool isDarkMode) async 
     _firestoreSubscription?.cancel();
   }
 }
+
+
+

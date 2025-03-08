@@ -31,7 +31,7 @@ class BottomWidgets extends StatefulWidget {
   final Place? selectedPlace;
   final VoidCallback? onCloseSelectedPlace;
   final Function(String) fetchNearbyPlaces;
-  final Future<void> Function()? onMapViewPressed;
+  final Future<void> Function()? onMapViewPressed; // New callback property
 
   const BottomWidgets({
     super.key,
@@ -42,9 +42,7 @@ class BottomWidgets extends StatefulWidget {
     required this.fetchNearbyPlaces,
     this.selectedPlace,
     this.onCloseSelectedPlace,
-    this.onMapViewPressed,
-    
-    
+    this.onMapViewPressed, // Add it here
   });
 
   @override
@@ -74,7 +72,7 @@ class _BottomWidgetsState extends State<BottomWidgets> {
   final List<FocusNode> _verificationCodeFocusNodes =
       List.generate(6, (index) => FocusNode());
   final FlutterTts flutterTts = FlutterTts();
-  bool _isLoading = false; 
+  bool _isLoading = false;
 
   StreamSubscription<DocumentSnapshot>? _membersListener;
   final List<StreamSubscription<DocumentSnapshot>> _locationListeners = [];
@@ -160,7 +158,6 @@ class _BottomWidgetsState extends State<BottomWidgets> {
         return;
       }
 
-      
       final members = snapshot['members'] != null
           ? List<String>.from(snapshot['members'])
           : [];
@@ -284,7 +281,8 @@ class _BottomWidgetsState extends State<BottomWidgets> {
         // Update the map to show the location
         widget.onCategorySelected(location);
       } else {
-        await _speak("No results found for $query. Please try a different search.");
+        await _speak(
+            "No results found for $query. Please try a different search.");
       }
     } catch (e) {
       await _speak("Error: ${e.toString()}");
@@ -530,224 +528,227 @@ class _BottomWidgetsState extends State<BottomWidgets> {
     }
   }
 
-@override
-Widget build(BuildContext context) {
-  final bool isDarkMode = Provider.of<ThemeProvider>(context).isDarkMode;
+  @override
+  Widget build(BuildContext context) {
+    final bool isDarkMode = Provider.of<ThemeProvider>(context).isDarkMode;
 
-  return DraggableScrollableSheet(
-    initialChildSize: 0.15,
-    minChildSize: 0.15,
-    maxChildSize: 0.8,
-    builder: (context, scrollController) {
-      return Column(
-        children: [
-          ServiceButtons(
-            onButtonPressed: (label) {
-              if (label == 'SOS') {
-                Navigator.pushNamed(context, '/sos',
-                arguments: {
-        'currentLocation': _locationHandler.currentLocation ?? const LatLng(0, 0),
-      });
-              }
-            },
-            currentLocation: _locationHandler.currentLocation,
-            onMapViewPressed:
-                  widget.onMapViewPressed,
-          ),
-          const SizedBox(height: 10),
-          Expanded(
-            child: Container(
-              decoration: BoxDecoration(
-                color: isDarkMode ? Colors.grey[900] : Colors.white,
-                borderRadius: const BorderRadius.only(
-                  topLeft: Radius.circular(20),
-                  topRight: Radius.circular(20),
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black26,
-                    blurRadius: 10,
-                    offset: const Offset(0, -5),
+    return DraggableScrollableSheet(
+      initialChildSize: 0.15,
+      minChildSize: 0.15,
+      maxChildSize: 0.8,
+      builder: (context, scrollController) {
+        return Column(
+          children: [
+            ServiceButtons(
+              onButtonPressed: (label) {
+                if (label == 'SOS') {
+                  Navigator.pushNamed(context, '/sos');
+                }
+              },
+              currentLocation: _locationHandler.currentLocation,
+              onMapViewPressed:
+                  widget.onMapViewPressed, // Pass the callback here
+            ),
+            const SizedBox(height: 10),
+            Expanded(
+              child: Container(
+                decoration: BoxDecoration(
+                  color: isDarkMode ? Colors.grey[900] : Colors.white,
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(20),
+                    topRight: Radius.circular(20),
                   ),
-                ],
-              ),
-              child: SingleChildScrollView(
-                controller: scrollController,
-                child: Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Column(
-                    children: [
-                      if (_isLoading) // Show loading indicator
-                        const Center(
-                          child: CircularProgressIndicator(),
-                        ),
-                      if (!_isLoading) ...[
-                        if (widget.selectedPlace != null) ...[
-                          EstablishmentDetailsCard(
-                            place: widget.selectedPlace!,
-                            onClose: widget.onCloseSelectedPlace,
-                          ),
-                          const SizedBox(height: 20),
-                        ],
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black26,
+                      blurRadius: 10,
+                      offset: const Offset(0, -5),
+                    ),
+                  ],
+                ),
+                child: SingleChildScrollView(
+                  controller: scrollController,
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Column(
+                      children: [
+                        if (_isLoading)
+                          const Center(child: CircularProgressIndicator()),
+                        // --- Default Layout: Always show these ---
                         Container(
                           width: 100,
                           height: 2,
-                          color: isDarkMode ? Colors.grey[700] : Colors.grey.shade700,
+                          color: isDarkMode
+                              ? Colors.grey[700]
+                              : Colors.grey.shade700,
                           margin: const EdgeInsets.only(bottom: 8),
                         ),
                         const SizedBox(height: 5),
                         SearchBarWithAutocomplete(
                           onSearch: _searchLocation,
                         ),
-                        const SizedBox(height: 20),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                          children: [
-                            CustomButton(
-                              icon: Icons.people,
-                              index: 0,
-                              activeIndex: _activeIndex,
-                              onPressed: (int newIndex) {
-                                setState(() {
-                                  _activeIndex = newIndex;
-                                });
-                              },
-                            ),
-                            CustomButton(
-                              icon: Icons.business,
-                              index: 1,
-                              activeIndex: _activeIndex,
-                              onPressed: (int newIndex) {
-                                setState(() {
-                                  _activeIndex = newIndex;
-                                });
-                              },
-                            ),
-                            CustomButton(
-                              icon: Icons.map,
-                              index: 2,
-                              activeIndex: _activeIndex,
-                              onPressed: (int newIndex) {
-                                setState(() {
-                                  _activeIndex = newIndex;
-                                });
-                              },
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 20),
-                        // People Tab: Show Create/Join Space buttons if no active space.
-                        if (_activeIndex == 0 &&
-                            widget.activeSpaceId.isEmpty) ...[
-                          if (!_showCreateSpace && !_showJoinSpace) ...[
-                            Align(
-                              alignment: Alignment.center,
-                              child: Text(
-                                "My Space",
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 20,
-                                  color:
-                                      isDarkMode ? Colors.white : Colors.black,
-                                ),
+                        const SizedBox(height: 10),
+                        // --- If a place is selected, show only the EstablishmentDetailsCard ---
+                        if (widget.selectedPlace != null)
+                          EstablishmentDetailsCard(
+                            place: widget.selectedPlace!,
+                            onClose: widget.onCloseSelectedPlace,
+                          )
+                        else ...[
+                          // Otherwise, show the rest of the UI.
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                            children: [
+                              CustomButton(
+                                icon: Icons.people,
+                                index: 0,
+                                activeIndex: _activeIndex,
+                                onPressed: (int newIndex) {
+                                  setState(() {
+                                    _activeIndex = newIndex;
+                                  });
+                                },
                               ),
-                            ),
-                            const SizedBox(height: 5),
-                            Align(
-                              alignment: Alignment.center,
-                              child: Text(
-                                "Create a new space or join an existing one today",
-                                style: TextStyle(
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.w400,
-                                  color: isDarkMode
-                                      ? Colors.grey[400]
-                                      : Colors.grey,
-                                ),
-                                textAlign: TextAlign.center,
+                              CustomButton(
+                                icon: Icons.business,
+                                index: 1,
+                                activeIndex: _activeIndex,
+                                onPressed: (int newIndex) {
+                                  setState(() {
+                                    _activeIndex = newIndex;
+                                  });
+                                },
                               ),
-                            ),
-                            const SizedBox(height: 25),
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                SizedBox(
-                                  width: 150,
-                                  child: ElevatedButton(
-                                    onPressed: () {
-                                      setState(() {
-                                        _showCreateSpace = true;
-                                      });
-                                    },
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: const Color(0xFF6750A4),
-                                      padding: const EdgeInsets.symmetric(
-                                          vertical: 15),
-                                    ),
-                                    child: const Text(
-                                      'Create Space',
-                                      style: TextStyle(color: Colors.white),
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(width: 10),
-                                SizedBox(
-                                  width: 150,
-                                  child: ElevatedButton(
-                                    onPressed: () {
-                                      setState(() {
-                                        _showJoinSpace = true;
-                                      });
-                                    },
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: const Color(0xFF6750A4),
-                                      padding: const EdgeInsets.symmetric(
-                                          vertical: 15),
-                                    ),
-                                    child: const Text(
-                                      'Join Space',
-                                      style: TextStyle(color: Colors.white),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                          if (_showCreateSpace)
-                            CreateSpaceWidget(
-                              spaceNameController: _spaceNameController,
-                              onCreateSpace: _createSpace,
-                              onCancel: () {
-                                setState(() {
-                                  _showCreateSpace = false;
-                                });
-                              },
-                            ),
-                          if (_showJoinSpace)
-                            JoinSpaceWidget(
-                              verificationCodeControllers:
-                                  _verificationCodeControllers,
-                              verificationCodeFocusNodes:
-                                  _verificationCodeFocusNodes,
-                              onJoinSpace: _joinSpace,
-                              onCancel: () {
-                                setState(() {
-                                  _showJoinSpace = false;
-                                });
-                              },
-                            ),
-                        ],
-                        
-                        // People Tab: Show MemberListWidget if active space is set.
-                        if (_activeIndex == 0 &&
-                            widget.activeSpaceId.isNotEmpty)
-                          MemberListWidget(
-                            members: _members,
-                            onMemberPressed: widget.onMemberPressed,
-                            selectedMemberId: _selectedMemberId,
-                            activeSpaceId: widget.activeSpaceId,
+                              CustomButton(
+                                icon: Icons.map,
+                                index: 2,
+                                activeIndex: _activeIndex,
+                                onPressed: (int newIndex) {
+                                  setState(() {
+                                    _activeIndex = newIndex;
+                                  });
+                                },
+                              ),
+                            ],
                           ),
-                          // People Tab: Show VerificationCodeWidget if current user is creator.
+                          const SizedBox(height: 20),
+                          // People Tab: Create/Join Space UI
+                          if (_activeIndex == 0 &&
+                              widget.activeSpaceId.isEmpty) ...[
+                            if (!_showCreateSpace && !_showJoinSpace) ...[
+                              const SizedBox(
+                                height: 10,
+                              ),
+                              Align(
+                                alignment: Alignment.center,
+                                child: Text(
+                                  "My Space",
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 20,
+                                    color: isDarkMode
+                                        ? Colors.white
+                                        : Colors.black,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 5),
+                              Align(
+                                alignment: Alignment.center,
+                                child: Text(
+                                  "Create a new space or join an existing one today",
+                                  style: TextStyle(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w400,
+                                    color: isDarkMode
+                                        ? Colors.grey[400]
+                                        : Colors.grey,
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                              ),
+                              const SizedBox(height: 25),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  SizedBox(
+                                    width: 150,
+                                    child: ElevatedButton(
+                                      onPressed: () {
+                                        setState(() {
+                                          _showCreateSpace = true;
+                                        });
+                                      },
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor:
+                                            const Color(0xFF6750A4),
+                                        padding: const EdgeInsets.symmetric(
+                                            vertical: 15),
+                                      ),
+                                      child: const Text(
+                                        'Create Space',
+                                        style: TextStyle(color: Colors.white),
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  SizedBox(
+                                    width: 150,
+                                    child: ElevatedButton(
+                                      onPressed: () {
+                                        setState(() {
+                                          _showJoinSpace = true;
+                                        });
+                                      },
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor:
+                                            const Color(0xFF6750A4),
+                                        padding: const EdgeInsets.symmetric(
+                                            vertical: 15),
+                                      ),
+                                      child: const Text(
+                                        'Join Space',
+                                        style: TextStyle(color: Colors.white),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                            if (_showCreateSpace)
+                              CreateSpaceWidget(
+                                spaceNameController: _spaceNameController,
+                                onCreateSpace: _createSpace,
+                                onCancel: () {
+                                  setState(() {
+                                    _showCreateSpace = false;
+                                  });
+                                },
+                              ),
+                            if (_showJoinSpace)
+                              JoinSpaceWidget(
+                                verificationCodeControllers:
+                                    _verificationCodeControllers,
+                                verificationCodeFocusNodes:
+                                    _verificationCodeFocusNodes,
+                                onJoinSpace: _joinSpace,
+                                onCancel: () {
+                                  setState(() {
+                                    _showJoinSpace = false;
+                                  });
+                                },
+                              ),
+                          ],
+                          // People Tab: Show MemberListWidget if active space is set.
+                          if (_activeIndex == 0 &&
+                              widget.activeSpaceId.isNotEmpty)
+                            MemberListWidget(
+                              members: _members,
+                              onMemberPressed: widget.onMemberPressed,
+                              selectedMemberId: _selectedMemberId,
+                              activeSpaceId: widget.activeSpaceId,
+                            ),
+                            // People Tab: Show VerificationCodeWidget if current user is creator.
                         if (_creatorId == _auth.currentUser?.uid &&
                             _activeIndex == 0 &&
                             widget.activeSpaceId.isNotEmpty)
@@ -755,24 +756,25 @@ Widget build(BuildContext context) {
                             verificationCode: _verificationCode ?? 'ABC - DEF',
                             onSendCode: _addPerson,
                           ),
-                        // Business Tab: Show AddPlaceWidget.
-                        if (_activeIndex == 1) const AddPlaceWidget(),
-                        if (_activeIndex == 2)
-                          MapContent(
-                            onCategorySelected: (category) {
-                              widget.fetchNearbyPlaces(category); // Use the callback here
-                            },
-                          ),
+                          // Business Tab: Show AddPlaceWidget.
+                          if (_activeIndex == 1) const AddPlaceWidget(),
+                          // Map Tab: Show MapContent.
+                          if (_activeIndex == 2)
+                            MapContent(
+                              onCategorySelected: (category) {
+                                widget.fetchNearbyPlaces(category);
+                              },
+                            ),
+                        ],
                       ],
-                    ],
+                    ),
                   ),
                 ),
               ),
             ),
-          ),
-        ],
-      );
-    },
-  );
-}
+          ],
+        );
+      },
+    );
+  }
 }

@@ -32,6 +32,7 @@ class BottomWidgets extends StatefulWidget {
   final VoidCallback? onCloseSelectedPlace;
   final Function(String) fetchNearbyPlaces;
   final Future<void> Function()? onMapViewPressed; // New callback property
+  final void Function(Place)? onPlaceSelected; // New callback property
 
   const BottomWidgets({
     super.key,
@@ -43,6 +44,7 @@ class BottomWidgets extends StatefulWidget {
     this.selectedPlace,
     this.onCloseSelectedPlace,
     this.onMapViewPressed, // Add it here
+    this.onPlaceSelected, // Add it here
   });
 
   @override
@@ -748,16 +750,22 @@ class _BottomWidgetsState extends State<BottomWidgets> {
                               selectedMemberId: _selectedMemberId,
                               activeSpaceId: widget.activeSpaceId,
                             ),
-                            // People Tab: Show VerificationCodeWidget if current user is creator.
-                        if (_creatorId == _auth.currentUser?.uid &&
-                            _activeIndex == 0 &&
-                            widget.activeSpaceId.isNotEmpty)
-                          VerificationCodeWidget(
-                            verificationCode: _verificationCode ?? 'ABC - DEF',
-                            onSendCode: _addPerson,
-                          ),
+                          // People Tab: Show VerificationCodeWidget if current user is creator.
+                          if (_creatorId == _auth.currentUser?.uid &&
+                              _activeIndex == 0 &&
+                              widget.activeSpaceId.isNotEmpty)
+                            VerificationCodeWidget(
+                              verificationCode:
+                                  _verificationCode ?? 'ABC - DEF',
+                              onSendCode: _addPerson,
+                            ),
                           // Business Tab: Show AddPlaceWidget.
-                          if (_activeIndex == 1) const AddPlaceWidget(),
+                          if (_activeIndex == 1)
+                            AddPlaceWidget(
+                              onShowPlace: (Place place) {
+                                widget.onPlaceSelected?.call(place);
+                              },
+                            ),
                           // Map Tab: Show MapContent.
                           if (_activeIndex == 2)
                             MapContent(

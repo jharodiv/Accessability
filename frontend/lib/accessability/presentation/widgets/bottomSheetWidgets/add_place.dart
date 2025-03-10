@@ -2,12 +2,15 @@ import 'package:AccessAbility/accessability/logic/bloc/place/bloc/place_bloc.dar
 import 'package:AccessAbility/accessability/logic/bloc/place/bloc/place_event.dart';
 import 'package:AccessAbility/accessability/logic/bloc/place/bloc/place_state.dart';
 import 'package:AccessAbility/accessability/presentation/widgets/shimmer/shimmer_place.dart';
+import 'package:AccessAbility/accessability/firebaseServices/models/place.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:AccessAbility/accessability/firebaseServices/models/place.dart';
 
 class AddPlaceWidget extends StatefulWidget {
-  const AddPlaceWidget({super.key});
+  // Optional callback for showing the place on the map.
+  final void Function(Place)? onShowPlace;
+
+  const AddPlaceWidget({Key? key, this.onShowPlace}) : super(key: key);
 
   @override
   _AddPlaceWidgetState createState() => _AddPlaceWidgetState();
@@ -40,7 +43,7 @@ class _AddPlaceWidgetState extends State<AddPlaceWidget> {
       mainAxisSize:
           MainAxisSize.min, // Let the column shrink to fit its children
       children: [
-        // Original "Add a new Place" tile with default divider
+        // "Add a new Place" tile.
         ListTile(
           leading: const CircleAvatar(
             backgroundColor: Color(0xFF6750A4),
@@ -56,10 +59,9 @@ class _AddPlaceWidgetState extends State<AddPlaceWidget> {
           ),
           onTap: _navigateToAddNewPlace,
         ),
-        // Default divider (no extra padding)
         const Divider(),
 
-        // The list of places
+        // The list of places.
         Flexible(
           fit: FlexFit.loose,
           child: BlocBuilder<PlaceBloc, PlaceState>(
@@ -69,20 +71,25 @@ class _AddPlaceWidgetState extends State<AddPlaceWidget> {
               } else if (state is PlacesLoaded) {
                 final List<Place> places = state.places;
                 if (places.isEmpty) {
-                  return Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 30),
-                    child: const Center(child: Text("No places found.")),
+                  return const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 30),
+                    child: Center(child: Text("No places found.")),
                   );
                 }
                 return ListView.builder(
-                  shrinkWrap: true, // Prevents large empty space
-                  padding: EdgeInsets.zero, // Removes default list padding
+                  shrinkWrap: true, // Prevents large empty space.
+                  padding: EdgeInsets.zero, // Removes default list padding.
                   itemCount: places.length,
                   itemBuilder: (context, index) {
                     final place = places[index];
                     return Column(
                       children: [
                         ListTile(
+                          // Tapping on the tile (icon or text) will print and trigger the callback.
+                          onTap: () {
+                            print("Place tapped: ${place.name}");
+                            widget.onShowPlace?.call(place);
+                          },
                           leading: Container(
                             width: 40,
                             height: 40,
@@ -106,13 +113,13 @@ class _AddPlaceWidgetState extends State<AddPlaceWidget> {
                               fontWeight: FontWeight.w500,
                             ),
                           ),
+                          // "x" button remains only for removal.
                           trailing: IconButton(
                             icon: const Icon(Icons.close),
                             onPressed: () => _removePlace(place.id),
                           ),
                         ),
-
-                        // Small divider between items (optional)
+                        // Small divider between items.
                         if (index < places.length - 1)
                           const Padding(
                             padding: EdgeInsets.symmetric(horizontal: 16.0),
@@ -125,7 +132,7 @@ class _AddPlaceWidgetState extends State<AddPlaceWidget> {
               } else if (state is PlaceOperationError) {
                 return Center(child: Text("Error: ${state.message}"));
               } else {
-                // For states like PlaceInitial or any unhandled states
+                // For states like PlaceInitial or any unhandled states.
                 return const SizedBox.shrink();
               }
             },

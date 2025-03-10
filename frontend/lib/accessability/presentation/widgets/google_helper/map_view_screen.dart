@@ -189,7 +189,7 @@ class _MapViewScreenState extends State<MapViewScreen> {
                 color: const Color(0xFF6750A4),
               ),
               title: const Text(
-                'Settings',
+                'Map Settings',
                 style: TextStyle(fontWeight: FontWeight.bold),
               ),
               centerTitle: true,
@@ -298,7 +298,7 @@ class _MapViewScreenState extends State<MapViewScreen> {
           padding: const EdgeInsets.only(bottom: 25, left: 10, right: 10),
           child: ElevatedButton(
             onPressed: () {
-              // Return the currently selected perspective as a Map.
+              // Return the currently selected perspective.
               Navigator.pop(context, {'perspective': _selectedPerspective});
             },
             style: ElevatedButton.styleFrom(

@@ -252,9 +252,13 @@ class _FavoriteWidgetState extends State<FavoriteWidget> {
                                                   newCategory: 'none',
                                                 ),
                                               );
-                                          context
-                                              .read<PlaceBloc>()
-                                              .add(const GetAllPlacesEvent());
+                                          Future.delayed(
+                                              const Duration(milliseconds: 500),
+                                              () {
+                                            context
+                                                .read<PlaceBloc>()
+                                                .add(const GetAllPlacesEvent());
+                                          });
                                         }
                                       },
                                       itemBuilder: (BuildContext context) =>

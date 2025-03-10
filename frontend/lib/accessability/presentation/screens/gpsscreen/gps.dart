@@ -26,6 +26,7 @@ import 'package:AccessAbility/accessability/logic/bloc/place/bloc/place_state.da
     as placeState;
 import 'package:AccessAbility/accessability/firebaseServices/models/place.dart';
 import 'package:provider/provider.dart';
+import 'package:easy_localization/easy_localization.dart';
 
 class GpsScreen extends StatefulWidget {
   const GpsScreen({super.key});
@@ -222,10 +223,10 @@ class _GpsScreenState extends State<GpsScreen> {
           onTap: () async {
             final googlePlacesHelper = GooglePlacesHelper();
             try {
-              // Here we assume marker.markerId.value holds the Google Place ID.
+              // Use localized fallback text if the marker's title is null.
               final detailedPlace = await googlePlacesHelper.fetchPlaceDetails(
                 marker.markerId.value,
-                marker.infoWindow.title ?? "Unknown Place",
+                marker.infoWindow.title ?? 'unknownPlace'.tr(),
               );
               setState(() {
                 _selectedPlace = detailedPlace;
@@ -360,7 +361,7 @@ class _GpsScreenState extends State<GpsScreen> {
               icon: BitmapDescriptor.defaultMarkerWithHue(256.43),
               infoWindow: InfoWindow(
                 title: place.name,
-                snippet: 'Category: ${place.category}',
+                snippet: '${'category'.tr()}: ${place.category}',
               ),
               onTap: () async {
                 if (place.placeId != null && place.placeId!.isNotEmpty) {
@@ -400,12 +401,12 @@ class _GpsScreenState extends State<GpsScreen> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Text('Error: ${userState.message}'),
+                  Text('${'error'.tr()}: ${userState.message}'),
                   ElevatedButton(
                     onPressed: () {
                       context.read<UserBloc>().add(FetchUserData());
                     },
-                    child: const Text('Retry'),
+                    child: Text('retry'.tr()),
                   ),
                 ],
               ),
@@ -425,9 +426,7 @@ class _GpsScreenState extends State<GpsScreen> {
                       ),
                       myLocationEnabled: true,
                       myLocationButtonEnabled: true,
-                      mapType:
-                          _currentMapType, // Updated to use the selected map type.
-
+                      mapType: _currentMapType,
                       markers: _markers,
                       circles: _circles,
                       onMapCreated: (controller) {
@@ -476,9 +475,7 @@ class _GpsScreenState extends State<GpsScreen> {
                         onCategorySelected: (LatLng location) {
                           _locationHandler.panCameraToLocation(location);
                         },
-                        onMapViewPressed:
-                            _openMapSettings, // Pass your _openMapSettings callback here
-
+                        onMapViewPressed: _openMapSettings,
                         onMemberPressed: _onMemberPressed,
                         selectedPlace: _selectedPlace,
                         onCloseSelectedPlace: () {
@@ -495,7 +492,8 @@ class _GpsScreenState extends State<GpsScreen> {
                           if (_locationHandler.mapController != null) {
                             _locationHandler.mapController!.animateCamera(
                               CameraUpdate.newLatLng(
-                                  LatLng(place.latitude, place.longitude)),
+                                LatLng(place.latitude, place.longitude),
+                              ),
                             );
                           }
                         },
@@ -520,7 +518,7 @@ class _GpsScreenState extends State<GpsScreen> {
               ),
             );
           } else {
-            return const Center(child: Text('No user data available'));
+            return Center(child: Text('noUserData'.tr()));
           }
         },
       ),

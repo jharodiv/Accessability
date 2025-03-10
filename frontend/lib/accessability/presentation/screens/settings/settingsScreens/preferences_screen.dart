@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:AccessAbility/accessability/themes/theme_provider.dart';
 import 'package:provider/provider.dart';
+import 'package:easy_localization/easy_localization.dart';
 
 class PreferencesScreen extends StatefulWidget {
   const PreferencesScreen({super.key});
@@ -11,11 +12,11 @@ class PreferencesScreen extends StatefulWidget {
 
 class _PreferencesScreenState extends State<PreferencesScreen> {
   bool isColorblindmode = false;
-  String selectedLanguage = 'English';
 
   @override
   Widget build(BuildContext context) {
     final themeProvider = Provider.of<ThemeProvider>(context);
+    final String currentLanguage = context.locale.languageCode;
     final bool isDarkMode = themeProvider.isDarkMode;
 
     return Scaffold(
@@ -35,15 +36,13 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
           child: AppBar(
             elevation: 0,
             leading: IconButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
+              onPressed: () => Navigator.of(context).pop(),
               icon: const Icon(Icons.arrow_back),
               color: const Color(0xFF6750A4),
-              ),
-            title: const Text(
-              'Preference',
-              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+            title: Text(
+              'preference'.tr(),
+              style: const TextStyle(fontWeight: FontWeight.bold),
             ),
             centerTitle: true,
             backgroundColor: Colors.transparent,
@@ -51,18 +50,23 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
         ),
       ),
       body: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(20.0),
-          child: ListView(
-            children: [
-              ListTile(
+        child: ListView(
+          children: [
+            // Dark Mode Toggle
+            Padding(
+              padding: const EdgeInsets.only(
+                top: 20,
+                left: 10,
+                right: 10,
+              ),
+              child: ListTile(
                 leading: const Icon(
                   Icons.nightlight_outlined,
                   color: Color(0xFF6750A4),
                 ),
-                title: const Text(
-                  'Dark Mode',
-                  style: TextStyle(fontWeight: FontWeight.bold),
+                title: Text(
+                  'darkMode'.tr(),
+                  style: const TextStyle(fontWeight: FontWeight.bold),
                 ),
                 trailing: Switch(
                   activeColor: const Color(0xFF6750A4),
@@ -72,15 +76,22 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
                   },
                 ),
               ),
-              const Divider(),
-              ListTile(
+            ),
+            const Divider(),
+            // Color Blind Mode Toggle
+            Padding(
+              padding: const EdgeInsets.only(
+                left: 10,
+                right: 10,
+              ),
+              child: ListTile(
                 leading: const Icon(
                   Icons.remove_red_eye_outlined,
                   color: Color(0xFF6750A4),
                 ),
-                title: const Text(
-                  'Color Blind Mode',
-                  style: TextStyle(fontWeight: FontWeight.bold),
+                title: Text(
+                  'colorBlindMode'.tr(),
+                  style: const TextStyle(fontWeight: FontWeight.bold),
                 ),
                 trailing: Switch(
                   value: isColorblindmode,
@@ -92,34 +103,44 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
                   },
                 ),
               ),
-              const Divider(),
-              ListTile(
+            ),
+            const Divider(),
+            // Language Dropdown using EasyLocalization's locale
+            Padding(
+              padding: const EdgeInsets.only(
+                left: 10,
+                right: 10,
+              ),
+              child: ListTile(
                 leading: const Icon(
                   Icons.language,
                   color: Color(0xFF6750A4),
                 ),
-                title: const Text(
-                  'Language',
-                  style: TextStyle(fontWeight: FontWeight.bold),
+                title: Text(
+                  'language'.tr(),
+                  style: const TextStyle(fontWeight: FontWeight.bold),
                 ),
                 trailing: DropdownButton<String>(
-                  value: selectedLanguage,
+                  value: currentLanguage,
                   onChanged: (String? newValue) {
-                    setState(() {
-                      selectedLanguage = newValue!;
-                    });
+                    if (newValue == null) return;
+                    // Change the locale and trigger a rebuild:
+                    context.setLocale(Locale(newValue));
+                    setState(() {}); // Optionally trigger a rebuild if needed
                   },
-                  items: <String>['English', 'Filipino']
+                  items: <String>['en', 'fil']
                       .map<DropdownMenuItem<String>>((String value) {
                     return DropdownMenuItem<String>(
                       value: value,
-                      child: Text(value),
+                      child: Text(
+                        value == 'en' ? 'english'.tr() : 'filipino'.tr(),
+                      ),
                     );
                   }).toList(),
                 ),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );

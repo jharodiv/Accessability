@@ -64,8 +64,8 @@ class _FavoriteWidgetState extends State<FavoriteWidget> {
     final bool isDarkMode = Provider.of<ThemeProvider>(context).isDarkMode;
 
     return DraggableScrollableSheet(
-      initialChildSize: 0.3,
-      minChildSize: 0.3,
+      initialChildSize: 0.5,
+      minChildSize: 0.5,
       maxChildSize: 0.8,
       builder: (BuildContext context, ScrollController scrollController) {
         return Container(

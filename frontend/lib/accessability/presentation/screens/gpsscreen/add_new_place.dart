@@ -1,5 +1,6 @@
 import 'package:AccessAbility/accessability/logic/bloc/place/bloc/place_bloc.dart';
 import 'package:AccessAbility/accessability/logic/bloc/place/bloc/place_event.dart';
+import 'package:AccessAbility/accessability/presentation/screens/gpsscreen/location_handler.dart';
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -12,14 +13,47 @@ class AddNewPlaceScreen extends StatefulWidget {
 }
 
 class _AddNewPlaceScreenState extends State<AddNewPlaceScreen> {
-  // Controller for the place name input
+  // Controller for the place name input.
   final TextEditingController _placeNameController = TextEditingController();
 
-  // Google Map controller and location variables
+  // Google Map controller.
   GoogleMapController? _mapController;
-  static const LatLng _initialLocation =
-      LatLng(16.04361106008402, 120.33531522527143);
-  LatLng _currentLatLng = _initialLocation;
+
+  // Default fallback location.
+  LatLng _currentLatLng = const LatLng(16.0430, 120.3333);
+
+  // Instance of LocationHandler (requires onMarkersUpdated).
+  late LocationHandler _locationHandler;
+
+  @override
+  void initState() {
+    super.initState();
+    // Initialize LocationHandler with a dummy onMarkersUpdated callback.
+    _locationHandler = LocationHandler(
+      onMarkersUpdated: (markers) {
+        // No marker update logic required in AddNewPlaceScreen.
+      },
+    );
+    // Fetch the current user location.
+    _locationHandler.getUserLocation().then((_) {
+      print("Fetched location: ${_locationHandler.currentLocation}");
+      if (_locationHandler.currentLocation != null) {
+        // Initialize user marker (as done in GpsScreen).
+        _locationHandler.initializeUserMarker();
+        setState(() {
+          _currentLatLng = _locationHandler.currentLocation!;
+        });
+        // If the map is already created, animate the camera.
+        if (_mapController != null) {
+          _mapController!.animateCamera(
+            CameraUpdate.newCameraPosition(
+              CameraPosition(target: _currentLatLng, zoom: 14),
+            ),
+          );
+        }
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -40,7 +74,7 @@ class _AddNewPlaceScreenState extends State<AddNewPlaceScreen> {
       ),
       body: Column(
         children: [
-          // Row for entering the place name
+          // Row for entering the place name.
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8),
             child: Column(
@@ -49,7 +83,7 @@ class _AddNewPlaceScreenState extends State<AddNewPlaceScreen> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
-                    // TextField for the place name
+                    // TextField for the place name.
                     Expanded(
                       child: TextField(
                         controller: _placeNameController,
@@ -59,7 +93,7 @@ class _AddNewPlaceScreenState extends State<AddNewPlaceScreen> {
                           border: InputBorder.none,
                           prefixIcon: Icon(
                             Icons.place,
-                            color: Color(0xFF6750A4), // Set the color here
+                            color: Color(0xFF6750A4),
                           ),
                         ),
                       ),
@@ -74,7 +108,7 @@ class _AddNewPlaceScreenState extends State<AddNewPlaceScreen> {
               ],
             ),
           ),
-          // Label for the map location section
+          // Label for the map location section.
           const Padding(
             padding: EdgeInsets.only(left: 16.0, top: 8, bottom: 4),
             child: Align(
@@ -85,7 +119,7 @@ class _AddNewPlaceScreenState extends State<AddNewPlaceScreen> {
               ),
             ),
           ),
-          // Map with a centered marker (for selecting the place location)
+          // Map with a centered marker (for selecting the place location).
           Expanded(
             child: Container(
               decoration: BoxDecoration(
@@ -101,24 +135,38 @@ class _AddNewPlaceScreenState extends State<AddNewPlaceScreen> {
               child: Stack(
                 children: [
                   GoogleMap(
-                    onMapCreated: (controller) => _mapController = controller,
-                    initialCameraPosition: const CameraPosition(
-                      target: _initialLocation,
+                    onMapCreated: (controller) {
+                      _mapController = controller;
+                      // If current location is already fetched, animate the camera.
+                      if (_locationHandler.currentLocation != null) {
+                        setState(() {
+                          _currentLatLng = _locationHandler.currentLocation!;
+                        });
+                        _mapController!.animateCamera(
+                          CameraUpdate.newCameraPosition(
+                            CameraPosition(target: _currentLatLng, zoom: 14),
+                          ),
+                        );
+                      }
+                    },
+                    initialCameraPosition: CameraPosition(
+                      target: _currentLatLng,
                       zoom: 14,
                     ),
+                    myLocationEnabled: true,
                     onCameraMove: (position) {
                       _currentLatLng = position.target;
                     },
                   ),
-                  // Default center marker icon
+                  // Default center marker icon.
                   const Center(
                     child: Icon(
                       Icons.location_on,
                       size: 48,
-                      color: Color(0xFF6750A4), // Set the color here
+                      color: Color(0xFF6750A4),
                     ),
                   ),
-                  // "Next" button at the bottom
+                  // "Next" button at the bottom.
                   Positioned(
                     bottom: 16,
                     left: 16,
@@ -150,7 +198,7 @@ class _AddNewPlaceScreenState extends State<AddNewPlaceScreen> {
     );
   }
 
-  // When the user taps "Next", dispatch the add event without a category.
+  // When "Next" is pressed, dispatch the AddPlaceEvent with the place name and current location.
   void _onNextPressed() {
     final placeName = _placeNameController.text.trim();
     if (placeName.isEmpty) {
@@ -159,8 +207,6 @@ class _AddNewPlaceScreenState extends State<AddNewPlaceScreen> {
       );
       return;
     }
-
-    // Dispatch the AddPlaceEvent with name and location.
     context.read<PlaceBloc>().add(
           AddPlaceEvent(
             name: placeName,
@@ -168,8 +214,6 @@ class _AddNewPlaceScreenState extends State<AddNewPlaceScreen> {
             longitude: _currentLatLng.longitude,
           ),
         );
-
-    // Pop this screen off the stack (go back to the previous screen).
     Navigator.of(context).pop();
   }
 }

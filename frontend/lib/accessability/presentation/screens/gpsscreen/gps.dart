@@ -148,6 +148,21 @@ class _GpsScreenState extends State<GpsScreen> {
     super.dispose();
   }
 
+  void _updateMapLocation(Place place) {
+    print(
+        "Updating map location to: ${place.name} at (${place.latitude}, ${place.longitude})");
+    if (_locationHandler.mapController != null) {
+      _locationHandler.mapController!.animateCamera(
+        CameraUpdate.newCameraPosition(
+          CameraPosition(
+            target: LatLng(place.latitude, place.longitude),
+            zoom: 16, // Adjust zoom level as needed.
+          ),
+        ),
+      );
+    }
+  }
+
   // Callback when the tutorial is completed.
   void _onTutorialComplete() {
     _locationHandler.getUserLocation().then((_) {
@@ -237,8 +252,14 @@ class _GpsScreenState extends State<GpsScreen> {
         final bounds = _locationHandler.getLatLngBounds(
           updatedMarkers.map((marker) => marker.position).toList(),
         );
-        _locationHandler.mapController!
-            .animateCamera(CameraUpdate.newLatLngBounds(bounds, 100));
+        _locationHandler.mapController!.animateCamera(
+          CameraUpdate.newCameraPosition(
+            CameraPosition(
+              target: _locationHandler.currentLocation!,
+              zoom: 14.5, // Adjust this value for desired zoom
+            ),
+          ),
+        );
         print("🎯 Adjusted camera to fit ${updatedMarkers.length} markers.");
       } else {
         print("⚠️ No bounds to adjust camera.");
@@ -268,59 +289,59 @@ class _GpsScreenState extends State<GpsScreen> {
 
   // Apply the chosen perspective by updating both the map type and camera position.
   void applyMapPerspective(MapPerspective perspective) {
-  CameraPosition newPosition;
-  MapType newMapType;
-  final currentLatLng =
-      _locationHandler.currentLocation ?? const LatLng(16.0430, 120.3333);
+    CameraPosition newPosition;
+    MapType newMapType;
+    final currentLatLng =
+        _locationHandler.currentLocation ?? const LatLng(16.0430, 120.3333);
 
-  switch (perspective) {
-    case MapPerspective.classic:
-      newMapType = MapType.normal;
-      newPosition = CameraPosition(target: currentLatLng, zoom: 14.4746);
-      break;
-    case MapPerspective.aerial:
-      newMapType = MapType.satellite;
-      newPosition = CameraPosition(target: currentLatLng, zoom: 14.4746);
-      break;
-    case MapPerspective.terrain:
-      newMapType = MapType.terrain;
-      newPosition = CameraPosition(target: currentLatLng, zoom: 14.4746);
-      break;
-    case MapPerspective.street:
-      newMapType = MapType.hybrid;
-      newPosition = CameraPosition(target: currentLatLng, zoom: 18);
-      break;
-    case MapPerspective.perspective:
-      newMapType = MapType.normal;
-      newPosition = CameraPosition(
-          target: currentLatLng, zoom: 18, tilt: 60, bearing: 45);
-      break;
-  }
-  setState(() {
-    _currentMapType = newMapType;
-  });
-  if (_locationHandler.mapController != null) {
-    _locationHandler.mapController!.animateCamera(
-      CameraUpdate.newCameraPosition(newPosition),
-    );
-  }
+    switch (perspective) {
+      case MapPerspective.classic:
+        newMapType = MapType.normal;
+        newPosition = CameraPosition(target: currentLatLng, zoom: 14.4746);
+        break;
+      case MapPerspective.aerial:
+        newMapType = MapType.satellite;
+        newPosition = CameraPosition(target: currentLatLng, zoom: 14.4746);
+        break;
+      case MapPerspective.terrain:
+        newMapType = MapType.terrain;
+        newPosition = CameraPosition(target: currentLatLng, zoom: 14.4746);
+        break;
+      case MapPerspective.street:
+        newMapType = MapType.hybrid;
+        newPosition = CameraPosition(target: currentLatLng, zoom: 18);
+        break;
+      case MapPerspective.perspective:
+        newMapType = MapType.normal;
+        newPosition = CameraPosition(
+            target: currentLatLng, zoom: 18, tilt: 60, bearing: 45);
+        break;
+    }
+    setState(() {
+      _currentMapType = newMapType;
+    });
+    if (_locationHandler.mapController != null) {
+      _locationHandler.mapController!.animateCamera(
+        CameraUpdate.newCameraPosition(newPosition),
+      );
+    }
   }
 
   // Opens the MapViewScreen and awaits the selected perspective.
   Future<void> _openMapSettings() async {
-  final result = await Navigator.push(
-    context,
-    MaterialPageRoute(builder: (_) => const MapViewScreen()),
-  );
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const MapViewScreen()),
+    );
 
-  print("Returned from MapViewScreen: $result"); // Debugging
+    print("Returned from MapViewScreen: $result"); // Debugging
 
-  if (result != null && result is Map<String, dynamic>) {
-    final perspective = result['perspective'] as MapPerspective;
-    print("Applying perspective: $perspective"); // Debugging
-    applyMapPerspective(perspective);
+    if (result != null && result is Map<String, dynamic>) {
+      final perspective = result['perspective'] as MapPerspective;
+      print("Applying perspective: $perspective"); // Debugging
+      applyMapPerspective(perspective);
+    }
   }
-}
 
   @override
   Widget build(BuildContext context) {
@@ -466,6 +487,7 @@ class _GpsScreenState extends State<GpsScreen> {
                           });
                         },
                         fetchNearbyPlaces: _fetchNearbyPlaces,
+                        onPlaceSelected: _updateMapLocation,
                       ),
                     if (_locationHandler.currentIndex == 1)
                       FavoriteWidget(

@@ -98,7 +98,7 @@ class _DeleteAccountState extends State<DeleteAccount> {
                         style: TextStyle(
                           fontSize: 20,
                           fontWeight: FontWeight.bold,
-                          color: Color(0xFF333333),
+                          color: Color(0xFF6750A4),
                         ),
                       ),
                       const SizedBox(height: 20),

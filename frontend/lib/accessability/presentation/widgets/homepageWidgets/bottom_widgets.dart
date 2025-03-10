@@ -75,6 +75,8 @@ class _BottomWidgetsState extends State<BottomWidgets> {
       List.generate(6, (index) => FocusNode());
   final FlutterTts flutterTts = FlutterTts();
   bool _isLoading = false;
+  final DraggableScrollableController _draggableController =
+      DraggableScrollableController();
 
   StreamSubscription<DocumentSnapshot>? _membersListener;
   final List<StreamSubscription<DocumentSnapshot>> _locationListeners = [];
@@ -106,6 +108,23 @@ class _BottomWidgetsState extends State<BottomWidgets> {
         _isLoading = true;
       });
       _listenToMembers(); // Re-fetch members
+    }
+    // Check for changes in the establishment selection.
+    if (oldWidget.selectedPlace == null && widget.selectedPlace != null) {
+      // Expand the sheet when an establishment is selected.
+      _draggableController.animateTo(
+        0.6, // Expanded size (40% of the screen)
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeInOut,
+      );
+    } else if (oldWidget.selectedPlace != null &&
+        widget.selectedPlace == null) {
+      // Collapse the sheet when the establishment is deselected/closed.
+      _draggableController.animateTo(
+        0.15, // Collapsed size (15% of the screen)
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeInOut,
+      );
     }
   }
 
@@ -535,7 +554,8 @@ class _BottomWidgetsState extends State<BottomWidgets> {
     final bool isDarkMode = Provider.of<ThemeProvider>(context).isDarkMode;
 
     return DraggableScrollableSheet(
-      initialChildSize: 0.15,
+      controller: _draggableController,
+      initialChildSize: widget.selectedPlace != null ? 0.5 : 0.18,
       minChildSize: 0.15,
       maxChildSize: 0.8,
       builder: (context, scrollController) {

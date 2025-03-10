@@ -252,8 +252,14 @@ class _GpsScreenState extends State<GpsScreen> {
         final bounds = _locationHandler.getLatLngBounds(
           updatedMarkers.map((marker) => marker.position).toList(),
         );
-        _locationHandler.mapController!
-            .animateCamera(CameraUpdate.newLatLngBounds(bounds, 100));
+        _locationHandler.mapController!.animateCamera(
+          CameraUpdate.newCameraPosition(
+            CameraPosition(
+              target: _locationHandler.currentLocation!,
+              zoom: 14.5, // Adjust this value for desired zoom
+            ),
+          ),
+        );
         print("🎯 Adjusted camera to fit ${updatedMarkers.length} markers.");
       } else {
         print("⚠️ No bounds to adjust camera.");

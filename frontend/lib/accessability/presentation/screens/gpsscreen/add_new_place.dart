@@ -22,21 +22,24 @@ class _AddNewPlaceScreenState extends State<AddNewPlaceScreen> {
   // Default fallback location.
   LatLng _currentLatLng = const LatLng(16.0430, 120.3333);
 
-  // Instance of LocationHandler from GpsScreen.
+  // Instance of LocationHandler (requires onMarkersUpdated).
   late LocationHandler _locationHandler;
 
   @override
   void initState() {
     super.initState();
-    // Initialize LocationHandler with the required onMarkersUpdated callback.
+    // Initialize LocationHandler with a dummy onMarkersUpdated callback.
     _locationHandler = LocationHandler(
       onMarkersUpdated: (markers) {
         // No marker update logic required in AddNewPlaceScreen.
       },
     );
-    // Fetch current user location.
+    // Fetch the current user location.
     _locationHandler.getUserLocation().then((_) {
+      print("Fetched location: ${_locationHandler.currentLocation}");
       if (_locationHandler.currentLocation != null) {
+        // Initialize user marker (as done in GpsScreen).
+        _locationHandler.initializeUserMarker();
         setState(() {
           _currentLatLng = _locationHandler.currentLocation!;
         });
@@ -134,12 +137,17 @@ class _AddNewPlaceScreenState extends State<AddNewPlaceScreen> {
                   GoogleMap(
                     onMapCreated: (controller) {
                       _mapController = controller;
-                      // Animate the camera to the current location when map is ready.
-                      _mapController!.animateCamera(
-                        CameraUpdate.newCameraPosition(
-                          CameraPosition(target: _currentLatLng, zoom: 14),
-                        ),
-                      );
+                      // If current location is already fetched, animate the camera.
+                      if (_locationHandler.currentLocation != null) {
+                        setState(() {
+                          _currentLatLng = _locationHandler.currentLocation!;
+                        });
+                        _mapController!.animateCamera(
+                          CameraUpdate.newCameraPosition(
+                            CameraPosition(target: _currentLatLng, zoom: 14),
+                          ),
+                        );
+                      }
                     },
                     initialCameraPosition: CameraPosition(
                       target: _currentLatLng,
@@ -190,7 +198,7 @@ class _AddNewPlaceScreenState extends State<AddNewPlaceScreen> {
     );
   }
 
-  // When the user taps "Next", dispatch the AddPlaceEvent with name and location.
+  // When "Next" is pressed, dispatch the AddPlaceEvent with the place name and current location.
   void _onNextPressed() {
     final placeName = _placeNameController.text.trim();
     if (placeName.isEmpty) {

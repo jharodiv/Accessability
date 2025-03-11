@@ -61,5 +61,22 @@
   "disableBiometricLoginTitle": "Disable Biometric Login",
   "disableBiometricLoginContent": "Are you sure you want to disable biometric login? You have to verify your fingerprint again to enable it.",
   "disable": "Disable",
-  "biometricLoginDisclaimer": "By enabling biometrics login, you will allow Accessability to access your saved biometrics data in your device to create and save data in Accessability that shall be used for securing your login. The data will not be used for any other purposes."
+  "biometricLoginDisclaimer": "By enabling biometrics login, you will allow Accessability to access your saved biometrics data in your device to create and save data in Accessability that shall be used for securing your login. The data will not be used for any other purposes.",
+  "aboutTitle": "About",
+  "aboutHeader": "What is Accessability?",
+  "aboutDescription": "Accessability is an innovative GPS navigation application created as part of a student capstone project to support persons with disabilities (PWD). Designed with inclusivity and accessibility at its core, Accessability aims to empower individuals by providing reliable, user-friendly navigation tools that enhance mobility and independence. Whether navigating city streets, public transportation, or unfamiliar locations, this app is tailored to meet the unique needs of PWD, offering a seamless and supportive experience.\n\nDeveloped by a dedicated student passionate about creating meaningful solutions, Accessability integrates advanced features such as voice-guided navigation, step-free route suggestions, and real-time accessibility updates for paths, buildings, and transit systems. The app's customizable interface ensures it caters to a diverse range of disabilities, making it a versatile and practical tool for everyday use. As a capstone project, Accessability reflects a commitment to leveraging technology to address real-world challenges and improve lives.\n\nAccessability is more than just a navigation tool—it’s a testament to the power of innovation and determination in creating a more inclusive world. By prioritizing safety, accessibility, and convenience, this project aims to redefine mobility for PWD, demonstrating how student-driven initiatives can have a lasting, positive impact.",
+  "aboutProponents": "Proponents",
+  "mySpace": "My Space",
+  "hotel": "Hotel",
+  "restaurant": "Restaurant",
+  "bus": "Bus",
+  "shopping": "Shopping",
+  "groceries": "Groceries",
+  "checkIn": "Check-in",
+  "sos": "SOS",
+  "mapView": "Map View",
+  "locationFetchError": "Unable to fetch current location.",
+  "location": "Location",
+  "favorite": "Favorite",
+  "safety": "Safety"
 }

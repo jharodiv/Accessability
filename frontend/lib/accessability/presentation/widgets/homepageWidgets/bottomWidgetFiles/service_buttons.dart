@@ -3,11 +3,12 @@ import 'package:AccessAbility/accessability/themes/theme_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:provider/provider.dart';
+import 'package:easy_localization/easy_localization.dart';
 
 class ServiceButtons extends StatelessWidget {
   final Function(String) onButtonPressed;
   final LatLng? currentLocation;
-  final VoidCallback? onMapViewPressed; // Added callback for Map View
+  final VoidCallback? onMapViewPressed; // Callback for Map View
 
   const ServiceButtons({
     super.key,
@@ -21,12 +22,12 @@ class ServiceButtons extends StatelessWidget {
     final bool isDarkMode = Provider.of<ThemeProvider>(context).isDarkMode;
 
     return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceEvenly, // Distribute space evenly
+      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
       children: [
         _buildServiceButton(
           context,
           Icons.check_circle,
-          'Check-in',
+          'checkIn'.tr(), // Localized text
           () {
             if (currentLocation != null) {
               Navigator.pushNamed(
@@ -39,8 +40,8 @@ class ServiceButtons extends StatelessWidget {
               );
             } else {
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Unable to fetch current location.'),
+                SnackBar(
+                  content: Text('locationFetchError'.tr()),
                 ),
               );
             }
@@ -50,7 +51,7 @@ class ServiceButtons extends StatelessWidget {
         _buildServiceButton(
           context,
           Icons.warning,
-          'SOS',
+          'sos'.tr(), // Localized text
           () {
             onButtonPressed('SOS');
           },
@@ -59,9 +60,8 @@ class ServiceButtons extends StatelessWidget {
         _buildServiceButton(
           context,
           Icons.map,
-          'Map View',
+          'mapView'.tr(), // Localized text
           () {
-            // Use the provided callback if available
             if (onMapViewPressed != null) {
               onMapViewPressed!();
             } else {
@@ -85,7 +85,7 @@ class ServiceButtons extends StatelessWidget {
       onTap: onTap,
       child: IntrinsicWidth(
         child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12), // Adjust padding
+          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
           decoration: BoxDecoration(
             color: isDarkMode ? Colors.grey[800] : Colors.white,
             borderRadius: BorderRadius.circular(20),
@@ -98,20 +98,20 @@ class ServiceButtons extends StatelessWidget {
             ],
           ),
           child: Row(
-            mainAxisAlignment: MainAxisAlignment.center, // Center content
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Icon(
                 icon,
                 color: isDarkMode ? Colors.white : const Color(0xFF6750A4),
                 size: 18,
               ),
-              const SizedBox(width: 8), // Reduce spacing between icon and text
+              const SizedBox(width: 8),
               Text(
                 label,
                 style: TextStyle(
                   color: isDarkMode ? Colors.white : const Color(0xFF6750A4),
                   fontWeight: FontWeight.bold,
-                  fontSize: 14, // Adjust font size for smaller screens
+                  fontSize: 14,
                 ),
               ),
             ],

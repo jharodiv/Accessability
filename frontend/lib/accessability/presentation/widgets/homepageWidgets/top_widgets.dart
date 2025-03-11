@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:AccessAbility/accessability/presentation/widgets/homepageWidgets/category_item.dart';
 import 'package:provider/provider.dart';
 import 'package:AccessAbility/accessability/themes/theme_provider.dart';
+import 'package:easy_localization/easy_localization.dart';
 
 class Topwidgets extends StatefulWidget {
   final Function(bool) onOverlayChange;
@@ -22,7 +23,7 @@ class Topwidgets extends StatefulWidget {
     required this.settingsKey,
     required this.onSpaceSelected,
     required this.onMySpaceSelected,
-    required this.onSpaceIdChanged
+    required this.onSpaceIdChanged,
   });
 
   @override
@@ -34,7 +35,7 @@ class TopwidgetsState extends State<Topwidgets> {
   List<Map<String, dynamic>> _spaces = [];
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
-  String _activeSpaceName = 'My Space';
+  String _activeSpaceName = "mySpace".tr(); // Use localized default value
   String? _selectedCategory;
 
   @override
@@ -65,38 +66,42 @@ class TopwidgetsState extends State<Topwidgets> {
   }
 
   void _selectSpace(String spaceId, String spaceName) {
-    if (mounted) {
-      widget.onSpaceSelected(spaceId);
-      widget.onSpaceIdChanged(spaceId); 
-      setState(() {
-        _activeSpaceName = spaceName;
-        _isDropdownOpen = false;
-      });
-    }
+    widget.onSpaceSelected(spaceId);
+    widget.onSpaceIdChanged(spaceId);
+    setState(() {
+      _activeSpaceName = spaceName;
+      _isDropdownOpen = false;
+    });
   }
-  
 
   void _selectMySpace() {
-    if (mounted) {
-      widget.onSpaceSelected('');
-      widget.onSpaceIdChanged(''); // Notify parent of space ID change
-      widget.onMySpaceSelected();
-      setState(() {
-        _activeSpaceName = 'My Space';
-        _isDropdownOpen = false;
-      });
-    }
-  } 
+    widget.onSpaceSelected('');
+    widget.onSpaceIdChanged('');
+    widget.onMySpaceSelected();
+    setState(() {
+      _activeSpaceName = "mySpace".tr(); // Reset to localized default
+      _isDropdownOpen = false;
+    });
+  }
 
   void _handleCategorySelection(String category) {
+    // Map the incoming category to the desired title
+    String mappedCategory;
+    if (category == 'Restawran') {
+      mappedCategory = 'Restaurant';
+    } else if (category == 'Pamimili') {
+      mappedCategory = 'Shopping';
+    } else if (category == 'Grocery') {
+      mappedCategory = 'Groceries';
+    } else {
+      mappedCategory = category;
+    }
+
     setState(() {
-      if (_selectedCategory == category) {
-        _selectedCategory = null; // Untoggle if already selected
-      } else {
-        _selectedCategory = category; // Toggle the selected category
-      }
+      _selectedCategory =
+          _selectedCategory == mappedCategory ? null : mappedCategory;
     });
-    widget.onCategorySelected(_selectedCategory ?? ''); // Notify parent widget
+    widget.onCategorySelected(_selectedCategory ?? '');
   }
 
   @override
@@ -124,10 +129,12 @@ class TopwidgetsState extends State<Topwidgets> {
                     },
                     child: CircleAvatar(
                       radius: 20,
-                      backgroundColor: isDarkMode ? Colors.grey[800] : Colors.white,
+                      backgroundColor:
+                          isDarkMode ? Colors.grey[800] : Colors.white,
                       child: Icon(
                         Icons.settings,
-                        color: isDarkMode ? Colors.white : const Color(0xFF6750A4),
+                        color:
+                            isDarkMode ? Colors.white : const Color(0xFF6750A4),
                       ),
                     ),
                   ),
@@ -163,7 +170,9 @@ class TopwidgetsState extends State<Topwidgets> {
                                   ? '${_activeSpaceName.substring(0, 8)}...'
                                   : _activeSpaceName,
                               style: TextStyle(
-                                color: isDarkMode ? Colors.white : const Color(0xFF6750A4),
+                                color: isDarkMode
+                                    ? Colors.white
+                                    : const Color(0xFF6750A4),
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
@@ -189,10 +198,12 @@ class TopwidgetsState extends State<Topwidgets> {
                     },
                     child: CircleAvatar(
                       radius: 20,
-                      backgroundColor: isDarkMode ? Colors.grey[800] : Colors.white,
+                      backgroundColor:
+                          isDarkMode ? Colors.grey[800] : Colors.white,
                       child: Icon(
                         Icons.chat,
-                        color: isDarkMode ? Colors.white : const Color(0xFF6750A4),
+                        color:
+                            isDarkMode ? Colors.white : const Color(0xFF6750A4),
                       ),
                     ),
                   ),
@@ -219,7 +230,7 @@ class TopwidgetsState extends State<Topwidgets> {
                       // Default "My Space" option
                       ListTile(
                         title: Text(
-                          'My Space',
+                          "mySpace".tr(),
                           style: TextStyle(
                             color: isDarkMode ? Colors.white : Colors.black,
                           ),
@@ -249,34 +260,37 @@ class TopwidgetsState extends State<Topwidgets> {
                   child: Row(
                     children: [
                       CategoryItem(
-                        title: 'Hotel',
+                        title: 'hotel'.tr(),
                         icon: Icons.hotel,
                         onCategorySelected: _handleCategorySelection,
                         isSelected: _selectedCategory == 'Hotel',
                       ),
                       CategoryItem(
-                        title: 'Restaurant',
+                        title: 'restaurant'.tr(),
                         icon: Icons.restaurant,
                         onCategorySelected: _handleCategorySelection,
-                        isSelected: _selectedCategory == 'Restaurant',
+                        isSelected: ['Restaurant', 'Restawran']
+                            .contains(_selectedCategory),
                       ),
                       CategoryItem(
-                        title: 'Bus',
+                        title: 'bus'.tr(),
                         icon: Icons.directions_bus,
                         onCategorySelected: _handleCategorySelection,
                         isSelected: _selectedCategory == 'Bus',
                       ),
                       CategoryItem(
-                        title: 'Shopping',
+                        title: 'shopping'.tr(),
                         icon: Icons.shop_2,
                         onCategorySelected: _handleCategorySelection,
-                        isSelected: _selectedCategory == 'Shopping',
+                        isSelected: ['Shopping', 'Pamimili']
+                            .contains(_selectedCategory),
                       ),
                       CategoryItem(
-                        title: 'Groceries',
+                        title: 'groceries'.tr(),
                         icon: Icons.shopping_cart,
                         onCategorySelected: _handleCategorySelection,
-                        isSelected: _selectedCategory == 'Groceries',
+                        isSelected: ['Groceries', 'Grocery']
+                            .contains(_selectedCategory),
                       ),
                     ],
                   ),

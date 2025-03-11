@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:AccessAbility/accessability/themes/theme_provider.dart'; // Import ThemeProvider
+import 'package:AccessAbility/accessability/themes/theme_provider.dart';
+import 'package:easy_localization/easy_localization.dart';
 
 class Accessabilityfooter extends StatefulWidget {
   final Function(bool) onOverlayChange;
@@ -52,7 +53,7 @@ class AccessabilityfooterState extends State<Accessabilityfooter> {
                   : (isDarkMode ? Colors.grey[400] : Colors.grey),
             ),
           ),
-          label: 'Location',
+          label: 'location'.tr(),
         ),
         BottomNavigationBarItem(
           icon: GestureDetector(
@@ -64,7 +65,7 @@ class AccessabilityfooterState extends State<Accessabilityfooter> {
                   : (isDarkMode ? Colors.grey[400] : Colors.grey),
             ),
           ),
-          label: 'Favorite',
+          label: 'favorite'.tr(),
         ),
         BottomNavigationBarItem(
           icon: GestureDetector(
@@ -76,7 +77,7 @@ class AccessabilityfooterState extends State<Accessabilityfooter> {
                   : (isDarkMode ? Colors.grey[400] : Colors.grey),
             ),
           ),
-          label: 'Safety',
+          label: 'safety'.tr(),
         ),
       ],
     );

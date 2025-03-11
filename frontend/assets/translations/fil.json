@@ -61,5 +61,22 @@
   "disableBiometricLoginTitle": "I-disable ang Biometric Login",
   "disableBiometricLoginContent": "Sigurado ka bang nais mong i-disable ang biometric login? Kailangan mong i-verify muli ang iyong fingerprint upang ma-enable ito.",
   "disable": "I-disable",
-  "biometricLoginDisclaimer": "Sa pag-enable ng biometric login, papayagan mo ang Accessability na ma-access ang iyong naka-save na biometric data sa iyong device para lumikha at mag-save ng data sa Accessability na gagamitin para protektahan ang iyong login. Hindi ito gagamitin para sa ibang layunin."
+  "biometricLoginDisclaimer": "Sa pag-enable ng biometric login, papayagan mo ang Accessability na ma-access ang iyong naka-save na biometric data sa iyong device para lumikha at mag-save ng data sa Accessability na gagamitin para protektahan ang iyong login. Hindi ito gagamitin para sa ibang layunin.",
+  "aboutTitle": "Tungkol",
+  "aboutHeader": "Ano ang Accessability?",
+  "aboutDescription": "Ang Accessability ay isang makabagong GPS navigation application na ginawa bilang bahagi ng isang student capstone project upang suportahan ang mga taong may kapansanan (PWD). Dinisenyo na may kasamang inclusivity at accessibility, layunin ng Accessability na bigyan ng kapangyarihan ang mga indibidwal sa pamamagitan ng pagbibigay ng maaasahan, user-friendly na mga navigation tools na nagpapabuti sa mobility at independence. Kung ikaw man ay nagna-navigate sa mga kalsada ng siyudad, pampublikong transportasyon, o mga hindi pamilyar na lugar, ang app na ito ay inangkop upang matugunan ang natatanging pangangailangan ng mga PWD, na nag-aalok ng seamless at supportive na karanasan.\n\nBinuo ng isang dedikadong estudyante na may malasakit sa paglikha ng makabuluhang solusyon, pinagsasama ng Accessability ang advanced na mga tampok tulad ng voice-guided navigation, step-free route suggestions, at real-time na accessibility updates para sa mga daan, gusali, at mga transit systems. Tinitiyak ng customizable na interface ng app na naaangkop ito sa iba't ibang uri ng kapansanan, na ginagawa itong versatile at praktikal na tool para sa pang-araw-araw na paggamit. Bilang isang capstone project, sumasalamin ang Accessability sa commitment sa paggamit ng teknolohiya upang tugunan ang mga hamon sa totoong mundo at pagbutihin ang buhay.\n\nAng Accessability ay higit pa sa isang navigation tool—ito ay patunay ng kapangyarihan ng inobasyon at determinasyon sa paglikha ng isang mas inklusibong mundo. Sa pamamagitan ng pagpapahalaga sa kaligtasan, accessibility, at kaginhawaan, layunin ng proyektong ito na muling tukuyin ang mobility para sa mga PWD, na ipinapakita kung paano ang mga inisyatibo ng estudyante ay maaaring magdala ng pangmatagalang positibong epekto.",
+  "aboutProponents": "Mga Proponent",
+  "mySpace": "Aking Space",
+  "hotel": "Hotel",
+  "restaurant": "Restawran",
+  "bus": "Bus",
+  "shopping": "Pamimili",
+  "groceries": "Grocery",
+  "checkIn": "Mag-check-in",
+  "sos": "SOS",
+  "mapView": "Tanaw ng Mapa",
+  "locationFetchError": "Hindi makuha ang kasalukuyang lokasyon.",
+  "location": "Lokasyon",
+  "favorite": "Paborito",
+  "safety": "Kaligtasan"
 }

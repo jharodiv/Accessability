@@ -32,9 +32,12 @@ class AdditionalDataRights extends StatelessWidget {
               icon: const Icon(Icons.arrow_back),
               color: const Color(0xFF6750A4),
             ),
-            title: const Text(
-              'Privacy & Security',
-              style: TextStyle(fontWeight: FontWeight.bold),
+            title: Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: const Text(
+                'Privacy & Security',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
             ),
             centerTitle: true,
             backgroundColor: Colors.transparent,
@@ -46,12 +49,15 @@ class AdditionalDataRights extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              'Additional Data Rights',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: isDarkMode ? Colors.white : Colors.black87,
+            Padding(
+              padding: EdgeInsets.only(left: 25, top: 10),
+              child: Text(
+                'Additional Data Rights',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w800,
+                  color: isDarkMode ? Colors.white : Colors.black87,
+                ),
               ),
             ),
             const SizedBox(height: 20),
@@ -68,36 +74,22 @@ class AdditionalDataRights extends StatelessWidget {
                   ),
                 ],
               ),
-              child: RichText(
-                text: TextSpan(
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                    color: isDarkMode ? Colors.white : Colors.black,
+              child: Column(
+                children: [
+                  Text(
+                    'Here you may exercise your additional data rights. You may:\n\n',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      color: isDarkMode ? Colors.white : Colors.black,
+                    ),
                   ),
-                  children: const [
-                    TextSpan(
-                      text:
-                          'Here you may exercise your additional data rights. You may:\n',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 18,
-                      ),
-                    ),
-                    TextSpan(
-                      text:
-                          '\n⚫Request to delete your account. To proceed, please the',
-                    ),
-                    TextSpan(
-                      text: ' Delete Your Account ',
-                      style: TextStyle(color: Colors.red),
-                    ),
-                    TextSpan(
-                      text:
-                          'button. \n\n ⚫You may exercise your rights by emailing us at accessability@gmail.com and including your full account name and phone number and the nature of your request.\n\n⚫You may have additional rights under applicable law. as described in our Privacy Policy.',
-                    ),
-                  ],
-                ),
+                  Text(
+                    '🟣 Request to delete your account. To proceed, please the Delete Your Account button.\n\n'
+                    '🟣 You may exercise your rights by emailing us at accessability@gmail.com and including your full account name, phone number, and the nature of your request.\n\n'
+                    '🟣 You may have additional rights under applicable law, as described in our Privacy Policy.',
+                  ),
+                ],
               ),
             ),
             const SizedBox(height: 20),

@@ -21,6 +21,11 @@ import 'package:AccessAbility/accessability/presentation/screens/settings/settin
 import 'package:AccessAbility/accessability/presentation/widgets/chatWidgets/chat_convo_screen.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 
+// Import the new privacy & security detail screens.
+import 'package:AccessAbility/accessability/presentation/screens/settings/settingsScreens/privacy_and_security/data_security.dart';
+import 'package:AccessAbility/accessability/presentation/screens/settings/settingsScreens/privacy_and_security/additional_data_rights.dart';
+import 'package:AccessAbility/accessability/presentation/screens/settings/settingsScreens/privacy_and_security/privacy_policy.dart';
+
 class AppRouter {
   Route<dynamic>? onGenerateRoute(RouteSettings routeSettings) {
     switch (routeSettings.name) {
@@ -52,7 +57,14 @@ class AppRouter {
       case '/preferences':
         return _buildRoute(const PreferencesScreen(), settings: routeSettings);
       case '/privacy':
-        return _buildRoute(PrivacySecurity(), settings: routeSettings);
+        return _buildRoute(const PrivacySecurity(), settings: routeSettings);
+      case '/datasecurity':
+        return _buildRoute(const DataSecurity(), settings: routeSettings);
+      case '/additionaldatarights':
+        return _buildRoute(const AdditionalDataRights(),
+            settings: routeSettings);
+      case '/privacypolicy':
+        return _buildRoute(const PrivacyPolicy(), settings: routeSettings);
       case '/chatsupport':
         return _buildRoute(const ChatAndSupport(), settings: routeSettings);
       case '/biometric':

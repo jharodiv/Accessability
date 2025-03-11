@@ -4,6 +4,9 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:AccessAbility/accessability/logic/bloc/auth/auth_bloc.dart';
 import 'package:AccessAbility/accessability/logic/bloc/auth/auth_event.dart';
 import 'package:AccessAbility/accessability/logic/bloc/auth/auth_state.dart';
+import 'package:easy_localization/easy_localization.dart';
+import 'package:provider/provider.dart';
+import 'package:AccessAbility/accessability/themes/theme_provider.dart';
 
 class DeleteAccount extends StatefulWidget {
   const DeleteAccount({super.key});
@@ -18,6 +21,8 @@ class _DeleteAccountState extends State<DeleteAccount> {
 
   @override
   Widget build(BuildContext context) {
+    final bool isDarkMode = Provider.of<ThemeProvider>(context).isDarkMode;
+
     return BlocListener<AuthBloc, AuthState>(
       listener: (context, state) {
         if (state is AuthLoading) {
@@ -32,8 +37,8 @@ class _DeleteAccountState extends State<DeleteAccount> {
         if (state is AuthSuccess &&
             state.message == "Account deleted successfully.") {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Account deleted successfully.'),
+            SnackBar(
+              content: Text('accountDeletedSuccess'.tr()),
               backgroundColor: Colors.green,
             ),
           );
@@ -47,23 +52,23 @@ class _DeleteAccountState extends State<DeleteAccount> {
         } else if (state is AuthError) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Error: ${state.message}'),
+              content: Text('${'error'.tr()}: ${state.message}'),
               backgroundColor: Colors.red,
             ),
           );
         }
       },
       child: Scaffold(
-        backgroundColor: Colors.white,
+        backgroundColor: isDarkMode ? Colors.grey[900] : Colors.white,
         appBar: PreferredSize(
           preferredSize: const Size.fromHeight(65),
           child: Container(
-            decoration: const BoxDecoration(
-              color: Colors.white,
+            decoration: BoxDecoration(
+              color: isDarkMode ? Colors.grey[900] : Colors.white,
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black26,
-                  offset: Offset(0, 1),
+                  color: Colors.black.withOpacity(0.1),
+                  offset: const Offset(0, 1),
                   blurRadius: 2,
                 ),
               ],
@@ -77,155 +82,170 @@ class _DeleteAccountState extends State<DeleteAccount> {
                 icon: const Icon(Icons.arrow_back),
                 color: const Color(0xFF6750A4),
               ),
-              title: const Text(
-                'Delete Account',
-                style: TextStyle(fontWeight: FontWeight.bold),
+              title: Text(
+                'deleteAccountTitle'.tr(),
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: isDarkMode ? Colors.white : Colors.black,
+                ),
               ),
               centerTitle: true,
+              backgroundColor: Colors.transparent,
             ),
           ),
         ),
         body: _isDeleting
             ? const ShimmerDeleteScreen()
-            : Padding(
-                padding: const EdgeInsets.all(20),
-                child: SingleChildScrollView(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Account Deletion Confirmation',
-                        style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFF6750A4),
+            : Container(
+                height: double.infinity,
+                color: isDarkMode ? Colors.black : Colors.white,
+                child: Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: SingleChildScrollView(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'deleteAccountConfirmation'.tr(),
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            color: isDarkMode ? Colors.white : Colors.black,
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: 20),
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(20),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(12),
-                          boxShadow: const [
-                            BoxShadow(
-                              color: Colors.black12,
-                              blurRadius: 8,
-                              offset: Offset(0, 4),
-                            ),
-                          ],
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              'This action will permanently delete your account and remove you from all spaces on Accessability. This process cannot be undone.',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w800,
-                                color: Colors.black,
-                                height: 1.4,
-                              ),
-                            ),
-                            const SizedBox(height: 15),
-                            const Text(
-                              'Please confirm that you understand the following:',
-                              style: TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w500,
-                                color: Colors.black,
-                              ),
-                            ),
-                            const SizedBox(height: 10),
-                            const Text.rich(
-                              TextSpan(
-                                style: TextStyle(
-                                    fontSize: 14, color: Colors.black87),
-                                children: [
-                                  TextSpan(
-                                    text: '🟣 ',
-                                    style: TextStyle(color: Color(0xFF6750A4)),
-                                  ),
-                                  TextSpan(
-                                    text:
-                                        'Deleting your account is permanent and cannot be undone.\n\n',
-                                  ),
-                                  TextSpan(
-                                    text: '🟣 ',
-                                    style: TextStyle(color: Color(0xFF6750A4)),
-                                  ),
-                                  TextSpan(
-                                    text:
-                                        'You will be removed from all spaces and your location will no longer be shared.\n\n',
-                                  ),
-                                  TextSpan(
-                                    text: '🟣 ',
-                                    style: TextStyle(color: Color(0xFF6750A4)),
-                                  ),
-                                  TextSpan(
-                                    text:
-                                        'An email will be sent to confirm your deletion request. (Check your spam folder if not received)',
-                                  ),
-                                ],
-                              ),
-                            ),
-                            const SizedBox(height: 20),
-                            Row(
+                        const SizedBox(height: 20),
+                        Card(
+                          color: isDarkMode ? Colors.grey[800] : Colors.white,
+                          elevation: 3,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Padding(
+                            padding: const EdgeInsets.all(20),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Checkbox(
-                                  activeColor: const Color(0xFF6750A4),
-                                  value: _isConfirmed,
-                                  onChanged: (value) {
-                                    setState(() {
-                                      _isConfirmed = value!;
-                                    });
-                                  },
+                                Text(
+                                  'deleteAccountWarning'.tr(),
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w800,
+                                    color: isDarkMode
+                                        ? Colors.white
+                                        : Colors.black,
+                                    height: 1.4,
+                                  ),
                                 ),
-                                const SizedBox(width: 8),
-                                const Expanded(
-                                  child: Text(
-                                    'Yes, I confirm the above',
+                                const SizedBox(height: 15),
+                                Text(
+                                  'deleteAccountPrompt'.tr(),
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w500,
+                                    color: isDarkMode
+                                        ? Colors.white
+                                        : Colors.black,
+                                  ),
+                                ),
+                                const SizedBox(height: 10),
+                                Text.rich(
+                                  TextSpan(
                                     style: TextStyle(
-                                      fontSize: 16,
-                                      color: Color(0xFF333333),
+                                      fontSize: 14,
+                                      color: isDarkMode
+                                          ? Colors.white70
+                                          : Colors.black87,
+                                    ),
+                                    children: [
+                                      const TextSpan(
+                                        text: '🟣 ',
+                                        style:
+                                            TextStyle(color: Color(0xFF6750A4)),
+                                      ),
+                                      TextSpan(
+                                        text:
+                                            '${'deleteAccountBullet1'.tr()}\n\n',
+                                      ),
+                                      const TextSpan(
+                                        text: '🟣 ',
+                                        style:
+                                            TextStyle(color: Color(0xFF6750A4)),
+                                      ),
+                                      TextSpan(
+                                        text:
+                                            '${'deleteAccountBullet2'.tr()}\n\n',
+                                      ),
+                                      const TextSpan(
+                                        text: '🟣 ',
+                                        style:
+                                            TextStyle(color: Color(0xFF6750A4)),
+                                      ),
+                                      TextSpan(
+                                        text: 'deleteAccountBullet3'.tr(),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(height: 20),
+                                Row(
+                                  children: [
+                                    Checkbox(
+                                      activeColor: const Color(0xFF6750A4),
+                                      value: _isConfirmed,
+                                      onChanged: (value) {
+                                        setState(() {
+                                          _isConfirmed = value!;
+                                        });
+                                      },
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: Text(
+                                        'deleteAccountConfirmLabel'.tr(),
+                                        style: TextStyle(
+                                          fontSize: 16,
+                                          color: isDarkMode
+                                              ? Colors.white
+                                              : const Color(0xFF333333),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 20),
+                                Center(
+                                  child: ElevatedButton(
+                                    onPressed: _isConfirmed
+                                        ? () {
+                                            context
+                                                .read<AuthBloc>()
+                                                .add(DeleteAccountEvent());
+                                          }
+                                        : null,
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: Colors.redAccent,
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 50, vertical: 15),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                    ),
+                                    child: Text(
+                                      'deleteAccountButton'.tr(),
+                                      style: const TextStyle(
+                                        fontSize: 18,
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.bold,
+                                      ),
                                     ),
                                   ),
                                 ),
                               ],
                             ),
-                            const SizedBox(height: 20),
-                            Center(
-                              child: ElevatedButton(
-                                onPressed: _isConfirmed
-                                    ? () {
-                                        context
-                                            .read<AuthBloc>()
-                                            .add(DeleteAccountEvent());
-                                      }
-                                    : null,
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.redAccent,
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 50, vertical: 15),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                ),
-                                child: const Text(
-                                  'Delete Account',
-                                  style: TextStyle(
-                                    fontSize: 18,
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
               ),

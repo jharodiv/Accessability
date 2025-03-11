@@ -1,9 +1,10 @@
-import 'package:flutter/material.dart';
 import 'package:AccessAbility/accessability/presentation/screens/settings/settingsScreens/privacy_and_security/additional_data_rights.dart';
 import 'package:AccessAbility/accessability/presentation/screens/settings/settingsScreens/privacy_and_security/data_security.dart';
 import 'package:AccessAbility/accessability/presentation/screens/settings/settingsScreens/privacy_and_security/privacy_policy.dart';
+import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:AccessAbility/accessability/themes/theme_provider.dart';
+import 'package:easy_localization/easy_localization.dart';
 
 class PrivacySecurity extends StatelessWidget {
   const PrivacySecurity({super.key});
@@ -35,9 +36,9 @@ class PrivacySecurity extends StatelessWidget {
               icon: const Icon(Icons.arrow_back),
               color: const Color(0xFF6750A4),
             ),
-            title: const Text(
-              'Privacy & Security',
-              style: TextStyle(fontWeight: FontWeight.bold),
+            title: Text(
+              'privacySecurity'.tr(),
+              style: const TextStyle(fontWeight: FontWeight.bold),
             ),
             centerTitle: true,
             backgroundColor: Colors.transparent,
@@ -83,11 +84,10 @@ class PrivacySecurity extends StatelessWidget {
                     ),
                     Expanded(
                       child: Column(
-                        mainAxisAlignment: MainAxisAlignment.start,
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'Your privacy is our priority',
+                            'privacyPriority'.tr(),
                             style: TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.bold,
@@ -95,7 +95,7 @@ class PrivacySecurity extends StatelessWidget {
                             ),
                           ),
                           Text(
-                            'We prioritize your privacy and security...',
+                            'privacyDescription'.tr(),
                             style: TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.w300,
@@ -112,7 +112,7 @@ class PrivacySecurity extends StatelessWidget {
             const SizedBox(height: 10),
             ListTile(
               title: Text(
-                'Data Security',
+                'dataSecurity'.tr(),
                 style: TextStyle(
                   fontWeight: FontWeight.w600,
                   color: isDarkMode ? Colors.white : Colors.black,
@@ -120,12 +120,7 @@ class PrivacySecurity extends StatelessWidget {
               ),
               contentPadding: EdgeInsets.zero,
               onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const DataSecurity(),
-                  ),
-                );
+                Navigator.pushNamed(context, '/datasecurity');
               },
             ),
             const Divider(
@@ -134,7 +129,7 @@ class PrivacySecurity extends StatelessWidget {
             ),
             ListTile(
               title: Text(
-                'Additional Data Rights',
+                'additionalDataRights'.tr(),
                 style: TextStyle(
                   fontWeight: FontWeight.w600,
                   color: isDarkMode ? Colors.white : Colors.black,
@@ -142,12 +137,7 @@ class PrivacySecurity extends StatelessWidget {
               ),
               contentPadding: EdgeInsets.zero,
               onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const AdditionalDataRights(),
-                  ),
-                );
+                Navigator.pushNamed(context, '/additionaldatarights');
               },
             ),
             const Divider(
@@ -156,16 +146,11 @@ class PrivacySecurity extends StatelessWidget {
             ),
             GestureDetector(
               onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const PrivacyPolicy(),
-                  ),
-                );
+                Navigator.pushNamed(context, '/privacypolicy');
               },
               child: ListTile(
                 title: Text(
-                  'Privacy Policy',
+                  'privacyPolicy'.tr(),
                   style: TextStyle(
                     fontWeight: FontWeight.w600,
                     color: isDarkMode ? Colors.white : Colors.black,

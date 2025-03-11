@@ -165,8 +165,11 @@ class _AccountScreenState extends State<AccountScreen> {
                             const SizedBox(height: 8),
                             Text(
                               user.username,
-                              style: const TextStyle(
-                                  fontSize: 18, fontWeight: FontWeight.bold),
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: isDarkMode ? Colors.white : Colors.black,
+                              ),
                             ),
                             const SizedBox(height: 4),
                             Container(

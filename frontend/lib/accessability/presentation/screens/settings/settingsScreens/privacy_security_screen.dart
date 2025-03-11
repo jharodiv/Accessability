@@ -84,7 +84,7 @@ class PrivacySecurity extends StatelessWidget {
                     ),
                     Expanded(
                       child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                        crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
                           Text(
                             'privacyPriority'.tr(),
@@ -94,12 +94,17 @@ class PrivacySecurity extends StatelessWidget {
                               color: isDarkMode ? Colors.white : Colors.black,
                             ),
                           ),
-                          Text(
-                            'privacyDescription'.tr(),
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w300,
-                              color: isDarkMode ? Colors.white : Colors.black,
+                          Padding(
+                            padding:
+                                const EdgeInsets.symmetric(horizontal: 7.0),
+                            child: Text(
+                              'privacyDescription'.tr(),
+                              textAlign: TextAlign.justify,
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w300,
+                                color: isDarkMode ? Colors.white : Colors.black,
+                              ),
                             ),
                           ),
                         ],

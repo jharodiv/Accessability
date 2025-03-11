@@ -12,6 +12,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:provider/provider.dart';
 import 'package:AccessAbility/accessability/themes/theme_provider.dart';
+import 'package:easy_localization/easy_localization.dart';
 
 class BiometricScreen extends StatefulWidget {
   const BiometricScreen({super.key});
@@ -33,36 +34,35 @@ class _BiometricScreenState extends State<BiometricScreen> {
   Future<void> _getDeviceId() async {
     final DeviceInfoPlugin deviceInfo = DeviceInfoPlugin();
     if (Theme.of(context).platform == TargetPlatform.android) {
-      final AndroidDeviceInfo androidInfo = await deviceInfo.androidInfo;
+      final androidInfo = await deviceInfo.androidInfo;
       setState(() {
         _deviceId = androidInfo.id;
       });
     } else if (Theme.of(context).platform == TargetPlatform.iOS) {
-      final IosDeviceInfo iosInfo = await deviceInfo.iosInfo;
+      final iosInfo = await deviceInfo.iosInfo;
       setState(() {
         _deviceId = iosInfo.identifierForVendor;
       });
     }
   }
 
-  Future<void> _showDisableBiometricDialog(BuildContext context, UserModel user) async {
+  Future<void> _showDisableBiometricDialog(
+      BuildContext context, UserModel user) async {
     return showDialog<void>(
       context: context,
       barrierDismissible: false,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: const Text('Disable Biometric Login'),
-          content: const Text(
-            'Are you sure you want to disable biometric login? You have to verify your fingerprint again to enable it.',
-          ),
+          title: Text('disableBiometricLoginTitle'.tr()),
+          content: Text('disableBiometricLoginContent'.tr()),
           actions: <Widget>[
             TextButton(
               onPressed: () {
                 Navigator.of(context).pop();
               },
-              child: const Text(
-                'Cancel',
-                style: TextStyle(color: Color(0xFF6750A4)),
+              child: Text(
+                'cancel'.tr(),
+                style: const TextStyle(color: Color(0xFF6750A4)),
               ),
             ),
             TextButton(
@@ -72,16 +72,16 @@ class _BiometricScreenState extends State<BiometricScreen> {
                 prefs.remove('biometric_password');
 
                 context.read<UserBloc>().add(
-                  DisableBiometricLogin(user.uid),
-                );
+                      DisableBiometricLogin(user.uid),
+                    );
                 setState(() {
                   isBiometricEnabled = false;
                 });
                 Navigator.of(context).pop();
               },
-              child: const Text(
-                'Disable',
-                style: TextStyle(color: Colors.red),
+              child: Text(
+                'disable'.tr(),
+                style: const TextStyle(color: Colors.red),
               ),
             ),
           ],
@@ -123,9 +123,9 @@ class _BiometricScreenState extends State<BiometricScreen> {
                   icon: const Icon(Icons.arrow_back),
                   color: const Color(0xFF6750A4),
                 ),
-                title: const Text(
-                  'Biometric Login',
-                  style: TextStyle(fontWeight: FontWeight.bold),
+                title: Text(
+                  'biometricLoginTitle'.tr(),
+                  style: const TextStyle(fontWeight: FontWeight.bold),
                 ),
                 centerTitle: true,
                 backgroundColor: Colors.transparent,
@@ -151,7 +151,7 @@ class _BiometricScreenState extends State<BiometricScreen> {
                 left: 0,
                 right: 0,
                 child: Text(
-                  'Biometric Login',
+                  'biometricLoginTitle'.tr(),
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: 25,
@@ -167,7 +167,7 @@ class _BiometricScreenState extends State<BiometricScreen> {
                 child: Padding(
                   padding: const EdgeInsets.only(top: 8),
                   child: Text(
-                    'Sign in to your account faster using Biometrics \n login',
+                    'biometricLoginSubtitle'.tr(),
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       fontSize: 12,
@@ -182,10 +182,10 @@ class _BiometricScreenState extends State<BiometricScreen> {
                 left: 0,
                 right: 0,
                 child: Padding(
-                  padding: const EdgeInsets.only(left: 8, right: 8),
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
                   child: ListTile(
                     title: Text(
-                      'Enable Biometric Login',
+                      'enableBiometricLogin'.tr(),
                       style: TextStyle(
                         fontSize: 17,
                         fontWeight: FontWeight.bold,
@@ -199,22 +199,28 @@ class _BiometricScreenState extends State<BiometricScreen> {
                           final result = await Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (context) => const FingerprintEnrollmentScreen(),
+                              builder: (context) =>
+                                  const FingerprintEnrollmentScreen(),
                             ),
                           );
 
                           if (result == true && _deviceId != null) {
                             final prefs = await SharedPreferences.getInstance();
-                            final backupUsername = prefs.getString('backup_email');
-                            final backupPassword = prefs.getString('backup_password');
-                            if (backupUsername != null && backupPassword != null) {
-                              prefs.setString('biometric_email', backupUsername);
-                              prefs.setString('biometric_password', backupPassword);
+                            final backupUsername =
+                                prefs.getString('backup_email');
+                            final backupPassword =
+                                prefs.getString('backup_password');
+                            if (backupUsername != null &&
+                                backupPassword != null) {
+                              prefs.setString(
+                                  'biometric_email', backupUsername);
+                              prefs.setString(
+                                  'biometric_password', backupPassword);
                             }
 
                             context.read<UserBloc>().add(
-                              EnableBiometricLogin(user!.uid, _deviceId!),
-                            );
+                                  EnableBiometricLogin(user!.uid, _deviceId!),
+                                );
                             setState(() {
                               isBiometricEnabled = true;
                             });
@@ -238,7 +244,7 @@ class _BiometricScreenState extends State<BiometricScreen> {
                     child: Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 20),
                       child: Text(
-                        'By enabling biometrics login, you will allow Accessability to access your saved biometrics data in your device to create and save data in Accessability that shall be used for securing your login. The data will not be used for any other purposes.',
+                        'biometricLoginDisclaimer'.tr(),
                         textAlign: TextAlign.center,
                         style: TextStyle(
                           fontSize: 12,

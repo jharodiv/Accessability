@@ -95,6 +95,7 @@ class DataSecurity extends StatelessWidget {
                         textAlign: TextAlign.justify,
                         style: TextStyle(
                           color: isDarkMode ? Colors.white : Colors.black87,
+                          fontWeight: FontWeight.w500,
                         ),
                       ),
                     ),

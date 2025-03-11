@@ -1,13 +1,11 @@
 import 'package:AccessAbility/accessability/presentation/widgets/google_helper/map_view_screen.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:AccessAbility/accessability/data/repositories/auth_repository.dart';
 import 'package:AccessAbility/accessability/firebaseServices/auth/auth_service.dart';
 import 'package:AccessAbility/accessability/logic/bloc/auth/auth_bloc.dart';
 import 'package:AccessAbility/accessability/logic/bloc/auth/auth_event.dart';
-import 'package:AccessAbility/main.dart';
 import 'package:provider/provider.dart';
 import 'package:AccessAbility/accessability/themes/theme_provider.dart';
+import 'package:easy_localization/easy_localization.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -31,19 +29,26 @@ class _SettingsScreenState extends State<SettingsScreen> {
       showDialog(
         context: context,
         builder: (context) => AlertDialog(
-          title: const Text('Error'),
+          title: Text('error'.tr()),
           content: Text(e.toString()),
           actions: [
             TextButton(
               onPressed: () {
                 Navigator.of(context).pop();
               },
-              child: const Text('OK'),
+              child: Text('ok'.tr()),
             ),
           ],
         ),
       );
     }
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Trigger rebuild when the locale changes.
+    setState(() {});
   }
 
   @override
@@ -73,9 +78,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
               icon: const Icon(Icons.arrow_back),
               color: const Color(0xFF6750A4),
             ),
-            title: const Text(
-              'Settings',
-              style: TextStyle(fontWeight: FontWeight.bold),
+            title: Text(
+              'settings'.tr(),
+              style: const TextStyle(fontWeight: FontWeight.bold),
             ),
             centerTitle: true,
             backgroundColor: Colors.transparent,
@@ -89,8 +94,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ListTile(
               leading:
                   const Icon(Icons.person_2_outlined, color: Color(0xFF6750A4)),
-              title: const Text('Account',
-                  style: TextStyle(fontWeight: FontWeight.bold)),
+              title: Text(
+                'account'.tr(),
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
               onTap: () {
                 Navigator.pushNamed(context, '/account');
               },
@@ -98,8 +105,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
             const Divider(),
             ListTile(
               leading: const Icon(Icons.tune, color: Color(0xFF6750A4)),
-              title: const Text('Preference',
-                  style: TextStyle(fontWeight: FontWeight.bold)),
+              title: Text(
+                'preference'.tr(),
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
               onTap: () {
                 Navigator.pushNamed(context, '/preferences');
               },
@@ -108,8 +117,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ListTile(
               leading: const Icon(Icons.notifications_active_outlined,
                   color: Color(0xFF6750A4)),
-              title: const Text('Notification',
-                  style: TextStyle(fontWeight: FontWeight.bold)),
+              title: Text(
+                'notification'.tr(),
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
               trailing: Switch(
                 activeColor: const Color(0xFF6750A4),
                 value: isNotificationEnabled,
@@ -124,8 +135,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ListTile(
               leading:
                   const Icon(Icons.security_outlined, color: Color(0xFF6750A4)),
-              title: const Text('Privacy & Security',
-                  style: TextStyle(fontWeight: FontWeight.bold)),
+              title: Text(
+                'privacySecurity'.tr(),
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
               onTap: () {
                 Navigator.pushNamed(context, '/privacy');
               },
@@ -133,8 +146,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
             const Divider(),
             ListTile(
               leading: const Icon(Icons.fingerprint, color: Color(0xFF6750A4)),
-              title: const Text('Biometric Login',
-                  style: TextStyle(fontWeight: FontWeight.bold)),
+              title: Text(
+                'biometricLogin'.tr(),
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
               onTap: () {
                 Navigator.pushNamed(context, '/biometric');
               },
@@ -142,8 +157,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
             const Divider(),
             ListTile(
               leading: const Icon(Icons.info_outline, color: Color(0xFF6750A4)),
-              title: const Text('About',
-                  style: TextStyle(fontWeight: FontWeight.bold)),
+              title: Text(
+                'about'.tr(),
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
               onTap: () {
                 Navigator.pushNamed(context, '/about');
               },
@@ -151,15 +168,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
             // const Divider(),
             // ListTile(
             //   leading: const Icon(Icons.map, color: Color(0xFF6750A4)),
-            //   title: const Text('Map View',
-            //       style: TextStyle(fontWeight: FontWeight.bold)),
+            //   title: const Text('Map View', style: TextStyle(fontWeight: FontWeight.bold)),
             //   onTap: () async {
             //     // Open MapViewScreen. You can pass an initial perspective if needed.
             //     final perspective = await Navigator.push(
             //       context,
-            //       MaterialPageRoute(
-            //         builder: (_) => const MapViewScreen(),
-            //       ),
+            //       MaterialPageRoute(builder: (_) => const MapViewScreen()),
             //     );
             //     if (perspective != null && perspective is MapPerspective) {
             //       // Pass the selected perspective into the homescreen/GpsScreen.
@@ -175,8 +189,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
             const Divider(),
             ListTile(
               leading: const Icon(Icons.logout, color: Color(0xFF6750A4)),
-              title: const Text('Log out',
-                  style: TextStyle(fontWeight: FontWeight.bold)),
+              title: Text(
+                'logout'.tr(),
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
               onTap: () => logout(context),
             ),
           ],

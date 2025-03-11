@@ -49,7 +49,7 @@ class SafetyAssistHelperWidget extends StatelessWidget {
               'assets/images/others/safetyassist.png',
               width: double.infinity,
               height: 200,
-              fit: BoxFit.cover,
+              fit: BoxFit.contain,
             ),
             const SizedBox(height: 16),
             // Paragraph 1 with added padding and left text alignment

@@ -20,6 +20,10 @@ class _SafetyAssistWidgetState extends State<SafetyAssistWidget> {
   // Boolean state variable to determine which design to display
   bool _showHelper = false;
 
+  // Add a controller for the DraggableScrollableSheet.
+  final DraggableScrollableController _draggableController =
+      DraggableScrollableController();
+
   @override
   void initState() {
     super.initState();
@@ -93,9 +97,11 @@ class _SafetyAssistWidgetState extends State<SafetyAssistWidget> {
     final bool isDarkMode = Provider.of<ThemeProvider>(context).isDarkMode;
 
     return DraggableScrollableSheet(
-      initialChildSize: 0.7,
-      minChildSize: 0.7,
-      maxChildSize: 0.8,
+      controller: _draggableController,
+      // Use different initial sizes based on whether the helper is showing.
+      initialChildSize: _showHelper ? 0.8 : 0.5,
+      minChildSize: 0.5,
+      maxChildSize: 0.9,
       builder: (BuildContext context, ScrollController scrollController) {
         return Container(
           decoration: BoxDecoration(
@@ -116,13 +122,18 @@ class _SafetyAssistWidgetState extends State<SafetyAssistWidget> {
             controller: scrollController,
             child: Padding(
               padding: const EdgeInsets.all(16.0),
-              // Toggle between the helper widget and the main design
+              // Toggle between the helper widget and the main design.
               child: _showHelper
                   ? SafetyAssistHelperWidget(
                       onBack: () {
                         setState(() {
                           _showHelper = false;
                         });
+                        _draggableController.animateTo(
+                          0.8, // Collapse back to 50% of the screen.
+                          duration: const Duration(milliseconds: 300),
+                          curve: Curves.easeInOut,
+                        );
                       },
                     )
                   : Column(
@@ -146,12 +157,17 @@ class _SafetyAssistWidgetState extends State<SafetyAssistWidget> {
                                 color: isDarkMode ? Colors.white : Colors.black,
                               ),
                             ),
-                            // Help icon toggles the helper widget
+                            // Help icon toggles the helper widget.
                             GestureDetector(
                               onTap: () {
                                 setState(() {
                                   _showHelper = true;
                                 });
+                                _draggableController.animateTo(
+                                  0.8, // Expand the sheet to 80% of the screen.
+                                  duration: const Duration(milliseconds: 300),
+                                  curve: Curves.easeInOut,
+                                );
                               },
                               child: Icon(
                                 Icons.help_outline,
@@ -289,10 +305,10 @@ class _SafetyAssistWidgetState extends State<SafetyAssistWidget> {
                                                               EmergencyBloc>(
                                                           context)
                                                       .add(
-                                                    DeleteEmergencyContactEvent(
-                                                        uid: widget.uid,
-                                                        contactId: contact.id!),
-                                                  );
+                                                          DeleteEmergencyContactEvent(
+                                                              uid: widget.uid,
+                                                              contactId:
+                                                                  contact.id!));
                                                 }
                                               },
                                             ),

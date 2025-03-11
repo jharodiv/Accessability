@@ -5,6 +5,7 @@ import 'package:AccessAbility/accessability/firebaseServices/place/place_service
 import 'package:AccessAbility/accessability/logic/bloc/emergency/bloc/emergency_bloc.dart';
 import 'package:AccessAbility/accessability/logic/bloc/place/bloc/place_bloc.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:easy_localization/easy_localization.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -25,53 +26,63 @@ import 'package:AccessAbility/accessability/firebaseServices/auth/auth_service.d
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:AccessAbility/accessability/backgroundServices/location_notification_service.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 final RouteObserver<PageRoute> routeObserver = RouteObserver<PageRoute>();
 
-void main() async {
-  // Ensure Flutter bindings are initialized
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Initialize Firebase
+  // Initialize Firebase.
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
   await initializeService();
-
   await createNotificationChannel();
 
-  // Initialize SharedPreferences
+  await EasyLocalization.ensureInitialized();
+
+  // Initialize SharedPreferences.
   final SharedPreferences sharedPreferences =
       await SharedPreferences.getInstance();
 
-  // Load environment variables
+  // Load environment variables.
   try {
-    await dotenv.load(fileName: '.env'); // Use absolute path for testing
+    await dotenv.load(fileName: '.env');
     print("Loaded API Key: ${dotenv.env['GOOGLE_API_KEY']}");
   } catch (e) {
     print("Error loading .env file: $e");
   }
 
-  // Initialize date formatting
+  // Initialize date formatting.
   await initializeDateFormatting();
 
-  // Initialize FCMService
+  // Initialize FCMService.
   final FCMService fcmService = FCMService(navigatorKey: navigatorKey);
-  fcmService.initializeFCMListeners(); // Pass the navigatorKey
+  fcmService.initializeFCMListeners();
 
   final AuthService authService = AuthService();
-  final PlaceService placeService = PlaceService(); // Initialize PlaceService
+  final PlaceService placeService = PlaceService();
 
-  // Initialize ThemeProvider
   runApp(
-    ChangeNotifierProvider(
-      create: (context) => ThemeProvider(sharedPreferences),
-      child: MyApp(
-        sharedPreferences: sharedPreferences,
-        navigatorKey: navigatorKey,
-        fcmService: fcmService,
-        authService: authService,
-        placeService: placeService, 
+    EasyLocalization(
+      supportedLocales: const [Locale('en'), Locale('fil')],
+      path: 'assets/translations',
+      fallbackLocale: const Locale('en'),
+      child: MultiProvider(
+        providers: [
+          ChangeNotifierProvider(
+            create: (context) => ThemeProvider(sharedPreferences),
+          ),
+          // Removed LocaleProvider since EasyLocalization now manages locale.
+        ],
+        child: MyApp(
+          sharedPreferences: sharedPreferences,
+          navigatorKey: navigatorKey,
+          fcmService: fcmService,
+          authService: authService,
+          placeService: placeService,
+        ),
       ),
     ),
   );
@@ -83,7 +94,7 @@ class MyApp extends StatelessWidget {
   final GlobalKey<NavigatorState> navigatorKey;
   final FCMService fcmService;
   final AuthService authService;
-  final PlaceService placeService; // Add this
+  final PlaceService placeService;
 
   MyApp({
     super.key,
@@ -91,7 +102,7 @@ class MyApp extends StatelessWidget {
     required this.navigatorKey,
     required this.fcmService,
     required this.authService,
-    required this.placeService, 
+    required this.placeService,
   });
 
   @override
@@ -101,49 +112,57 @@ class MyApp extends StatelessWidget {
         BlocProvider<UserBloc>(
           create: (context) => UserBloc(
             userRepository: UserRepository(
-                FirebaseFirestore.instance,
-                sharedPreferences,
-                authService,
-                placeService // Use the passed AuthService
-                ),
+              FirebaseFirestore.instance,
+              sharedPreferences,
+              authService,
+              placeService,
+            ),
           ),
         ),
         BlocProvider<AuthBloc>(
           create: (context) => AuthBloc(
             authRepository: AuthRepository(
-              authService, // Use the passed AuthService
-              UserRepository(FirebaseFirestore.instance, sharedPreferences,
-                  authService, placeService // Use the passed AuthService
-                  ),
-            ),
-            userRepository: UserRepository(
+              authService,
+              UserRepository(
                 FirebaseFirestore.instance,
                 sharedPreferences,
                 authService,
-                placeService // Use the passed AuthService
-                ),
+                placeService,
+              ),
+            ),
+            userRepository: UserRepository(
+              FirebaseFirestore.instance,
+              sharedPreferences,
+              authService,
+              placeService,
+            ),
             userBloc: context.read<UserBloc>(),
-            authService: authService, // Use the passed AuthService
+            authService: authService,
           ),
         ),
         BlocProvider<PlaceBloc>(
           create: (context) => PlaceBloc(
-            placeRepository: PlaceRepository(placeService: PlaceService()),
+            placeRepository: PlaceRepository(placeService: placeService),
           ),
         ),
         BlocProvider<EmergencyBloc>(
           create: (context) => EmergencyBloc(
-            emergencyRepository:
-                EmergencyRepository(emergencyService: EmergencyService()),
+            emergencyRepository: EmergencyRepository(
+              emergencyService: EmergencyService(),
+            ),
           ),
         ),
       ],
       child: Consumer<ThemeProvider>(
         builder: (context, themeProvider, child) {
           return MaterialApp(
+            key: ValueKey(context.locale), // Force rebuild when locale changes
             navigatorKey: navigatorKey,
             navigatorObservers: [routeObserver],
             debugShowCheckedModeBanner: false,
+            locale: context.locale,
+            supportedLocales: context.supportedLocales,
+            localizationsDelegates: context.localizationDelegates,
             theme: _buildLightTheme(context),
             darkTheme: _buildDarkTheme(context),
             themeMode:
@@ -151,6 +170,7 @@ class MyApp extends StatelessWidget {
             initialRoute: '/',
             onGenerateRoute: _appRouter.onGenerateRoute,
             builder: (context, child) {
+              // Trigger a post-frame authentication check.
               WidgetsBinding.instance.addPostFrameCallback((_) {
                 final authBloc = context.read<AuthBloc>();
                 authBloc.add(CheckAuthStatus());
@@ -224,13 +244,12 @@ ThemeData _buildDarkTheme(BuildContext context) {
         statusBarIconBrightness: Brightness.light,
       ),
       backgroundColor: Colors.black,
-      foregroundColor: Colors.white, // Ensure text/icons are visible
+      foregroundColor: Colors.white,
     ),
     textTheme: _buildHelveticaTextTheme(),
   );
 }
 
-// Helvetica Text Theme
 TextTheme _buildHelveticaTextTheme() {
   return const TextTheme(
     displayLarge: TextStyle(

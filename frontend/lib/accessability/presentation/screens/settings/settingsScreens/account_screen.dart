@@ -10,6 +10,7 @@ import 'package:AccessAbility/accessability/logic/bloc/user/user_event.dart';
 import 'package:AccessAbility/accessability/logic/bloc/user/user_state.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
+import 'package:easy_localization/easy_localization.dart';
 
 class AccountScreen extends StatefulWidget {
   const AccountScreen({super.key});
@@ -27,7 +28,6 @@ class _AccountScreenState extends State<AccountScreen> {
     final picker = ImagePicker();
     final pickedFile = await picker.pickImage(source: ImageSource.gallery);
 
-    // Check if the widget is still mounted
     if (!mounted) return;
 
     setState(() {
@@ -35,7 +35,6 @@ class _AccountScreenState extends State<AccountScreen> {
     });
 
     if (_imageFile != null) {
-      // Check if the widget is still mounted
       if (!mounted) return;
 
       setState(() {
@@ -57,7 +56,7 @@ class _AccountScreenState extends State<AccountScreen> {
     }
   }
 
-   @override
+  @override
   Widget build(BuildContext context) {
     final bool isDarkMode = Provider.of<ThemeProvider>(context).isDarkMode;
 
@@ -69,8 +68,8 @@ class _AccountScreenState extends State<AccountScreen> {
           });
 
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Profile picture updated successfully!'),
+            SnackBar(
+              content: Text('profilePictureUpdated'.tr()),
               backgroundColor: Colors.green,
             ),
           );
@@ -81,7 +80,7 @@ class _AccountScreenState extends State<AccountScreen> {
 
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Error: ${state.message}'),
+              content: Text('${'error'.tr()}: ${state.message}'),
               backgroundColor: Colors.red,
             ),
           );
@@ -123,9 +122,9 @@ class _AccountScreenState extends State<AccountScreen> {
                       icon: const Icon(Icons.arrow_back),
                       color: const Color(0xFF6750A4),
                     ),
-                    title: const Text(
-                      'Account',
-                      style: TextStyle(fontWeight: FontWeight.bold),
+                    title: Text(
+                      'accountTitle'.tr(),
+                      style: const TextStyle(fontWeight: FontWeight.bold),
                     ),
                     centerTitle: true,
                     backgroundColor: Colors.transparent,
@@ -136,6 +135,7 @@ class _AccountScreenState extends State<AccountScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    // Profile Picture & Username
                     Padding(
                       padding: const EdgeInsets.only(top: 16.0),
                       child: Center(
@@ -179,48 +179,65 @@ class _AccountScreenState extends State<AccountScreen> {
                       ),
                     ),
                     const SizedBox(height: 20),
+                    // Account Details Section
                     Container(
                       width: double.infinity,
-                      color: isDarkMode ? Colors.grey[800] : const Color(0xFFF0F0F0),
+                      color: isDarkMode
+                          ? Colors.grey[800]
+                          : const Color(0xFFF0F0F0),
                       padding: const EdgeInsets.all(8.0),
                       child: Padding(
                         padding: const EdgeInsets.only(left: 8.0),
                         child: Text(
-                          'Account Details',
+                          'accountDetails'.tr(),
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w800,
-                            color: isDarkMode ? Colors.white : const Color(0xFF919191),
+                            color: isDarkMode
+                                ? Colors.white
+                                : const Color(0xFF919191),
                           ),
                         ),
                       ),
                     ),
+                    // Phone Number
                     ListTile(
                       leading: const Icon(Icons.phone_outlined,
                           color: Color(0xFF6750A4)),
-                      title: const Text('Phone Number'),
+                      title: Text(
+                        'phoneNumber'.tr(),
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
                       subtitle: Text(
                         user.contactNumber.isNotEmpty
                             ? user.contactNumber
-                            : 'Not provided',
+                            : 'notProvided'.tr(),
                         style: const TextStyle(fontWeight: FontWeight.bold),
                       ),
                     ),
                     const Divider(),
+                    // Email Address
                     ListTile(
                       leading: const Icon(Icons.email_outlined,
                           color: Color(0xFF6750A4)),
-                      title: const Text('Email Address'),
+                      title: Text(
+                        'emailAddress'.tr(),
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
                       subtitle: Text(
                         obfuscateEmail(user.email),
                         style: const TextStyle(fontWeight: FontWeight.bold),
                       ),
                     ),
                     const Divider(),
+                    // Password (hidden)
                     ListTile(
                       leading: const Icon(Icons.lock_outline,
                           color: Color(0xFF6750A4)),
-                      title: const Text('Password'),
+                      title: Text(
+                        'password'.tr(),
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
                       subtitle: const Text(
                         '***********',
                         style: TextStyle(fontWeight: FontWeight.bold),
@@ -235,28 +252,34 @@ class _AccountScreenState extends State<AccountScreen> {
                       },
                     ),
                     const SizedBox(height: 20),
+                    // Account Management Section
                     Container(
                       width: double.infinity,
-                      color: isDarkMode ? Colors.grey[800] : const Color(0xFFF0F0F0),
+                      color: isDarkMode
+                          ? Colors.grey[800]
+                          : const Color(0xFFF0F0F0),
                       padding: const EdgeInsets.all(8.0),
                       child: Padding(
                         padding: const EdgeInsets.only(left: 8),
                         child: Text(
-                          'Account Management',
+                          'accountManagement'.tr(),
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w800,
-                            color: isDarkMode ? Colors.white : const Color(0xFF919191),
+                            color: isDarkMode
+                                ? Colors.white
+                                : const Color(0xFF919191),
                           ),
                         ),
                       ),
                     ),
+                    // Delete Account
                     ListTile(
                       leading:
                           const Icon(Icons.delete, color: Colors.redAccent),
-                      title: const Text(
-                        'Delete Account',
-                        style: TextStyle(color: Colors.redAccent),
+                      title: Text(
+                        'deleteAccount'.tr(),
+                        style: const TextStyle(color: Colors.redAccent),
                       ),
                       onTap: () {
                         Navigator.push(
@@ -267,6 +290,7 @@ class _AccountScreenState extends State<AccountScreen> {
                       },
                     ),
                     const SizedBox(height: 20),
+                    // Cancel & Save Buttons
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                       children: [
@@ -278,9 +302,9 @@ class _AccountScreenState extends State<AccountScreen> {
                               borderRadius: BorderRadius.circular(50),
                             ),
                           ),
-                          child: const Text(
-                            'Cancel',
-                            style: TextStyle(color: Color(0xFF6750A4)),
+                          child: Text(
+                            'cancel'.tr(),
+                            style: const TextStyle(color: Color(0xFF6750A4)),
                           ),
                         ),
                         ElevatedButton(
@@ -291,9 +315,9 @@ class _AccountScreenState extends State<AccountScreen> {
                               borderRadius: BorderRadius.circular(50),
                             ),
                           ),
-                          child: const Padding(
-                            padding: EdgeInsets.symmetric(horizontal: 16),
-                            child: Text('Save'),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 16),
+                            child: Text('save'.tr()),
                           ),
                         ),
                       ],
@@ -303,37 +327,26 @@ class _AccountScreenState extends State<AccountScreen> {
               ),
             );
           } else {
-            return const Center(child: Text('No user data available'));
+            return Center(child: Text('noUserData'.tr()));
           }
         },
       ),
     );
   }
 
-String obfuscateEmail(String email) {
-  // Find the @ symbol
-  final indexOfAt = email.indexOf('@');
-  // If no @ symbol is found or it’s at the very beginning, just return the original email
-  if (indexOfAt <= 0) {
-    return email;
+  String obfuscateEmail(String email) {
+    final indexOfAt = email.indexOf('@');
+    if (indexOfAt <= 0) {
+      return email;
+    }
+    final username = email.substring(0, indexOfAt);
+    final domain = email.substring(indexOfAt);
+    if (username.length <= 2) {
+      return email;
+    }
+    final firstTwo = username.substring(0, 2);
+    final lastTwo = username.substring(username.length - 2);
+    final middleAsterisks = '*' * (username.length - 4);
+    return '$firstTwo$middleAsterisks$lastTwo$domain';
   }
-
-  // Separate username (before @) and domain (including @)
-  final username = email.substring(0, indexOfAt);
-  final domain = email.substring(indexOfAt); // includes the '@'
-
-  // If the username is very short, return it as-is (or handle differently if you prefer)
-  if (username.length <= 2) {
-    return email;
-  }
-
-  // If username is longer, keep first 2 chars, keep last 2 chars, and replace the middle with asterisks
-  // Example: la********12@gmail.com
-  final firstTwo = username.substring(0, 2);
-  final lastTwo = username.substring(username.length - 2);
-  // Middle part replaced with asterisks
-  final middleAsterisks = '*' * (username.length - 4);
-
-  return '$firstTwo$middleAsterisks$lastTwo$domain';
-}
 }

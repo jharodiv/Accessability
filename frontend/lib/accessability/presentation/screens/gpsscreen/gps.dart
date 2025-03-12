@@ -1,3 +1,6 @@
+import 'dart:convert'; // New import for JSON decoding.
+import 'package:http/http.dart' as http; // New import for HTTP requests.
+import 'package:flutter_polyline_points/flutter_polyline_points.dart'; // New import for polyline decoding.
 import 'package:AccessAbility/accessability/logic/bloc/place/bloc/place_event.dart';
 import 'package:AccessAbility/accessability/logic/bloc/user/user_event.dart';
 import 'package:AccessAbility/accessability/presentation/screens/gpsscreen/location_handler.dart';
@@ -27,6 +30,7 @@ import 'package:AccessAbility/accessability/logic/bloc/place/bloc/place_state.da
 import 'package:AccessAbility/accessability/firebaseServices/models/place.dart';
 import 'package:provider/provider.dart';
 import 'package:easy_localization/easy_localization.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class GpsScreen extends StatefulWidget {
   const GpsScreen({super.key});
@@ -57,9 +61,16 @@ class _GpsScreenState extends State<GpsScreen> {
   MapType _currentMapType = MapType.normal;
   MapPerspective? _pendingPerspective; // New field
 
+  // NEW: Variables for polylines.
+  Set<Polyline> _polylines = {};
+  final PolylinePoints _polylinePoints = PolylinePoints();
+  final String _googleAPIKey = dotenv.env['GOOGLE_API_KEY'] ?? '';
+
   @override
   void initState() {
     super.initState();
+    print("Using API Key: $_googleAPIKey");
+
     _mapKey = UniqueKey();
 
     // Fetch user data and places.
@@ -193,7 +204,7 @@ class _GpsScreenState extends State<GpsScreen> {
   }
 
   /// Modified _fetchNearbyPlaces that rebuilds the nearby markers with an onTap
-  /// callback to fetch detailed Google data and set _selectedPlace.
+  /// callback to fetch detailed Google data, display one selected place and draw a route.
   Future<void> _fetchNearbyPlaces(String placeType) async {
     if (_locationHandler.currentLocation == null) {
       print("🚨 Current position is null, cannot fetch nearby places.");
@@ -213,7 +224,8 @@ class _GpsScreenState extends State<GpsScreen> {
       final Set<Marker> originalNearbyMarkers = result["markers"];
       final Set<Circle> nearbyCircles = result["circles"];
 
-      // Rebuild each nearby marker with an onTap that fetches full details from Google.
+      // Rebuild each nearby marker with an onTap that fetches full details from Google,
+      // sets _selectedPlace, and draws a route from the user's location to the place.
       final Set<Marker> nearbyMarkers = originalNearbyMarkers.map((marker) {
         return Marker(
           markerId: marker.markerId,
@@ -230,7 +242,13 @@ class _GpsScreenState extends State<GpsScreen> {
               );
               setState(() {
                 _selectedPlace = detailedPlace;
+                _polylines.clear(); // Clear any previous route.
               });
+              // Draw the route from the user's location to the tapped marker.
+              if (_locationHandler.currentLocation != null) {
+                await _createRoute(
+                    _locationHandler.currentLocation!, marker.position);
+              }
             } catch (e) {
               print("Error fetching detailed place info: $e");
             }
@@ -267,6 +285,77 @@ class _GpsScreenState extends State<GpsScreen> {
       }
     } else {
       print("No nearby results for $placeType. Cleared previous markers.");
+    }
+  }
+
+  Future<void> _createRoute(LatLng origin, LatLng destination) async {
+    final String url =
+        "https://routes.googleapis.com/directions/v2:computeRoutes?key=$_googleAPIKey";
+
+    final Map<String, dynamic> requestBody = {
+      "origin": {
+        "location": {
+          "latLng": {
+            "latitude": origin.latitude,
+            "longitude": origin.longitude,
+          }
+        }
+      },
+      "destination": {
+        "location": {
+          "latLng": {
+            "latitude": destination.latitude,
+            "longitude": destination.longitude,
+          }
+        }
+      },
+      "travelMode": "DRIVE",
+      "routingPreference": "TRAFFIC_AWARE",
+      // You can add other fields if needed.
+    };
+
+    final String body = jsonEncode(requestBody);
+    print("Requesting URL: $url");
+    print("Request Body: $body");
+
+    final response = await http.post(
+      Uri.parse(url),
+      headers: {
+        "Content-Type": "application/json",
+        // Include the FieldMask header as required by the API.
+        "X-Goog-FieldMask":
+            "routes.distanceMeters,routes.duration,routes.polyline.encodedPolyline",
+      },
+      body: body,
+    );
+    print("Response: ${response.body}");
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      if (data['routes'] != null && data['routes'].isNotEmpty) {
+        // The new Routes API returns the polyline under a slightly different key.
+        final String encodedPolyline =
+            data['routes'][0]['polyline']['encodedPolyline'];
+        final List<PointLatLng> result =
+            _polylinePoints.decodePolyline(encodedPolyline);
+        final List<LatLng> polylineCoordinates = result
+            .map((point) => LatLng(point.latitude, point.longitude))
+            .toList();
+
+        setState(() {
+          _polylines.clear(); // Clear previous routes if any.
+          _polylines.add(Polyline(
+            polylineId: const PolylineId("route"),
+            color: const Color(0xFF6750A4),
+            width: 6,
+            points: polylineCoordinates,
+          ));
+        });
+      } else {
+        print("No routes found");
+      }
+    } else {
+      print("Error fetching directions: ${response.statusCode}");
     }
   }
 
@@ -429,6 +518,8 @@ class _GpsScreenState extends State<GpsScreen> {
                       mapType: _currentMapType,
                       markers: _markers,
                       circles: _circles,
+                      polylines:
+                          _polylines, // NEW: Display the route polylines.
                       onMapCreated: (controller) {
                         _locationHandler.onMapCreated(controller, isDarkMode);
                         if (_isLocationFetched &&

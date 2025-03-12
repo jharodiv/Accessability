@@ -6,7 +6,8 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 class MarkerHandler {
   Set<Marker> markers = {};
 
-   Future<Set<Marker>> createMarkers(List<Map<String, dynamic>> pwdFriendlyLocations) async {
+  Future<Set<Marker>> createMarkers(
+      List<Map<String, dynamic>> pwdFriendlyLocations) async {
     final customIcon = await getCustomIcon();
     return pwdFriendlyLocations.map((location) {
       return Marker(
@@ -28,29 +29,28 @@ class MarkerHandler {
     );
   }
 
- Set<Polygon> createPolygons(List<Map<String, dynamic>> pwdFriendlyLocations) {
-  final Set<Polygon> polygons = {};
-  for (var location in pwdFriendlyLocations) {
-    final LatLng center = LatLng(location["latitude"], location["longitude"]);
-    final List<LatLng> points = [];
-    for (double angle = 0; angle <= 360; angle += 10) {
-      final double radians = angle * (3.141592653589793 / 180);
-      final double latOffset = 0.0005 * cos(radians);
-      final double lngOffset = 0.0005 * sin(radians);
-      points.add(LatLng(center.latitude + latOffset, center.longitude + lngOffset));
+  Set<Polygon> createPolygons(List<Map<String, dynamic>> pwdFriendlyLocations) {
+    final Set<Polygon> polygons = {};
+    for (var location in pwdFriendlyLocations) {
+      final LatLng center = LatLng(location["latitude"], location["longitude"]);
+      final List<LatLng> points = [];
+      for (double angle = 0; angle <= 360; angle += 10) {
+        final double radians = angle * (3.141592653589793 / 180);
+        final double latOffset = 0.0005 * cos(radians);
+        final double lngOffset = 0.0005 * sin(radians);
+        points.add(
+            LatLng(center.latitude + latOffset, center.longitude + lngOffset));
+      }
+      polygons.add(
+        Polygon(
+          polygonId: PolygonId(location["name"]),
+          points: points,
+          strokeColor: Colors.green,
+          fillColor: Colors.green.withOpacity(0.2),
+          strokeWidth: 2,
+        ),
+      );
     }
-    polygons.add(
-      Polygon(
-        polygonId: PolygonId(location["name"]),
-        points: points,
-        strokeColor: Colors.green,
-        fillColor: Colors.green.withOpacity(0.2),
-        strokeWidth: 2,
-      ),
-    );
+    return polygons;
   }
-  return polygons;
-}
-
-  
 }

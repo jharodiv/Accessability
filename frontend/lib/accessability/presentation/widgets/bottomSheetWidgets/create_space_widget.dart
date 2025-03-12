@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:easy_localization/easy_localization.dart';
 
 class CreateSpaceWidget extends StatelessWidget {
   final TextEditingController spaceNameController;
@@ -20,18 +21,18 @@ class CreateSpaceWidget extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           // Header
-          const Text(
-            'Create my space',
-            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+          Text(
+            'create_my_space'.tr(),
+            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 20),
           // Space Name Input
           TextField(
             controller: spaceNameController,
-            decoration: const InputDecoration(
-              labelText: 'Space Name',
-              border: OutlineInputBorder(),
+            decoration: InputDecoration(
+              labelText: 'space_name'.tr(),
+              border: const OutlineInputBorder(),
             ),
           ),
           const SizedBox(height: 20),
@@ -44,12 +45,15 @@ class CreateSpaceWidget extends StatelessWidget {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF6750A4),
                     padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
                   ),
-                  child: const FittedBox(
+                  child: FittedBox(
                     fit: BoxFit.scaleDown,
                     child: Text(
-                      'Create',
-                      style: TextStyle(color: Colors.white),
+                      'create'.tr(),
+                      style: const TextStyle(color: Colors.white),
                     ),
                   ),
                 ),
@@ -61,12 +65,15 @@ class CreateSpaceWidget extends StatelessWidget {
                   style: OutlinedButton.styleFrom(
                     side: const BorderSide(color: Color(0xFF6750A4)),
                     padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
                   ),
-                  child: const FittedBox(
+                  child: FittedBox(
                     fit: BoxFit.scaleDown,
                     child: Text(
-                      'Back',
-                      style: TextStyle(color: Color(0xFF6750A4)),
+                      'back'.tr(),
+                      style: const TextStyle(color: Color(0xFF6750A4)),
                     ),
                   ),
                 ),

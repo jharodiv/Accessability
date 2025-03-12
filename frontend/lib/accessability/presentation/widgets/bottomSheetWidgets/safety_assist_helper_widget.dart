@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:easy_localization/easy_localization.dart';
 
 class SafetyAssistHelperWidget extends StatelessWidget {
   final VoidCallback onBack;
@@ -14,7 +15,6 @@ class SafetyAssistHelperWidget extends StatelessWidget {
       child: SingleChildScrollView(
         padding: const EdgeInsets.symmetric(horizontal: 8),
         child: Column(
-          // Center the children horizontally
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             // Back arrow and title row
@@ -26,7 +26,7 @@ class SafetyAssistHelperWidget extends StatelessWidget {
                 ),
                 Expanded(
                   child: Text(
-                    'Safety Assist',
+                    'safety_assist'.tr(),
                     style: Theme.of(context).textTheme.titleLarge?.copyWith(
                           fontWeight: FontWeight.bold,
                           color: textColor,
@@ -52,33 +52,33 @@ class SafetyAssistHelperWidget extends StatelessWidget {
               fit: BoxFit.contain,
             ),
             const SizedBox(height: 16),
-            // Paragraph 1 with added padding and left text alignment
+            // Paragraph 1
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 8.0),
               child: Text(
-                'AccessAbility prioritizes your safety and peace of mind by offering a feature that allows you to designate safety contacts within the app. These contacts can be trusted family members, friends, or caregivers who will be notified in case of an emergency. The app allows you to easily add, update, or remove safety contacts, ensuring that the people who matter most to you are always informed and ready to assist when needed.',
+                'safety_assist_description_1'.tr(),
                 style: TextStyle(fontSize: 16, color: textColor),
-                textAlign: TextAlign.left,
+                textAlign: TextAlign.justify,
               ),
             ),
             const SizedBox(height: 16),
-            // Paragraph 2 with added padding and left text alignment
+            // Paragraph 2
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 8.0),
               child: Text(
-                'In the event of an emergency, you can quickly activate the SOS feature, which sends an instant alert to all your designated safety contacts. This alert includes your real-time location and any other critical information that can help your contacts respond quickly. By keeping your safety contacts updated, you ensure that help is just a few taps away, no matter where you are.',
+                'safety_assist_description_2'.tr(),
                 style: TextStyle(fontSize: 16, color: textColor),
-                textAlign: TextAlign.left,
+                textAlign: TextAlign.justify,
               ),
             ),
             const SizedBox(height: 16),
-            // Paragraph 3 with added padding and left text alignment
+            // Paragraph 3
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 8.0),
               child: Text(
-                'The SOS feature offers peace of mind by ensuring that everyone under your safety contact list receives the alert when activated. This means that in case of an emergency, all your contacts are informed simultaneously, allowing for a coordinated response. With AccessAbility, your safety is always a priority, and the app helps you stay connected to those who can provide support in critical moments.',
+                'safety_assist_description_3'.tr(),
                 style: TextStyle(fontSize: 16, color: textColor),
-                textAlign: TextAlign.left,
+                textAlign: TextAlign.justify,
               ),
             ),
           ],

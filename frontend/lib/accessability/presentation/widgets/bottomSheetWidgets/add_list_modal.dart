@@ -3,6 +3,7 @@ import 'package:AccessAbility/accessability/logic/bloc/place/bloc/place_bloc.dar
 import 'package:AccessAbility/accessability/logic/bloc/place/bloc/place_state.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:easy_localization/easy_localization.dart';
 
 class AddListModal extends StatefulWidget {
   const AddListModal({super.key});
@@ -55,7 +56,7 @@ class _AddListModalState extends State<AddListModal> {
                   const SizedBox(height: 16),
                   Center(
                     child: Text(
-                      "Create New List",
+                      "create_new_list".tr(),
                       style: TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.bold,
@@ -67,7 +68,7 @@ class _AddListModalState extends State<AddListModal> {
                   // Category Dropdown.
                   DropdownButtonFormField<String>(
                     decoration: InputDecoration(
-                      labelText: "Select Category",
+                      labelText: "select_category".tr(),
                       labelStyle: TextStyle(color: primaryColor),
                       enabledBorder: OutlineInputBorder(
                         borderSide: BorderSide(color: primaryColor),
@@ -84,17 +85,17 @@ class _AddListModalState extends State<AddListModal> {
                         selectedCategory = value;
                       });
                     },
-                    items: <String>["Favorites", "Want to go", "Visited"]
+                    items: <String>["favorites", "want_to_go", "visited"]
                         .map((category) => DropdownMenuItem(
                               value: category,
-                              child: Text(category),
+                              child: Text(category.tr()),
                             ))
                         .toList(),
                   ),
                   const SizedBox(height: 24),
                   // Section title.
                   Text(
-                    "Select Places",
+                    "select_places".tr(),
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.w600,
@@ -173,17 +174,16 @@ class _AddListModalState extends State<AddListModal> {
                         });
                       } else {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text(
-                                "Please select a category and at least one place."),
+                          SnackBar(
+                            content: Text("select_category_and_place".tr()),
                           ),
                         );
                       }
                     },
-                    child: const Text(
-                      "Create List",
-                      style:
-                          TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                    child: Text(
+                      "create_list".tr(),
+                      style: const TextStyle(
+                          fontSize: 16, fontWeight: FontWeight.bold),
                     ),
                   ),
                 ],

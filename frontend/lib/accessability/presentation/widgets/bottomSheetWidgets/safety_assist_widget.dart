@@ -7,6 +7,7 @@ import 'package:AccessAbility/accessability/logic/bloc/emergency/bloc/emergency_
 import 'package:AccessAbility/accessability/logic/bloc/emergency/bloc/emergency_state.dart';
 import 'package:provider/provider.dart';
 import 'package:AccessAbility/accessability/themes/theme_provider.dart';
+import 'package:easy_localization/easy_localization.dart';
 
 class SafetyAssistWidget extends StatefulWidget {
   final String uid;
@@ -41,25 +42,25 @@ class _SafetyAssistWidgetState extends State<SafetyAssistWidget> {
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: const Text("Add Emergency Contact"),
+          title: Text("add_emergency_contact".tr()),
           content: SingleChildScrollView(
             child: Column(
               children: [
                 TextField(
                   controller: nameController,
-                  decoration: const InputDecoration(labelText: "Name"),
+                  decoration: InputDecoration(labelText: "name".tr()),
                 ),
                 TextField(
                   controller: locationController,
-                  decoration: const InputDecoration(labelText: "Location"),
+                  decoration: InputDecoration(labelText: "location".tr()),
                 ),
                 TextField(
                   controller: arrivalController,
-                  decoration: const InputDecoration(labelText: "Arrival"),
+                  decoration: InputDecoration(labelText: "arrival".tr()),
                 ),
                 TextField(
                   controller: updateController,
-                  decoration: const InputDecoration(labelText: "Update"),
+                  decoration: InputDecoration(labelText: "update".tr()),
                 ),
               ],
             ),
@@ -69,7 +70,7 @@ class _SafetyAssistWidgetState extends State<SafetyAssistWidget> {
               onPressed: () {
                 Navigator.of(context).pop();
               },
-              child: const Text("Cancel"),
+              child: Text("cancel".tr()),
             ),
             ElevatedButton(
               onPressed: () {
@@ -84,7 +85,7 @@ class _SafetyAssistWidgetState extends State<SafetyAssistWidget> {
                 );
                 Navigator.of(context).pop();
               },
-              child: const Text("Add"),
+              child: Text("add".tr()),
             ),
           ],
         );
@@ -130,7 +131,7 @@ class _SafetyAssistWidgetState extends State<SafetyAssistWidget> {
                           _showHelper = false;
                         });
                         _draggableController.animateTo(
-                          0.8, // Collapse back to 50% of the screen.
+                          0.8, // Collapse back to 80% of the screen.
                           duration: const Duration(milliseconds: 300),
                           curve: Curves.easeInOut,
                         );
@@ -150,7 +151,7 @@ class _SafetyAssistWidgetState extends State<SafetyAssistWidget> {
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
                             Text(
-                              "Safety Assist",
+                              "safety_assist".tr(),
                               style: TextStyle(
                                 fontSize: 18,
                                 fontWeight: FontWeight.w900,
@@ -195,7 +196,7 @@ class _SafetyAssistWidgetState extends State<SafetyAssistWidget> {
                                 ),
                                 const SizedBox(width: 15),
                                 Text(
-                                  "Add Emergency Contact",
+                                  "add_emergency_contact".tr(),
                                   style: TextStyle(
                                     color: isDarkMode
                                         ? Colors.white
@@ -219,7 +220,7 @@ class _SafetyAssistWidgetState extends State<SafetyAssistWidget> {
                                 return Padding(
                                   padding: const EdgeInsets.only(top: 10),
                                   child: Text(
-                                    "No emergency contacts added yet.",
+                                    "no_emergency_contacts".tr(),
                                     style: TextStyle(
                                       color: isDarkMode
                                           ? Colors.white

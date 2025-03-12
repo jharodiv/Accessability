@@ -692,7 +692,7 @@ class _BottomWidgetsState extends State<BottomWidgets> {
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
                                   SizedBox(
-                                    width: 150,
+                                    width: 160,
                                     child: ElevatedButton(
                                       onPressed: () {
                                         setState(() {
@@ -714,7 +714,7 @@ class _BottomWidgetsState extends State<BottomWidgets> {
                                   ),
                                   const SizedBox(width: 10),
                                   SizedBox(
-                                    width: 150,
+                                    width: 160,
                                     child: ElevatedButton(
                                       onPressed: () {
                                         setState(() {

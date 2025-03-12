@@ -6,6 +6,7 @@ import 'package:AccessAbility/accessability/logic/bloc/place/bloc/place_state.da
 import 'package:AccessAbility/accessability/firebaseServices/models/place.dart';
 import 'package:provider/provider.dart';
 import 'package:AccessAbility/accessability/themes/theme_provider.dart';
+import 'package:easy_localization/easy_localization.dart';
 import 'add_list_modal.dart'; // Import the modal widget
 
 class FavoriteWidget extends StatefulWidget {
@@ -21,28 +22,29 @@ class FavoriteWidget extends StatefulWidget {
 }
 
 class _FavoriteWidgetState extends State<FavoriteWidget> {
+  // Using localization keys for the default list categories.
   final List<Map<String, dynamic>> lists = [
     {
       "icon": Icons.favorite_border,
-      "title": "Favorites",
+      "title": "favorites", // key in translation files
       "expanded": false,
     },
     {
       "icon": Icons.outlined_flag,
-      "title": "Want to go",
+      "title": "want_to_go", // key in translation files
       "expanded": false,
     },
     {
       "icon": Icons.navigation_outlined,
-      "title": "Visited",
+      "title": "visited", // key in translation files
       "expanded": false,
     },
   ];
 
-  void _expandCategory(String categoryName) {
+  void _expandCategory(String categoryKey) {
     setState(() {
       for (int i = 0; i < lists.length; i++) {
-        lists[i]['expanded'] = (lists[i]['title'] == categoryName);
+        lists[i]['expanded'] = (lists[i]['title'] == categoryKey);
       }
     });
   }
@@ -161,18 +163,18 @@ class _FavoriteWidgetState extends State<FavoriteWidget> {
                         elevation: 0,
                         padding: const EdgeInsets.symmetric(vertical: 12),
                       ),
-                      child: const Center(child: Text("+ New List")),
+                      child: Center(child: Text("new_list".tr())),
                     ),
                   ),
-                  const Row(
+                  Row(
                     mainAxisAlignment: MainAxisAlignment.start,
                     children: [
                       Padding(
-                        padding:
-                            EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 8),
                         child: Text(
-                          "Your lists",
-                          style: TextStyle(
+                          "your_lists".tr(),
+                          style: const TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
                           ),
@@ -181,13 +183,13 @@ class _FavoriteWidgetState extends State<FavoriteWidget> {
                     ],
                   ),
                   ...List.generate(lists.length, (index) {
-                    final categoryTitle = lists[index]['title'];
+                    final String categoryKey = lists[index]['title'];
                     return BlocBuilder<PlaceBloc, PlaceState>(
                       builder: (context, state) {
                         int count = 0;
                         if (state is PlacesLoaded) {
                           count = state.places
-                              .where((place) => place.category == categoryTitle)
+                              .where((place) => place.category == categoryKey)
                               .length;
                         }
                         return Column(
@@ -198,7 +200,7 @@ class _FavoriteWidgetState extends State<FavoriteWidget> {
                                 color: const Color(0xFF6750A4),
                               ),
                               title: Text(
-                                categoryTitle,
+                                categoryKey.tr(),
                                 style: TextStyle(
                                   fontWeight: FontWeight.bold,
                                   color:
@@ -206,7 +208,7 @@ class _FavoriteWidgetState extends State<FavoriteWidget> {
                                 ),
                               ),
                               subtitle: Text(
-                                "Private · $count places",
+                                "private_places".tr(args: [count.toString()]),
                                 style: TextStyle(
                                   color:
                                       isDarkMode ? Colors.white : Colors.grey,
@@ -228,7 +230,7 @@ class _FavoriteWidgetState extends State<FavoriteWidget> {
                               Column(
                                 children: state.places
                                     .where((place) =>
-                                        place.category == categoryTitle)
+                                        place.category == categoryKey)
                                     .map((Place place) {
                                   return ListTile(
                                     title: Text(
@@ -263,13 +265,13 @@ class _FavoriteWidgetState extends State<FavoriteWidget> {
                                       },
                                       itemBuilder: (BuildContext context) =>
                                           <PopupMenuEntry<String>>[
-                                        const PopupMenuItem<String>(
+                                        PopupMenuItem<String>(
                                           value: 'show',
-                                          child: Text('Show on Map'),
+                                          child: Text("show_on_map".tr()),
                                         ),
-                                        const PopupMenuItem<String>(
+                                        PopupMenuItem<String>(
                                           value: 'delete',
-                                          child: Text('Delete'),
+                                          child: Text("delete".tr()),
                                         ),
                                       ],
                                     ),

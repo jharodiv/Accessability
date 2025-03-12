@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:easy_localization/easy_localization.dart';
 
 class JoinSpaceWidget extends StatelessWidget {
   final List<TextEditingController> verificationCodeControllers;
@@ -16,6 +17,11 @@ class JoinSpaceWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Common shape for both buttons.
+    final shape = RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(8),
+    );
+
     return Padding(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -23,23 +29,23 @@ class JoinSpaceWidget extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           // Header
-          const Text(
-            'Enter the Invite Code',
-            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+          Text(
+            'enter_invite_code'.tr(),
+            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 8),
           // Subheading
-          const Text(
-            'Get the code from the person setting up your Space',
-            style: TextStyle(fontSize: 14, color: Colors.grey),
+          Text(
+            'invite_code_subheading'.tr(),
+            style: const TextStyle(fontSize: 14, color: Colors.grey),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 24),
           // Code Input Fields
           LayoutBuilder(
             builder: (context, constraints) {
-              // Calculate the width of each TextField dynamically
+              // Calculate the width of each TextField dynamically.
               final textFieldWidth = constraints.maxWidth * 0.12;
               return Row(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -95,12 +101,13 @@ class JoinSpaceWidget extends StatelessWidget {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF6750A4),
                     padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: shape,
                   ),
-                  child: const FittedBox(
+                  child: FittedBox(
                     fit: BoxFit.scaleDown,
                     child: Text(
-                      'Submit',
-                      style: TextStyle(color: Colors.white),
+                      'submit'.tr(),
+                      style: const TextStyle(color: Colors.white),
                     ),
                   ),
                 ),
@@ -112,12 +119,13 @@ class JoinSpaceWidget extends StatelessWidget {
                   style: OutlinedButton.styleFrom(
                     side: const BorderSide(color: Color(0xFF6750A4)),
                     padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: shape,
                   ),
-                  child: const FittedBox(
+                  child: FittedBox(
                     fit: BoxFit.scaleDown,
                     child: Text(
-                      'Back',
-                      style: TextStyle(color: Color(0xFF6750A4)),
+                      'back'.tr(),
+                      style: const TextStyle(color: Color(0xFF6750A4)),
                     ),
                   ),
                 ),

@@ -6,6 +6,7 @@ import 'package:AccessAbility/accessability/firebaseServices/place/geocoding_ser
 import 'package:AccessAbility/accessability/presentation/screens/gpsscreen/location_handler.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:easy_localization/easy_localization.dart';
 
 class SOSScreen extends StatefulWidget {
   const SOSScreen({super.key});
@@ -76,56 +77,58 @@ class _SOSScreenState extends State<SOSScreen> {
     });
   }
 
- Future<void> _sendSOSLocation() async {
-  try {
-    final user = _auth.currentUser;
-    if (user == null) return;
+  Future<void> _sendSOSLocation() async {
+    try {
+      final user = _auth.currentUser;
+      if (user == null) return;
 
-    // Fetch the user's current location using the LocationHandler.
-    final currentLocation = await _locationHandler.getUserLocationOnce();
-    if (currentLocation == null) {
+      // Fetch the user's current location using the LocationHandler.
+      final currentLocation = await _locationHandler.getUserLocationOnce();
+      if (currentLocation == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('unable_to_fetch_location'.tr())),
+        );
+        return;
+      }
+
+      // Fetch the address using GeocodingService.
+      final String address =
+          await _geocodingService.getAddressFromLatLng(currentLocation);
+
+      // Create an alarming SOS message using localization with interpolation.
+      final String sosMessage = tr("sos_alert_message", namedArgs: {
+        "displayName": user.displayName ?? "A user",
+        "address": address,
+        "latitude": currentLocation.latitude.toString(),
+        "longitude": currentLocation.longitude.toString(),
+      });
+
+      // Fetch all space chat rooms the user is part of.
+      final userSpaces = await _firestore
+          .collection('Spaces')
+          .where('members', arrayContains: user.uid)
+          .get();
+
+      // Send the SOS message to all space chat rooms.
+      for (final space in userSpaces.docs) {
+        final spaceId = space.id;
+        await _chatService.sendMessage(
+          spaceId,
+          sosMessage,
+          isSpaceChat: true,
+        );
+      }
+
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Unable to fetch current location')),
+        SnackBar(content: Text('sos_alert_sent'.tr())),
       );
-      return;
-    }
-
-    // Fetch the address using GeocodingService.
-    final String address = await _geocodingService.getAddressFromLatLng(currentLocation);
-
-    // Create an alarming SOS message.
-    final String sosMessage =
-        '🚨 **SOS Alert** 🚨\n'
-        '${user.displayName ?? "A user"} needs immediate assistance at this location:\n'
-        '📍 $address\n'
-        'https://www.google.com/maps?q=${currentLocation.latitude},${currentLocation.longitude}\n'
-        '**Please call paramedics or emergency services immediately!**';
-
-    // Fetch all space chat rooms the user is part of.
-    final userSpaces = await _firestore
-        .collection('Spaces')
-        .where('members', arrayContains: user.uid)
-        .get();
-
-    // Send the SOS message to all space chat rooms.
-    for (final space in userSpaces.docs) {
-      final spaceId = space.id;
-      await _chatService.sendMessage(
-        spaceId,
-        sosMessage,
-        isSpaceChat: true,
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+            content: Text('failed_to_send_sos_alert'.tr(args: [e.toString()]))),
       );
     }
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('SOS alert sent to all space chat rooms!')),
-    );
-  } catch (e) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Failed to send SOS alert: $e')),
-    );
   }
-}
 
   @override
   void dispose() {
@@ -149,9 +152,10 @@ class _SOSScreenState extends State<SOSScreen> {
           icon: const Icon(Icons.close, color: Colors.black),
           onPressed: () => Navigator.pop(context),
         ),
-        title: const Text(
-          'SOS',
-          style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+        title: Text(
+          'sos'.tr(),
+          style:
+              const TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
         ),
         centerTitle: true,
       ),
@@ -170,7 +174,6 @@ class _SOSScreenState extends State<SOSScreen> {
                         : _initialScreen(),
               ),
             ),
-            // Add some space at the bottom
             const SizedBox(height: 50),
           ],
         ),
@@ -204,23 +207,23 @@ class _SOSScreenState extends State<SOSScreen> {
                   onTap: _startCountdown,
                   borderRadius: BorderRadius.circular(80),
                   splashColor: const Color(0xFF6750A4),
-                  child: const CircleAvatar(
-                    radius: 80,
-                    backgroundColor: Color(0xFF6750A4),
+                  child: CircleAvatar(
+                    radius: 90,
+                    backgroundColor: const Color(0xFF6750A4),
                     child: Text.rich(
                       TextSpan(
                         children: [
                           TextSpan(
-                            text: 'Tap to \nsend SOS\n',
-                            style: TextStyle(
+                            text: tr('tap_to_send_sos') + "\n",
+                            style: const TextStyle(
                               color: Colors.white,
                               fontWeight: FontWeight.bold,
                               fontSize: 18,
                             ),
                           ),
                           TextSpan(
-                            text: '(press and hold)',
-                            style: TextStyle(
+                            text: tr('press_and_hold'),
+                            style: const TextStyle(
                               color: Colors.white70,
                               fontSize: 14,
                             ),
@@ -235,11 +238,12 @@ class _SOSScreenState extends State<SOSScreen> {
             ),
           ),
           const SizedBox(height: 100),
-          const Text('Your SOS will be sent to all space chat rooms',
-              style: TextStyle(
-                  fontSize: 16,
-                  color: Colors.black,
-                  fontWeight: FontWeight.w500)),
+          Text(
+            'sos_sent_info'.tr(),
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+                fontSize: 16, color: Colors.black, fontWeight: FontWeight.w500),
+          ),
         ],
       ),
     );
@@ -247,50 +251,48 @@ class _SOSScreenState extends State<SOSScreen> {
 
   Widget _countdownScreen() {
     return Column(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween, // Space between items
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        // Top text
-        const Padding(
-          padding: EdgeInsets.only(top: 40), // Add padding at the top
+        Padding(
+          padding: const EdgeInsets.only(top: 40),
           child: Text(
-            'Slide to cancel',
-            style: TextStyle(
-              fontWeight: FontWeight.bold, // Make it bold
-              color: Colors.white, // Set text color to white
-              fontSize: 22, // Adjust font size as needed
+            'slide_to_cancel'.tr(),
+            style: const TextStyle(
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+              fontSize: 22,
             ),
           ),
         ),
-        const SizedBox(height: 8), // Space between texts
-        const Padding(
-          padding: EdgeInsets.symmetric(horizontal: 16),
+        const SizedBox(height: 8),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
           child: Text(
-            'After 10 seconds, your SOS and location will be sent to all your space chat rooms',
-            style: TextStyle(
-              fontWeight: FontWeight.w400, // Set font weight to 400
-              color: Colors.white, // Set text color to white
-              fontSize: 14, // Adjust font size as needed
+            'sos_countdown_info'.tr(),
+            style: const TextStyle(
+              fontWeight: FontWeight.w400,
+              color: Colors.white,
+              fontSize: 14,
             ),
-            textAlign: TextAlign.center, // Center align the text
+            textAlign: TextAlign.center,
           ),
         ),
-        // Centered countdown
         Expanded(
           child: Center(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 CircleAvatar(
-                  radius: 100, // Increase the radius for a larger circle
+                  radius: 100,
                   backgroundColor: Colors.red,
                   child: _countdown > 0
                       ? Text(
                           '$_countdown',
-                          style: const TextStyle(fontSize: 40, color: Colors.white),
+                          style: const TextStyle(
+                              fontSize: 40, color: Colors.white),
                         )
                       : const Icon(
-                          Icons
-                              .warning, // Danger icon when countdown reaches zero
+                          Icons.warning,
                           size: 40,
                           color: Colors.white,
                         ),
@@ -300,10 +302,8 @@ class _SOSScreenState extends State<SOSScreen> {
             ),
           ),
         ),
-        // The cancel button at the bottom
         Padding(
-          padding:
-              const EdgeInsets.only(bottom: 20), // Add some padding if needed
+          padding: const EdgeInsets.only(bottom: 20),
           child: _cancelButton(),
         ),
       ],
@@ -312,34 +312,32 @@ class _SOSScreenState extends State<SOSScreen> {
 
   Widget _activatedScreen() {
     return Column(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween, // Space between items
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        // Top text
-        const Padding(
-          padding: EdgeInsets.only(top: 50), // Add padding at the top
+        Padding(
+          padding: const EdgeInsets.only(top: 50),
           child: Text(
-            'SOS Activated!',
-            style: TextStyle(
-              fontWeight: FontWeight.bold, // Make it bold
-              color: Colors.white, // Set text color to white
-              fontSize: 22, // Adjust font size as needed
+            'sos_activated'.tr(),
+            style: const TextStyle(
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+              fontSize: 22,
             ),
           ),
         ),
-        const SizedBox(height: 8), // Space between texts
-        const Padding(
-          padding: EdgeInsets.symmetric(horizontal: 16),
+        const SizedBox(height: 8),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
           child: Text(
-            'Your SOS and location have been sent to all your space chat rooms.',
-            style: TextStyle(
-              fontWeight: FontWeight.w400, // Set font weight to 400
-              color: Colors.white, // Set text color to white
-              fontSize: 14, // Adjust font size as needed
+            'sos_activated_info'.tr(),
+            style: const TextStyle(
+              fontWeight: FontWeight.w400,
+              color: Colors.white,
+              fontSize: 14,
             ),
-            textAlign: TextAlign.center, // Center align the text
+            textAlign: TextAlign.center,
           ),
         ),
-        // Centered SOS Activated message
         const Expanded(
           child: Center(
             child: Column(
@@ -354,10 +352,8 @@ class _SOSScreenState extends State<SOSScreen> {
             ),
           ),
         ),
-        // The cancel button at the bottom
         Padding(
-          padding:
-              const EdgeInsets.only(bottom: 20), // Add some padding if needed
+          padding: const EdgeInsets.only(bottom: 20),
           child: _cancelButton(),
         ),
       ],
@@ -366,7 +362,7 @@ class _SOSScreenState extends State<SOSScreen> {
 
   Widget _cancelButton() {
     return SizedBox(
-      width: 300, // Set a reasonable width for the button
+      width: 300,
       child: Slidable(
         key: const ValueKey(0),
         endActionPane: ActionPane(
@@ -378,7 +374,7 @@ class _SOSScreenState extends State<SOSScreen> {
               backgroundColor: Colors.red,
               foregroundColor: Colors.white,
               icon: Icons.cancel,
-              label: 'Cancel SOS',
+              label: tr('cancel_sos'),
             ),
           ],
         ),
@@ -391,9 +387,9 @@ class _SOSScreenState extends State<SOSScreen> {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
-                'Slide to cancel',
-                style: TextStyle(
+              Text(
+                'slide_to_cancel'.tr(),
+                style: const TextStyle(
                   color: Colors.white,
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
@@ -404,7 +400,7 @@ class _SOSScreenState extends State<SOSScreen> {
                 width: 32,
                 height: 32,
                 decoration: const BoxDecoration(
-                  color: Colors.red, // Arrow background changes to red
+                  color: Colors.red,
                   shape: BoxShape.circle,
                 ),
                 child: const Center(
@@ -421,4 +417,3 @@ class _SOSScreenState extends State<SOSScreen> {
     );
   }
 }
-

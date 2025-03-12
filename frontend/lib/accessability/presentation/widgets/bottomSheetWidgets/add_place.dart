@@ -5,6 +5,7 @@ import 'package:AccessAbility/accessability/presentation/widgets/shimmer/shimmer
 import 'package:AccessAbility/accessability/firebaseServices/models/place.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:easy_localization/easy_localization.dart';
 
 class AddPlaceWidget extends StatefulWidget {
   // Optional callback for showing the place on the map.
@@ -49,9 +50,9 @@ class _AddPlaceWidgetState extends State<AddPlaceWidget> {
             backgroundColor: Color(0xFF6750A4),
             child: Icon(Icons.add, color: Colors.white),
           ),
-          title: const Text(
-            "Add a new Place",
-            style: TextStyle(
+          title: Text(
+            'addNewPlace'.tr(),
+            style: const TextStyle(
               color: Color(0xFF6750A4),
               fontWeight: FontWeight.bold,
               fontSize: 16.0,
@@ -71,9 +72,9 @@ class _AddPlaceWidgetState extends State<AddPlaceWidget> {
               } else if (state is PlacesLoaded) {
                 final List<Place> places = state.places;
                 if (places.isEmpty) {
-                  return const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 30),
-                    child: Center(child: Text("No places found.")),
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 30),
+                    child: Center(child: Text('noPlacesFound'.tr())),
                   );
                 }
                 return ListView.builder(
@@ -130,7 +131,11 @@ class _AddPlaceWidgetState extends State<AddPlaceWidget> {
                   },
                 );
               } else if (state is PlaceOperationError) {
-                return Center(child: Text("Error: ${state.message}"));
+                return Center(
+                  child: Text(
+                    "errorMessage".tr(args: [state.message]),
+                  ),
+                );
               } else {
                 // For states like PlaceInitial or any unhandled states.
                 return const SizedBox.shrink();

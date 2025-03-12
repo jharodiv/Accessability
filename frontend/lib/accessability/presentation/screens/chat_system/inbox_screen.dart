@@ -6,6 +6,7 @@ import 'package:AccessAbility/accessability/presentation/widgets/chatWidgets/cha
 import 'package:AccessAbility/accessability/presentation/widgets/chatWidgets/chat_users_tile.dart';
 import 'package:provider/provider.dart';
 import 'package:AccessAbility/accessability/themes/theme_provider.dart';
+import 'package:easy_localization/easy_localization.dart';
 
 class InboxScreen extends StatefulWidget {
   const InboxScreen({super.key});
@@ -34,7 +35,7 @@ class _InboxScreenState extends State<InboxScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Inbox'),
+        title: Text('inbox'.tr()),
         backgroundColor: isDarkMode ? Colors.grey[900] : Colors.white,
         elevation: 0,
       ),
@@ -51,7 +52,7 @@ class _InboxScreenState extends State<InboxScreen> {
               stream: chatService.getPendingChatRequests(),
               builder: (context, snapshot) {
                 if (snapshot.hasError) {
-                  return const Text('Error loading chat requests');
+                  return Text('error_loading_chat_requests'.tr());
                 }
 
                 if (snapshot.connectionState == ConnectionState.waiting) {
@@ -72,9 +73,9 @@ class _InboxScreenState extends State<InboxScreen> {
                       padding: const EdgeInsets.symmetric(horizontal: 16.0),
                       child: Row(
                         children: [
-                          const Text(
-                            'Message Requests',
-                            style: TextStyle(
+                          Text(
+                            'message_requests'.tr(),
+                            style: const TextStyle(
                               fontWeight: FontWeight.bold,
                               fontSize: 16,
                             ),
@@ -110,16 +111,16 @@ class _InboxScreenState extends State<InboxScreen> {
                           builder: (context, userSnapshot) {
                             if (userSnapshot.connectionState ==
                                 ConnectionState.waiting) {
-                              return const ListTile(
-                                title: Text('Loading...'),
+                              return ListTile(
+                                title: Text('loading'.tr()),
                               );
                             }
 
-                            final userData =
-                                userSnapshot.data!.data() as Map<String, dynamic>;
+                            final userData = userSnapshot.data!.data()
+                                as Map<String, dynamic>;
                             final senderUsername = userData['username'];
-                            final profilePicture =
-                                userData['profilePicture'] ?? 'https://via.placeholder.com/150';
+                            final profilePicture = userData['profilePicture'] ??
+                                'https://via.placeholder.com/150';
 
                             return ListTile(
                               leading: CircleAvatar(
@@ -131,15 +132,19 @@ class _InboxScreenState extends State<InboxScreen> {
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
                                   IconButton(
-                                    icon: const Icon(Icons.check, color: Colors.green),
+                                    icon: const Icon(Icons.check,
+                                        color: Colors.green),
                                     onPressed: () async {
-                                      await chatService.acceptChatRequest(doc.id);
+                                      await chatService
+                                          .acceptChatRequest(doc.id);
                                     },
                                   ),
                                   IconButton(
-                                    icon: const Icon(Icons.close, color: Colors.red),
+                                    icon: const Icon(Icons.close,
+                                        color: Colors.red),
                                     onPressed: () async {
-                                      await chatService.rejectChatRequest(doc.id);
+                                      await chatService
+                                          .rejectChatRequest(doc.id);
                                     },
                                   ),
                                 ],

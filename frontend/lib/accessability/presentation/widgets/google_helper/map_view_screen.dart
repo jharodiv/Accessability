@@ -3,6 +3,7 @@ import 'package:AccessAbility/accessability/themes/theme_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:provider/provider.dart';
+import 'package:easy_localization/easy_localization.dart';
 
 enum MapPerspective {
   classic,
@@ -31,13 +32,13 @@ class _MapViewScreenState extends State<MapViewScreen> {
   LatLng _currentLocation = const LatLng(16.0430, 120.3333);
   bool _isLocationFetched = false;
 
-  // Using the same logic as in gps.dart
+  // Using the same logic as in gps.dart.
   late LocationHandler _locationHandler;
 
   @override
   void initState() {
     super.initState();
-    // Set the initial perspective (or default to classic)
+    // Set the initial perspective (or default to classic).
     _selectedPerspective = widget.initialPerspective ?? MapPerspective.classic;
 
     _locationHandler = LocationHandler(
@@ -188,9 +189,9 @@ class _MapViewScreenState extends State<MapViewScreen> {
                 icon: const Icon(Icons.arrow_back),
                 color: const Color(0xFF6750A4),
               ),
-              title: const Text(
-                'Map Settings',
-                style: TextStyle(fontWeight: FontWeight.bold),
+              title: Text(
+                'map_settings'.tr(),
+                style: const TextStyle(fontWeight: FontWeight.bold),
               ),
               centerTitle: true,
               backgroundColor: Colors.transparent,
@@ -226,9 +227,10 @@ class _MapViewScreenState extends State<MapViewScreen> {
                     ),
                   ),
                   const SizedBox(height: 16),
-                  const Text(
-                    "Choose a Perspective",
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  Text(
+                    "choose_a_perspective".tr(),
+                    style: const TextStyle(
+                        fontSize: 18, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 8),
                   Wrap(
@@ -244,7 +246,7 @@ class _MapViewScreenState extends State<MapViewScreen> {
                                   ? const Color(0xFF6750A4)
                                   : const Color.fromARGB(255, 211, 198, 248),
                         ),
-                        child: const Text("Classic View"),
+                        child: Text("classic_view".tr()),
                       ),
                       ElevatedButton(
                         onPressed: _setAerialView,
@@ -254,7 +256,7 @@ class _MapViewScreenState extends State<MapViewScreen> {
                                   ? const Color(0xFF6750A4)
                                   : const Color.fromARGB(255, 211, 198, 248),
                         ),
-                        child: const Text("Aerial View"),
+                        child: Text("aerial_view".tr()),
                       ),
                       ElevatedButton(
                         onPressed: _setTerrainView,
@@ -264,7 +266,7 @@ class _MapViewScreenState extends State<MapViewScreen> {
                                   ? const Color(0xFF6750A4)
                                   : const Color.fromARGB(255, 211, 198, 248),
                         ),
-                        child: const Text("Terrain View"),
+                        child: Text("terrain_view".tr()),
                       ),
                       ElevatedButton(
                         onPressed: _setStreetLevelView,
@@ -274,7 +276,7 @@ class _MapViewScreenState extends State<MapViewScreen> {
                                   ? const Color(0xFF6750A4)
                                   : const Color.fromARGB(255, 211, 198, 248),
                         ),
-                        child: const Text("Street Level"),
+                        child: Text("street_level".tr()),
                       ),
                       ElevatedButton(
                         onPressed: _set3DView,
@@ -284,7 +286,7 @@ class _MapViewScreenState extends State<MapViewScreen> {
                                   ? const Color(0xFF6750A4)
                                   : const Color.fromARGB(255, 211, 198, 248),
                         ),
-                        child: const Text("3D Perspective"),
+                        child: Text("three_d_perspective".tr()),
                       ),
                     ],
                   ),
@@ -305,7 +307,7 @@ class _MapViewScreenState extends State<MapViewScreen> {
               backgroundColor: const Color(0xFF6750A4),
               padding: const EdgeInsets.symmetric(vertical: 15),
             ),
-            child: const Text("Save", style: TextStyle(fontSize: 16)),
+            child: Text("save".tr(), style: const TextStyle(fontSize: 16)),
           ),
         ),
       ),

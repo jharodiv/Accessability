@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 import 'package:AccessAbility/accessability/firebaseServices/place/geocoding_service.dart';
+import 'package:easy_localization/easy_localization.dart';
 
 class SearchBarWithAutocomplete extends StatefulWidget {
   final Function(String) onSearch;
@@ -8,7 +9,8 @@ class SearchBarWithAutocomplete extends StatefulWidget {
   const SearchBarWithAutocomplete({super.key, required this.onSearch});
 
   @override
-  _SearchBarWithAutocompleteState createState() => _SearchBarWithAutocompleteState();
+  _SearchBarWithAutocompleteState createState() =>
+      _SearchBarWithAutocompleteState();
 }
 
 class _SearchBarWithAutocompleteState extends State<SearchBarWithAutocomplete> {
@@ -31,7 +33,7 @@ class _SearchBarWithAutocompleteState extends State<SearchBarWithAutocomplete> {
       setState(() {});
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Speech recognition not available')),
+        SnackBar(content: Text('speechNotAvailable'.tr())),
       );
     }
   }
@@ -39,7 +41,8 @@ class _SearchBarWithAutocompleteState extends State<SearchBarWithAutocomplete> {
   void _onSearchChanged(String query) async {
     if (query.isNotEmpty) {
       try {
-        final suggestions = await _geocodingService.getAutocompleteSuggestions(query);
+        final suggestions =
+            await _geocodingService.getAutocompleteSuggestions(query);
         setState(() {
           _suggestions = suggestions;
         });
@@ -94,7 +97,7 @@ class _SearchBarWithAutocompleteState extends State<SearchBarWithAutocomplete> {
         );
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Speech recognition not available')),
+          SnackBar(content: Text('speechNotAvailable'.tr())),
         );
       }
     }
@@ -139,8 +142,10 @@ class _SearchBarWithAutocompleteState extends State<SearchBarWithAutocomplete> {
                   controller: _searchController,
                   focusNode: _focusNode,
                   decoration: InputDecoration(
-                    hintText: "Search for a location",
-                    hintStyle: TextStyle(color: isDarkMode ? Colors.grey[400] : Colors.grey[700]),
+                    hintText: 'searchLocationHint'.tr(),
+                    hintStyle: TextStyle(
+                        color:
+                            isDarkMode ? Colors.grey[400] : Colors.grey[700]),
                     border: InputBorder.none,
                   ),
                   style: TextStyle(color: textColor),
@@ -159,7 +164,9 @@ class _SearchBarWithAutocompleteState extends State<SearchBarWithAutocomplete> {
               IconButton(
                 icon: Icon(
                   _isListening ? Icons.mic : Icons.mic_none,
-                  color: _isListening ? Colors.red : (isDarkMode ? Colors.grey[400] : Colors.grey[700]),
+                  color: _isListening
+                      ? Colors.red
+                      : (isDarkMode ? Colors.grey[400] : Colors.grey[700]),
                 ),
                 onPressed: () {
                   if (_isListening) {
@@ -196,7 +203,8 @@ class _SearchBarWithAutocompleteState extends State<SearchBarWithAutocomplete> {
                 return ListTile(
                   title: Text(
                     _suggestions[index],
-                    style: TextStyle(color: textColor), // Use theme-based text color
+                    style: TextStyle(
+                        color: textColor), // Use theme-based text color
                   ),
                   onTap: () => _onSuggestionSelected(_suggestions[index]),
                 );

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:easy_localization/easy_localization.dart';
 
 class MapContent extends StatelessWidget {
   final Function(String) onCategorySelected;
@@ -10,14 +11,15 @@ class MapContent extends StatelessWidget {
   Widget build(BuildContext context) {
     return Center(
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.center,
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Align(
+          // Header text localized (removed 'const' so .tr() works)
+          Align(
             alignment: Alignment.centerLeft,
             child: Text(
-              'Map Content',
-              style: TextStyle(
+              'mapContentHeader'.tr(),
+              style: const TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
               ),
@@ -29,12 +31,16 @@ class MapContent extends StatelessWidget {
             runSpacing: 10,
             alignment: WrapAlignment.center,
             children: [
-              _buildLegendItem(Icons.hotel, 'Hotel'),
-              _buildLegendItem(Icons.restaurant, 'Restaurant'),
-              _buildLegendItem(Icons.directions_bus, 'Bus'),
-              _buildLegendItem(Icons.shopping_bag, 'Shopping'),
-              _buildLegendItem(Icons.shopping_cart, 'Groceries'),
-              _buildLegendItem(Icons.accessible, 'PWD Services'),
+              _buildLegendItem(Icons.hotel, 'legendHotel', 'Hotel'),
+              _buildLegendItem(
+                  Icons.restaurant, 'legendRestaurant', 'Restaurant'),
+              _buildLegendItem(Icons.directions_bus, 'legendBus', 'Bus'),
+              _buildLegendItem(
+                  Icons.shopping_bag, 'legendShopping', 'Shopping'),
+              _buildLegendItem(
+                  Icons.shopping_cart, 'legendGroceries', 'Groceries'),
+              _buildLegendItem(
+                  Icons.accessible, 'legendPWDServices', 'PWD Services'),
             ],
           ),
           const SizedBox(height: 20),
@@ -43,9 +49,9 @@ class MapContent extends StatelessWidget {
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Text(
-                  'Wheel Chair Friendly Route',
-                  style: TextStyle(
+                Text(
+                  'wheelChairFriendlyRoute'.tr(),
+                  style: const TextStyle(
                     color: Colors.purple,
                     fontSize: 14,
                   ),
@@ -64,10 +70,13 @@ class MapContent extends StatelessWidget {
     );
   }
 
-  Widget _buildLegendItem(IconData icon, String label) {
+  // This method takes both a translation key and a fallback value.
+  // The displayed text is localized, but the callback receives the fallback.
+  Widget _buildLegendItem(
+      IconData icon, String translationKey, String fallback) {
     return GestureDetector(
       onTap: () {
-        onCategorySelected(label); // Trigger the callback
+        onCategorySelected(fallback); // Pass the fallback (original value)
       },
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -85,7 +94,7 @@ class MapContent extends StatelessWidget {
             ),
             const SizedBox(width: 5),
             Text(
-              label,
+              translationKey.tr(),
               style: const TextStyle(
                 color: Colors.white,
                 fontSize: 14,

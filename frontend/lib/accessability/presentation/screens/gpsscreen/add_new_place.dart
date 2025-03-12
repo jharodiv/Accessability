@@ -1,9 +1,18 @@
-import 'package:AccessAbility/accessability/logic/bloc/place/bloc/place_bloc.dart';
+import 'dart:async';
+import 'dart:math';
+
+import 'package:AccessAbility/accessability/firebaseServices/chat/chat_service.dart';
+import 'package:AccessAbility/accessability/firebaseServices/models/place.dart';
+import 'package:AccessAbility/accessability/firebaseServices/place/geocoding_service.dart';
 import 'package:AccessAbility/accessability/logic/bloc/place/bloc/place_event.dart';
 import 'package:AccessAbility/accessability/presentation/screens/gpsscreen/location_handler.dart';
-import 'package:flutter/material.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:AccessAbility/accessability/logic/bloc/place/bloc/place_bloc.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:flutter/material.dart';
+import 'package:easy_localization/easy_localization.dart';
 
 class AddNewPlaceScreen extends StatefulWidget {
   const AddNewPlaceScreen({super.key});
@@ -62,9 +71,9 @@ class _AddNewPlaceScreenState extends State<AddNewPlaceScreen> {
         elevation: 0,
         backgroundColor: Colors.white,
         foregroundColor: Colors.black,
-        title: const Text(
-          "Add a new Place",
-          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+        title: Text(
+          'addNewPlaceTitle'.tr(),
+          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
         ),
         centerTitle: false,
         leading: IconButton(
@@ -88,10 +97,10 @@ class _AddNewPlaceScreenState extends State<AddNewPlaceScreen> {
                       child: TextField(
                         controller: _placeNameController,
                         textAlignVertical: TextAlignVertical.bottom,
-                        decoration: const InputDecoration(
-                          hintText: "Name of place",
+                        decoration: InputDecoration(
+                          hintText: 'nameOfPlace'.tr(),
                           border: InputBorder.none,
-                          prefixIcon: Icon(
+                          prefixIcon: const Icon(
                             Icons.place,
                             color: Color(0xFF6750A4),
                           ),
@@ -109,13 +118,14 @@ class _AddNewPlaceScreenState extends State<AddNewPlaceScreen> {
             ),
           ),
           // Label for the map location section.
-          const Padding(
-            padding: EdgeInsets.only(left: 16.0, top: 8, bottom: 4),
+          Padding(
+            padding: const EdgeInsets.only(left: 16.0, top: 8, bottom: 4),
             child: Align(
               alignment: Alignment.centerLeft,
               child: Text(
-                "Locate on Map",
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                'locateOnMap'.tr(),
+                style:
+                    const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
             ),
           ),
@@ -182,9 +192,10 @@ class _AddNewPlaceScreenState extends State<AddNewPlaceScreen> {
                           ),
                         ),
                         onPressed: _onNextPressed,
-                        child: const Text(
-                          "Next",
-                          style: TextStyle(color: Colors.white, fontSize: 16),
+                        child: Text(
+                          'next'.tr(),
+                          style: const TextStyle(
+                              color: Colors.white, fontSize: 16),
                         ),
                       ),
                     ),
@@ -203,7 +214,7 @@ class _AddNewPlaceScreenState extends State<AddNewPlaceScreen> {
     final placeName = _placeNameController.text.trim();
     if (placeName.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Please enter a place name.")),
+        SnackBar(content: Text('enterPlaceName'.tr())),
       );
       return;
     }

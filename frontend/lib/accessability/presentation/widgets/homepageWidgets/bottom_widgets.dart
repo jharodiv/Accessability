@@ -14,6 +14,7 @@ import 'package:AccessAbility/accessability/presentation/widgets/homepageWidgets
 import 'package:AccessAbility/accessability/presentation/widgets/homepageWidgets/bottomWidgetFiles/service_buttons.dart';
 import 'package:AccessAbility/accessability/presentation/widgets/homepageWidgets/bottomWidgetFiles/verification_code_widget.dart';
 import 'package:AccessAbility/accessability/themes/theme_provider.dart';
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -568,8 +569,7 @@ class _BottomWidgetsState extends State<BottomWidgets> {
                 }
               },
               currentLocation: _locationHandler.currentLocation,
-              onMapViewPressed:
-                  widget.onMapViewPressed, // Pass the callback here
+              onMapViewPressed: widget.onMapViewPressed,
             ),
             const SizedBox(height: 10),
             Expanded(
@@ -658,13 +658,11 @@ class _BottomWidgetsState extends State<BottomWidgets> {
                           if (_activeIndex == 0 &&
                               widget.activeSpaceId.isEmpty) ...[
                             if (!_showCreateSpace && !_showJoinSpace) ...[
-                              const SizedBox(
-                                height: 10,
-                              ),
+                              const SizedBox(height: 10),
                               Align(
                                 alignment: Alignment.center,
                                 child: Text(
-                                  "My Space",
+                                  "mySpace".tr(),
                                   style: TextStyle(
                                     fontWeight: FontWeight.bold,
                                     fontSize: 20,
@@ -678,7 +676,7 @@ class _BottomWidgetsState extends State<BottomWidgets> {
                               Align(
                                 alignment: Alignment.center,
                                 child: Text(
-                                  "Create a new space or join an existing one today",
+                                  "createOrJoinSpace".tr(),
                                   style: TextStyle(
                                     fontSize: 15,
                                     fontWeight: FontWeight.w400,
@@ -707,9 +705,10 @@ class _BottomWidgetsState extends State<BottomWidgets> {
                                         padding: const EdgeInsets.symmetric(
                                             vertical: 15),
                                       ),
-                                      child: const Text(
-                                        'Create Space',
-                                        style: TextStyle(color: Colors.white),
+                                      child: Text(
+                                        'createSpace'.tr(),
+                                        style: const TextStyle(
+                                            color: Colors.white),
                                       ),
                                     ),
                                   ),
@@ -728,9 +727,10 @@ class _BottomWidgetsState extends State<BottomWidgets> {
                                         padding: const EdgeInsets.symmetric(
                                             vertical: 15),
                                       ),
-                                      child: const Text(
-                                        'Join Space',
-                                        style: TextStyle(color: Colors.white),
+                                      child: Text(
+                                        'joinSpace'.tr(),
+                                        style: const TextStyle(
+                                            color: Colors.white),
                                       ),
                                     ),
                                   ),
@@ -775,8 +775,8 @@ class _BottomWidgetsState extends State<BottomWidgets> {
                               _activeIndex == 0 &&
                               widget.activeSpaceId.isNotEmpty)
                             VerificationCodeWidget(
-                              verificationCode:
-                                  _verificationCode ?? 'ABC - DEF',
+                              verificationCode: _verificationCode ??
+                                  'defaultVerificationCode'.tr(),
                               onSendCode: _addPerson,
                             ),
                           // Business Tab: Show AddPlaceWidget.

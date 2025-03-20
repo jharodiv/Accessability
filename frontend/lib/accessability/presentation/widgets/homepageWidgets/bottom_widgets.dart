@@ -688,53 +688,56 @@ class _BottomWidgetsState extends State<BottomWidgets> {
                                 ),
                               ),
                               const SizedBox(height: 25),
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  SizedBox(
-                                    width: 160,
-                                    child: ElevatedButton(
-                                      onPressed: () {
-                                        setState(() {
-                                          _showCreateSpace = true;
-                                        });
-                                      },
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor:
-                                            const Color(0xFF6750A4),
-                                        padding: const EdgeInsets.symmetric(
-                                            vertical: 15),
-                                      ),
-                                      child: Text(
-                                        'createSpace'.tr(),
-                                        style: const TextStyle(
-                                            color: Colors.white),
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 10),
-                                  SizedBox(
-                                    width: 160,
-                                    child: ElevatedButton(
-                                      onPressed: () {
-                                        setState(() {
-                                          _showJoinSpace = true;
-                                        });
-                                      },
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor:
-                                            const Color(0xFF6750A4),
-                                        padding: const EdgeInsets.symmetric(
-                                            vertical: 15),
-                                      ),
-                                      child: Text(
-                                        'joinSpace'.tr(),
-                                        style: const TextStyle(
-                                            color: Colors.white),
+                              Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 16.0), // Add horizontal padding
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    // Create Space Button
+                                    Flexible(
+                                      child: SizedBox(
+                                        width: double.infinity,
+                                        child: ElevatedButton(
+                                          onPressed: () {
+                                            setState(() {
+                                              _showCreateSpace = true;
+                                            });
+                                          },
+                                          style: ElevatedButton.styleFrom(
+                                            backgroundColor: const Color(0xFF6750A4),
+                                            padding: const EdgeInsets.symmetric(vertical: 15),
+                                          ),
+                                          child: Text(
+                                            'createSpace'.tr(),
+                                            style: const TextStyle(color: Colors.white),
+                                          ),
+                                        ),
                                       ),
                                     ),
-                                  ),
-                                ],
+                                    const SizedBox(width: 10), // Add spacing between buttons
+                                    // Join Space Button
+                                    Flexible(
+                                      child: SizedBox(
+                                        width: double.infinity,
+                                        child: ElevatedButton(
+                                          onPressed: () {
+                                            setState(() {
+                                              _showJoinSpace = true;
+                                            });
+                                          },
+                                          style: ElevatedButton.styleFrom(
+                                            backgroundColor: const Color(0xFF6750A4),
+                                            padding: const EdgeInsets.symmetric(vertical: 15),
+                                          ),
+                                          child: Text(
+                                            'joinSpace'.tr(),
+                                            style: const TextStyle(color: Colors.white),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
                             ],
                             if (_showCreateSpace)

@@ -1,5 +1,6 @@
 import 'package:AccessAbility/accessability/firebaseServices/chat/chat_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:AccessAbility/accessability/presentation/widgets/chatWidgets/chat_users_list.dart';
@@ -65,96 +66,110 @@ class _InboxScreenState extends State<InboxScreen> {
                   return const SizedBox.shrink(); // Hide if no requests
                 }
 
-                return Column(
-                  children: [
-                    // Divider with "Message Requests" text
-                    const Divider(),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                      child: Row(
-                        children: [
-                          Text(
-                            'message_requests'.tr(),
-                            style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16,
-                            ),
-                          ),
-                          const Spacer(),
-                          Text(
-                            '${requests.length}',
-                            style: const TextStyle(
-                              color: Colors.grey,
-                              fontSize: 14,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const Divider(),
-                    // List of pending chat requests
-                    ListView.builder(
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      itemCount: requests.length,
-                      itemBuilder: (context, index) {
-                        final doc = requests[index];
-                        final data = doc.data() as Map<String, dynamic>;
-                        final senderID = data['senderID'];
-                        final message = data['message'];
+                return FutureBuilder<List<Map<String, dynamic>>>(
+                  future: _filterRequestsFromSpaceMembers(requests),
+                  builder: (context, filteredSnapshot) {
+                    if (filteredSnapshot.connectionState == ConnectionState.waiting) {
+                      return const SizedBox.shrink(); // Hide while loading
+                    }
 
-                        return FutureBuilder(
-                          future: FirebaseFirestore.instance
-                              .collection('Users')
-                              .doc(senderID)
-                              .get(),
-                          builder: (context, userSnapshot) {
-                            if (userSnapshot.connectionState ==
-                                ConnectionState.waiting) {
-                              return ListTile(
-                                title: Text('loading'.tr()),
-                              );
-                            }
+                    final filteredRequests = filteredSnapshot.data ?? [];
 
-                            final userData = userSnapshot.data!.data()
-                                as Map<String, dynamic>;
-                            final senderUsername = userData['username'];
-                            final profilePicture = userData['profilePicture'] ??
-                                'https://via.placeholder.com/150';
+                    if (filteredRequests.isEmpty) {
+                      return const SizedBox.shrink(); // Hide if no filtered requests
+                    }
 
-                            return ListTile(
-                              leading: CircleAvatar(
-                                backgroundImage: NetworkImage(profilePicture),
+                    return Column(
+                      children: [
+                        // Divider with "Message Requests" text
+                        const Divider(),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                          child: Row(
+                            children: [
+                              Text(
+                                'message_requests'.tr(),
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 16,
+                                ),
                               ),
-                              title: Text(senderUsername),
-                              subtitle: Text(message),
-                              trailing: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  IconButton(
-                                    icon: const Icon(Icons.check,
-                                        color: Colors.green),
-                                    onPressed: () async {
-                                      await chatService
-                                          .acceptChatRequest(doc.id);
-                                    },
-                                  ),
-                                  IconButton(
-                                    icon: const Icon(Icons.close,
-                                        color: Colors.red),
-                                    onPressed: () async {
-                                      await chatService
-                                          .rejectChatRequest(doc.id);
-                                    },
-                                  ),
-                                ],
+                              const Spacer(),
+                              Text(
+                                '${filteredRequests.length}',
+                                style: const TextStyle(
+                                  color: Colors.grey,
+                                  fontSize: 14,
+                                ),
                               ),
+                            ],
+                          ),
+                        ),
+                        const Divider(),
+                        // List of filtered pending chat requests
+                        ListView.builder(
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          itemCount: filteredRequests.length,
+                          itemBuilder: (context, index) {
+                            final doc = filteredRequests[index];
+                            final data = doc['data'] as Map<String, dynamic>;
+                            final senderID = data['senderID'];
+                            final message = data['message'];
+
+                            return FutureBuilder(
+                              future: FirebaseFirestore.instance
+                                  .collection('Users')
+                                  .doc(senderID)
+                                  .get(),
+                              builder: (context, userSnapshot) {
+                                if (userSnapshot.connectionState == ConnectionState.waiting) {
+                                  return ListTile(
+                                    title: Text('loading'.tr()),
+                                  );
+                                }
+
+                                final userData = userSnapshot.data!.data()
+                                    as Map<String, dynamic>;
+                                final senderUsername = userData['username'];
+                                final profilePicture = userData['profilePicture'] ??
+                                    'https://via.placeholder.com/150';
+
+                                return ListTile(
+                                  leading: CircleAvatar(
+                                    backgroundImage: NetworkImage(profilePicture),
+                                  ),
+                                  title: Text(senderUsername),
+                                  subtitle: Text(message),
+                                  trailing: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      IconButton(
+                                        icon: const Icon(Icons.check,
+                                            color: Colors.green),
+                                        onPressed: () async {
+                                          await chatService
+                                              .acceptChatRequest(doc['id']);
+                                        },
+                                      ),
+                                      IconButton(
+                                        icon: const Icon(Icons.close,
+                                            color: Colors.red),
+                                        onPressed: () async {
+                                          await chatService
+                                              .rejectChatRequest(doc['id']);
+                                        },
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              },
                             );
                           },
-                        );
-                      },
-                    ),
-                  ],
+                        ),
+                      ],
+                    );
+                  },
                 );
               },
             ),
@@ -162,5 +177,34 @@ class _InboxScreenState extends State<InboxScreen> {
         ),
       ),
     );
+  }
+
+  // Filter out chat requests from users in the same space
+  Future<List<Map<String, dynamic>>> _filterRequestsFromSpaceMembers(List<QueryDocumentSnapshot> requests) async {
+    final currentUserID = FirebaseAuth.instance.currentUser!.uid;
+
+    // Fetch all spaces the current user is in
+    final spacesSnapshot = await FirebaseFirestore.instance
+        .collection('space_chat_rooms')
+        .where('members', arrayContains: currentUserID)
+        .get();
+
+    final Set<String> spaceMemberIds = {};
+
+    // Collect all member IDs from the spaces
+    for (final spaceDoc in spacesSnapshot.docs) {
+      final members = List<String>.from(spaceDoc['members'] ?? []);
+      spaceMemberIds.addAll(members);
+    }
+
+    // Filter out requests from users in the same space
+    return requests.where((doc) {
+      final data = doc.data() as Map<String, dynamic>;
+      final senderID = data['senderID'];
+      return !spaceMemberIds.contains(senderID);
+    }).map((doc) => {
+      'id': doc.id,
+      'data': doc.data(),
+    }).toList();
   }
 }

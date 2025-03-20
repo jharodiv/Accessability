@@ -1,6 +1,15 @@
-import 'dart:convert'; // New import for JSON decoding.
-import 'package:http/http.dart' as http; // New import for HTTP requests.
-import 'package:flutter_polyline_points/flutter_polyline_points.dart'; // New import for polyline decoding.
+import 'dart:convert'; // For JSON decoding.
+import 'package:http/http.dart' as http; // For HTTP requests.
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:flutter_polyline_points/flutter_polyline_points.dart';
+import 'package:provider/provider.dart';
+import 'package:easy_localization/easy_localization.dart';
+
+// Import your own packages (update the paths as needed)
 import 'package:AccessAbility/accessability/logic/bloc/place/bloc/place_event.dart';
 import 'package:AccessAbility/accessability/logic/bloc/user/user_event.dart';
 import 'package:AccessAbility/accessability/presentation/screens/gpsscreen/location_handler.dart';
@@ -10,10 +19,6 @@ import 'package:AccessAbility/accessability/presentation/widgets/google_helper/g
 import 'package:AccessAbility/accessability/presentation/widgets/google_helper/map_view_screen.dart';
 import 'package:AccessAbility/accessability/presentation/widgets/homepageWidgets/top_widgets.dart';
 import 'package:AccessAbility/accessability/themes/theme_provider.dart';
-import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:AccessAbility/accessability/logic/bloc/user/user_bloc.dart';
 import 'package:AccessAbility/accessability/logic/bloc/user/user_state.dart';
 import 'package:AccessAbility/accessability/presentation/screens/gpsscreen/marker_handler.dart';
@@ -28,9 +33,6 @@ import 'package:AccessAbility/accessability/logic/bloc/place/bloc/place_bloc.dar
 import 'package:AccessAbility/accessability/logic/bloc/place/bloc/place_state.dart'
     as placeState;
 import 'package:AccessAbility/accessability/firebaseServices/models/place.dart';
-import 'package:provider/provider.dart';
-import 'package:easy_localization/easy_localization.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class GpsScreen extends StatefulWidget {
   const GpsScreen({super.key});
@@ -61,7 +63,7 @@ class _GpsScreenState extends State<GpsScreen> {
   MapType _currentMapType = MapType.normal;
   MapPerspective? _pendingPerspective; // New field
 
-  // NEW: Variables for polylines.
+  // Variables for polylines.
   Set<Polyline> _polylines = {};
   final PolylinePoints _polylinePoints = PolylinePoints();
   final String _googleAPIKey = dotenv.env['GOOGLE_API_KEY'] ?? '';
@@ -77,7 +79,7 @@ class _GpsScreenState extends State<GpsScreen> {
     context.read<UserBloc>().add(FetchUserData());
     context.read<PlaceBloc>().add(GetAllPlacesEvent());
 
-    // Initialize tutorial widget.
+    // Initialize the tutorial widget.
     _tutorialWidget = TutorialWidget(
       inboxKey: inboxKey,
       settingsKey: settingsKey,
@@ -113,7 +115,7 @@ class _GpsScreenState extends State<GpsScreen> {
           CameraUpdate.newLatLng(_locationHandler.currentLocation!),
         );
       }
-      // If a perspective was passed before the location was ready, apply it now.
+      // Apply a pending perspective if it was passed before location was ready.
       if (_pendingPerspective != null) {
         applyMapPerspective(_pendingPerspective!);
         _pendingPerspective = null;
@@ -121,13 +123,35 @@ class _GpsScreenState extends State<GpsScreen> {
     });
 
     // Create markers for PWD-friendly locations.
+    // Modify each marker so that tapping it creates a route.
     _markerHandler.createMarkers(pwdFriendlyLocations).then((markers) {
+      final pwdMarkers = markers.map((marker) {
+        if (marker.markerId.value.startsWith('pwd_')) {
+          return Marker(
+            markerId: marker.markerId,
+            position: marker.position,
+            icon: marker.icon,
+            infoWindow: marker.infoWindow,
+            onTap: () async {
+              // When a PWD-friendly marker is tapped, create a route from the user's current location to the marker.
+              if (_locationHandler.currentLocation != null) {
+                await _createRoute(
+                  _locationHandler.currentLocation!,
+                  marker.position,
+                );
+              }
+            },
+          );
+        }
+        return marker;
+      }).toSet();
+
       setState(() {
-        _markers.addAll(markers);
+        _markers.addAll(pwdMarkers);
       });
     });
 
-    // Check if onboarding is completed before showing the tutorial.
+    // Show the tutorial if onboarding has not been completed.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final authBloc = context.read<AuthBloc>();
       final hasCompletedOnboarding = authBloc.state is AuthenticatedLogin
@@ -146,7 +170,6 @@ class _GpsScreenState extends State<GpsScreen> {
     if (args != null && args is MapPerspective) {
       // Save the perspective for later.
       _pendingPerspective = args;
-      // If the location is already fetched, apply immediately.
       if (_isLocationFetched && _locationHandler.mapController != null) {
         applyMapPerspective(_pendingPerspective!);
         _pendingPerspective = null;
@@ -199,12 +222,12 @@ class _GpsScreenState extends State<GpsScreen> {
   void _handleSpaceIdChanged(String spaceId) {
     setState(() {
       _activeSpaceId = spaceId;
-      _isLoading = true; // Set loading state in parent
+      _isLoading = true;
     });
   }
 
-  /// Modified _fetchNearbyPlaces that rebuilds the nearby markers with an onTap
-  /// callback to fetch detailed Google data, display one selected place and draw a route.
+  /// Fetch nearby places and rebuild markers with an onTap callback
+  /// that draws a route from the user's location.
   Future<void> _fetchNearbyPlaces(String placeType) async {
     if (_locationHandler.currentLocation == null) {
       print("🚨 Current position is null, cannot fetch nearby places.");
@@ -220,12 +243,9 @@ class _GpsScreenState extends State<GpsScreen> {
       _circles.clear();
     });
     if (result.isNotEmpty) {
-      // Retrieve the original markers and circles from the result.
       final Set<Marker> originalNearbyMarkers = result["markers"];
       final Set<Circle> nearbyCircles = result["circles"];
 
-      // Rebuild each nearby marker with an onTap that fetches full details from Google,
-      // sets _selectedPlace, and draws a route from the user's location to the place.
       final Set<Marker> nearbyMarkers = originalNearbyMarkers.map((marker) {
         return Marker(
           markerId: marker.markerId,
@@ -235,19 +255,19 @@ class _GpsScreenState extends State<GpsScreen> {
           onTap: () async {
             final googlePlacesHelper = GooglePlacesHelper();
             try {
-              // Use localized fallback text if the marker's title is null.
               final detailedPlace = await googlePlacesHelper.fetchPlaceDetails(
                 marker.markerId.value,
                 marker.infoWindow.title ?? 'unknownPlace'.tr(),
               );
               setState(() {
                 _selectedPlace = detailedPlace;
-                _polylines.clear(); // Clear any previous route.
+                _polylines.clear();
               });
-              // Draw the route from the user's location to the tapped marker.
               if (_locationHandler.currentLocation != null) {
                 await _createRoute(
-                    _locationHandler.currentLocation!, marker.position);
+                  _locationHandler.currentLocation!,
+                  marker.position,
+                );
               }
             } catch (e) {
               print("Error fetching detailed place info: $e");
@@ -256,7 +276,7 @@ class _GpsScreenState extends State<GpsScreen> {
         );
       }).toSet();
 
-      // Keep existing markers like pwd_ and user_ markers.
+      // Retain existing markers (PWD and user markers).
       final existingMarkers = _markers
           .where((marker) =>
               marker.markerId.value.startsWith("pwd_") ||
@@ -275,7 +295,7 @@ class _GpsScreenState extends State<GpsScreen> {
           CameraUpdate.newCameraPosition(
             CameraPosition(
               target: _locationHandler.currentLocation!,
-              zoom: 14.5, // Adjust this value for desired zoom
+              zoom: 14.5,
             ),
           ),
         );
@@ -288,6 +308,8 @@ class _GpsScreenState extends State<GpsScreen> {
     }
   }
 
+  /// Create a route using Google Routes API from [origin] to [destination]
+  /// and display it on the map.
   Future<void> _createRoute(LatLng origin, LatLng destination) async {
     final String url =
         "https://routes.googleapis.com/directions/v2:computeRoutes?key=$_googleAPIKey";
@@ -311,7 +333,6 @@ class _GpsScreenState extends State<GpsScreen> {
       },
       "travelMode": "DRIVE",
       "routingPreference": "TRAFFIC_AWARE",
-      // You can add other fields if needed.
     };
 
     final String body = jsonEncode(requestBody);
@@ -322,7 +343,7 @@ class _GpsScreenState extends State<GpsScreen> {
       Uri.parse(url),
       headers: {
         "Content-Type": "application/json",
-        // Include the FieldMask header as required by the API.
+        // Include the FieldMask header as required.
         "X-Goog-FieldMask":
             "routes.distanceMeters,routes.duration,routes.polyline.encodedPolyline",
       },
@@ -333,7 +354,6 @@ class _GpsScreenState extends State<GpsScreen> {
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body);
       if (data['routes'] != null && data['routes'].isNotEmpty) {
-        // The new Routes API returns the polyline under a slightly different key.
         final String encodedPolyline =
             data['routes'][0]['polyline']['encodedPolyline'];
         final List<PointLatLng> result =
@@ -343,7 +363,7 @@ class _GpsScreenState extends State<GpsScreen> {
             .toList();
 
         setState(() {
-          _polylines.clear(); // Clear previous routes if any.
+          _polylines.clear(); // Clear previous routes.
           _polylines.add(Polyline(
             polylineId: const PolylineId("route"),
             color: const Color(0xFF6750A4),
@@ -364,7 +384,6 @@ class _GpsScreenState extends State<GpsScreen> {
       _locationHandler.mapController!.animateCamera(
         CameraUpdate.newLatLng(location),
       );
-      // Trigger marker selection
       _locationHandler.selectedUserId = userId;
       _locationHandler.listenForLocationUpdates();
     }
@@ -374,10 +393,10 @@ class _GpsScreenState extends State<GpsScreen> {
     setState(() {
       _locationHandler.activeSpaceId = '';
     });
-    _locationHandler.updateActiveSpaceId(''); // Explicitly cancel listeners
+    _locationHandler.updateActiveSpaceId('');
   }
 
-  // Apply the chosen perspective by updating both the map type and camera position.
+  // Apply a chosen perspective by updating both the map type and camera position.
   void applyMapPerspective(MapPerspective perspective) {
     CameraPosition newPosition;
     MapType newMapType;
@@ -417,18 +436,18 @@ class _GpsScreenState extends State<GpsScreen> {
     }
   }
 
-  // Opens the MapViewScreen and awaits the selected perspective.
+  // Opens the map settings screen.
   Future<void> _openMapSettings() async {
     final result = await Navigator.push(
       context,
       MaterialPageRoute(builder: (_) => const MapViewScreen()),
     );
 
-    print("Returned from MapViewScreen: $result"); // Debugging
+    print("Returned from MapViewScreen: $result");
 
     if (result != null && result is Map<String, dynamic>) {
       final perspective = result['perspective'] as MapPerspective;
-      print("Applying perspective: $perspective"); // Debugging
+      print("Applying perspective: $perspective");
       applyMapPerspective(perspective);
     }
   }
@@ -518,8 +537,7 @@ class _GpsScreenState extends State<GpsScreen> {
                       mapType: _currentMapType,
                       markers: _markers,
                       circles: _circles,
-                      polylines:
-                          _polylines, // NEW: Display the route polylines.
+                      polylines: _polylines, // Display the route polyline.
                       onMapCreated: (controller) {
                         _locationHandler.onMapCreated(controller, isDarkMode);
                         if (_isLocationFetched &&
@@ -530,7 +548,6 @@ class _GpsScreenState extends State<GpsScreen> {
                             ),
                           );
                         }
-                        // Also check if there's a pending perspective.
                         if (_pendingPerspective != null) {
                           applyMapPerspective(_pendingPerspective!);
                           _pendingPerspective = null;

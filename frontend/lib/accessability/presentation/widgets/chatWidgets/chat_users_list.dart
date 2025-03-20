@@ -48,14 +48,17 @@ class ChatUsersList extends StatelessWidget {
 
         final Map<String, Map<String, dynamic>> uniqueUsers = {};
 
+        // Add users in the same spaces (excluding space chat rooms)
         for (var user in usersInSameSpaces) {
           uniqueUsers[user['uid']] = user;
         }
 
+        // Add users with accepted chat requests
         for (var user in usersWithAcceptedRequests) {
           uniqueUsers[user['uid']] = user;
         }
 
+        // Add space chat rooms as a separate entity
         for (var space in spaceChatRooms) {
           uniqueUsers[space['id']] = {
             'uid': space['id'],
@@ -83,6 +86,7 @@ class ChatUsersList extends StatelessWidget {
           );
         }
 
+        // Separate space chat rooms from individual users
         final List<Map<String, dynamic>> spaceChats = uniqueUsers.values
             .where((user) => user['isSpaceChat'] == true)
             .toList();
@@ -90,18 +94,7 @@ class ChatUsersList extends StatelessWidget {
             .where((user) => user['isSpaceChat'] != true)
             .toList();
 
-        spaceChats.sort((a, b) {
-          final aTimestamp = a['lastMessageTimestamp'] ?? Timestamp(0, 0);
-          final bTimestamp = b['lastMessageTimestamp'] ?? Timestamp(0, 0);
-          return bTimestamp.compareTo(aTimestamp);
-        });
-
-        individualUsers.sort((a, b) {
-          final aTimestamp = a['lastMessageTimestamp'] ?? Timestamp(0, 0);
-          final bTimestamp = b['lastMessageTimestamp'] ?? Timestamp(0, 0);
-          return bTimestamp.compareTo(aTimestamp);
-        });
-
+        // Display space chat rooms and individual users separately
         return ListView(
           padding: const EdgeInsets.symmetric(vertical: 8),
           children: [
@@ -117,7 +110,12 @@ class ChatUsersList extends StatelessWidget {
                   ),
                 ),
               ),
-              ...spaceChats.map((userData) => _buildUserListItem(userData, context, isDarkMode)),
+              ...spaceChats.map((userData) {
+                final String profilePicture = userData['isSpaceChat'] == true
+                    ? 'https://firebasestorage.googleapis.com/v0/b/accessability-71ef7.firebasestorage.app/o/profile_pictures%2Fgroup_chat_icon.jpg?alt=media&token=7604bd51-2edf-4514-b979-e3fa84dce389'
+                    : userData['profilePicture'] ?? 'https://via.placeholder.com/150';
+                return _buildSpaceChatItem(userData, profilePicture, context, isDarkMode);
+              }),
               const Divider(thickness: 1, height: 20),
             ],
             if (individualUsers.isNotEmpty) ...[
@@ -132,25 +130,15 @@ class ChatUsersList extends StatelessWidget {
                   ),
                 ),
               ),
-              ...individualUsers.map((userData) => _buildUserListItem(userData, context, isDarkMode)),
+              ...individualUsers.map((userData) {
+                final String profilePicture = userData['profilePicture'] ?? 'https://via.placeholder.com/150';
+                return _buildIndividualChatItem(userData, profilePicture, context, isDarkMode);
+              }),
             ],
           ],
         );
       },
     );
-  }
-
-  Widget _buildUserListItem(Map<String, dynamic> userData, BuildContext context, bool isDarkMode) {
-    final bool isSpaceChat = userData['isSpaceChat'] == true;
-    final String profilePicture = isSpaceChat
-        ? 'https://firebasestorage.googleapis.com/v0/b/accessability-71ef7.firebasestorage.app/o/profile_pictures%2Fgroup_chat_icon.jpg?alt=media&token=7604bd51-2edf-4514-b979-e3fa84dce389'
-        : userData['profilePicture'] ?? 'https://via.placeholder.com/150';
-
-    if (isSpaceChat) {
-      return _buildSpaceChatItem(userData, profilePicture, context, isDarkMode);
-    } else {
-      return _buildIndividualChatItem(userData, profilePicture, context, isDarkMode);
-    }
   }
 
   Widget _buildSpaceChatItem(Map<String, dynamic> userData, String profilePicture, BuildContext context, bool isDarkMode) {
@@ -310,38 +298,33 @@ class ChatUsersList extends StatelessWidget {
   }
 
   Widget _buildIndividualChatItem(Map<String, dynamic> userData, String profilePicture, BuildContext context, bool isDarkMode) {
+    final String? currentUserUID = authService.getCurrentUser()?.uid;
+    if (currentUserUID == null || userData['uid'] == null) {
+      return ListTile(
+        leading: CircleAvatar(
+          backgroundImage: NetworkImage(profilePicture),
+        ),
+        title: Text(
+          userData['username'],
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            color: isDarkMode ? Colors.white : Colors.black,
+          ),
+        ),
+        subtitle: Text(
+          'Error: Invalid user data',
+          style: TextStyle(color: isDarkMode ? Colors.white : Colors.black),
+        ),
+      );
+    }
+
     if (userData['email'] != authService.getCurrentUser()!.email) {
       final String chatRoomID = _getChatRoomID(userData['uid']);
 
-      return StreamBuilder<QuerySnapshot>(
-        stream: FirebaseFirestore.instance
-            .collection('chat_rooms')
-            .doc(chatRoomID)
-            .collection('messages')
-            .orderBy('timestamp', descending: true)
-            .limit(1)
-            .snapshots(),
-        builder: (context, snapshot) {
-          if (snapshot.hasError) {
-            return ListTile(
-              leading: CircleAvatar(
-                backgroundImage: NetworkImage(profilePicture),
-              ),
-              title: Text(
-                userData['username'],
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  color: isDarkMode ? Colors.white : Colors.black,
-                ),
-              ),
-              subtitle: Text(
-                'Error loading messages',
-                style: TextStyle(color: isDarkMode ? Colors.white : Colors.black),
-              ),
-            );
-          }
-
-          if (snapshot.connectionState == ConnectionState.waiting) {
+      return FutureBuilder<bool>(
+        future: chatService.hasChatRoom(currentUserUID, userData['uid']),
+        builder: (context, chatRoomSnapshot) {
+          if (chatRoomSnapshot.connectionState == ConnectionState.waiting) {
             return ListTile(
               leading: CircleAvatar(
                 backgroundImage: NetworkImage(profilePicture),
@@ -360,26 +343,38 @@ class ChatUsersList extends StatelessWidget {
             );
           }
 
-          String lastMessage = '';
-          String lastMessageSender = '';
-          Timestamp lastMessageTimestamp = Timestamp(0, 0);
-
-          if (snapshot.hasData && snapshot.data!.docs.isNotEmpty) {
-            final messageData = snapshot.data!.docs.first.data() as Map<String, dynamic>;
-            lastMessage = messageData['message'];
-            lastMessageSender = messageData['senderID'];
-            lastMessageTimestamp = messageData['timestamp'];
+          if (chatRoomSnapshot.hasError || !chatRoomSnapshot.data!) {
+            // If the chat room doesn't exist, create it
+            chatService.createChatRoomForMembers(currentUserUID, userData['uid'], 'Unnamed Space');
+            return ListTile(
+              leading: CircleAvatar(
+                backgroundImage: NetworkImage(profilePicture),
+              ),
+              title: Text(
+                userData['username'],
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: isDarkMode ? Colors.white : Colors.black,
+                ),
+              ),
+              subtitle: Text(
+                'Creating chat room...',
+                style: TextStyle(color: isDarkMode ? Colors.white : Colors.black),
+              ),
+            );
           }
 
-          userData['lastMessageTimestamp'] = lastMessageTimestamp;
-
-          return FutureBuilder<DocumentSnapshot>(
-            future: FirebaseFirestore.instance
-                .collection('Users')
-                .doc(lastMessageSender)
-                .get(),
-            builder: (context, userSnapshot) {
-              if (userSnapshot.hasError) {
+          // If the chat room exists, show the chat
+          return StreamBuilder<QuerySnapshot>(
+            stream: FirebaseFirestore.instance
+                .collection('chat_rooms')
+                .doc(chatRoomID)
+                .collection('messages')
+                .orderBy('timestamp', descending: true)
+                .limit(1)
+                .snapshots(),
+            builder: (context, snapshot) {
+              if (snapshot.hasError) {
                 return ListTile(
                   leading: CircleAvatar(
                     backgroundImage: NetworkImage(profilePicture),
@@ -392,13 +387,13 @@ class ChatUsersList extends StatelessWidget {
                     ),
                   ),
                   subtitle: Text(
-                    'Error loading sender info',
+                    'Error loading messages',
                     style: TextStyle(color: isDarkMode ? Colors.white : Colors.black),
                   ),
                 );
               }
 
-              if (userSnapshot.connectionState == ConnectionState.waiting) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
                 return ListTile(
                   leading: CircleAvatar(
                     backgroundImage: NetworkImage(profilePicture),
@@ -411,48 +406,107 @@ class ChatUsersList extends StatelessWidget {
                     ),
                   ),
                   subtitle: Text(
-                    'Loading sender info...',
+                    'Loading...',
                     style: TextStyle(color: isDarkMode ? Colors.white : Colors.black),
                   ),
                 );
               }
 
-              String senderUsername = 'Unknown';
+              String lastMessage = 'No messages yet';
+              String lastMessageSender = '';
+              Timestamp lastMessageTimestamp = Timestamp(0, 0);
 
-              if (userSnapshot.hasData && userSnapshot.data!.exists) {
-                final user = userSnapshot.data!.data() as Map<String, dynamic>;
-                senderUsername = user['username'] ?? 'Unknown';
+              if (snapshot.hasData && snapshot.data!.docs.isNotEmpty) {
+                final messageData = snapshot.data!.docs.first.data() as Map<String, dynamic>;
+                lastMessage = messageData['message'];
+                lastMessageSender = messageData['senderID'];
+                lastMessageTimestamp = messageData['timestamp'];
               }
 
-              return ListTile(
-                leading: CircleAvatar(
-                  backgroundImage: NetworkImage(profilePicture),
-                ),
-                title: Text(
-                  userData['username'],
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: isDarkMode ? Colors.white : Colors.black,
-                  ),
-                ),
-                subtitle: Text(
-                  lastMessage.isNotEmpty
-                      ? '$senderUsername: $lastMessage'
-                      : 'No messages yet',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(color: isDarkMode ? Colors.white : Colors.grey[600]),
-                ),
-                trailing: Text(
-                  _formatTimestamp(lastMessageTimestamp),
-                  style: TextStyle(color: isDarkMode ? Colors.white : Colors.grey[600], fontSize: 12),
-                ),
-                onTap: () {
-                  Navigator.pushNamed(context, '/chatconvo', arguments: {
-                    'receiverUsername': userData['username'],
-                    'receiverID': userData['uid'],
-                    'receiverProfilePicture': profilePicture,
-                  });
+              userData['lastMessageTimestamp'] = lastMessageTimestamp;
+
+              return FutureBuilder<DocumentSnapshot>(
+                future: FirebaseFirestore.instance
+                    .collection('Users')
+                    .doc(lastMessageSender)
+                    .get(),
+                builder: (context, userSnapshot) {
+                  if (userSnapshot.hasError) {
+                    return ListTile(
+                      leading: CircleAvatar(
+                        backgroundImage: NetworkImage(profilePicture),
+                      ),
+                      title: Text(
+                        userData['username'],
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: isDarkMode ? Colors.white : Colors.black,
+                        ),
+                      ),
+                      subtitle: Text(
+                        'Error loading sender info',
+                        style: TextStyle(color: isDarkMode ? Colors.white : Colors.black),
+                      ),
+                    );
+                  }
+
+                  if (userSnapshot.connectionState == ConnectionState.waiting) {
+                    return ListTile(
+                      leading: CircleAvatar(
+                        backgroundImage: NetworkImage(profilePicture),
+                      ),
+                      title: Text(
+                        userData['username'],
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: isDarkMode ? Colors.white : Colors.black,
+                        ),
+                      ),
+                      subtitle: Text(
+                        'Loading sender info...',
+                        style: TextStyle(color: isDarkMode ? Colors.white : Colors.black),
+                      ),
+                    );
+                  }
+
+                  String senderUsername = 'Unknown';
+
+                  if (userSnapshot.hasData && userSnapshot.data!.exists) {
+                    final user = userSnapshot.data!.data() as Map<String, dynamic>;
+                    senderUsername = user['username'] ?? 'Unknown';
+                  }
+
+                  return ListTile(
+                    leading: CircleAvatar(
+                      backgroundImage: NetworkImage(profilePicture),
+                    ),
+                    title: Text(
+                      userData['username'],
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: isDarkMode ? Colors.white : Colors.black,
+                      ),
+                    ),
+                    subtitle: Text(
+                      lastMessage.isNotEmpty
+                          ? '$senderUsername: $lastMessage'
+                          : 'No messages yet',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(color: isDarkMode ? Colors.white : Colors.grey[600]),
+                    ),
+                    trailing: Text(
+                      _formatTimestamp(lastMessageTimestamp),
+                      style: TextStyle(color: isDarkMode ? Colors.white : Colors.grey[600], fontSize: 12),
+                    ),
+                    onTap: () {
+                      Navigator.pushNamed(context, '/chatconvo', arguments: {
+                        'receiverUsername': userData['username'],
+                        'receiverID': userData['uid'],
+                        'receiverProfilePicture': profilePicture,
+                      });
+                    },
+                  );
                 },
               );
             },

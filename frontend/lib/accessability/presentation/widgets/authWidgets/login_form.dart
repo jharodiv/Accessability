@@ -32,6 +32,8 @@ class _LoginFormState extends State<LoginForm> {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   String? _deviceId; // Add this field
+  bool _obscurePassword = true;
+  bool _obscureConfirmPassword = true;
 
   @override
   void initState() {
@@ -87,46 +89,51 @@ class _LoginFormState extends State<LoginForm> {
   }
 
   Future<void> _login(BuildContext context) async {
-  final email = emailController.text;
-  final password = passwordController.text;
+    final email = emailController.text;
+    final password = passwordController.text;
 
-  try {
-    // Authenticate the user
-    final userCredential = await _auth.signInWithEmailAndPassword(
-      email: email,
-      password: password,
-    );
+    try {
+      // Authenticate the user
+      final userCredential = await _auth.signInWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
 
-    if (userCredential.user != null) {
-      // Fetch user data from Firestore
-      final userDoc = await _firestore.collection('Users').doc(userCredential.user!.uid).get();
-      if (userDoc.exists) {
-        final biometricEnabled = userDoc.data()?['biometricEnabled'] ?? false;
-        final storedDeviceId = userDoc.data()?['deviceId'];
+      if (userCredential.user != null) {
+        // Fetch user data from Firestore
+        final userDoc = await _firestore
+            .collection('Users')
+            .doc(userCredential.user!.uid)
+            .get();
+        if (userDoc.exists) {
+          final biometricEnabled = userDoc.data()?['biometricEnabled'] ?? false;
+          final storedDeviceId = userDoc.data()?['deviceId'];
 
-        // Save credentials in SharedPreferences
-        final prefs = await SharedPreferences.getInstance();
+          // Save credentials in SharedPreferences
+          final prefs = await SharedPreferences.getInstance();
 
-        // Always save credentials in backup fields
-        prefs.setString('backup_email', email);
-        prefs.setString('backup_password', password);
+          // Always save credentials in backup fields
+          prefs.setString('backup_email', email);
+          prefs.setString('backup_password', password);
 
-        // Save in biometric fields only if conditions are met
-        if (biometricEnabled && storedDeviceId == _deviceId) {
-          prefs.setString('biometric_email', email);
-          prefs.setString('biometric_password', password);
+          // Save in biometric fields only if conditions are met
+          if (biometricEnabled && storedDeviceId == _deviceId) {
+            prefs.setString('biometric_email', email);
+            prefs.setString('biometric_password', password);
+          }
         }
-      }
 
-      // Trigger login success
-      context.read<AuthBloc>().add(LoginEvent(email: email, password: password));
+        // Trigger login success
+        context
+            .read<AuthBloc>()
+            .add(LoginEvent(email: email, password: password));
+      }
+    } on FirebaseAuthException catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Login failed: ${e.message}')),
+      );
     }
-  } on FirebaseAuthException catch (e) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Login failed: ${e.message}')),
-    );
   }
-}
 
   Future<void> _authenticateWithBiometrics() async {
     try {
@@ -154,7 +161,9 @@ class _LoginFormState extends State<LoginForm> {
 
           if (email != null && password != null) {
             // Log in using the saved credentials
-            context.read<AuthBloc>().add(LoginEvent(email: email, password: password));
+            context
+                .read<AuthBloc>()
+                .add(LoginEvent(email: email, password: password));
           } else {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(content: Text('No saved credentials found')),
@@ -163,7 +172,8 @@ class _LoginFormState extends State<LoginForm> {
         }
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Biometric authentication not available')),
+          const SnackBar(
+              content: Text('Biometric authentication not available')),
         );
       }
     } catch (e) {
@@ -254,35 +264,47 @@ class _LoginFormState extends State<LoginForm> {
                     ),
                     child: TextField(
                       controller: passwordController,
-                      obscureText: true,
-                      decoration: const InputDecoration(
+                      obscureText: _obscurePassword,
+                      decoration: InputDecoration(
                         labelText: 'Password',
-                        border: OutlineInputBorder(),
-                      ),
-                    ),
-                  ),
-                 Align(
-                  alignment: Alignment.centerRight,
-                  child: TextButton(
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => ForgotPasswordScreen(),
+                        border: const OutlineInputBorder(),
+                        suffixIcon: IconButton(
+                          icon: Icon(
+                            _obscurePassword
+                                ? Icons.visibility_off
+                                : Icons.visibility,
+                            color: Colors.grey,
+                          ),
+                          onPressed: () {
+                            setState(() {
+                              _obscurePassword = !_obscurePassword;
+                            });
+                          },
                         ),
-                      );
-                    },
-                    child: const Text(
-                      'Forgot Password?',
-                      style: TextStyle(
-                        color: Color(0xFF6750A4),
-                        fontSize: 17,
-                        fontWeight: FontWeight.w800,
                       ),
                     ),
                   ),
-                ),
-
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: TextButton(
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => ForgotPasswordScreen(),
+                          ),
+                        );
+                      },
+                      child: const Text(
+                        'Forgot Password?',
+                        style: TextStyle(
+                          color: Color(0xFF6750A4),
+                          fontSize: 17,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                  ),
                   const SizedBox(height: 5),
                   ElevatedButton(
                     onPressed: () => _login(context),

@@ -283,7 +283,7 @@ class _BottomWidgetsState extends State<BottomWidgets> {
     }
 
     try {
-      final geocodingService = GeocodingService();
+      final geocodingService = OpenStreetMapGeocodingService();
       final results = await geocodingService.searchLocation(query);
 
       if (results.isNotEmpty) {
@@ -541,7 +541,7 @@ class _BottomWidgetsState extends State<BottomWidgets> {
 
   Future<String> _getAddressFromLatLng(LatLng latLng) async {
     try {
-      final geocodingService = GeocodingService();
+      final geocodingService = OpenStreetMapGeocodingService();
       final address = await geocodingService.getAddressFromLatLng(latLng);
       return address;
     } catch (e) {
@@ -689,7 +689,8 @@ class _BottomWidgetsState extends State<BottomWidgets> {
                               ),
                               const SizedBox(height: 25),
                               Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 16.0), // Add horizontal padding
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 16.0), // Add horizontal padding
                                 child: Row(
                                   mainAxisAlignment: MainAxisAlignment.center,
                                   children: [
@@ -704,17 +705,22 @@ class _BottomWidgetsState extends State<BottomWidgets> {
                                             });
                                           },
                                           style: ElevatedButton.styleFrom(
-                                            backgroundColor: const Color(0xFF6750A4),
-                                            padding: const EdgeInsets.symmetric(vertical: 15),
+                                            backgroundColor:
+                                                const Color(0xFF6750A4),
+                                            padding: const EdgeInsets.symmetric(
+                                                vertical: 15),
                                           ),
                                           child: Text(
                                             'createSpace'.tr(),
-                                            style: const TextStyle(color: Colors.white),
+                                            style: const TextStyle(
+                                                color: Colors.white),
                                           ),
                                         ),
                                       ),
                                     ),
-                                    const SizedBox(width: 10), // Add spacing between buttons
+                                    const SizedBox(
+                                        width:
+                                            10), // Add spacing between buttons
                                     // Join Space Button
                                     Flexible(
                                       child: SizedBox(
@@ -726,12 +732,15 @@ class _BottomWidgetsState extends State<BottomWidgets> {
                                             });
                                           },
                                           style: ElevatedButton.styleFrom(
-                                            backgroundColor: const Color(0xFF6750A4),
-                                            padding: const EdgeInsets.symmetric(vertical: 15),
+                                            backgroundColor:
+                                                const Color(0xFF6750A4),
+                                            padding: const EdgeInsets.symmetric(
+                                                vertical: 15),
                                           ),
                                           child: Text(
                                             'joinSpace'.tr(),
-                                            style: const TextStyle(color: Colors.white),
+                                            style: const TextStyle(
+                                                color: Colors.white),
                                           ),
                                         ),
                                       ),

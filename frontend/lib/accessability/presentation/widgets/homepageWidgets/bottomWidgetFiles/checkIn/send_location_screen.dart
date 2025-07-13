@@ -29,7 +29,8 @@ class _SendLocationScreenState extends State<SendLocationScreen> {
   final AuthService _authService = AuthService();
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
-  final GeocodingService _geocodingService = GeocodingService();
+  final OpenStreetMapGeocodingService _geocodingService =
+      OpenStreetMapGeocodingService();
   final LocationHandler _locationHandler = LocationHandler(
     onMarkersUpdated: (markers) {
       // Handle marker updates if needed
@@ -48,7 +49,9 @@ class _SendLocationScreenState extends State<SendLocationScreen> {
         title: const Text('Send Location'),
         actions: [
           IconButton(
-            onPressed: _isSending ? null : _sendLocation, // Disable button when sending
+            onPressed: _isSending
+                ? null
+                : _sendLocation, // Disable button when sending
             icon: _isSending
                 ? const CircularProgressIndicator(
                     valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
@@ -114,7 +117,8 @@ class _SendLocationScreenState extends State<SendLocationScreen> {
         }
 
         final List<Map<String, dynamic>> usersInSameSpaces = snapshot.data![0];
-        final List<Map<String, dynamic>> usersWithAcceptedRequests = snapshot.data![1];
+        final List<Map<String, dynamic>> usersWithAcceptedRequests =
+            snapshot.data![1];
         final List<Map<String, dynamic>> spaceChatRooms = snapshot.data![2];
 
         // Combine the lists and remove duplicates
@@ -180,7 +184,8 @@ class _SendLocationScreenState extends State<SendLocationScreen> {
                   ),
                 ),
               ),
-              ...individualUsers.map((userData) => _buildChatListItem(userData)),
+              ...individualUsers
+                  .map((userData) => _buildChatListItem(userData)),
             ],
           ],
         );
@@ -226,17 +231,18 @@ class _SendLocationScreenState extends State<SendLocationScreen> {
       final Timestamp timestamp = Timestamp.now();
 
       // Fetch the address using GeocodingService
-      final String address = await _geocodingService.getAddressFromLatLng(widget.currentLocation);
+      final String address =
+          await _geocodingService.getAddressFromLatLng(widget.currentLocation);
 
       // Create a message with the location and address
-      final String locationMessage =
-          '📍 My current location: $address\n'
+      final String locationMessage = '📍 My current location: $address\n'
           'https://www.google.com/maps?q=${widget.currentLocation.latitude},${widget.currentLocation.longitude}';
 
       // Send the location to each selected chat
       for (final chatId in _selectedChats) {
         // Check if the chatId exists in the space_chat_rooms collection
-        final spaceChatDoc = await _firestore.collection('space_chat_rooms').doc(chatId).get();
+        final spaceChatDoc =
+            await _firestore.collection('space_chat_rooms').doc(chatId).get();
         final isSpaceChat = spaceChatDoc.exists;
 
         await _chatService.sendMessage(

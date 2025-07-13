@@ -79,7 +79,9 @@ class _MemberListWidgetState extends State<MemberListWidget> {
                 child: Container(
                   color: _selectedMemberId == member['uid']
                       ? const Color(0xFF6750A4)
-                      : isDarkMode ? Colors.grey[900] : Colors.white,
+                      : isDarkMode
+                          ? Colors.grey[900]
+                          : Colors.white,
                   child: ListTile(
                     leading: CircleAvatar(
                       backgroundImage: member['profilePicture'] != null &&
@@ -120,7 +122,8 @@ class _MemberListWidgetState extends State<MemberListWidget> {
                     trailing: IconButton(
                       icon: Icon(
                         Icons.chat,
-                        color: isDarkMode ? Colors.white : const Color(0xFF6750A4),
+                        color:
+                            isDarkMode ? Colors.white : const Color(0xFF6750A4),
                       ),
                       onPressed: () {
                         Navigator.pushNamed(
@@ -143,7 +146,7 @@ class _MemberListWidgetState extends State<MemberListWidget> {
 
   Future<String> _getAddressFromLatLng(LatLng latLng) async {
     try {
-      final geocodingService = GeocodingService();
+      final geocodingService = OpenStreetMapGeocodingService();
       final address = await geocodingService.getAddressFromLatLng(latLng);
       return address;
     } catch (e) {

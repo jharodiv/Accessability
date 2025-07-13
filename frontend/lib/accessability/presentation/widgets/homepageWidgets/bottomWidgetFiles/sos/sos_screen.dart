@@ -24,7 +24,8 @@ class _SOSScreenState extends State<SOSScreen> {
   final ChatService _chatService = ChatService();
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
-  final GeocodingService _geocodingService = GeocodingService();
+  final OpenStreetMapGeocodingService _geocodingService =
+      OpenStreetMapGeocodingService();
   final LocationHandler _locationHandler = LocationHandler(
     onMarkersUpdated: (markers) {
       // Handle marker updates if needed

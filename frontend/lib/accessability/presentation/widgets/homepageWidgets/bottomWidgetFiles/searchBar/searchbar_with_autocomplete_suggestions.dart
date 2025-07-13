@@ -15,7 +15,8 @@ class SearchBarWithAutocomplete extends StatefulWidget {
 
 class _SearchBarWithAutocompleteState extends State<SearchBarWithAutocomplete> {
   final TextEditingController _searchController = TextEditingController();
-  final GeocodingService _geocodingService = GeocodingService();
+  final OpenStreetMapGeocodingService _geocodingService =
+      OpenStreetMapGeocodingService();
   final stt.SpeechToText _speech = stt.SpeechToText();
   List<String> _suggestions = [];
   final FocusNode _focusNode = FocusNode();

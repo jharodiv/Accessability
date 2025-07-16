@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:AccessAbility/accessability/presentation/screens/authscreens/verify_email_screen.dart';
+import 'package:AccessAbility/accessability/presentation/widgets/errorWidget/error_display_widget.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -49,7 +50,8 @@ class _UploadProfileScreenState extends State<UploadProfileScreen> {
         if (state is RegistrationSuccess) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text("Successfully signed up, you can verify your email now!"),
+              content: Text(
+                  "Successfully signed up, you can verify your email now!"),
               backgroundColor: Colors.lightGreen,
             ),
           );
@@ -66,8 +68,12 @@ class _UploadProfileScreenState extends State<UploadProfileScreen> {
             );
           }
         } else if (state is AuthError) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text("Error: ${state.message}")),
+          showDialog(
+            context: context,
+            builder: (context) => ErrorDisplayWidget(
+              title: "Signup Error",
+              message: state.message,
+            ),
           );
         }
       },
@@ -117,7 +123,8 @@ class _UploadProfileScreenState extends State<UploadProfileScreen> {
                                 ? FileImage(File(_imageFile!.path))
                                 : null,
                             child: _imageFile == null
-                                ? const Icon(Icons.person, size: 70, color: Colors.white)
+                                ? const Icon(Icons.person,
+                                    size: 70, color: Colors.white)
                                 : null,
                           ),
                         ),
@@ -140,7 +147,8 @@ class _UploadProfileScreenState extends State<UploadProfileScreen> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       TextButton(
-                        onPressed: state is AuthLoading ? null : () => _finishSignup(),
+                        onPressed:
+                            state is AuthLoading ? null : () => _finishSignup(),
                         child: const Text(
                           "Skip",
                           style: TextStyle(
@@ -149,7 +157,8 @@ class _UploadProfileScreenState extends State<UploadProfileScreen> {
                         ),
                       ),
                       ElevatedButton(
-                        onPressed: state is AuthLoading ? null : () => _finishSignup(),
+                        onPressed:
+                            state is AuthLoading ? null : () => _finishSignup(),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFF6750A4),
                           minimumSize: const Size(100, 40),

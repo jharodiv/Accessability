@@ -40,31 +40,86 @@ class _SignupFormState extends State<SignupForm> {
     String password = passwordController.text.trim();
     String confirmPassword = confirmPasswordController.text.trim();
 
-    setState(() {
-      errorTitle = null;
-      errorMessage = null;
-    });
-
+    // Check for empty fields
     if (username.isEmpty ||
         email.isEmpty ||
         contact.isEmpty ||
         password.isEmpty ||
         confirmPassword.isEmpty) {
-      setState(() {
-        errorTitle = "Missing Fields";
-        errorMessage = "Please fill in all fields.";
-      });
+      showDialog(
+        context: context,
+        builder: (context) => ErrorDisplayWidget(
+          title: "Missing Fields",
+          message: "Please fill in all fields.",
+        ),
+      );
       return;
     }
 
+    // Username must be at least 6 characters
+    if (username.length < 6) {
+      showDialog(
+        context: context,
+        builder: (context) => ErrorDisplayWidget(
+          title: "Invalid Username",
+          message: "Username must be at least 6 characters long.",
+        ),
+      );
+      return;
+    }
+
+    // Basic email validation
+    bool isEmailValid =
+        RegExp(r"^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$").hasMatch(email);
+    if (!isEmailValid) {
+      showDialog(
+        context: context,
+        builder: (context) => ErrorDisplayWidget(
+          title: "Invalid Email",
+          message: "Please enter a valid email address.",
+        ),
+      );
+      return;
+    }
+
+    // Contact must be numeric
+    if (!RegExp(r'^\d{11,}$').hasMatch(contact)) {
+      showDialog(
+        context: context,
+        builder: (context) => ErrorDisplayWidget(
+          title: "Invalid Contact Number",
+          message:
+              "Contact number must contain only digits and be at least 11 digits long.",
+        ),
+      );
+      return;
+    }
+
+    // Password must be at least 8 characters
+    if (password.length < 8) {
+      showDialog(
+        context: context,
+        builder: (context) => ErrorDisplayWidget(
+          title: "Weak Password",
+          message: "Password must be at least 8 characters long.",
+        ),
+      );
+      return;
+    }
+
+    // Password match check
     if (password != confirmPassword) {
-      setState(() {
-        errorTitle = "Password Mismatch";
-        errorMessage = "Passwords do not match.";
-      });
+      showDialog(
+        context: context,
+        builder: (context) => ErrorDisplayWidget(
+          title: "Password Mismatch",
+          message: "Passwords do not match.",
+        ),
+      );
       return;
     }
 
+    // If all validations pass, navigate to the next screen
     final signUpModel = SignUpModel(
       username: username,
       email: email,
@@ -90,125 +145,114 @@ class _SignupFormState extends State<SignupForm> {
         child: Padding(
           padding: const EdgeInsets.all(20.0),
           child: SingleChildScrollView(
-            child: errorTitle != null && errorMessage != null
-                ? ErrorDisplayWidget(
-                    title: errorTitle!,
-                    message: errorMessage!,
-                  )
-                : Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Text(
-                        'Sign Up',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 30,
-                          fontFamily: 'Inter',
-                        ),
-                      ),
-                      const SizedBox(height: 20),
-                      TextField(
-                        controller: usernameController,
-                        decoration: const InputDecoration(
-                          labelText: 'Username',
-                          border: OutlineInputBorder(
-                            borderSide:
-                                BorderSide(color: Colors.black, width: 3.0),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 20),
-                      TextField(
-                        controller: emailController,
-                        decoration: const InputDecoration(
-                          labelText: 'Email',
-                          border: OutlineInputBorder(
-                            borderSide:
-                                BorderSide(color: Colors.black, width: 3.0),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 20),
-                      TextField(
-                        controller: contactNumberController,
-                        decoration: const InputDecoration(
-                          labelText: 'Contact Number',
-                          border: OutlineInputBorder(
-                            borderSide:
-                                BorderSide(color: Colors.black, width: 3.0),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 20),
-                      TextField(
-                        controller: passwordController,
-                        obscureText: _obscurePassword,
-                        decoration: InputDecoration(
-                          labelText: 'Password',
-                          border: const OutlineInputBorder(
-                            borderSide:
-                                BorderSide(color: Colors.black, width: 3.0),
-                          ),
-                          suffixIcon: IconButton(
-                            icon: Icon(
-                              _obscurePassword
-                                  ? Icons.visibility
-                                  : Icons.visibility_off,
-                              color: Colors.grey,
-                            ),
-                            onPressed: () {
-                              setState(() {
-                                _obscurePassword = !_obscurePassword;
-                              });
-                            },
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 20),
-                      TextField(
-                        controller: confirmPasswordController,
-                        obscureText: _obscureConfirmPassword,
-                        decoration: InputDecoration(
-                          labelText: 'Confirm Password',
-                          border: const OutlineInputBorder(
-                            borderSide:
-                                BorderSide(color: Colors.black, width: 3.0),
-                          ),
-                          suffixIcon: IconButton(
-                            icon: Icon(
-                              _obscureConfirmPassword
-                                  ? Icons.visibility
-                                  : Icons.visibility_off,
-                              color: Colors.grey,
-                            ),
-                            onPressed: () {
-                              setState(() {
-                                _obscureConfirmPassword =
-                                    !_obscureConfirmPassword;
-                              });
-                            },
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 20),
-                      ElevatedButton(
-                        onPressed: signup,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF6750A4),
-                          padding: const EdgeInsets.symmetric(
-                              vertical: 15, horizontal: 50),
-                          textStyle: const TextStyle(fontSize: 20),
-                        ),
-                        child: const Text(
-                          'SIGN UP',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                    ],
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text(
+                  'Sign Up',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 30,
+                    fontFamily: 'Inter',
                   ),
+                ),
+                const SizedBox(height: 20),
+                TextField(
+                  controller: usernameController,
+                  decoration: const InputDecoration(
+                    labelText: 'Username',
+                    border: OutlineInputBorder(
+                      borderSide: BorderSide(color: Colors.black, width: 3.0),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                TextField(
+                  controller: emailController,
+                  decoration: const InputDecoration(
+                    labelText: 'Email',
+                    border: OutlineInputBorder(
+                      borderSide: BorderSide(color: Colors.black, width: 3.0),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                TextField(
+                  controller: contactNumberController,
+                  decoration: const InputDecoration(
+                    labelText: 'Contact Number',
+                    border: OutlineInputBorder(
+                      borderSide: BorderSide(color: Colors.black, width: 3.0),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                TextField(
+                  controller: passwordController,
+                  obscureText: _obscurePassword,
+                  decoration: InputDecoration(
+                    labelText: 'Password',
+                    border: const OutlineInputBorder(
+                      borderSide: BorderSide(color: Colors.black, width: 3.0),
+                    ),
+                    suffixIcon: IconButton(
+                      icon: Icon(
+                        _obscurePassword
+                            ? Icons.visibility
+                            : Icons.visibility_off,
+                        color: Colors.grey,
+                      ),
+                      onPressed: () {
+                        setState(() {
+                          _obscurePassword = !_obscurePassword;
+                        });
+                      },
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                TextField(
+                  controller: confirmPasswordController,
+                  obscureText: _obscureConfirmPassword,
+                  decoration: InputDecoration(
+                    labelText: 'Confirm Password',
+                    border: const OutlineInputBorder(
+                      borderSide: BorderSide(color: Colors.black, width: 3.0),
+                    ),
+                    suffixIcon: IconButton(
+                      icon: Icon(
+                        _obscureConfirmPassword
+                            ? Icons.visibility
+                            : Icons.visibility_off,
+                        color: Colors.grey,
+                      ),
+                      onPressed: () {
+                        setState(() {
+                          _obscureConfirmPassword = !_obscureConfirmPassword;
+                        });
+                      },
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                ElevatedButton(
+                  onPressed: signup,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF6750A4),
+                    padding: const EdgeInsets.symmetric(
+                        vertical: 15, horizontal: 50),
+                    textStyle: const TextStyle(fontSize: 20),
+                  ),
+                  child: const Text(
+                    'SIGN UP',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),

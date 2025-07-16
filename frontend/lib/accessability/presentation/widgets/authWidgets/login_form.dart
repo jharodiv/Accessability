@@ -92,29 +92,30 @@ class _LoginFormState extends State<LoginForm> {
   }
 
   Future<void> _login(BuildContext context) async {
-    setState(() {
-      _errorTitle = null;
-      _errorMessage = null;
-    });
-
     final email = emailController.text.trim();
     final password = passwordController.text.trim();
 
     if (email.isEmpty || password.isEmpty) {
-      setState(() {
-        _errorTitle = 'Missing Fields';
-        _errorMessage = 'Please enter both email and password.';
-      });
+      showDialog(
+        context: context,
+        builder: (context) => ErrorDisplayWidget(
+          title: 'Missing Fields',
+          message: 'Please enter both email and password.',
+        ),
+      );
       return;
     }
 
     try {
-      // … your Firebase auth logic …
+      // Attempt Firebase login here
     } on FirebaseAuthException catch (e) {
-      setState(() {
-        _errorTitle = 'Login Failed';
-        _errorMessage = e.message ?? 'An unexpected error occurred.';
-      });
+      showDialog(
+        context: context,
+        builder: (context) => ErrorDisplayWidget(
+          title: 'Login Failed',
+          message: e.message ?? 'An unexpected error occurred.',
+        ),
+      );
     }
   }
 
@@ -166,12 +167,6 @@ class _LoginFormState extends State<LoginForm> {
 
   @override
   Widget build(BuildContext context) {
-    if (_errorTitle != null && _errorMessage != null) {
-      return ErrorDisplayWidget(
-        title: _errorTitle!,
-        message: _errorMessage!,
-      );
-    }
     return MultiBlocListener(
       listeners: [
         BlocListener<AuthBloc, AuthState>(

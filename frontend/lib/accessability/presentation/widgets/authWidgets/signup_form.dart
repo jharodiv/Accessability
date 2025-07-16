@@ -31,23 +31,34 @@ class _SignupFormState extends State<SignupForm> {
   }
 
   void signup() {
-    if (passwordController.text == confirmPasswordController.text) {
-      final signUpModel = SignUpModel(
-        username: usernameController.text,
-        email: emailController.text,
-        password: passwordController.text,
-        contactNumber: contactNumberController.text,
-      );
+    String username = usernameController.text.trim();
+    String email = emailController.text.trim();
+    String contact = contactNumberController.text.trim();
+    String password = passwordController.text.trim();
+    String confirmPassword = confirmPasswordController.text.trim();
 
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => UploadProfileScreen(
-            signUpModel: signUpModel,
-          ),
+    if (username.isEmpty ||
+        email.isEmpty ||
+        contact.isEmpty ||
+        password.isEmpty ||
+        confirmPassword.isEmpty) {
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text("Missing Fields"),
+          content: const Text("Please fill in all fields."),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text("OK"),
+            ),
+          ],
         ),
       );
-    } else {
+      return;
+    }
+
+    if (password != confirmPassword) {
       showDialog(
         context: context,
         builder: (context) => AlertDialog(
@@ -61,7 +72,24 @@ class _SignupFormState extends State<SignupForm> {
           ],
         ),
       );
+      return;
     }
+
+    final signUpModel = SignUpModel(
+      username: username,
+      email: email,
+      password: password,
+      contactNumber: contact,
+    );
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => UploadProfileScreen(
+          signUpModel: signUpModel,
+        ),
+      ),
+    );
   }
 
   @override

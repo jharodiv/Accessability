@@ -19,7 +19,7 @@ class ErrorDisplayWidget extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Image.asset(
-              'assets/icon/app_icon.png',
+              'assets/images/authentication/authenticationImage.png',
               width: 100,
               height: 100,
             ),

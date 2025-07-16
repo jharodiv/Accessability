@@ -1,3 +1,4 @@
+import 'package:AccessAbility/accessability/presentation/widgets/errorWidget/error_display_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:AccessAbility/accessability/logic/firebase_logic/SignupModel.dart';
 import 'package:AccessAbility/accessability/presentation/screens/authScreens/upload_profile_screen.dart';
@@ -16,6 +17,8 @@ class _SignupFormState extends State<SignupForm> {
   final TextEditingController passwordController = TextEditingController();
   final TextEditingController confirmPasswordController =
       TextEditingController();
+  String? errorTitle;
+  String? errorMessage;
 
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
@@ -37,41 +40,28 @@ class _SignupFormState extends State<SignupForm> {
     String password = passwordController.text.trim();
     String confirmPassword = confirmPasswordController.text.trim();
 
+    setState(() {
+      errorTitle = null;
+      errorMessage = null;
+    });
+
     if (username.isEmpty ||
         email.isEmpty ||
         contact.isEmpty ||
         password.isEmpty ||
         confirmPassword.isEmpty) {
-      showDialog(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: const Text("Missing Fields"),
-          content: const Text("Please fill in all fields."),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text("OK"),
-            ),
-          ],
-        ),
-      );
+      setState(() {
+        errorTitle = "Missing Fields";
+        errorMessage = "Please fill in all fields.";
+      });
       return;
     }
 
     if (password != confirmPassword) {
-      showDialog(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: const Text("Error"),
-          content: const Text("Passwords do not match."),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text("OK"),
-            ),
-          ],
-        ),
-      );
+      setState(() {
+        errorTitle = "Password Mismatch";
+        errorMessage = "Passwords do not match.";
+      });
       return;
     }
 
@@ -100,114 +90,125 @@ class _SignupFormState extends State<SignupForm> {
         child: Padding(
           padding: const EdgeInsets.all(20.0),
           child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Text(
-                  'Sign Up',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 30,
-                    fontFamily: 'Inter',
-                  ),
-                ),
-                const SizedBox(height: 20),
-                TextField(
-                  controller: usernameController,
-                  decoration: const InputDecoration(
-                    labelText: 'Username',
-                    border: OutlineInputBorder(
-                      borderSide: BorderSide(color: Colors.black, width: 3.0),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 20),
-                TextField(
-                  controller: emailController,
-                  decoration: const InputDecoration(
-                    labelText: 'Email',
-                    border: OutlineInputBorder(
-                      borderSide: BorderSide(color: Colors.black, width: 3.0),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 20),
-                TextField(
-                  controller: contactNumberController,
-                  decoration: const InputDecoration(
-                    labelText: 'Contact Number',
-                    border: OutlineInputBorder(
-                      borderSide: BorderSide(color: Colors.black, width: 3.0),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 20),
-                TextField(
-                  controller: passwordController,
-                  obscureText: _obscurePassword,
-                  decoration: InputDecoration(
-                    labelText: 'Password',
-                    border: const OutlineInputBorder(
-                      borderSide: BorderSide(color: Colors.black, width: 3.0),
-                    ),
-                    suffixIcon: IconButton(
-                      icon: Icon(
-                        _obscurePassword
-                            ? Icons.visibility
-                            : Icons.visibility_off,
-                        color: Colors.grey,
+            child: errorTitle != null && errorMessage != null
+                ? ErrorDisplayWidget(
+                    title: errorTitle!,
+                    message: errorMessage!,
+                  )
+                : Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Text(
+                        'Sign Up',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 30,
+                          fontFamily: 'Inter',
+                        ),
                       ),
-                      onPressed: () {
-                        setState(() {
-                          _obscurePassword = !_obscurePassword;
-                        });
-                      },
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 20),
-                TextField(
-                  controller: confirmPasswordController,
-                  obscureText: _obscureConfirmPassword,
-                  decoration: InputDecoration(
-                    labelText: 'Confirm Password',
-                    border: const OutlineInputBorder(
-                      borderSide: BorderSide(color: Colors.black, width: 3.0),
-                    ),
-                    suffixIcon: IconButton(
-                      icon: Icon(
-                        _obscureConfirmPassword
-                            ? Icons.visibility
-                            : Icons.visibility_off,
-                        color: Colors.grey,
+                      const SizedBox(height: 20),
+                      TextField(
+                        controller: usernameController,
+                        decoration: const InputDecoration(
+                          labelText: 'Username',
+                          border: OutlineInputBorder(
+                            borderSide:
+                                BorderSide(color: Colors.black, width: 3.0),
+                          ),
+                        ),
                       ),
-                      onPressed: () {
-                        setState(() {
-                          _obscureConfirmPassword = !_obscureConfirmPassword;
-                        });
-                      },
-                    ),
+                      const SizedBox(height: 20),
+                      TextField(
+                        controller: emailController,
+                        decoration: const InputDecoration(
+                          labelText: 'Email',
+                          border: OutlineInputBorder(
+                            borderSide:
+                                BorderSide(color: Colors.black, width: 3.0),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                      TextField(
+                        controller: contactNumberController,
+                        decoration: const InputDecoration(
+                          labelText: 'Contact Number',
+                          border: OutlineInputBorder(
+                            borderSide:
+                                BorderSide(color: Colors.black, width: 3.0),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                      TextField(
+                        controller: passwordController,
+                        obscureText: _obscurePassword,
+                        decoration: InputDecoration(
+                          labelText: 'Password',
+                          border: const OutlineInputBorder(
+                            borderSide:
+                                BorderSide(color: Colors.black, width: 3.0),
+                          ),
+                          suffixIcon: IconButton(
+                            icon: Icon(
+                              _obscurePassword
+                                  ? Icons.visibility
+                                  : Icons.visibility_off,
+                              color: Colors.grey,
+                            ),
+                            onPressed: () {
+                              setState(() {
+                                _obscurePassword = !_obscurePassword;
+                              });
+                            },
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                      TextField(
+                        controller: confirmPasswordController,
+                        obscureText: _obscureConfirmPassword,
+                        decoration: InputDecoration(
+                          labelText: 'Confirm Password',
+                          border: const OutlineInputBorder(
+                            borderSide:
+                                BorderSide(color: Colors.black, width: 3.0),
+                          ),
+                          suffixIcon: IconButton(
+                            icon: Icon(
+                              _obscureConfirmPassword
+                                  ? Icons.visibility
+                                  : Icons.visibility_off,
+                              color: Colors.grey,
+                            ),
+                            onPressed: () {
+                              setState(() {
+                                _obscureConfirmPassword =
+                                    !_obscureConfirmPassword;
+                              });
+                            },
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                      ElevatedButton(
+                        onPressed: signup,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF6750A4),
+                          padding: const EdgeInsets.symmetric(
+                              vertical: 15, horizontal: 50),
+                          textStyle: const TextStyle(fontSize: 20),
+                        ),
+                        child: const Text(
+                          'SIGN UP',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                ),
-                const SizedBox(height: 20),
-                ElevatedButton(
-                  onPressed: signup,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF6750A4),
-                    padding: const EdgeInsets.symmetric(
-                        vertical: 15, horizontal: 50),
-                    textStyle: const TextStyle(fontSize: 20),
-                  ),
-                  child: const Text(
-                    'SIGN UP',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-              ],
-            ),
           ),
         ),
       ),

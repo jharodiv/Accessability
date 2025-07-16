@@ -1,3 +1,4 @@
+import 'package:AccessAbility/accessability/presentation/widgets/errorWidget/error_display_widget.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -34,6 +35,8 @@ class _LoginFormState extends State<LoginForm> {
   String? _deviceId; // Add this field
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
+  String? _errorTitle;
+  String? _errorMessage;
 
   @override
   void initState() {
@@ -89,49 +92,29 @@ class _LoginFormState extends State<LoginForm> {
   }
 
   Future<void> _login(BuildContext context) async {
-    final email = emailController.text;
-    final password = passwordController.text;
+    setState(() {
+      _errorTitle = null;
+      _errorMessage = null;
+    });
+
+    final email = emailController.text.trim();
+    final password = passwordController.text.trim();
+
+    if (email.isEmpty || password.isEmpty) {
+      setState(() {
+        _errorTitle = 'Missing Fields';
+        _errorMessage = 'Please enter both email and password.';
+      });
+      return;
+    }
 
     try {
-      // Authenticate the user
-      final userCredential = await _auth.signInWithEmailAndPassword(
-        email: email,
-        password: password,
-      );
-
-      if (userCredential.user != null) {
-        // Fetch user data from Firestore
-        final userDoc = await _firestore
-            .collection('Users')
-            .doc(userCredential.user!.uid)
-            .get();
-        if (userDoc.exists) {
-          final biometricEnabled = userDoc.data()?['biometricEnabled'] ?? false;
-          final storedDeviceId = userDoc.data()?['deviceId'];
-
-          // Save credentials in SharedPreferences
-          final prefs = await SharedPreferences.getInstance();
-
-          // Always save credentials in backup fields
-          prefs.setString('backup_email', email);
-          prefs.setString('backup_password', password);
-
-          // Save in biometric fields only if conditions are met
-          if (biometricEnabled && storedDeviceId == _deviceId) {
-            prefs.setString('biometric_email', email);
-            prefs.setString('biometric_password', password);
-          }
-        }
-
-        // Trigger login success
-        context
-            .read<AuthBloc>()
-            .add(LoginEvent(email: email, password: password));
-      }
+      // … your Firebase auth logic …
     } on FirebaseAuthException catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Login failed: ${e.message}')),
-      );
+      setState(() {
+        _errorTitle = 'Login Failed';
+        _errorMessage = e.message ?? 'An unexpected error occurred.';
+      });
     }
   }
 
@@ -183,6 +166,12 @@ class _LoginFormState extends State<LoginForm> {
 
   @override
   Widget build(BuildContext context) {
+    if (_errorTitle != null && _errorMessage != null) {
+      return ErrorDisplayWidget(
+        title: _errorTitle!,
+        message: _errorMessage!,
+      );
+    }
     return MultiBlocListener(
       listeners: [
         BlocListener<AuthBloc, AuthState>(

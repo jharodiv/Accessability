@@ -5,20 +5,46 @@ import 'package:AccessAbility/accessability/presentation/widgets/authWidgets/for
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-class ForgotPasswordScreen extends StatelessWidget {
+class ForgotPasswordScreen extends StatefulWidget {
+  const ForgotPasswordScreen({Key? key}) : super(key: key);
+
+  @override
+  _ForgotPasswordScreenState createState() => _ForgotPasswordScreenState();
+}
+
+class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   final TextEditingController emailController = TextEditingController();
 
-  ForgotPasswordScreen({super.key});
+  /// This callback runs on *any* pop (system back or appBar back)
+  Future<bool> _onWillPop() {
+    context.read<AuthBloc>().add(ResetAuthState());
+    return Future.value(true); // allow the pop
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // register our callback
+    ModalRoute.of(context)!.addScopedWillPopCallback(_onWillPop);
+  }
+
+  @override
+  void dispose() {
+    // unregister it to avoid memory leaks
+    ModalRoute.of(context)!.removeScopedWillPopCallback(_onWillPop);
+    emailController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        title: const Text('Forgot Password'),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () {
-            // reset the auth state so no stale failure is hanging around
-            context.read<AuthBloc>().add(ResetAuthState());
+            // this Navigator.pop will also trigger _onWillPop
             Navigator.pop(context);
           },
         ),
@@ -26,8 +52,7 @@ class ForgotPasswordScreen extends StatelessWidget {
       body: SafeArea(
         child: LayoutBuilder(
           builder: (context, constraints) {
-            bool isOverflowing = constraints.maxHeight < 600;
-
+            final isOverflowing = constraints.maxHeight < 600;
             return SingleChildScrollView(
               physics: isOverflowing
                   ? const AlwaysScrollableScrollPhysics()
@@ -38,10 +63,11 @@ class ForgotPasswordScreen extends StatelessWidget {
                   const SizedBox(height: 30),
                   const Accessabilityheader(),
                   const SizedBox(height: 20),
-                  Container(
+                  Padding(
                     padding: const EdgeInsets.all(16),
                     child: Forgotpasswordconfirmation(
-                        emailController: emailController),
+                      emailController: emailController,
+                    ),
                   ),
                 ],
               ),

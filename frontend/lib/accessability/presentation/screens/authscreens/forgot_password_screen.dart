@@ -1,6 +1,9 @@
+import 'package:AccessAbility/accessability/logic/bloc/auth/auth_bloc.dart';
+import 'package:AccessAbility/accessability/logic/bloc/auth/auth_event.dart';
 import 'package:AccessAbility/accessability/presentation/widgets/accessability_header.dart';
 import 'package:AccessAbility/accessability/presentation/widgets/authWidgets/forgot_password_confirmation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
 class ForgotPasswordScreen extends StatelessWidget {
   final TextEditingController emailController = TextEditingController();
@@ -12,8 +15,10 @@ class ForgotPasswordScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(
-          icon: Icon(Icons.arrow_back),
+          icon: const Icon(Icons.arrow_back),
           onPressed: () {
+            // reset the auth state so no stale failure is hanging around
+            context.read<AuthBloc>().add(ResetAuthState());
             Navigator.pop(context);
           },
         ),
@@ -32,7 +37,7 @@ class ForgotPasswordScreen extends StatelessWidget {
                 children: [
                   const SizedBox(height: 30),
                   const Accessabilityheader(),
-                  const SizedBox(height: 70),
+                  const SizedBox(height: 20),
                   Container(
                     padding: const EdgeInsets.all(16),
                     child: Forgotpasswordconfirmation(

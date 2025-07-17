@@ -60,3 +60,5 @@ class ChangePasswordEvent extends AuthEvent {
 }
 
 class DeleteAccountEvent extends AuthEvent {}
+
+class ResetAuthState extends AuthEvent {}

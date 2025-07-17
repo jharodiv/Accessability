@@ -35,6 +35,9 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     on<ForgotPasswordEvent>(_onForgotPasswordEvent);
     on<ChangePasswordEvent>(_onChangePasswordEvent);
     on<DeleteAccountEvent>(_onDeleteAccountEvent);
+    on<ResetAuthState>((event, emit) {
+      emit(AuthInitial());
+    });
   }
 
   Future<void> _onLoginEvent(LoginEvent event, Emitter<AuthState> emit) async {
@@ -206,12 +209,33 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     Emitter<AuthState> emit,
   ) async {
     emit(AuthLoading());
+
     try {
       await authService.sendPasswordResetEmail(event.email);
-      emit(
-          ForgotPasswordSuccess('Password reset email sent to ${event.email}'));
+      emit(ForgotPasswordSuccess(
+        'Password reset email sent to ${event.email}. Check your inbox.',
+      ));
+    } on FirebaseAuthException catch (e) {
+      String message;
+      switch (e.code) {
+        case 'user-not-found':
+          message = 'No account found for that email.';
+          break;
+        case 'invalid-email':
+          message = 'The email address is not valid.';
+          break;
+        case 'too-many-requests':
+          message = 'Too many attempts. Please try again later.';
+          break;
+        default:
+          message = 'Failed to send reset email. Please try again.';
+      }
+      emit(ForgotPasswordFailure(message));
     } catch (e) {
-      emit(AuthError('Failed to send password reset email: ${e.toString()}'));
+      // Fallback for any other errors
+      emit(const ForgotPasswordFailure(
+        'Something went wrong. Please try again.',
+      ));
     }
   }
 

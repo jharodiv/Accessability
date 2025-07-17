@@ -2,6 +2,7 @@ import 'package:AccessAbility/accessability/presentation/widgets/errorWidget/err
 import 'package:flutter/material.dart';
 import 'package:AccessAbility/accessability/logic/firebase_logic/SignupModel.dart';
 import 'package:AccessAbility/accessability/presentation/screens/authScreens/upload_profile_screen.dart';
+import 'package:AccessAbility/accessability/presentation/screens/authScreens/login_screen.dart';
 
 class SignupForm extends StatefulWidget {
   const SignupForm({super.key});
@@ -250,6 +251,30 @@ class _SignupFormState extends State<SignupForm> {
                       fontWeight: FontWeight.bold,
                     ),
                   ),
+                ),
+                const SizedBox(height: 15),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Text("Already have an account? "),
+                    GestureDetector(
+                      onTap: () {
+                        // if you want to pop back to a previous LoginScreen:
+                        Navigator.of(context).pop();
+                        // or, if you need to push a fresh LoginScreen instance:
+                        // Navigator.of(context).push(MaterialPageRoute(
+                        //   builder: (_) => const LoginScreen(),
+                        // ));
+                      },
+                      child: const Text(
+                        "Login",
+                        style: TextStyle(
+                          color: Color(0xFF6750A4),
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),

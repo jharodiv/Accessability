@@ -68,3 +68,8 @@ class ChangePasswordSuccess extends AuthState {
   @override
   List<Object> get props => [message];
 }
+
+class ForgotPasswordFailure extends AuthState {
+  final String errorMessage;
+  const ForgotPasswordFailure(this.errorMessage);
+}

@@ -6,7 +6,7 @@ class Accessabilityheader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return const Padding(
-      padding: EdgeInsets.only(top: 10, bottom: 100),
+      padding: EdgeInsets.only(top: 10, bottom: 50),
       child: Center(
         child: Text(
           'ACCESSABILITY',

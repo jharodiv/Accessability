@@ -98,7 +98,7 @@ class _LoginFormState extends State<LoginForm> {
     if (email.isEmpty || password.isEmpty) {
       showDialog(
         context: context,
-        builder: (context) => ErrorDisplayWidget(
+        builder: (context) => const ErrorDisplayWidget(
           title: 'Missing Fields',
           message: 'Please enter both email and password.',
         ),
@@ -106,17 +106,8 @@ class _LoginFormState extends State<LoginForm> {
       return;
     }
 
-    try {
-      // Attempt Firebase login here
-    } on FirebaseAuthException catch (e) {
-      showDialog(
-        context: context,
-        builder: (context) => ErrorDisplayWidget(
-          title: 'Login Failed',
-          message: e.message ?? 'An unexpected error occurred.',
-        ),
-      );
-    }
+    // 🔥 Send event to Bloc — Bloc will handle Firebase logic and errors
+    context.read<AuthBloc>().add(LoginEvent(email: email, password: password));
   }
 
   Future<void> _authenticateWithBiometrics() async {
@@ -174,19 +165,31 @@ class _LoginFormState extends State<LoginForm> {
             if (state is AuthenticatedLogin) {
               context.read<UserBloc>().add(FetchUserData());
             } else if (state is AuthError) {
-              showDialog(
-                context: context,
-                builder: (context) => AlertDialog(
-                  title: const Text('Login Failed'),
-                  content: Text(state.message),
-                  actions: [
-                    TextButton(
-                      onPressed: () => Navigator.pop(context),
-                      child: const Text('OK'),
-                    ),
-                  ],
-                ),
-              );
+              // ✅ Defer dialog presentation until after the current frame
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                showGeneralDialog(
+                  context: context,
+                  barrierLabel: 'Login Error',
+                  barrierDismissible: true,
+                  barrierColor: Colors.black54, // semi‑opaque backdrop
+                  transitionDuration: Duration(milliseconds: 200),
+                  pageBuilder: (ctx, anim1, anim2) {
+                    // Wrap in Material so your Dialog can use Material theme
+                    return Material(
+                      type: MaterialType.transparency,
+                      child: Center(
+                        child: ErrorDisplayWidget(
+                          title: 'Login Failed',
+                          message: state.message,
+                        ),
+                      ),
+                    );
+                  },
+                  transitionBuilder: (ctx, anim1, anim2, child) {
+                    return FadeTransition(opacity: anim1, child: child);
+                  },
+                );
+              });
             }
           },
         ),
@@ -290,21 +293,39 @@ class _LoginFormState extends State<LoginForm> {
                     ),
                   ),
                   const SizedBox(height: 5),
-                  ElevatedButton(
-                    onPressed: () => _login(context),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF6750A4),
-                      padding: const EdgeInsets.symmetric(vertical: 15),
-                      minimumSize: const Size(250, 50),
-                      textStyle: const TextStyle(fontSize: 20),
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8)),
-                    ),
-                    child: const Text(
-                      'Login',
-                      style: TextStyle(
-                          color: Colors.white, fontWeight: FontWeight.bold),
-                    ),
+                  BlocBuilder<AuthBloc, AuthState>(
+                    builder: (context, state) {
+                      final isLoading = state is AuthLoading;
+                      return ElevatedButton(
+                        onPressed: isLoading ? null : () => _login(context),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF6750A4),
+                          padding: const EdgeInsets.symmetric(vertical: 15),
+                          minimumSize: const Size(250, 50),
+                          textStyle: const TextStyle(fontSize: 20),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                        child: isLoading
+                            ? const SizedBox(
+                                width: 24,
+                                height: 24,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  valueColor:
+                                      AlwaysStoppedAnimation(Colors.white),
+                                ),
+                              )
+                            : const Text(
+                                'Login',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                      );
+                    },
                   ),
                   const SizedBox(height: 10),
                   Wrap(

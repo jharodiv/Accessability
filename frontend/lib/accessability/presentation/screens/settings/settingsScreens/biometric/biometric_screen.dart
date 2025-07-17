@@ -1,3 +1,4 @@
+import 'package:AccessAbility/accessability/presentation/widgets/dialog/confirm_dialog_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:AccessAbility/accessability/data/model/user_model.dart';
 import 'package:AccessAbility/accessability/logic/bloc/user/user_bloc.dart';
@@ -52,39 +53,19 @@ class _BiometricScreenState extends State<BiometricScreen> {
       context: context,
       barrierDismissible: false,
       builder: (BuildContext context) {
-        return AlertDialog(
-          title: Text('disableBiometricLoginTitle'.tr()),
-          content: Text('disableBiometricLoginContent'.tr()),
-          actions: <Widget>[
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
-              child: Text(
-                'cancel'.tr(),
-                style: const TextStyle(color: Color(0xFF6750A4)),
-              ),
-            ),
-            TextButton(
-              onPressed: () async {
-                final prefs = await SharedPreferences.getInstance();
-                prefs.remove('biometric_email');
-                prefs.remove('biometric_password');
+        return ConfirmDialogWidget(
+          title: 'disableBiometricLoginTitle'.tr(),
+          message: 'disableBiometricLoginContent'.tr(),
+          onConfirm: () async {
+            final prefs = await SharedPreferences.getInstance();
+            prefs.remove('biometric_email');
+            prefs.remove('biometric_password');
 
-                context.read<UserBloc>().add(
-                      DisableBiometricLogin(user.uid),
-                    );
-                setState(() {
-                  isBiometricEnabled = false;
-                });
-                Navigator.of(context).pop();
-              },
-              child: Text(
-                'disable'.tr(),
-                style: const TextStyle(color: Colors.red),
-              ),
-            ),
-          ],
+            context.read<UserBloc>().add(DisableBiometricLogin(user.uid));
+            setState(() {
+              isBiometricEnabled = false;
+            });
+          },
         );
       },
     );

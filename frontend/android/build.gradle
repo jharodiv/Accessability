@@ -1,13 +1,12 @@
 buildscript {
-    ext.kotlin_version = '1.9.22' // Use the latest stable version
+    ext.kotlin_version = '1.9.25' // Updated to latest stable
     repositories {
         google()  
         mavenCentral()  
     }
     dependencies {
-        classpath 'com.google.gms:google-services:4.3.15'
-        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version" // Kotlin Gradle Plugin
-        classpath 'com.google.gms:google-services:4.3.15' // Google Services Plugin
+        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
+        classpath 'com.google.gms:google-services:4.4.0' // Updated Google Services
     }
 }
 

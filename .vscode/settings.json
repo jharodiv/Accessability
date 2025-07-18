@@ -10,5 +10,6 @@
     "Prefs",
     "signupscreen"
   ],
-  "cmake.sourceDirectory": "D:/HackathonRepository/3Y2AAPWD/frontend/linux"
+  "cmake.sourceDirectory": "D:/HackathonRepository/3Y2AAPWD/frontend/linux",
+  "java.configuration.updateBuildConfiguration": "interactive"
 }

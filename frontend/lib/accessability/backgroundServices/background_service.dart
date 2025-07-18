@@ -27,13 +27,17 @@ Future<void> initializeService() async {
   service.startService();
 }
 
+@pragma('vm:entry-point')
 void onStart(ServiceInstance service) async {
   try {
     // Initialize Firebase
     await Firebase.initializeApp();
 
-    // Set the service as a foreground service immediately
     if (service is AndroidServiceInstance) {
+      await service.setForegroundNotificationInfo(
+        title: "Location Tracking",
+        content: "Your location is being updated.",
+      );
       service.setAsForegroundService();
     }
 
@@ -49,7 +53,6 @@ void onStart(ServiceInstance service) async {
 
     // Listen for location updates
     location.onLocationChanged.listen((LocationData locationData) async {
-      // Update the user's location in Firestore
       await FirebaseFirestore.instance
           .collection('UserLocations')
           .doc(user.uid)
@@ -59,25 +62,21 @@ void onStart(ServiceInstance service) async {
         'timestamp': DateTime.now(),
       });
 
-      // Optionally, send data to the UI (if needed)
       service.invoke('update', {
         'latitude': locationData.latitude,
         'longitude': locationData.longitude,
       });
     });
 
-
     service.on('stopService').listen((event) {
       service.stopSelf();
     });
 
-
-    // Keep the service alive
-    while (true) {
+    // Keep alive
+    while (service is AndroidServiceInstance &&
+        await service.isForegroundService()) {
       await Future.delayed(Duration(seconds: 5));
     }
-
-    
   } catch (e) {
     print('Error in background service: $e');
   }

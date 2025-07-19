@@ -86,12 +86,18 @@ class _SearchBarWithAutocompleteState extends State<SearchBarWithAutocomplete> {
             setState(() {
               _searchController.text = result.recognizedWords;
               _onSearchChanged(result.recognizedWords);
+              _handleVoiceCommand(result.recognizedWords);
             });
 
-            // Check if speech recognition has stopped
+            // Speech ended
             if (result.finalResult) {
               setState(() {
                 _isListening = false;
+              });
+
+              // Wait a bit then clear the field
+              Future.delayed(const Duration(seconds: 1), () {
+                _clearSearch();
               });
             }
           },
@@ -101,6 +107,17 @@ class _SearchBarWithAutocompleteState extends State<SearchBarWithAutocomplete> {
           SnackBar(content: Text('speechNotAvailable'.tr())),
         );
       }
+    }
+  }
+
+  void _handleVoiceCommand(String command) {
+    final lowerCommand = command.toLowerCase();
+
+    if (lowerCommand.contains("open settings")) {
+      Navigator.pushNamed(context, '/settings');
+      _searchController.clear();
+    } else {
+      widget.onSearch(command);
     }
   }
 
@@ -183,7 +200,7 @@ class _SearchBarWithAutocompleteState extends State<SearchBarWithAutocomplete> {
         if (_suggestions.isNotEmpty)
           Container(
             margin: const EdgeInsets.only(top: 10),
-            constraints: BoxConstraints(
+            constraints: const BoxConstraints(
               maxHeight: 200, // Constrain the height of the suggestions list
             ),
             decoration: BoxDecoration(

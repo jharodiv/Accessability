@@ -30,28 +30,24 @@ class AppRouter {
   Route<dynamic>? onGenerateRoute(RouteSettings routeSettings) {
     switch (routeSettings.name) {
       case '/':
-        return _buildRoute(const SplashScreen(),
-            clearStack: true, settings: routeSettings);
+        return _buildRoute(const SplashScreen(), settings: routeSettings);
       case SignupScreen.routeName:
         return _buildRoute(const SignupScreen(), settings: routeSettings);
       case '/login':
-        return _buildRoute(const LoginScreen(),
-            clearStack: true, settings: routeSettings);
+        return _buildRoute(const LoginScreen(), settings: routeSettings);
       case '/uploadProfilePicture':
         final args = routeSettings.arguments as SignUpModel;
         return _buildRoute(UploadProfileScreen(signUpModel: args),
-            clearStack: true, settings: routeSettings);
+            settings: routeSettings);
       case '/addPlace':
         return _buildRoute(const AddNewPlaceScreen(), settings: routeSettings);
       case '/mapviewsettings':
         return _buildRoute(const MapViewScreen(), settings: routeSettings);
       case '/onboarding':
-        return _buildRoute(const OnboardingScreen(),
-            clearStack: true, settings: routeSettings);
+        return _buildRoute(const OnboardingScreen(), settings: routeSettings);
       case '/homescreen':
         // Pass the routeSettings so that GpsScreen can read any arguments (e.g. MapPerspective)
-        return _buildRoute(const GpsScreen(),
-            clearStack: true, settings: routeSettings);
+        return _buildRoute(const GpsScreen(), settings: routeSettings);
       case '/account':
         return _buildRoute(const AccountScreen(), settings: routeSettings);
       case '/preferences':
@@ -116,24 +112,10 @@ class AppRouter {
     return null;
   }
 
-  MaterialPageRoute<Map<String, dynamic>?> _buildRoute(Widget child,
-      {bool clearStack = false, RouteSettings? settings}) {
-    return MaterialPageRoute<Map<String, dynamic>?>(
-      builder: (context) {
-        if (clearStack) {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            Navigator.of(context).pushAndRemoveUntil(
-              MaterialPageRoute<Map<String, dynamic>?>(
-                builder: (_) => child,
-                settings: settings,
-              ),
-              (route) => false,
-            );
-          });
-          return const SizedBox.shrink();
-        }
-        return child;
-      },
+  MaterialPageRoute<dynamic> _buildRoute(Widget child,
+      {RouteSettings? settings}) {
+    return MaterialPageRoute<dynamic>(
+      builder: (_) => child,
       settings: settings,
     );
   }

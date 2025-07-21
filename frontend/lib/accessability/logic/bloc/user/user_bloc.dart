@@ -9,8 +9,9 @@ class UserBloc extends Bloc<UserEvent, UserState> {
   UserBloc({required this.userRepository}) : super(UserInitial()) {
     on<FetchUserData>(_onFetchUserData);
     on<UploadProfilePictureEvent>(_onUploadProfilePictureEvent);
-    on<EnableBiometricLogin>(_onEnableBiometricLogin); 
-    on<DisableBiometricLogin>(_onDisableBiometricLogin); 
+    on<EnableBiometricLogin>(_onEnableBiometricLogin);
+    on<DisableBiometricLogin>(_onDisableBiometricLogin);
+    on<ResetUserState>((event, emit) => emit(UserInitial()));
   }
 
   Future<void> _onFetchUserData(

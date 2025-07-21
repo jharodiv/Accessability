@@ -70,7 +70,7 @@ class AppRouter {
       case '/inbox':
         return _buildRoute(const InboxScreen(), settings: routeSettings);
       case '/sos':
-        return _buildRoute(SOSScreen(), settings: routeSettings);
+        return _buildRoute(const SOSScreen(), settings: routeSettings);
       case '/about':
         return _buildRoute(const AboutScreen(), settings: routeSettings);
       case '/send-location':
@@ -112,9 +112,11 @@ class AppRouter {
     return null;
   }
 
-  MaterialPageRoute<dynamic> _buildRoute(Widget child,
-      {RouteSettings? settings}) {
-    return MaterialPageRoute<dynamic>(
+  MaterialPageRoute<Map<String, dynamic>?> _buildRoute(
+    Widget child, {
+    RouteSettings? settings,
+  }) {
+    return MaterialPageRoute(
       builder: (_) => child,
       settings: settings,
     );

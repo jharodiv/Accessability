@@ -158,61 +158,30 @@ class _LoginFormState extends State<LoginForm> {
 
   @override
   Widget build(BuildContext context) {
-    return MultiBlocListener(
-      listeners: [
-        BlocListener<AuthBloc, AuthState>(
-          listener: (context, state) {
-            if (state is AuthenticatedLogin) {
-              context.read<UserBloc>().add(FetchUserData());
-            } else if (state is AuthError) {
-              // ✅ Defer dialog presentation until after the current frame
-              WidgetsBinding.instance.addPostFrameCallback((_) {
-                showGeneralDialog(
-                  context: context,
-                  barrierLabel: 'Login Error',
-                  barrierDismissible: true,
-                  barrierColor: Colors.black54, // semi‑opaque backdrop
-                  transitionDuration: Duration(milliseconds: 200),
-                  pageBuilder: (ctx, anim1, anim2) {
-                    // Wrap in Material so your Dialog can use Material theme
-                    return Material(
-                      type: MaterialType.transparency,
-                      child: Center(
-                        child: ErrorDisplayWidget(
-                          title: 'Login Failed',
-                          message: state.message,
-                        ),
-                      ),
-                    );
-                  },
-                  transitionBuilder: (ctx, anim1, anim2, child) {
-                    return FadeTransition(opacity: anim1, child: child);
-                  },
-                );
-              });
-            }
-          },
-        ),
-        BlocListener<UserBloc, UserState>(
-          listener: (context, userState) {
-            if (userState is UserLoaded) {
-              final authState = context.read<AuthBloc>().state;
-              WidgetsBinding.instance.addPostFrameCallback((_) {
-                if (mounted &&
-                    authState is AuthenticatedLogin &&
-                    !_hasNavigated) {
-                  _hasNavigated = true;
-                  if (authState.hasCompletedOnboarding) {
-                    Navigator.pushReplacementNamed(context, '/homescreen');
-                  } else {
-                    Navigator.pushReplacementNamed(context, '/onboarding');
-                  }
-                }
-              });
-            }
-          },
-        ),
-      ],
+    return BlocListener<AuthBloc, AuthState>(
+      listener: (context, state) {
+        if (state is AuthError) {
+          _hasNavigated = false;
+
+          showDialog(
+            context: context,
+            builder: (_) => ErrorDisplayWidget(
+              title: 'Login failed',
+              message: state.message, // e.g. “wrong password”
+            ),
+          );
+        } else if (state is AuthenticatedLogin && !_hasNavigated) {
+          // navigate on success…
+          _hasNavigated = true;
+          context.read<UserBloc>().add(FetchUserData());
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            Navigator.pushReplacementNamed(
+              context,
+              state.hasCompletedOnboarding ? '/homescreen' : '/onboarding',
+            );
+          });
+        }
+      },
       child: SingleChildScrollView(
         child: Center(
           child: ConstrainedBox(
@@ -328,29 +297,35 @@ class _LoginFormState extends State<LoginForm> {
                     },
                   ),
                   const SizedBox(height: 10),
-                  Wrap(
-                    alignment: WrapAlignment.center,
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Text("Don't have an account?",
-                          style: TextStyle(
-                              fontSize: 17, fontWeight: FontWeight.w700)),
+                      const Text(
+                        "Don't have an account?",
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
                       TextButton(
                         onPressed: () => Navigator.push(
                           context,
                           MaterialPageRoute(
-                              builder: (context) => const SignupScreen()),
+                              builder: (_) => const SignupScreen()),
                         ),
                         child: const Text(
                           'Sign Up',
                           style: TextStyle(
-                              color: Color(0xFF6750A4),
-                              fontWeight: FontWeight.w800,
-                              fontSize: 17),
+                            color: Color(0xFF6750A4),
+                            fontWeight: FontWeight.w800,
+                            fontSize: 15,
+                          ),
                         ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 50),
+                  const SizedBox(height: 20),
                   GestureDetector(
                     onTap: _authenticateWithBiometrics,
                     child: Wrap(

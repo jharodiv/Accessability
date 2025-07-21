@@ -49,7 +49,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
           .getCurrentUser(); // Use authService to get the current user
 
       if (user != null && !user.emailVerified) {
-        emit(AuthError('Please verify your email before logging in'));
+        emit(const AuthError('Please verify your email before logging in'));
         return;
       }
 

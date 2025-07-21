@@ -73,3 +73,10 @@ class ForgotPasswordFailure extends AuthState {
   final String errorMessage;
   const ForgotPasswordFailure(this.errorMessage);
 }
+
+class AuthShowErrorDialog extends AuthState {
+  final String title;
+  final String message;
+
+  AuthShowErrorDialog(this.title, this.message);
+}

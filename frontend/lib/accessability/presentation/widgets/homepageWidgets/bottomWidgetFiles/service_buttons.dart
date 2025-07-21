@@ -50,15 +50,6 @@ class ServiceButtons extends StatelessWidget {
         ),
         _buildServiceButton(
           context,
-          Icons.warning,
-          'sos'.tr(), // Localized text
-          () {
-            onButtonPressed('SOS');
-          },
-          isDarkMode,
-        ),
-        _buildServiceButton(
-          context,
           Icons.map,
           'mapView'.tr(), // Localized text
           () {
@@ -70,7 +61,52 @@ class ServiceButtons extends StatelessWidget {
           },
           isDarkMode,
         ),
+        _buildForSOSButton(
+          context,
+          Icons.warning,
+          'sos'.tr(),
+          () {
+            onButtonPressed('SOS');
+          },
+          isDarkMode,
+        ),
       ],
+    );
+  }
+
+  Widget _buildForSOSButton(
+    BuildContext context,
+    IconData icon,
+    String label,
+    VoidCallback onTap,
+    bool isDarkMode,
+  ) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        height: 70,
+        width: 70,
+        decoration: const BoxDecoration(
+          color: Colors.red,
+          shape: BoxShape.circle,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black26,
+              blurRadius: 6,
+              offset: Offset(2, 2),
+            )
+          ],
+        ),
+        alignment: Alignment.center,
+        child: const Text(
+          'SOS',
+          style: TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+            fontSize: 18,
+          ),
+        ),
+      ),
     );
   }
 

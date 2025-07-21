@@ -10,7 +10,7 @@ import 'package:AccessAbility/accessability/presentation/widgets/bottomSheetWidg
 import 'package:AccessAbility/accessability/presentation/widgets/bottomSheetWidgets/map_content.dart';
 import 'package:AccessAbility/accessability/presentation/widgets/gpsWidgets/establishment_details_card.dart';
 import 'package:AccessAbility/accessability/presentation/widgets/homepageWidgets/bottomWidgetFiles/member_list_widget.dart';
-import 'package:AccessAbility/accessability/presentation/widgets/homepageWidgets/bottomWidgetFiles/searchBar/searchbar_with_autocomplete_suggestions.dart';
+import 'package:AccessAbility/accessability/presentation/widgets/homepageWidgets/bottomWidgetFiles/searchBar/search_bar.dart';
 import 'package:AccessAbility/accessability/presentation/widgets/homepageWidgets/bottomWidgetFiles/service_buttons.dart';
 import 'package:AccessAbility/accessability/presentation/widgets/homepageWidgets/bottomWidgetFiles/verification_code_widget.dart';
 import 'package:AccessAbility/accessability/themes/theme_provider.dart';

@@ -28,7 +28,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
     try {
       await authService.signOut();
       authBloc.add(LogoutEvent());
-      Navigator.pushReplacementNamed(context, '/login');
+      Navigator.of(context).pushNamedAndRemoveUntil(
+        '/login', // the route you want as new root
+        (Route<dynamic> route) => false,
+      );
     } catch (e) {
       showDialog(
         context: context,

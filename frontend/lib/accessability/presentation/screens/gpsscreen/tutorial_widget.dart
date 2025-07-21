@@ -134,7 +134,7 @@ class TutorialWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    "This is the 'You' button.",
+                    "This is the 'Favorite' button.",
                     style: TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 20.0,

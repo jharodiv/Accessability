@@ -66,7 +66,7 @@ Future<void> main() async {
 
   runApp(
     EasyLocalization(
-      supportedLocales: const [Locale('en'), Locale('fil')],
+      supportedLocales: const [Locale('en'), Locale('fil'), Locale('pag')],
       path: 'assets/translations',
       fallbackLocale: const Locale('en'),
       child: MultiProvider(
@@ -156,13 +156,34 @@ class MyApp extends StatelessWidget {
       child: Consumer<ThemeProvider>(
         builder: (context, themeProvider, child) {
           return MaterialApp(
-            key: ValueKey(context.locale), // Force rebuild when locale changes
+            key: ValueKey(context.locale),
             navigatorKey: navigatorKey,
             navigatorObservers: [routeObserver],
             debugShowCheckedModeBanner: false,
             locale: context.locale,
-            supportedLocales: context.supportedLocales,
-            localizationsDelegates: context.localizationDelegates,
+            supportedLocales: const [
+              Locale('en'),
+              Locale('fil'),
+              Locale('pag'),
+            ],
+            localizationsDelegates: [
+              GlobalMaterialLocalizations.delegate,
+              GlobalWidgetsLocalizations.delegate,
+              GlobalCupertinoLocalizations.delegate,
+              ...context.localizationDelegates,
+            ],
+            localeResolutionCallback: (locale, supportedLocales) {
+              if (locale != null &&
+                  supportedLocales
+                      .map((e) => e.languageCode)
+                      .contains(locale.languageCode)) {
+                if (locale.languageCode == 'pag') {
+                  return const Locale('en'); // fallback for system UI
+                }
+                return locale;
+              }
+              return const Locale('en');
+            },
             theme: _buildLightTheme(context),
             darkTheme: _buildDarkTheme(context),
             themeMode:
@@ -170,7 +191,6 @@ class MyApp extends StatelessWidget {
             initialRoute: '/',
             onGenerateRoute: _appRouter.onGenerateRoute,
             builder: (context, child) {
-              // Trigger a post-frame authentication check.
               WidgetsBinding.instance.addPostFrameCallback((_) {
                 final authBloc = context.read<AuthBloc>();
                 authBloc.add(CheckAuthStatus());

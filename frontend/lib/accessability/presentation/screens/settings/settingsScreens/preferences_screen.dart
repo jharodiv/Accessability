@@ -128,12 +128,16 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
                     context.setLocale(Locale(newValue));
                     setState(() {}); // Optionally trigger a rebuild if needed
                   },
-                  items: <String>['en', 'fil']
+                  items: <String>['en', 'fil', 'pag']
                       .map<DropdownMenuItem<String>>((String value) {
                     return DropdownMenuItem<String>(
                       value: value,
                       child: Text(
-                        value == 'en' ? 'english'.tr() : 'filipino'.tr(),
+                        value == 'en'
+                            ? 'english'.tr()
+                            : value == 'fil'
+                                ? 'filipino'.tr()
+                                : 'pangasinan'.tr(),
                       ),
                     );
                   }).toList(),

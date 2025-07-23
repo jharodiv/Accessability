@@ -1,18 +1,26 @@
-name: Notify Messenger on Push
+name: Notify via Messenger
 
 on:
   push:
-    branches: [ main ] # or any branch you want
+    branches:
+      - main
 
 jobs:
   notify:
     runs-on: ubuntu-latest
     steps:
-      - name: Notify via Facebook Messenger
+      - name: Send Messenger message to all PSIDs
         run: |
-          curl -X POST "https://graph.facebook.com/v19.0/me/messages?access_token=${{ secrets.PAGE_ACCESS_TOKEN }}" \
-          -H "Content-Type: application/json" \
-          -d '{
-            "recipient": { "id": "'"${{ secrets.PSID }}"'" },
-            "message": { "text": "🆕 New commit pushed to ${{ github.repository }} by ${{ github.actor }}!" }
-          }'
+          PSID_LIST="${{ secrets.PSID_LIST }}"
+          IFS=',' read -ra PSIDS <<< "$PSID_LIST"
+
+          for PSID in "${PSIDS[@]}"; do
+            echo "📤 Sending to $PSID"
+
+            curl -X POST "https://graph.facebook.com/v19.0/me/messages?access_token=${{ secrets.PAGE_ACCESS_TOKEN }}" \
+              -H "Content-Type: application/json" \
+              -d '{
+                "recipient": { "id": "'"$PSID"'" },
+                "message": { "text": "🆕 New commit pushed to the repository!" }
+              }'
+          done

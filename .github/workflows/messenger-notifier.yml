@@ -1,9 +1,9 @@
-name: Notify via Messenger
+name: Notify via Messenger on Push
 
 on:
   push:
     branches:
-      - main
+      - main  # or whatever branch you care about
 
 jobs:
   notify:
@@ -11,16 +11,26 @@ jobs:
     steps:
       - name: Send Messenger message to all PSIDs
         run: |
+          # Prepare data
           PSID_LIST="${{ secrets.PSID_LIST }}"
+          ACCESS_TOKEN="${{ secrets.PAGE_ACCESS_TOKEN }}"
           IFS=',' read -ra PSIDS <<< "$PSID_LIST"
 
-          for PSID in "${PSIDS[@]}"; do
-            echo "📤 Sending to $PSID"
+          REPO_NAME="${GITHUB_REPOSITORY}"
+          COMMIT_MESSAGE=$(git log -1 --pretty=%B)
+          COMMIT_AUTHOR=$(git log -1 --pretty=%an)
+          COMMIT_URL="https://github.com/${GITHUB_REPOSITORY}/commit/${GITHUB_SHA}"
 
-            curl -X POST "https://graph.facebook.com/v19.0/me/messages?access_token=${{ secrets.PAGE_ACCESS_TOKEN }}" \
+          # Send to each PSID
+          for PSID in "${PSIDS[@]}"; do
+            echo "📤 Sending commit info to $PSID..."
+
+            curl -X POST "https://graph.facebook.com/v19.0/me/messages?access_token=$ACCESS_TOKEN" \
               -H "Content-Type: application/json" \
               -d '{
                 "recipient": { "id": "'"$PSID"'" },
-                "message": { "text": "🆕 New commit pushed to the repository!" }
+                "message": {
+                  "text": "📦 Repo: '"$REPO_NAME"'\n👤 '"$COMMIT_AUTHOR"' pushed:\n💬 '"$COMMIT_MESSAGE"'\n🔗 '"$COMMIT_URL"'"
+                }
               }'
           done

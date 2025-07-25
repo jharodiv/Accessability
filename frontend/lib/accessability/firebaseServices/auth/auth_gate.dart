@@ -14,11 +14,8 @@ class AuthGate extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Access the already provided AuthBloc and UserBloc
     final authBloc = context.read<AuthBloc>();
     final userBloc = context.read<UserBloc>();
-
-    // Check authentication status when AuthGate is built
     authBloc.add(CheckAuthStatus());
 
     return BlocBuilder<AuthBloc, AuthState>(
@@ -26,31 +23,22 @@ class AuthGate extends StatelessWidget {
         if (authState is AuthLoading) {
           return const Center(child: CircularProgressIndicator());
         } else if (authState is AuthenticatedLogin) {
-          // Fetch user data when authenticated
           userBloc.add(FetchUserData());
-
-          // Wait for UserBloc to emit UserLoaded
           return BlocBuilder<UserBloc, UserState>(
             builder: (context, userState) {
               if (userState is UserLoading) {
                 return const Center(child: CircularProgressIndicator());
               } else if (userState is UserLoaded) {
-                // Navigate to GpsScreen with user data
                 return const GpsScreen();
-              } else if (userState is UserError) {
-                return Center(child: Text(userState.message));
               } else {
-                return const Center(child: Text('No user data available'));
+                // Fall back to LoginScreen if user data fails
+                return const LoginScreen();
               }
             },
           );
-        } else if (authState is AuthInitial) {
-          // Navigate to LoginScreen if not authenticated
-          return const LoginScreen();
-        } else if (authState is AuthError) {
-          return Center(child: Text(authState.message));
         } else {
-          return const Center(child: Text('Something went wrong'));
+          // For AuthError, AuthInitial, or any other state → Show LoginScreen
+          return const LoginScreen();
         }
       },
     );

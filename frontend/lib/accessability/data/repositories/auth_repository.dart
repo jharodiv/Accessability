@@ -3,6 +3,7 @@ import 'package:AccessAbility/accessability/data/model/user_model.dart';
 import 'package:AccessAbility/accessability/data/repositories/user_repository.dart';
 import 'package:AccessAbility/accessability/firebaseServices/auth/auth_service.dart';
 import 'package:AccessAbility/accessability/logic/firebase_logic/SignupModel.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 import 'package:image_picker/image_picker.dart';
 
@@ -52,28 +53,38 @@ class AuthRepository {
       final userCredential =
           await authService.signInWithEmailPassword(email, password);
       final user = userCredential.user;
+
       if (user == null) {
-        throw Exception('Login failed: User is null');
+        throw FirebaseAuthException(
+          code: 'user-not-found',
+          message: 'No user found for this email',
+        );
       }
 
-      // Fetch user data from Firestore
       final userModel = await userRepository.fetchUserData(user.uid);
       if (userModel == null) {
-        throw Exception('Login failed: User data not found');
+        throw FirebaseAuthException(
+          code: 'user-data-missing',
+          message: 'User account exists but data is missing',
+        );
       }
 
-      // Cache the user data
       userRepository.cacheUserData(userModel);
-
       return LoginModel(
         token: user.uid,
         userId: user.uid,
         hasCompletedOnboarding: userModel.hasCompletedOnboarding,
         user: userModel,
       );
+    } on FirebaseAuthException catch (e) {
+      // Re-throw Firebase errors directly
+      rethrow;
     } catch (e) {
-      print('AuthRepository: Login failed - ${e.toString()}');
-      throw Exception('Login failed: ${e.toString()}');
+      // Wrap other errors in FirebaseAuthException for consistency
+      throw FirebaseAuthException(
+        code: 'login-failed',
+        message: e.toString(),
+      );
     }
   }
 

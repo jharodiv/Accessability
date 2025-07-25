@@ -32,55 +32,42 @@ class _LoginFormState extends State<LoginForm> {
   bool _supportState = false;
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  String? _deviceId; // Add this field
+  String? _deviceId;
   bool _obscurePassword = true;
-  bool _obscureConfirmPassword = true;
-  String? _errorTitle;
-  String? _errorMessage;
 
   @override
   void initState() {
     super.initState();
     _localAuth = LocalAuthentication();
     _localAuth.isDeviceSupported().then(
-          (bool isSupported) => setState(
-            () {
-              _supportState = isSupported;
-            },
-          ),
+          (bool isSupported) => setState(() => _supportState = isSupported),
         );
-
-    // Check if biometric authentication is available
     _checkBiometricAvailability();
   }
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    _getDeviceId(); // Fetch the device ID here
+    _getDeviceId();
   }
 
   Future<void> _getDeviceId() async {
     final DeviceInfoPlugin deviceInfo = DeviceInfoPlugin();
     if (Theme.of(context).platform == TargetPlatform.android) {
       final AndroidDeviceInfo androidInfo = await deviceInfo.androidInfo;
-      setState(() {
-        _deviceId = androidInfo.id;
-      });
+      setState(() => _deviceId = androidInfo.id);
     } else if (Theme.of(context).platform == TargetPlatform.iOS) {
       final IosDeviceInfo iosInfo = await deviceInfo.iosInfo;
-      setState(() {
-        _deviceId = iosInfo.identifierForVendor;
-      });
+      setState(() => _deviceId = iosInfo.identifierForVendor);
     }
   }
 
   Future<void> _checkBiometricAvailability() async {
     try {
       isBiometricEnabled = await _localAuth.canCheckBiometrics;
-      setState(() {}); // Update the UI
+      setState(() {});
     } on PlatformException catch (e) {
-      print('Error checking biometric availability: $e');
+      debugPrint('Error checking biometric availability: $e');
     }
   }
 
@@ -96,18 +83,28 @@ class _LoginFormState extends State<LoginForm> {
     final password = passwordController.text.trim();
 
     if (email.isEmpty || password.isEmpty) {
-      showDialog(
-        context: context,
-        builder: (context) => const ErrorDisplayWidget(
-          title: 'Missing Fields',
-          message: 'Please enter both email and password.',
-        ),
+      _showErrorDialog(
+        title: 'Missing Fields',
+        message: 'Please enter both email and password.',
       );
       return;
     }
 
-    // 🔥 Send event to Bloc — Bloc will handle Firebase logic and errors
     context.read<AuthBloc>().add(LoginEvent(email: email, password: password));
+  }
+
+  void _showErrorDialog({
+    required String title,
+    required String message,
+  }) {
+    showDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (context) => ErrorDisplayWidget(
+        title: title,
+        message: message,
+      ),
+    );
   }
 
   Future<void> _authenticateWithBiometrics() async {
@@ -126,16 +123,11 @@ class _LoginFormState extends State<LoginForm> {
         );
 
         if (didAuthenticate) {
-          // Retrieve saved email and password from SharedPreferences
           final prefs = await SharedPreferences.getInstance();
           final email = prefs.getString('biometric_email');
           final password = prefs.getString('biometric_password');
 
-          print('email fetched: ${email}');
-          print('password fetched: ${password}');
-
           if (email != null && password != null) {
-            // Log in using the saved credentials
             context
                 .read<AuthBloc>()
                 .add(LoginEvent(email: email, password: password));
@@ -152,7 +144,7 @@ class _LoginFormState extends State<LoginForm> {
         );
       }
     } catch (e) {
-      print('Error using biometrics: $e');
+      debugPrint('Error using biometrics: $e');
     }
   }
 
@@ -161,39 +153,21 @@ class _LoginFormState extends State<LoginForm> {
     return MultiBlocListener(
       listeners: [
         BlocListener<AuthBloc, AuthState>(
+          listenWhen: (previous, current) => current is AuthError,
           listener: (context, state) {
-            if (state is AuthenticatedLogin) {
-              context.read<UserBloc>().add(FetchUserData());
-            } else if (state is AuthError) {
-              // ✅ Defer dialog presentation until after the current frame
-              WidgetsBinding.instance.addPostFrameCallback((_) {
-                showGeneralDialog(
-                  context: context,
-                  barrierLabel: 'Login Error',
-                  barrierDismissible: true,
-                  barrierColor: Colors.black54, // semi‑opaque backdrop
-                  transitionDuration: Duration(milliseconds: 200),
-                  pageBuilder: (ctx, anim1, anim2) {
-                    // Wrap in Material so your Dialog can use Material theme
-                    return Material(
-                      type: MaterialType.transparency,
-                      child: Center(
-                        child: ErrorDisplayWidget(
-                          title: 'Login Failed',
-                          message: state.message,
-                        ),
-                      ),
-                    );
-                  },
-                  transitionBuilder: (ctx, anim1, anim2, child) {
-                    return FadeTransition(opacity: anim1, child: child);
-                  },
+            if (state is AuthError && mounted) {
+              // Add a small delay to ensure build is complete
+              Future.delayed(Duration.zero, () {
+                _showErrorDialog(
+                  title: 'Login Failed',
+                  message: state.message,
                 );
               });
             }
           },
         ),
         BlocListener<UserBloc, UserState>(
+          listenWhen: (previous, current) => current is UserLoaded,
           listener: (context, userState) {
             if (userState is UserLoaded) {
               final authState = context.read<AuthBloc>().state;
@@ -202,11 +176,12 @@ class _LoginFormState extends State<LoginForm> {
                     authState is AuthenticatedLogin &&
                     !_hasNavigated) {
                   _hasNavigated = true;
-                  if (authState.hasCompletedOnboarding) {
-                    Navigator.pushReplacementNamed(context, '/homescreen');
-                  } else {
-                    Navigator.pushReplacementNamed(context, '/onboarding');
-                  }
+                  Navigator.pushReplacementNamed(
+                    context,
+                    authState.hasCompletedOnboarding
+                        ? '/homescreen'
+                        : '/onboarding',
+                  );
                 }
               });
             }
@@ -227,9 +202,10 @@ class _LoginFormState extends State<LoginForm> {
                   const Text(
                     'Login',
                     style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 30,
-                        fontFamily: 'Inter'),
+                      fontWeight: FontWeight.bold,
+                      fontSize: 30,
+                      fontFamily: 'Inter',
+                    ),
                   ),
                   const SizedBox(height: 10),
                   ConstrainedBox(
@@ -262,11 +238,8 @@ class _LoginFormState extends State<LoginForm> {
                                 : Icons.visibility,
                             color: Colors.grey,
                           ),
-                          onPressed: () {
-                            setState(() {
-                              _obscurePassword = !_obscurePassword;
-                            });
-                          },
+                          onPressed: () => setState(
+                              () => _obscurePassword = !_obscurePassword),
                         ),
                       ),
                     ),
@@ -274,14 +247,11 @@ class _LoginFormState extends State<LoginForm> {
                   Align(
                     alignment: Alignment.centerRight,
                     child: TextButton(
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => ForgotPasswordScreen(),
-                          ),
-                        );
-                      },
+                      onPressed: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (context) => ForgotPasswordScreen()),
+                      ),
                       child: const Text(
                         'Forgot Password?',
                         style: TextStyle(
@@ -331,9 +301,11 @@ class _LoginFormState extends State<LoginForm> {
                   Wrap(
                     alignment: WrapAlignment.center,
                     children: [
-                      const Text("Don't have an account?",
-                          style: TextStyle(
-                              fontSize: 17, fontWeight: FontWeight.w700)),
+                      const Text(
+                        "Don't have an account?",
+                        style: TextStyle(
+                            fontSize: 17, fontWeight: FontWeight.w700),
+                      ),
                       TextButton(
                         onPressed: () => Navigator.push(
                           context,
@@ -343,9 +315,10 @@ class _LoginFormState extends State<LoginForm> {
                         child: const Text(
                           'Sign Up',
                           style: TextStyle(
-                              color: Color(0xFF6750A4),
-                              fontWeight: FontWeight.w800,
-                              fontSize: 17),
+                            color: Color(0xFF6750A4),
+                            fontWeight: FontWeight.w800,
+                            fontSize: 17,
+                          ),
                         ),
                       ),
                     ],
@@ -357,19 +330,24 @@ class _LoginFormState extends State<LoginForm> {
                       alignment: WrapAlignment.center,
                       crossAxisAlignment: WrapCrossAlignment.center,
                       children: [
-                        const Icon(Icons.fingerprint,
-                            size: 30, color: Color(0xFF6750A4)),
+                        const Icon(
+                          Icons.fingerprint,
+                          size: 30,
+                          color: Color(0xFF6750A4),
+                        ),
                         const SizedBox(width: 8),
                         Text(
                           isBiometricEnabled
                               ? 'Login with Biometrics Enabled'
                               : 'Biometric login disabled',
                           style: const TextStyle(
-                              fontSize: 15, fontWeight: FontWeight.w600),
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                       ],
                     ),
-                  )
+                  ),
                 ],
               ),
             ),

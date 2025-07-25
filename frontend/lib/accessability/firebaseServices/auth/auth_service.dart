@@ -84,31 +84,100 @@ class AuthService {
   }
 
   // Login
+  // Login with enhanced error handling
   Future<UserCredential> signInWithEmailPassword(
-      String email, String password) async {
+    String email,
+    String password,
+  ) async {
     try {
-      UserCredential userCredential = await _auth.signInWithEmailAndPassword(
-          email: email, password: password);
-
-      if (userCredential.user == null) {
-        throw Exception("Login failed");
+      // Validate email format
+      if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(email)) {
+        throw FirebaseAuthException(
+          code: 'invalid-email',
+          message: 'Please enter a valid email address',
+        );
       }
 
-      // Save FCM token after login
-      String? fcmToken =
+      // Attempt Firebase login
+      final userCredential = await _auth.signInWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+
+      final user = userCredential.user;
+      if (user == null) {
+        throw FirebaseAuthException(
+          code: 'user-not-found',
+          message: 'Authentication failed - no user returned',
+        );
+      }
+
+      // Check email verification
+      if (!user.emailVerified) {
+        await _auth.signOut(); // Prevent access until verified
+        throw FirebaseAuthException(
+          code: 'email-not-verified',
+          message: 'Please verify your email before logging in',
+        );
+      }
+
+      // Update FCM token if available
+      final fcmToken =
           await FCMService(navigatorKey: navigatorKey).getFCMToken();
       if (fcmToken != null) {
-        await _firestore
-            .collection('Users')
-            .doc(userCredential.user!.uid)
-            .update({
+        await _firestore.collection('Users').doc(user.uid).update({
           'fcmToken': fcmToken,
         });
       }
 
       return userCredential;
     } on FirebaseAuthException catch (e) {
-      throw Exception(e.code);
+      // Re-throw with improved messages
+      throw FirebaseAuthException(
+        code: e.code,
+        message: _getUserFriendlyError(e.code),
+      );
+    } catch (e) {
+      // Handle non-Firebase exceptions
+      if (e.toString().contains('network')) {
+        throw FirebaseAuthException(
+          code: 'network-error',
+          message: 'No internet connection. Please check your network.',
+        );
+      }
+      throw FirebaseAuthException(
+        code: 'login-failed',
+        message: 'Login failed. Please try again.',
+      );
+    }
+  }
+
+  String _getUserFriendlyError(String code) {
+    switch (code) {
+      // Firebase Auth Errors
+      case 'invalid-email':
+        return 'Please enter a valid email address.';
+      case 'invalid-credential':
+      case 'wrong-password':
+        return 'The email or password is incorrect.';
+      case 'user-disabled':
+        return 'This account has been disabled. Contact support.';
+      case 'user-not-found':
+        return 'No account found with this email.';
+      case 'too-many-requests':
+        return 'Too many attempts. Try again later.';
+      case 'network-request-failed':
+        return 'No internet connection. Check your network.';
+      case 'email-not-verified':
+        return 'Please verify your email first. Check your inbox.';
+
+      // Custom Errors
+      case 'network-error':
+        return 'Network error. Please check your connection.';
+
+      // Default
+      default:
+        return 'Login failed. Please try again.';
     }
   }
 

@@ -10,18 +10,18 @@ import 'package:AccessAbility/accessability/logic/bloc/user/user_event.dart';
 import 'package:bloc/bloc.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter/foundation.dart';
 
 class AuthBloc extends Bloc<AuthEvent, AuthState> {
   final AuthRepository authRepository;
-  final UserRepository userRepository; // Add UserRepository
+  final UserRepository userRepository;
   final UserBloc userBloc;
   final AuthService authService;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   AuthBloc({
     required this.authRepository,
-    required this.userRepository, // Inject UserRepository
+    required this.userRepository,
     required this.userBloc,
     required this.authService,
   }) : super(AuthInitial()) {
@@ -35,36 +35,91 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     on<ForgotPasswordEvent>(_onForgotPasswordEvent);
     on<ChangePasswordEvent>(_onChangePasswordEvent);
     on<DeleteAccountEvent>(_onDeleteAccountEvent);
-    on<ResetAuthState>((event, emit) {
-      emit(AuthInitial());
-    });
+    on<ResetAuthState>((event, emit) => emit(AuthInitial()));
   }
 
   Future<void> _onLoginEvent(LoginEvent event, Emitter<AuthState> emit) async {
     emit(AuthLoading());
+    debugPrint('AuthBloc: Starting login process for ${event.email}');
+
     try {
       final loginModel =
           await authRepository.login(event.email, event.password);
-      final user = authService
-          .getCurrentUser(); // Use authService to get the current user
+      final user = authService.getCurrentUser();
 
       if (user != null && !user.emailVerified) {
-        emit(const AuthError('Please verify your email before logging in'));
+        emit(const AuthError(
+          'Please verify your email before logging in. Check your inbox.',
+        ));
         return;
       }
 
       await authService.saveFCMToken(loginModel.userId);
+      final userDoc =
+          await _firestore.collection('Users').doc(loginModel.userId).get();
+
       emit(AuthenticatedLogin(
         loginModel,
-        hasCompletedOnboarding: loginModel.hasCompletedOnboarding,
+        hasCompletedOnboarding:
+            userDoc.data()?['hasCompletedOnboarding'] ?? false,
       ));
       userBloc.add(FetchUserData());
+    } on FirebaseAuthException catch (e) {
+      emit(AuthError(_getUserFriendlyErrorMessage(e)));
     } catch (e) {
-      emit(AuthError('Login failed: ${e.toString()}'));
+      emit(AuthError('An unexpected error occurred. Please try again.'));
     }
   }
 
-  // Handle RegisterEvent
+  String _getUserFriendlyErrorMessage(FirebaseAuthException e) {
+    switch (e.code) {
+      // Firebase Auth Errors
+      case 'invalid-credential':
+      case 'wrong-password':
+        return 'The email or password is incorrect.';
+      case 'user-not-found':
+        return 'No account found with this email.';
+      case 'user-disabled':
+        return 'This account has been disabled. Contact support.';
+      case 'too-many-requests':
+        return 'Too many attempts. Try again later.';
+      case 'invalid-email':
+        return 'Please enter a valid email address.';
+      case 'network-request-failed':
+        return 'No internet connection. Check your network.';
+
+      // Custom Errors (from AuthRepository)
+      case 'user-data-missing':
+        return 'Account exists but data is corrupted. Contact support.';
+      case 'email-not-verified':
+        return 'Please verify your email first. Check your inbox.';
+
+      // Default
+      default:
+        return e.message ?? 'Login failed. Please try again.';
+    }
+  }
+
+  String _mapFirebaseAuthError(FirebaseAuthException e) {
+    switch (e.code) {
+      case 'invalid-credential':
+      case 'wrong-password':
+        return 'The email or password is incorrect';
+      case 'user-disabled':
+        return 'This account has been disabled. Please contact support.';
+      case 'user-not-found':
+        return 'No account found with this email';
+      case 'too-many-requests':
+        return 'Too many login attempts. Please try again later.';
+      case 'network-request-failed':
+        return 'Network error. Please check your internet connection.';
+      case 'invalid-email':
+        return 'Please enter a valid email address';
+      default:
+        return 'Login failed. Please try again.';
+    }
+  }
+
   Future<void> _onRegisterEvent(
       RegisterEvent event, Emitter<AuthState> emit) async {
     emit(AuthLoading());
@@ -74,8 +129,28 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         event.profilePicture,
       );
       emit(RegistrationSuccess());
+    } on FirebaseAuthException catch (e) {
+      final errorMessage = _mapFirebaseRegistrationError(e);
+      emit(AuthError(errorMessage));
     } catch (e) {
-      emit(AuthError('Registration failed: ${e.toString()}'));
+      emit(AuthError('Registration failed. Please try again.'));
+    }
+  }
+
+  String _mapFirebaseRegistrationError(FirebaseAuthException e) {
+    switch (e.code) {
+      case 'email-already-in-use':
+        return 'This email is already registered. Please use a different email.';
+      case 'invalid-email':
+        return 'Please enter a valid email address';
+      case 'operation-not-allowed':
+        return 'Registration is currently disabled. Please try again later.';
+      case 'weak-password':
+        return 'Password is too weak. Please choose a stronger password.';
+      case 'network-request-failed':
+        return 'Network error. Please check your internet connection.';
+      default:
+        return 'Registration failed. Please try again.';
     }
   }
 
@@ -103,41 +178,49 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
           ));
           userBloc.add(FetchUserData());
         } else {
-          emit(AuthError('Biometric login not enabled'));
+          emit(const AuthError(
+              'Biometric login is not enabled for this account'));
         }
       } else {
-        emit(AuthError('User not found'));
+        emit(const AuthError('Please login with email and password first'));
       }
     } catch (e) {
-      emit(AuthError('Failed to login with biometrics: ${e.toString()}'));
+      emit(const AuthError('Biometric authentication failed'));
     }
   }
 
-  // Handle CheckAuthStatus
   Future<void> _onCheckAuthStatus(
       CheckAuthStatus event, Emitter<AuthState> emit) async {
     emit(AuthLoading());
     try {
-      final user = await userRepository.getCachedUser(); // Use UserRepository
+      final user = await userRepository.getCachedUser();
       if (user != null) {
-        emit(AuthenticatedLogin(
-          LoginModel(
-            token: user.uid,
-            userId: user.uid,
+        // Verify the user still exists in Firebase
+        final userDoc =
+            await _firestore.collection('Users').doc(user.uid).get();
+        if (userDoc.exists) {
+          emit(AuthenticatedLogin(
+            LoginModel(
+              token: user.uid,
+              userId: user.uid,
+              hasCompletedOnboarding: user.hasCompletedOnboarding,
+              user: user,
+            ),
             hasCompletedOnboarding: user.hasCompletedOnboarding,
-            user: user,
-          ),
-          hasCompletedOnboarding: user.hasCompletedOnboarding,
-        ));
+          ));
+        } else {
+          // User doc doesn't exist anymore - treat as logged out
+          await authRepository.logout();
+          emit(AuthInitial());
+        }
       } else {
-        emit(AuthInitial()); // No user is logged in
+        emit(AuthInitial());
       }
     } catch (e) {
-      emit(AuthError('Failed to check auth status: ${e.toString()}'));
+      emit(const AuthError('Failed to check authentication status'));
     }
   }
 
-  // Handle CompleteOnboardingEvent
   Future<void> _onCompleteOnboardingEvent(
     CompleteOnboardingEvent event,
     Emitter<AuthState> emit,
@@ -148,43 +231,43 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       if (user != null) {
         await authRepository.completeOnboarding(user.uid);
 
-        // Fetch the updated user data
+        // Fetch fresh data from Firestore
         final updatedUser = await userRepository.fetchUserData(user.uid);
         if (updatedUser != null) {
-          // Cache the updated user data
-          userRepository.cacheUserData(updatedUser);
-
           emit(AuthenticatedLogin(
             LoginModel(
               token: updatedUser.uid,
               userId: updatedUser.uid,
-              hasCompletedOnboarding: updatedUser.hasCompletedOnboarding,
+              hasCompletedOnboarding: true,
               user: updatedUser,
             ),
-            hasCompletedOnboarding: updatedUser.hasCompletedOnboarding,
+            hasCompletedOnboarding: true,
           ));
-
           emit(const AuthSuccess('Onboarding completed successfully'));
         } else {
-          emit(const AuthError('Failed to fetch updated user data'));
+          emit(const AuthError('Failed to update user data'));
         }
       } else {
         emit(const AuthError('User not found'));
       }
     } catch (e) {
-      emit(AuthError('Failed to complete onboarding: ${e.toString()}'));
+      emit(const AuthError('Failed to complete onboarding'));
     }
   }
 
-  // Handle LogoutEvent
   Future<void> _onLogoutEvent(
       LogoutEvent event, Emitter<AuthState> emit) async {
     emit(AuthLoading());
     try {
-      await authRepository.logout(); // Clear cached user data
-      emit(AuthInitial()); // Reset to initial state after logout
+      await authRepository.logout();
+      emit(AuthInitial());
     } catch (e) {
-      emit(AuthError('Failed to logout: ${e.toString()}'));
+      debugPrint('Login error caught: $e');
+      String errorMessage = e is FirebaseAuthException
+          ? _mapFirebaseAuthError(e)
+          : 'Login failed. Please try again';
+      debugPrint('Emitting AuthError with message: $errorMessage');
+      emit(AuthError(errorMessage));
     }
   }
 
@@ -192,15 +275,18 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     CheckEmailVerification event,
     Emitter<AuthState> emit,
   ) async {
-    final user =
-        authService.getCurrentUser(); // Use authService to get the current user
-    if (user != null) {
-      await user.reload();
-      if (user.emailVerified) {
-        emit(EmailVerified());
-      } else {
-        emit(AuthError('Email not verified'));
+    try {
+      final user = authService.getCurrentUser();
+      if (user != null) {
+        await user.reload();
+        if (user.emailVerified) {
+          emit(EmailVerified());
+        } else {
+          emit(const AuthError('Email not verified yet'));
+        }
       }
+    } catch (e) {
+      emit(const AuthError('Failed to check email verification status'));
     }
   }
 
@@ -209,33 +295,29 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     Emitter<AuthState> emit,
   ) async {
     emit(AuthLoading());
-
     try {
       await authService.sendPasswordResetEmail(event.email);
       emit(ForgotPasswordSuccess(
-        'Password reset email sent to ${event.email}. Check your inbox.',
+        'Password reset instructions sent to ${event.email}',
       ));
     } on FirebaseAuthException catch (e) {
-      String message;
-      switch (e.code) {
-        case 'user-not-found':
-          message = 'No account found for that email.';
-          break;
-        case 'invalid-email':
-          message = 'The email address is not valid.';
-          break;
-        case 'too-many-requests':
-          message = 'Too many attempts. Please try again later.';
-          break;
-        default:
-          message = 'Failed to send reset email. Please try again.';
-      }
-      emit(ForgotPasswordFailure(message));
+      final errorMessage = _mapForgotPasswordError(e);
+      emit(ForgotPasswordFailure(errorMessage));
     } catch (e) {
-      // Fallback for any other errors
-      emit(const ForgotPasswordFailure(
-        'Something went wrong. Please try again.',
-      ));
+      emit(const ForgotPasswordFailure('Failed to send reset email'));
+    }
+  }
+
+  String _mapForgotPasswordError(FirebaseAuthException e) {
+    switch (e.code) {
+      case 'user-not-found':
+        return 'No account found with this email';
+      case 'invalid-email':
+        return 'Please enter a valid email address';
+      case 'too-many-requests':
+        return 'Too many attempts. Please try again later.';
+      default:
+        return 'Failed to send password reset email';
     }
   }
 
@@ -245,12 +327,25 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     try {
       await authRepository.changePassword(
           event.currentPassword, event.newPassword);
-      // You can either emit a dedicated ChangePasswordSuccess or use AuthSuccess.
-      emit(AuthSuccess('Password changed successfully.'));
-      // If you created a dedicated state, you could instead:
-      // emit(ChangePasswordSuccess('Password changed successfully.'));
+      emit(const AuthSuccess('Password changed successfully'));
+    } on FirebaseAuthException catch (e) {
+      final errorMessage = _mapChangePasswordError(e);
+      emit(AuthError(errorMessage));
     } catch (e) {
-      emit(AuthError('Change password failed: ${e.toString()}'));
+      emit(const AuthError('Failed to change password'));
+    }
+  }
+
+  String _mapChangePasswordError(FirebaseAuthException e) {
+    switch (e.code) {
+      case 'wrong-password':
+        return 'Current password is incorrect';
+      case 'weak-password':
+        return 'New password is too weak';
+      case 'requires-recent-login':
+        return 'Please login again before changing password';
+      default:
+        return 'Failed to change password';
     }
   }
 
@@ -259,9 +354,21 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     emit(AuthLoading());
     try {
       await authRepository.deleteAccount();
-      emit(AuthSuccess("Account deleted successfully."));
+      emit(const AuthSuccess('Account deleted successfully'));
+    } on FirebaseAuthException catch (e) {
+      final errorMessage = _mapDeleteAccountError(e);
+      emit(AuthError(errorMessage));
     } catch (e) {
-      emit(AuthError("Failed to delete account: ${e.toString()}"));
+      emit(const AuthError('Failed to delete account'));
+    }
+  }
+
+  String _mapDeleteAccountError(FirebaseAuthException e) {
+    switch (e.code) {
+      case 'requires-recent-login':
+        return 'Please login again before deleting your account';
+      default:
+        return 'Failed to delete account';
     }
   }
 }

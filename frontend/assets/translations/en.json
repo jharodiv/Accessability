@@ -17,6 +17,8 @@
   "biometricLogin": "Biometric Login",
   "about": "About",
   "logout": "Log out",
+  "areYouSureLogout": "Are you sure you want to logout?",
+  "confirm": "Confirm",
   "ok": "OK",
   "profilePictureUpdated": "Profile picture updated successfully!",
   "accountTitle": "Account",

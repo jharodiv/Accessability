@@ -3,6 +3,7 @@ import 'package:AccessAbility/accessability/logic/bloc/auth/auth_bloc.dart';
 import 'package:AccessAbility/accessability/logic/bloc/auth/auth_event.dart';
 import 'package:AccessAbility/accessability/logic/bloc/user/user_bloc.dart';
 import 'package:AccessAbility/accessability/logic/bloc/user/user_state.dart';
+import 'package:AccessAbility/accessability/presentation/widgets/dialog/logout_confirmation_dialog_widget.dart';
 import 'package:AccessAbility/accessability/themes/theme_provider.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
@@ -222,7 +223,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     'logout'.tr(),
                     style: const TextStyle(fontWeight: FontWeight.bold),
                   ),
-                  onTap: () => logout(context),
+                  onTap: () {
+                    showDialog(
+                      context: context,
+                      builder: (_) => LogoutConfirmationDialogWidget(
+                        onConfirm: () => logout(context),
+                      ),
+                    );
+                  },
                 ),
               ],
             ),

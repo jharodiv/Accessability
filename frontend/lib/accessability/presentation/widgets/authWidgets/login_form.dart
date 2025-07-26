@@ -257,7 +257,7 @@ class _LoginFormState extends State<LoginForm> {
                   const SizedBox(height: 5),
                   BlocBuilder<AuthBloc, AuthState>(
                     builder: (context, state) {
-                      final isLoading = state is AuthLoading;
+                      final isLoading = state is AuthLoadingLogin;
                       return ElevatedButton(
                         onPressed: isLoading ? null : () => _login(context),
                         style: ElevatedButton.styleFrom(

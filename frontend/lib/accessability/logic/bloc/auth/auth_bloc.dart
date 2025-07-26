@@ -39,7 +39,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   }
 
   Future<void> _onLoginEvent(LoginEvent event, Emitter<AuthState> emit) async {
-    emit(AuthLoading());
+    emit(AuthLoadingLogin());
     debugPrint('AuthBloc: Starting login process for ${event.email}');
 
     try {

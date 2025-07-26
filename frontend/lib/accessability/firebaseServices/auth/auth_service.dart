@@ -132,6 +132,14 @@ class AuthService {
 
       return userCredential;
     } on FirebaseAuthException catch (e) {
+      if (e.code == 'user-not-found') {
+        // Custom message for non-existent account
+        throw FirebaseAuthException(
+          code: e.code,
+          message:
+              'No account found with this email. Would you like to register?',
+        );
+      }
       // Re-throw with improved messages
       throw FirebaseAuthException(
         code: e.code,

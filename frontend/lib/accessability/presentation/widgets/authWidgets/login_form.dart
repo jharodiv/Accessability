@@ -167,23 +167,15 @@ class _LoginFormState extends State<LoginForm> {
           },
         ),
         BlocListener<UserBloc, UserState>(
-          listenWhen: (previous, current) => current is UserLoaded,
-          listener: (context, userState) {
-            if (userState is UserLoaded) {
-              final authState = context.read<AuthBloc>().state;
-              WidgetsBinding.instance.addPostFrameCallback((_) {
-                if (mounted &&
-                    authState is AuthenticatedLogin &&
-                    !_hasNavigated) {
-                  _hasNavigated = true;
-                  Navigator.pushReplacementNamed(
-                    context,
-                    authState.hasCompletedOnboarding
-                        ? '/homescreen'
-                        : '/onboarding',
-                  );
-                }
-              });
+          listenWhen: (prev, curr) => curr is UserLoaded,
+          listener: (context, state) {
+            if (state is UserLoaded && !_hasNavigated) {
+              _hasNavigated = true;
+              final auth = context.read<AuthBloc>().state as AuthenticatedLogin;
+              Navigator.pushReplacementNamed(
+                context,
+                auth.hasCompletedOnboarding ? '/homescreen' : '/onboarding',
+              );
             }
           },
         ),
@@ -265,7 +257,7 @@ class _LoginFormState extends State<LoginForm> {
                   const SizedBox(height: 5),
                   BlocBuilder<AuthBloc, AuthState>(
                     builder: (context, state) {
-                      final isLoading = state is AuthLoading;
+                      final isLoading = state is AuthLoadingLogin;
                       return ElevatedButton(
                         onPressed: isLoading ? null : () => _login(context),
                         style: ElevatedButton.styleFrom(

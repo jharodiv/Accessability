@@ -121,36 +121,50 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   }
 
   Future<void> _onRegisterEvent(
-      RegisterEvent event, Emitter<AuthState> emit) async {
+    RegisterEvent event,
+    Emitter<AuthState> emit,
+  ) async {
     emit(AuthLoading());
+
     try {
+      // Attempt registration; may throw FirebaseAuthException
       final userModel = await authRepository.register(
         event.signUpModel,
         event.profilePicture,
       );
+
+      // If we reach here, registration succeeded
       emit(RegistrationSuccess());
     } on FirebaseAuthException catch (e) {
-      final errorMessage = _mapFirebaseRegistrationError(e);
+      // First, try to map well‑known Firebase codes to friendly messages
+      String? friendly = _mapFirebaseRegistrationError(e);
+
+      // If we didn’t have a mapping, fallback to the raw message
+      final errorMessage =
+          friendly ?? e.message ?? 'Registration failed. Please try again.';
+
       emit(AuthError(errorMessage));
     } catch (e) {
-      emit(AuthError('Registration failed. Please try again.'));
+      // Any other exception (wrapped as FirebaseAuthException in repo,
+      // or completely different) is shown directly:
+      emit(AuthError(e.toString()));
     }
   }
 
-  String _mapFirebaseRegistrationError(FirebaseAuthException e) {
+  String? _mapFirebaseRegistrationError(FirebaseAuthException e) {
     switch (e.code) {
       case 'email-already-in-use':
         return 'This email is already registered. Please use a different email.';
       case 'invalid-email':
-        return 'Please enter a valid email address';
-      case 'operation-not-allowed':
-        return 'Registration is currently disabled. Please try again later.';
+        return 'Please enter a valid email address.';
       case 'weak-password':
         return 'Password is too weak. Please choose a stronger password.';
+      case 'operation-not-allowed':
+        return 'Registration is currently disabled. Please try again later.';
       case 'network-request-failed':
         return 'Network error. Please check your internet connection.';
       default:
-        return 'Registration failed. Please try again.';
+        return null; // no special mapping for this code
     }
   }
 

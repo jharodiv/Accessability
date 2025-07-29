@@ -41,9 +41,15 @@ class AuthRepository {
       }
 
       return userModel;
+    } on FirebaseAuthException {
+      // Let the BLoC’s `on FirebaseAuthException` catch block see
+      // the actual code (e.g. 'email-already-in-use').
+      rethrow;
     } catch (e) {
-      print('AuthRepository: Registration failed - ${e.toString()}');
-      throw Exception('Registration failed: ${e.toString()}');
+      throw FirebaseAuthException(
+        code: 'registration-failed',
+        message: e.toString(),
+      );
     }
   }
 

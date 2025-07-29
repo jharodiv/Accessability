@@ -137,7 +137,7 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
                             ? 'english'.tr()
                             : value == 'fil'
                                 ? 'filipino'.tr()
-                                : 'pangasinan'.tr(),
+                                : 'Pangasinan'.tr(),
                       ),
                     );
                   }).toList(),

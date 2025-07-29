@@ -82,7 +82,7 @@ class AuthRepository {
         hasCompletedOnboarding: userModel.hasCompletedOnboarding,
         user: userModel,
       );
-    } on FirebaseAuthException catch (e) {
+    } on FirebaseAuthException {
       // Re-throw Firebase errors directly
       rethrow;
     } catch (e) {
@@ -126,13 +126,12 @@ class AuthRepository {
 
   // Change Password
   Future<void> changePassword(
-      String currentPassword, String newPassword) async {
-    try {
-      await authService.changePassword(currentPassword, newPassword);
-    } catch (e) {
-      print('AuthRepository: Change password failed - ${e.toString()}');
-      throw Exception('Change password failed: ${e.toString()}');
-    }
+    String currentPassword,
+    String newPassword,
+  ) {
+    // Directly forward to AuthService so all FirebaseAuthExceptions
+    // (e.g. wrong-password) propagate to your BLoC
+    return authService.changePassword(currentPassword, newPassword);
   }
 
   Future<void> deleteAccount() async {

@@ -17,6 +17,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
   bool isCurrentPasswordVisible = false;
   bool isNewPasswordVisible = false;
   bool isRetypePasswordVisible = false;
+  String? _currentPasswordError;
 
   final TextEditingController _currentPasswordController =
       TextEditingController();
@@ -35,6 +36,11 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
   }
 
   void _handleChangePassword() {
+    setState(() {
+      // clear any previous field error:
+      _currentPasswordError = null;
+    });
+
     final currentPassword = _currentPasswordController.text.trim();
     final newPassword = _newPasswordController.text.trim();
     final confirmPassword = _confirmPasswordController.text.trim();
@@ -96,12 +102,24 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
             Navigator.pushNamedAndRemoveUntil(context, '/', (route) => false);
           });
         } else if (state is AuthError) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(state.message),
-              backgroundColor: Colors.red,
-            ),
-          );
+          if (state.message == 'Current password is incorrect.') {
+            // 1. Show inline under field
+            setState(() => _currentPasswordError = state.message);
+            // 2. Also show a SnackBar
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(state.message),
+                backgroundColor: Colors.red,
+              ),
+            );
+          } else {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(state.message),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
         }
       },
       child: _isLoading
@@ -152,6 +170,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                             obscureText: !isCurrentPasswordVisible,
                             decoration: InputDecoration(
                               isDense: true,
+                              errorText: _currentPasswordError, // ← add this
                               contentPadding:
                                   const EdgeInsets.symmetric(vertical: 8),
                               labelText: 'Current Password',
@@ -252,8 +271,8 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                           ),
                           const SizedBox(height: 40),
                           // Requirements Heading
-                          Row(
-                            children: const [
+                          const Row(
+                            children: [
                               Text(
                                 'Your new password must have:',
                                 style: TextStyle(
@@ -263,9 +282,9 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                           ),
                           const SizedBox(height: 16),
                           // Requirements List
-                          Row(
+                          const Row(
                             crossAxisAlignment: CrossAxisAlignment.start,
-                            children: const [
+                            children: [
                               Text('•  ', style: TextStyle(fontSize: 14)),
                               Expanded(
                                 child: Text(
@@ -276,9 +295,9 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                             ],
                           ),
                           const SizedBox(height: 6),
-                          Row(
+                          const Row(
                             crossAxisAlignment: CrossAxisAlignment.start,
-                            children: const [
+                            children: [
                               Text('•  ', style: TextStyle(fontSize: 14)),
                               Expanded(
                                 child: Text(
@@ -289,9 +308,9 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                             ],
                           ),
                           const SizedBox(height: 6),
-                          Row(
+                          const Row(
                             crossAxisAlignment: CrossAxisAlignment.start,
-                            children: const [
+                            children: [
                               Text('•  ', style: TextStyle(fontSize: 14)),
                               Expanded(
                                 child: Text(
@@ -331,7 +350,8 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                               Navigator.push(
                                 context,
                                 MaterialPageRoute(
-                                  builder: (context) => ForgotPasswordScreen(),
+                                  builder: (context) =>
+                                      const ForgotPasswordScreen(),
                                 ),
                               );
                             },

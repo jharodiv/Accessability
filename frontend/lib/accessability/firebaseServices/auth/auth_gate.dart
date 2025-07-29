@@ -25,7 +25,7 @@ class AuthGate extends StatelessWidget {
             backgroundColor: Colors.white,
             body: Center(
               child: CircularProgressIndicator(
-                valueColor: AlwaysStoppedAnimation<Color>(Colors.grey),
+                valueColor: AlwaysStoppedAnimation<Color>(Colors.deepPurple),
                 strokeWidth: 3,
               ),
             ),

@@ -286,30 +286,29 @@ class AuthService {
   }
 
   Future<void> changePassword(
-      String currentPassword, String newPassword) async {
+    String currentPassword,
+    String newPassword,
+  ) async {
     final user = _auth.currentUser;
     if (user == null) {
-      throw Exception("No user is currently logged in");
+      throw FirebaseAuthException(
+        code: 'no-current-user',
+        message: 'No user is currently signed in.',
+      );
     }
 
-    // Reauthenticate the user using current password
+    // 1) Reauthenticate with the current password.
+    //    If it fails, this call throws FirebaseAuthException(code: 'wrong-password').
     final credential = EmailAuthProvider.credential(
       email: user.email!,
       password: currentPassword,
     );
-    try {
-      await user.reauthenticateWithCredential(credential);
-    } on FirebaseAuthException catch (e) {
-      // This error might occur if the current password is wrong.
-      throw Exception("Reauthentication failed: ${e.message}");
-    }
+    await user.reauthenticateWithCredential(credential);
 
-    // Update the password
-    try {
-      await user.updatePassword(newPassword);
-    } on FirebaseAuthException catch (e) {
-      throw Exception("Password update failed: ${e.message}");
-    }
+    // 2) Now update to the new password.
+    //    If it’s too weak or requires a recent login, this call
+    //    throws the appropriate FirebaseAuthException (e.g. 'weak-password').
+    await user.updatePassword(newPassword);
   }
 
   Future<void> deleteAccount() async {

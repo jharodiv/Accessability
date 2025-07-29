@@ -335,31 +335,36 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     }
   }
 
-  Future<void> _onChangePasswordEvent(
-      ChangePasswordEvent event, Emitter<AuthState> emit) async {
-    emit(AuthLoading());
-    try {
-      await authRepository.changePassword(
-          event.currentPassword, event.newPassword);
-      emit(const AuthSuccess('Password changed successfully'));
-    } on FirebaseAuthException catch (e) {
-      final errorMessage = _mapChangePasswordError(e);
-      emit(AuthError(errorMessage));
-    } catch (e) {
-      emit(const AuthError('Failed to change password'));
-    }
-  }
-
   String _mapChangePasswordError(FirebaseAuthException e) {
     switch (e.code) {
       case 'wrong-password':
-        return 'Current password is incorrect';
+      case 'invalid-credential': // ← add this line
+        return 'Current password is incorrect.';
       case 'weak-password':
-        return 'New password is too weak';
+        return 'New password is too weak.';
       case 'requires-recent-login':
-        return 'Please login again before changing password';
+        return 'Please log in again before changing your password.';
       default:
-        return 'Failed to change password';
+        debugPrint('Unhandled changePassword error code: ${e.code}');
+        return 'Failed to change password. Please try again.';
+    }
+  }
+
+  Future<void> _onChangePasswordEvent(
+    ChangePasswordEvent event,
+    Emitter<AuthState> emit,
+  ) async {
+    emit(AuthLoading());
+    try {
+      await authRepository.changePassword(
+        event.currentPassword,
+        event.newPassword,
+      );
+      emit(const AuthSuccess('Password changed successfully.'));
+    } on FirebaseAuthException catch (e) {
+      emit(AuthError(_mapChangePasswordError(e)));
+    } catch (_) {
+      emit(const AuthError('Failed to change password.'));
     }
   }
 

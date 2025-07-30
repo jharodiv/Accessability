@@ -3,6 +3,8 @@ import 'package:AccessAbility/accessability/logic/bloc/place/bloc/place_event.da
 import 'package:flutter/material.dart';
 import 'package:AccessAbility/accessability/firebaseServices/models/place.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 class EstablishmentDetailsCard extends StatefulWidget {
   final Place place;
@@ -22,13 +24,44 @@ class EstablishmentDetailsCard extends StatefulWidget {
 class _EstablishmentDetailsCardState extends State<EstablishmentDetailsCard> {
   bool isFavorite = false;
 
+  Future<void> _launchGoogleMapsDirections() async {
+    try {
+      final url = Uri.parse(
+        'https://www.google.com/maps/dir/?api=1&destination=${widget.place.latitude},${widget.place.longitude}&travelmode=driving',
+      );
+      await launchUrl(url, mode: LaunchMode.externalApplication);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not open Google Maps')),
+        );
+      }
+    }
+  }
+
+  Future<void> _launchGoogleMapsLocation() async {
+    try {
+      final url = Uri.parse(
+        'geo:${widget.place.latitude},${widget.place.longitude}?q=${Uri.encodeComponent(widget.place.name)}',
+      );
+      await launchUrl(url, mode: LaunchMode.externalApplication);
+    } catch (e) {
+      final webUrl = Uri.parse(
+        'https://www.google.com/maps/search/?api=1&query=${widget.place.latitude},${widget.place.longitude}',
+      );
+      await launchUrl(webUrl, mode: LaunchMode.externalApplication);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final String placeName = widget.place.name;
-    final double placeRating = widget.place.rating ?? 0.0;
-    final int reviewsCount = widget.place.reviewsCount ?? 0;
+    // Commented out ratings as they typically require paid APIs
+    // final double placeRating = widget.place.rating ?? 0.0;
+    // final int reviewsCount = widget.place.reviewsCount ?? 0;
     final String locationText = widget.place.address ?? 'No address available';
-    final String? imageUrl = widget.place.imageUrl;
+    // Commented out image URL as it typically requires paid services
+    // final String? imageUrl = widget.place.imageUrl;
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 15),
@@ -45,7 +78,7 @@ class _EstablishmentDetailsCardState extends State<EstablishmentDetailsCard> {
                   style: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
-                    color: const Color(0xFF6750A4),
+                    color: Color(0xFF6750A4),
                   ),
                 ),
               ),
@@ -56,8 +89,6 @@ class _EstablishmentDetailsCardState extends State<EstablishmentDetailsCard> {
                   setState(() {
                     isFavorite = !isFavorite;
                   });
-
-                  // Dispatch events as needed
                   context.read<PlaceBloc>().add(AddPlaceEvent(
                         name: widget.place.name,
                         latitude: widget.place.latitude,
@@ -66,8 +97,16 @@ class _EstablishmentDetailsCardState extends State<EstablishmentDetailsCard> {
                       ));
                 },
               ),
+              if (widget.onClose != null)
+                IconButton(
+                  icon: const Icon(Icons.close),
+                  color: const Color(0xFF6750A4),
+                  onPressed: widget.onClose,
+                ),
             ],
           ),
+          // Commented out rating section as it requires paid APIs
+          /*
           // Rating row: numeric rating, stars, review count
           Row(
             children: [
@@ -89,6 +128,7 @@ class _EstablishmentDetailsCardState extends State<EstablishmentDetailsCard> {
             ],
           ),
           const SizedBox(height: 4),
+          */
           // Location row
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -112,6 +152,8 @@ class _EstablishmentDetailsCardState extends State<EstablishmentDetailsCard> {
             ],
           ),
           const SizedBox(height: 8),
+          // Commented out image section as it requires paid services
+          /*
           // Image or placeholder
           if (imageUrl != null && imageUrl.isNotEmpty)
             ClipRRect(
@@ -137,13 +179,43 @@ class _EstablishmentDetailsCardState extends State<EstablishmentDetailsCard> {
                 style: TextStyle(color: Colors.black54),
               ),
             ),
+          */
           const SizedBox(height: 12),
+          // Google Maps buttons row
+          Row(
+            children: [
+              Expanded(
+                child: ElevatedButton.icon(
+                  icon: const Icon(Icons.directions, color: Colors.white),
+                  label: const Text('Directions'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF6750A4),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
+                  onPressed: _launchGoogleMapsDirections,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: ElevatedButton.icon(
+                  icon: const Icon(Icons.location_on, color: Colors.white),
+                  label: const Text('View Location'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF6750A4),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
+                  onPressed: _launchGoogleMapsLocation,
+                ),
+              ),
+            ],
+          ),
         ],
       ),
     );
   }
 
-  // Helper method to build a row of star icons based on the rating
+  // Commented out star rating widget as it requires rating data
+  /*
   Widget _buildStarRow(double rating) {
     final int fullStars = rating.floor();
     final bool hasHalfStar = (rating - fullStars) >= 0.5;
@@ -160,4 +232,5 @@ class _EstablishmentDetailsCardState extends State<EstablishmentDetailsCard> {
     }
     return Row(children: stars);
   }
+  */
 }

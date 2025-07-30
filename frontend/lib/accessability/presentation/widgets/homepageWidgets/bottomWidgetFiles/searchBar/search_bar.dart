@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 import 'package:AccessAbility/accessability/firebaseServices/place/geocoding_service.dart';
 import 'package:easy_localization/easy_localization.dart';
+import 'package:AccessAbility/accessability/presentation/widgets/homepageWidgets/bottomWidgetFiles/searchBar/huggingface/inference.dart';
 
 class SearchBarWithAutocomplete extends StatefulWidget {
   final Function(String) onSearch;
@@ -110,15 +111,65 @@ class _SearchBarWithAutocompleteState extends State<SearchBarWithAutocomplete> {
     }
   }
 
-  void _handleVoiceCommand(String command) {
-    final lowerCommand = command.toLowerCase();
+  void _handleVoiceCommand(String command) async {
+    try {
+      final result = await predictCommand(command);
+      final label = result['label'];
+      final confidence = result['confidence'];
 
-    if (lowerCommand.contains("open settings")) {
-      Navigator.pushNamed(context, '/settings');
-      _searchController.clear();
-    } else {
-      widget.onSearch(command);
+      if (confidence >= 50) {
+        switch (label) {
+          case 'open_settings':
+            Navigator.pushNamed(context, '/settings');
+            break;
+
+          case 'call_sos':
+            Navigator.pushNamed(context, '/sos');
+            break;
+
+          case 'open_chat':
+            Navigator.pushNamed(context, '/inbox');
+            break;
+
+          case 'opencreate_space':
+            Navigator.pushNamed(context, '/createSpace');
+            break;
+
+          case 'find_location':
+            Navigator.pushNamed(context, '/map');
+            break;
+
+          case 'pwd_route':
+            Navigator.pushNamed(context, '/pwdRoute');
+            break;
+
+          case 'open_account':
+            Navigator.pushNamed(context, '/account');
+            break;
+
+          case 'set_checkin':
+            Navigator.pushNamed(context, '/checkin');
+            break;
+
+          case 'open_safety_contact':
+            Navigator.pushNamed(context, '/safetyContact');
+            break;
+
+          case 'open_favorites':
+            Navigator.pushNamed(context, '/favorites');
+            break;
+
+          default:
+            print('Unrecognized label: $label');
+        }
+      } else {
+        print('Low confidence ($confidence%). Command not executed.');
+      }
+    } catch (e) {
+      print("Error $e");
     }
+
+    _searchController.clear();
   }
 
   void _stopListening() {

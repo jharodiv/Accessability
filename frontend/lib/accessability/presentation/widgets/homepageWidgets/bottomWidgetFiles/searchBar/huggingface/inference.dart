@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 Future<Map<String, dynamic>> predictCommand(String text) async {
-  final url = Uri.parse("https://kawudiv-accessability.hf.space/api/predict");
+  final url = Uri.parse("https://jharodiv-accessability.hf.space/api/predict");
 
   final response = await http.post(
     url,

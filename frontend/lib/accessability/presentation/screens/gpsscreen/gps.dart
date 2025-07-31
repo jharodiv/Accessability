@@ -15,7 +15,7 @@ import 'package:AccessAbility/accessability/logic/bloc/user/user_event.dart';
 import 'package:AccessAbility/accessability/presentation/screens/gpsscreen/location_handler.dart';
 import 'package:AccessAbility/accessability/presentation/screens/gpsscreen/pwd_friendly_locations.dart';
 import 'package:AccessAbility/accessability/presentation/widgets/accessability_footer.dart';
-import 'package:AccessAbility/accessability/presentation/widgets/google_helper/google_place_helper.dart';
+import 'package:AccessAbility/accessability/presentation/widgets/google_helper/openstreetmap_helper.dart';
 import 'package:AccessAbility/accessability/presentation/widgets/google_helper/map_view_screen.dart';
 import 'package:AccessAbility/accessability/presentation/widgets/homepageWidgets/top_widgets.dart';
 import 'package:AccessAbility/accessability/themes/theme_provider.dart';
@@ -230,152 +230,158 @@ class _GpsScreenState extends State<GpsScreen> {
   /// that draws a route from the user's location.
   Future<void> _fetchNearbyPlaces(String placeType) async {
     if (_locationHandler.currentLocation == null) {
-      print("🚨 Current position is null, cannot fetch nearby places.");
+      print("Current location is null - cannot fetch places");
       return;
     }
-    final result = await _nearbyPlacesHandler.fetchNearbyPlaces(
-      placeType,
-      _locationHandler.currentLocation!,
-    );
-    setState(() {
-      _markers
-          .removeWhere((marker) => marker.markerId.value.startsWith("place_"));
-      _circles.clear();
-    });
-    if (result.isNotEmpty) {
-      final Set<Marker> originalNearbyMarkers = result["markers"];
-      final Set<Circle> nearbyCircles = result["circles"];
 
-      final Set<Marker> nearbyMarkers = originalNearbyMarkers.map((marker) {
-        return Marker(
-          markerId: marker.markerId,
-          position: marker.position,
-          icon: marker.icon,
-          infoWindow: marker.infoWindow,
-          onTap: () async {
-            final googlePlacesHelper = GooglePlacesHelper();
-            try {
-              final detailedPlace = await googlePlacesHelper.fetchPlaceDetails(
-                marker.markerId.value,
-                marker.infoWindow.title ?? 'unknownPlace'.tr(),
-              );
-              setState(() {
-                _selectedPlace = detailedPlace;
-                _polylines.clear();
-              });
-              if (_locationHandler.currentLocation != null) {
-                await _createRoute(
-                  _locationHandler.currentLocation!,
-                  marker.position,
-                );
-              }
-            } catch (e) {
-              print("Error fetching detailed place info: $e");
-            }
-          },
-        );
-      }).toSet();
+    print("Fetching nearby $placeType places...");
 
-      // Retain existing markers (PWD and user markers).
-      final existingMarkers = _markers
-          .where((marker) =>
-              marker.markerId.value.startsWith("pwd_") ||
-              marker.markerId.value.startsWith("user_"))
-          .toSet();
-      final updatedMarkers = existingMarkers.union(nearbyMarkers);
-      setState(() {
-        _markers = updatedMarkers;
-        _circles = nearbyCircles;
-      });
-      if (_locationHandler.mapController != null && updatedMarkers.isNotEmpty) {
-        final bounds = _locationHandler.getLatLngBounds(
-          updatedMarkers.map((marker) => marker.position).toList(),
-        );
-        _locationHandler.mapController!.animateCamera(
-          CameraUpdate.newCameraPosition(
-            CameraPosition(
-              target: _locationHandler.currentLocation!,
-              zoom: 14.5,
-            ),
+    // First, return camera to user's location
+    if (_locationHandler.mapController != null) {
+      await _locationHandler.mapController!.animateCamera(
+        CameraUpdate.newCameraPosition(
+          CameraPosition(
+            target: _locationHandler.currentLocation!,
+            zoom: 14.5,
           ),
-        );
-        print("🎯 Adjusted camera to fit ${updatedMarkers.length} markers.");
+        ),
+      );
+    }
+
+    try {
+      final result = await _nearbyPlacesHandler.fetchNearbyPlaces(
+        placeType,
+        _locationHandler.currentLocation!,
+      );
+
+      print("Received result from NearbyPlacesHandler: ${result != null}");
+
+      if (result != null && result.isNotEmpty) {
+        print("Processing ${result['markers']?.length ?? 0} markers...");
+
+        // Clear only previous nearby search markers (from top widgets)
+        // Keep: pwd_ markers, user_ markers, and place_ markers (user-added)
+        final existingMarkers = _markers
+            .where((marker) =>
+                marker.markerId.value.startsWith("pwd_") ||
+                marker.markerId.value.startsWith("user_") ||
+                marker.markerId.value.startsWith("place_"))
+            .toSet();
+
+        final Set<Marker> newMarkers = {};
+
+        // Process new markers - ensure we're working with a Set
+        if (result['markers'] != null) {
+          final markersSet = result['markers'] is Set
+              ? result['markers']
+              : Set<Marker>.from(result['markers']);
+          for (final marker in markersSet) {
+            print("Adding marker: ${marker.markerId} at ${marker.position}");
+            newMarkers.add(Marker(
+              markerId: marker.markerId,
+              position: marker.position,
+              icon: marker.icon,
+              infoWindow: marker.infoWindow,
+              onTap: () async {
+                final openStreetMapHelper = OpenStreetMapHelper();
+                try {
+                  final detailedPlace =
+                      await openStreetMapHelper.fetchPlaceDetails(
+                    marker.position.latitude,
+                    marker.position.longitude,
+                    marker.infoWindow.title ?? 'Unknown Place',
+                  );
+                  setState(() {
+                    _selectedPlace = detailedPlace;
+                  });
+                  if (_locationHandler.currentLocation != null) {
+                    await _createRoute(
+                      _locationHandler.currentLocation!,
+                      marker.position,
+                    );
+                  }
+                } catch (e) {
+                  print("Error fetching place details: $e");
+                }
+              },
+            ));
+          }
+        }
+
+        // Handle circles - convert to Set if needed
+        Set<Circle> newCircles = {};
+        if (result['circles'] != null) {
+          newCircles = result['circles'] is Set<Circle>
+              ? result['circles']
+              : Set<Circle>.from(result['circles']);
+        }
+
+        setState(() {
+          _markers = existingMarkers.union(newMarkers);
+          _circles = newCircles;
+          _polylines.clear();
+        });
+
+        print("Total markers after update: ${_markers.length}");
+        print("Total circles after update: ${_circles.length}");
+
+        // Adjust view to show all markers
+        if (_markers.isNotEmpty && _locationHandler.mapController != null) {
+          final bounds = _locationHandler.getLatLngBounds(
+            _markers.map((m) => m.position).toList(),
+          );
+          _locationHandler.mapController!.animateCamera(
+            CameraUpdate.newCameraPosition(
+              CameraPosition(
+                target: _locationHandler.currentLocation!,
+                zoom: 14.5,
+              ),
+            ),
+          );
+        }
       } else {
-        print("⚠️ No bounds to adjust camera.");
+        print("No results found for $placeType");
+        // Only clear circles, keep all markers
+        setState(() {
+          _circles.clear();
+        });
       }
-    } else {
-      print("No nearby results for $placeType. Cleared previous markers.");
+    } catch (e) {
+      print("Error fetching nearby places: $e");
+      if (e is TypeError) {
+        print("Type error details: ${e.toString()}");
+      }
     }
   }
 
   /// Create a route using Google Routes API from [origin] to [destination]
   /// and display it on the map.
   Future<void> _createRoute(LatLng origin, LatLng destination) async {
-    final String url =
-        "https://routes.googleapis.com/directions/v2:computeRoutes?key=$_googleAPIKey";
+    try {
+      final url = Uri.parse('https://router.project-osrm.org/route/v1/driving/'
+          '${origin.longitude},${origin.latitude};'
+          '${destination.longitude},${destination.latitude}?overview=full&geometries=geojson');
 
-    final Map<String, dynamic> requestBody = {
-      "origin": {
-        "location": {
-          "latLng": {
-            "latitude": origin.latitude,
-            "longitude": origin.longitude,
-          }
-        }
-      },
-      "destination": {
-        "location": {
-          "latLng": {
-            "latitude": destination.latitude,
-            "longitude": destination.longitude,
-          }
-        }
-      },
-      "travelMode": "DRIVE",
-      "routingPreference": "TRAFFIC_AWARE",
-    };
-
-    final String body = jsonEncode(requestBody);
-    print("Requesting URL: $url");
-    print("Request Body: $body");
-
-    final response = await http.post(
-      Uri.parse(url),
-      headers: {
-        "Content-Type": "application/json",
-        // Include the FieldMask header as required.
-        "X-Goog-FieldMask":
-            "routes.distanceMeters,routes.duration,routes.polyline.encodedPolyline",
-      },
-      body: body,
-    );
-    print("Response: ${response.body}");
-
-    if (response.statusCode == 200) {
-      final data = jsonDecode(response.body);
-      if (data['routes'] != null && data['routes'].isNotEmpty) {
-        final String encodedPolyline =
-            data['routes'][0]['polyline']['encodedPolyline'];
-        final List<PointLatLng> result =
-            _polylinePoints.decodePolyline(encodedPolyline);
-        final List<LatLng> polylineCoordinates = result
-            .map((point) => LatLng(point.latitude, point.longitude))
-            .toList();
+      final response = await http.get(url);
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        final geometry = data['routes'][0]['geometry']['coordinates'];
 
         setState(() {
-          _polylines.clear(); // Clear previous routes.
-          _polylines.add(Polyline(
-            polylineId: const PolylineId("route"),
-            color: const Color(0xFF6750A4),
-            width: 6,
-            points: polylineCoordinates,
-          ));
+          _polylines = {
+            Polyline(
+              polylineId: const PolylineId('route'),
+              points: geometry
+                  .map<LatLng>((coord) => LatLng(coord[1], coord[0]))
+                  .toList(),
+              color: const Color(0xFF6750A4),
+              width: 6,
+            ),
+          };
         });
-      } else {
-        print("No routes found");
       }
-    } else {
-      print("Error fetching directions: ${response.statusCode}");
+    } catch (e) {
+      print('Routing failed: $e');
     }
   }
 
@@ -472,20 +478,19 @@ class _GpsScreenState extends State<GpsScreen> {
                 snippet: '${'category'.tr()}: ${place.category}',
               ),
               onTap: () async {
-                if (place.placeId != null && place.placeId!.isNotEmpty) {
-                  try {
-                    final googlePlacesHelper = GooglePlacesHelper();
-                    final detailedPlace =
-                        await googlePlacesHelper.fetchPlaceDetails(
-                      place.placeId!,
-                      place.name,
-                    );
-                    setState(() {
-                      _selectedPlace = detailedPlace;
-                    });
-                  } catch (e) {
-                    print('Error fetching place details: $e');
-                  }
+                try {
+                  final openStreetMapHelper = OpenStreetMapHelper();
+                  final detailedPlace =
+                      await openStreetMapHelper.fetchPlaceDetails(
+                    place.latitude, // Use the place's existing coordinates
+                    place.longitude,
+                    place.name, // Fallback name
+                  );
+                  setState(() {
+                    _selectedPlace = detailedPlace;
+                  });
+                } catch (e) {
+                  print('Error fetching place details: $e');
                 }
               },
             );

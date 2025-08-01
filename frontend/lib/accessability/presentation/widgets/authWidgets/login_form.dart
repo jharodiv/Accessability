@@ -43,11 +43,6 @@ class _LoginFormState extends State<LoginForm> {
           (bool isSupported) => setState(() => _supportState = isSupported),
         );
     _checkBiometricAvailability();
-  }
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
     _getDeviceId();
   }
 
@@ -55,10 +50,14 @@ class _LoginFormState extends State<LoginForm> {
     final DeviceInfoPlugin deviceInfo = DeviceInfoPlugin();
     if (Theme.of(context).platform == TargetPlatform.android) {
       final AndroidDeviceInfo androidInfo = await deviceInfo.androidInfo;
-      setState(() => _deviceId = androidInfo.id);
+      setState(() {
+        _deviceId = androidInfo.id;
+      });
     } else if (Theme.of(context).platform == TargetPlatform.iOS) {
       final IosDeviceInfo iosInfo = await deviceInfo.iosInfo;
-      setState(() => _deviceId = iosInfo.identifierForVendor);
+      setState(() {
+        _deviceId = iosInfo.identifierForVendor;
+      });
     }
   }
 
@@ -90,7 +89,49 @@ class _LoginFormState extends State<LoginForm> {
       return;
     }
 
-    context.read<AuthBloc>().add(LoginEvent(email: email, password: password));
+    try {
+      // First try to authenticate with Firebase
+      final userCredential = await _auth.signInWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+
+      if (userCredential.user != null) {
+        // Fetch user data from Firestore
+        final userDoc = await _firestore
+            .collection('Users')
+            .doc(userCredential.user!.uid)
+            .get();
+
+        if (userDoc.exists) {
+          final biometricEnabled = userDoc.data()?['biometricEnabled'] ?? false;
+          final storedDeviceId = userDoc.data()?['deviceId'];
+
+          // Save credentials in SharedPreferences
+          final prefs = await SharedPreferences.getInstance();
+
+          // Always save credentials in backup fields
+          await prefs.setString('backup_email', email);
+          await prefs.setString('backup_password', password);
+
+          // Save in biometric fields only if conditions are met
+          if (biometricEnabled && storedDeviceId == _deviceId) {
+            await prefs.setString('biometric_email', email);
+            await prefs.setString('biometric_password', password);
+          }
+        }
+
+        // Trigger login success
+        context
+            .read<AuthBloc>()
+            .add(LoginEvent(email: email, password: password));
+      }
+    } on FirebaseAuthException catch (e) {
+      _showErrorDialog(
+        title: 'Login Failed',
+        message: e.message ?? 'An error occurred during login',
+      );
+    }
   }
 
   void _showErrorDialog({
@@ -132,9 +173,18 @@ class _LoginFormState extends State<LoginForm> {
                 .read<AuthBloc>()
                 .add(LoginEvent(email: email, password: password));
           } else {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('No saved credentials found')),
-            );
+            // Fallback to backup credentials if biometric ones aren't available
+            final backupEmail = prefs.getString('backup_email');
+            final backupPassword = prefs.getString('backup_password');
+
+            if (backupEmail != null && backupPassword != null) {
+              context.read<AuthBloc>().add(
+                  LoginEvent(email: backupEmail, password: backupPassword));
+            } else {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('No saved credentials found')),
+              );
+            }
           }
         }
       } else {
@@ -145,6 +195,9 @@ class _LoginFormState extends State<LoginForm> {
       }
     } catch (e) {
       debugPrint('Error using biometrics: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Error during biometric authentication')),
+      );
     }
   }
 
@@ -155,14 +208,13 @@ class _LoginFormState extends State<LoginForm> {
         BlocListener<AuthBloc, AuthState>(
           listenWhen: (previous, current) => current is AuthError,
           listener: (context, state) {
-            if (state is AuthError && mounted) {
-              // Add a small delay to ensure build is complete
-              Future.delayed(Duration.zero, () {
-                _showErrorDialog(
-                  title: 'Login Failed',
-                  message: state.message,
-                );
-              });
+            if (state is AuthenticatedLogin) {
+              context.read<UserBloc>().add(FetchUserData());
+            } else if (state is AuthError && mounted) {
+              _showErrorDialog(
+                title: 'Login Failed',
+                message: state.message,
+              );
             }
           },
         ),
@@ -330,8 +382,8 @@ class _LoginFormState extends State<LoginForm> {
                         const SizedBox(width: 8),
                         Text(
                           isBiometricEnabled
-                              ? 'Login with Biometrics Enabled'
-                              : 'Biometric login disabled',
+                              ? 'Login with Biometrics'
+                              : 'Biometric login unavailable',
                           style: const TextStyle(
                             fontSize: 15,
                             fontWeight: FontWeight.w600,

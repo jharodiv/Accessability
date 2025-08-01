@@ -33,7 +33,7 @@ jobs:
               -H "Content-Type: application/json" \
               -d '{
                 "recipient": { "id": "'"$PSID"'" },
-                "message": {
+                "message": {I. This ship is busted. Nokia Lumia 23. 
                   "text": "📦 Repo: '"$REPO_NAME"'\n👤 '"$COMMIT_AUTHOR"' pushed:\n💬 '"$COMMIT_MESSAGE"'\n🔗 '"$COMMIT_URL"'"
                 }
               }'

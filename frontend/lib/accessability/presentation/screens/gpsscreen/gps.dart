@@ -600,32 +600,30 @@ class _GpsScreenState extends State<GpsScreen> {
                       ),
                     ),
                     if (_locationHandler.currentIndex == 0)
-                      Positioned.fill(
-                        child: BottomWidgets(
-                          key: ValueKey(_locationHandler.activeSpaceId),
-                          isJoining: _isJoining,
-                          onJoinStateChanged: (joining) {
-                            setState(() {
-                              _isJoining = joining;
-                            });
-                          },
-                          onSheetExpanded: (expanded) {
-                            setState(() {
-                              _hideTop = expanded;
-                            });
-                          },
-                          scrollController: ScrollController(),
-                          activeSpaceId: _locationHandler.activeSpaceId,
-                          onCategorySelected: (loc) =>
-                              _locationHandler.panCameraToLocation(loc),
-                          onMapViewPressed: _openMapSettings,
-                          onMemberPressed: _onMemberPressed,
-                          selectedPlace: _selectedPlace,
-                          onCloseSelectedPlace: () =>
-                              setState(() => _selectedPlace = null),
-                          fetchNearbyPlaces: _fetchNearbyPlaces,
-                          onPlaceSelected: _updateMapLocation,
-                        ),
+                      BottomWidgets(
+                        key: ValueKey(_locationHandler.activeSpaceId),
+                        isJoining: _isJoining,
+                        onJoinStateChanged: (joining) {
+                          setState(() {
+                            _isJoining = joining;
+                          });
+                        },
+                        onSheetExpanded: (expanded) {
+                          setState(() {
+                            _hideTop = expanded;
+                          });
+                        },
+                        scrollController: ScrollController(),
+                        activeSpaceId: _locationHandler.activeSpaceId,
+                        onCategorySelected: (loc) =>
+                            _locationHandler.panCameraToLocation(loc),
+                        onMapViewPressed: _openMapSettings,
+                        onMemberPressed: _onMemberPressed,
+                        selectedPlace: _selectedPlace,
+                        onCloseSelectedPlace: () =>
+                            setState(() => _selectedPlace = null),
+                        fetchNearbyPlaces: _fetchNearbyPlaces,
+                        onPlaceSelected: _updateMapLocation,
                       ),
                     if (_locationHandler.currentIndex == 1)
                       FavoriteWidget(

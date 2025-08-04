@@ -213,7 +213,8 @@ class TopwidgetsState extends State<Topwidgets> {
               if (_isDropdownOpen)
                 Container(
                   margin: const EdgeInsets.only(top: 10),
-                  padding: const EdgeInsets.all(10),
+                  // only 5px padding at the bottom now
+                  padding: const EdgeInsets.fromLTRB(10, 10, 10, 0),
                   decoration: BoxDecoration(
                     color: isDarkMode ? Colors.grey[800] : Colors.white,
                     borderRadius: BorderRadius.circular(10),
@@ -225,33 +226,46 @@ class TopwidgetsState extends State<Topwidgets> {
                       ),
                     ],
                   ),
-                  child: Column(
-                    children: [
-                      // Default "My Space" option
-                      ListTile(
-                        title: Text(
-                          "mySpace".tr(),
-                          style: TextStyle(
-                            color: isDarkMode ? Colors.white : Colors.black,
-                          ),
-                        ),
-                        onTap: _selectMySpace,
-                      ),
-                      // Other spaces
-                      ..._spaces.map((space) {
-                        return ListTile(
-                          title: Text(
-                            space['name'],
-                            style: TextStyle(
-                              color: isDarkMode ? Colors.white : Colors.black,
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(
+                      // three tiles tall, plus top padding (10) + bottom padding (5)
+                      maxHeight: 56 * 3 + 10 + 5,
+                    ),
+                    child: Scrollbar(
+                      thumbVisibility: true,
+                      child: ListView(
+                        shrinkWrap: true,
+                        physics: BouncingScrollPhysics(),
+                        // remove any default list padding
+                        padding: EdgeInsets.zero,
+                        children: [
+                          ListTile(
+                            title: Text(
+                              "mySpace".tr(),
+                              style: TextStyle(
+                                color: isDarkMode ? Colors.white : Colors.black,
+                              ),
                             ),
+                            onTap: _selectMySpace,
                           ),
-                          onTap: () => _selectSpace(space['id'], space['name']),
-                        );
-                      }),
-                    ],
+                          ..._spaces.map((space) => ListTile(
+                                title: Text(
+                                  space['name'],
+                                  style: TextStyle(
+                                    color: isDarkMode
+                                        ? Colors.white
+                                        : Colors.black,
+                                  ),
+                                ),
+                                onTap: () =>
+                                    _selectSpace(space['id'], space['name']),
+                              )),
+                        ],
+                      ),
+                    ),
                   ),
                 ),
+
               // Horizontally Scrollable List of Categories
               SingleChildScrollView(
                 scrollDirection: Axis.horizontal,

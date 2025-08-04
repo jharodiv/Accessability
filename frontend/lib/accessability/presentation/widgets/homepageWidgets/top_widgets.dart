@@ -267,49 +267,50 @@ class TopwidgetsState extends State<Topwidgets> {
                 ),
 
               // Horizontally Scrollable List of Categories
-              SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(vertical: 10),
-                  child: Row(
-                    children: [
-                      CategoryItem(
-                        title: 'hotel'.tr(),
-                        icon: Icons.hotel,
-                        onCategorySelected: _handleCategorySelection,
-                        isSelected: _selectedCategory == 'Hotel',
-                      ),
-                      CategoryItem(
-                        title: 'restaurant'.tr(),
-                        icon: Icons.restaurant,
-                        onCategorySelected: _handleCategorySelection,
-                        isSelected: ['Restaurant', 'Restawran']
-                            .contains(_selectedCategory),
-                      ),
-                      CategoryItem(
-                        title: 'bus'.tr(),
-                        icon: Icons.directions_bus,
-                        onCategorySelected: _handleCategorySelection,
-                        isSelected: _selectedCategory == 'Bus',
-                      ),
-                      CategoryItem(
-                        title: 'shopping'.tr(),
-                        icon: Icons.shop_2,
-                        onCategorySelected: _handleCategorySelection,
-                        isSelected: ['Shopping', 'Pamimili']
-                            .contains(_selectedCategory),
-                      ),
-                      CategoryItem(
-                        title: 'groceries'.tr(),
-                        icon: Icons.shopping_cart,
-                        onCategorySelected: _handleCategorySelection,
-                        isSelected: ['Groceries', 'Grocery']
-                            .contains(_selectedCategory),
-                      ),
-                    ],
+              if (!_isDropdownOpen)
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 10),
+                    child: Row(
+                      children: [
+                        CategoryItem(
+                          title: 'hotel'.tr(),
+                          icon: Icons.hotel,
+                          onCategorySelected: _handleCategorySelection,
+                          isSelected: _selectedCategory == 'Hotel',
+                        ),
+                        CategoryItem(
+                          title: 'restaurant'.tr(),
+                          icon: Icons.restaurant,
+                          onCategorySelected: _handleCategorySelection,
+                          isSelected: ['Restaurant', 'Restawran']
+                              .contains(_selectedCategory),
+                        ),
+                        CategoryItem(
+                          title: 'bus'.tr(),
+                          icon: Icons.directions_bus,
+                          onCategorySelected: _handleCategorySelection,
+                          isSelected: _selectedCategory == 'Bus',
+                        ),
+                        CategoryItem(
+                          title: 'shopping'.tr(),
+                          icon: Icons.shop_2,
+                          onCategorySelected: _handleCategorySelection,
+                          isSelected: ['Shopping', 'Pamimili']
+                              .contains(_selectedCategory),
+                        ),
+                        CategoryItem(
+                          title: 'groceries'.tr(),
+                          icon: Icons.shopping_cart,
+                          onCategorySelected: _handleCategorySelection,
+                          isSelected: ['Groceries', 'Grocery']
+                              .contains(_selectedCategory),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
-              ),
             ],
           ),
         ),

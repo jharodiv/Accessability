@@ -58,7 +58,9 @@ class _GpsScreenState extends State<GpsScreen> {
   late Key _mapKey = UniqueKey();
   String _activeSpaceId = '';
   bool _isLoading = false;
+  bool _hideTop = false;
   Place? _selectedPlace;
+  bool _isJoining = false;
 
   MapType _currentMapType = MapType.normal;
   MapPerspective? _pendingPerspective; // New field
@@ -574,38 +576,56 @@ class _GpsScreenState extends State<GpsScreen> {
                         });
                       },
                     ),
-                    Topwidgets(
-                      key: _topWidgetsKey,
-                      inboxKey: inboxKey,
-                      settingsKey: settingsKey,
-                      onCategorySelected: (selectedType) {
-                        _fetchNearbyPlaces(selectedType);
-                      },
-                      onOverlayChange: (isVisible) {
-                        setState(() {});
-                      },
-                      onSpaceSelected: _locationHandler.updateActiveSpaceId,
-                      onMySpaceSelected: _onMySpaceSelected,
-                      onSpaceIdChanged: _handleSpaceIdChanged,
+                    AnimatedSlide(
+                      offset: _hideTop ? const Offset(0, -1) : Offset.zero,
+                      duration: const Duration(milliseconds: 300),
+                      curve: Curves.easeInOut,
+                      child: AnimatedOpacity(
+                        duration: const Duration(milliseconds: 300),
+                        opacity: _hideTop ? 0.0 : 1.0,
+                        child: IgnorePointer(
+                          ignoring: _hideTop,
+                          child: Topwidgets(
+                            key: _topWidgetsKey,
+                            inboxKey: inboxKey,
+                            settingsKey: settingsKey,
+                            onCategorySelected: _fetchNearbyPlaces,
+                            onOverlayChange: (_) => setState(() {}),
+                            onSpaceSelected:
+                                _locationHandler.updateActiveSpaceId,
+                            onMySpaceSelected: _onMySpaceSelected,
+                            onSpaceIdChanged: _handleSpaceIdChanged,
+                          ),
+                        ),
+                      ),
                     ),
                     if (_locationHandler.currentIndex == 0)
-                      BottomWidgets(
-                        key: ValueKey(_locationHandler.activeSpaceId),
-                        scrollController: ScrollController(),
-                        activeSpaceId: _locationHandler.activeSpaceId,
-                        onCategorySelected: (LatLng location) {
-                          _locationHandler.panCameraToLocation(location);
-                        },
-                        onMapViewPressed: _openMapSettings,
-                        onMemberPressed: _onMemberPressed,
-                        selectedPlace: _selectedPlace,
-                        onCloseSelectedPlace: () {
-                          setState(() {
-                            _selectedPlace = null;
-                          });
-                        },
-                        fetchNearbyPlaces: _fetchNearbyPlaces,
-                        onPlaceSelected: _updateMapLocation,
+                      Positioned.fill(
+                        child: BottomWidgets(
+                          key: ValueKey(_locationHandler.activeSpaceId),
+                          isJoining: _isJoining,
+                          onJoinStateChanged: (joining) {
+                            setState(() {
+                              _isJoining = joining;
+                            });
+                          },
+                          onSheetExpanded: (expanded) {
+                            setState(() {
+                              _hideTop = expanded;
+                            });
+                          },
+                          scrollController: ScrollController(),
+                          activeSpaceId: _locationHandler.activeSpaceId,
+                          onCategorySelected: (loc) =>
+                              _locationHandler.panCameraToLocation(loc),
+                          onMapViewPressed: _openMapSettings,
+                          onMemberPressed: _onMemberPressed,
+                          selectedPlace: _selectedPlace,
+                          onCloseSelectedPlace: () =>
+                              setState(() => _selectedPlace = null),
+                          fetchNearbyPlaces: _fetchNearbyPlaces,
+                          onPlaceSelected: _updateMapLocation,
+                        ),
                       ),
                     if (_locationHandler.currentIndex == 1)
                       FavoriteWidget(

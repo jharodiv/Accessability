@@ -34,6 +34,9 @@ class BottomWidgets extends StatefulWidget {
   final Function(String) fetchNearbyPlaces;
   final Future<void> Function()? onMapViewPressed; // New callback property
   final void Function(Place)? onPlaceSelected; // New callback property
+  final ValueChanged<bool>? onSheetExpanded;
+  final bool isJoining; // new
+  final ValueChanged<bool> onJoinStateChanged; // new
 
   const BottomWidgets({
     super.key,
@@ -46,6 +49,9 @@ class BottomWidgets extends StatefulWidget {
     this.onCloseSelectedPlace,
     this.onMapViewPressed, // Add it here
     this.onPlaceSelected, // Add it here
+    this.onSheetExpanded,
+    required this.isJoining,
+    required this.onJoinStateChanged,
   });
 
   @override
@@ -81,6 +87,8 @@ class _BottomWidgetsState extends State<BottomWidgets> {
 
   StreamSubscription<DocumentSnapshot>? _membersListener;
   final List<StreamSubscription<DocumentSnapshot>> _locationListeners = [];
+  bool _isExpanded = false;
+  late VoidCallback _sheetListener;
 
   @override
   void initState() {
@@ -89,6 +97,36 @@ class _BottomWidgetsState extends State<BottomWidgets> {
     _setupVerificationCodeFocusListeners();
     _initializeLocation();
     _initializeTts();
+    _sheetListener = () {
+      final extent = _draggableController.size;
+      final nowExpanded = extent > 0.95;
+
+      // flip flag + notify parent
+      if (nowExpanded != _isExpanded) {
+        setState(() => _isExpanded = nowExpanded);
+        widget.onSheetExpanded?.call(_isExpanded);
+      }
+
+      // snap up
+      if (!_isExpanded && extent > 0.95) {
+        _draggableController.animateTo(
+          1.0,
+          duration: const Duration(milliseconds: 200),
+          curve: Curves.easeInOut,
+        );
+      }
+      // snap down
+      if (_isExpanded && extent < 0.8) {
+        _draggableController.animateTo(
+          widget.selectedPlace != null ? 0.6 : 0.3,
+          duration: const Duration(milliseconds: 200),
+          curve: Curves.easeInOut,
+        );
+      }
+    };
+
+    // Register it:
+    _draggableController.addListener(_sheetListener);
   }
 
   Future<void> _initializeLocation() async {
@@ -131,6 +169,8 @@ class _BottomWidgetsState extends State<BottomWidgets> {
 
   @override
   void dispose() {
+    _draggableController.removeListener(_sheetListener);
+
     _membersListener?.cancel();
     _locationListeners.forEach((listener) => listener.cancel());
     _locationListeners.clear();
@@ -556,20 +596,26 @@ class _BottomWidgetsState extends State<BottomWidgets> {
 
     return DraggableScrollableSheet(
       controller: _draggableController,
-      initialChildSize: widget.selectedPlace != null ? 0.5 : 0.18,
-      minChildSize: 0.15,
-      maxChildSize: 0.8,
+      expand: true,
+      initialChildSize: widget.isJoining
+          ? 1.0 // full‐screen while joining
+          : (widget.selectedPlace != null ? 0.6 : 0.30),
+      minChildSize: 0.20,
+      maxChildSize: 1,
       builder: (context, scrollController) {
         return Column(
           children: [
-            ServiceButtons(
-              onButtonPressed: (label) {
-                if (label == 'SOS') {
-                  Navigator.pushNamed(context, '/sos');
-                }
-              },
-              currentLocation: _locationHandler.currentLocation,
-              onMapViewPressed: widget.onMapViewPressed,
+            IgnorePointer(
+              ignoring: _isExpanded || widget.isJoining,
+              child: AnimatedOpacity(
+                duration: const Duration(milliseconds: 300),
+                opacity: (_isExpanded || widget.isJoining) ? 0.0 : 1.0,
+                child: ServiceButtons(
+                  onButtonPressed: (label) {/* … */},
+                  currentLocation: _locationHandler.currentLocation,
+                  onMapViewPressed: widget.onMapViewPressed,
+                ),
+              ),
             ),
             const SizedBox(height: 10),
             Expanded(
@@ -580,11 +626,11 @@ class _BottomWidgetsState extends State<BottomWidgets> {
                     topLeft: Radius.circular(20),
                     topRight: Radius.circular(20),
                   ),
-                  boxShadow: [
+                  boxShadow: const [
                     BoxShadow(
                       color: Colors.black26,
                       blurRadius: 10,
-                      offset: const Offset(0, -5),
+                      offset: Offset(0, -5),
                     ),
                   ],
                 ),
@@ -625,10 +671,12 @@ class _BottomWidgetsState extends State<BottomWidgets> {
                                 icon: Icons.people,
                                 index: 0,
                                 activeIndex: _activeIndex,
-                                onPressed: (int newIndex) {
-                                  setState(() {
-                                    _activeIndex = newIndex;
-                                  });
+                                onPressed: (newIndex) {
+                                  // leave join flow
+                                  if (widget.isJoining) {
+                                    widget.onJoinStateChanged(false);
+                                  }
+                                  setState(() => _activeIndex = newIndex);
                                 },
                               ),
                               CustomButton(
@@ -730,6 +778,13 @@ class _BottomWidgetsState extends State<BottomWidgets> {
                                             setState(() {
                                               _showJoinSpace = true;
                                             });
+                                            widget.onJoinStateChanged(true);
+                                            _draggableController.animateTo(
+                                              1.0,
+                                              duration: const Duration(
+                                                  milliseconds: 300),
+                                              curve: Curves.easeInOut,
+                                            );
                                           },
                                           style: ElevatedButton.styleFrom(
                                             backgroundColor:
@@ -766,10 +821,17 @@ class _BottomWidgetsState extends State<BottomWidgets> {
                                 verificationCodeFocusNodes:
                                     _verificationCodeFocusNodes,
                                 onJoinSpace: _joinSpace,
+                                onCodeInput: () {
+                                  _draggableController.animateTo(
+                                    1.0,
+                                    duration: const Duration(milliseconds: 300),
+                                    curve: Curves.easeInOut,
+                                  );
+                                  widget.onJoinStateChanged(true);
+                                },
                                 onCancel: () {
-                                  setState(() {
-                                    _showJoinSpace = false;
-                                  });
+                                  setState(() => _showJoinSpace = false);
+                                  widget.onJoinStateChanged(false);
                                 },
                               ),
                           ],

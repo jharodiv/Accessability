@@ -89,7 +89,8 @@ class _BottomWidgetsState extends State<BottomWidgets> {
   final List<StreamSubscription<DocumentSnapshot>> _locationListeners = [];
   bool _isExpanded = false;
   late VoidCallback _sheetListener;
-
+  late final double _expandThreshold = 0.5;
+  late final double _collapseThreshold = 0.8;
   @override
   void initState() {
     super.initState();
@@ -99,24 +100,23 @@ class _BottomWidgetsState extends State<BottomWidgets> {
     _initializeTts();
     _sheetListener = () {
       final extent = _draggableController.size;
-      final nowExpanded = extent > 0.95;
 
-      // flip flag + notify parent
-      if (nowExpanded != _isExpanded) {
-        setState(() => _isExpanded = nowExpanded);
-        widget.onSheetExpanded?.call(_isExpanded);
-      }
-
-      // snap up
-      if (!_isExpanded && extent > 0.95) {
+      // 1) snap up when you cross halfway
+      if (!_isExpanded && extent >= _expandThreshold) {
+        _isExpanded = true;
+        widget.onSheetExpanded?.call(true);
         _draggableController.animateTo(
           1.0,
           duration: const Duration(milliseconds: 200),
           curve: Curves.easeInOut,
         );
+        return;
       }
-      // snap down
-      if (_isExpanded && extent < 0.8) {
+
+      // 2) snap down when you drag back below 80%
+      if (_isExpanded && extent <= _collapseThreshold) {
+        _isExpanded = false;
+        widget.onSheetExpanded?.call(false);
         _draggableController.animateTo(
           widget.selectedPlace != null ? 0.6 : 0.3,
           duration: const Duration(milliseconds: 200),
@@ -125,7 +125,6 @@ class _BottomWidgetsState extends State<BottomWidgets> {
       }
     };
 
-    // Register it:
     _draggableController.addListener(_sheetListener);
   }
 

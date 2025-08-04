@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:easy_localization/easy_localization.dart';
 
 class JoinSpaceWidget extends StatelessWidget {
@@ -15,9 +16,52 @@ class JoinSpaceWidget extends StatelessWidget {
     required this.onCancel,
   }) : super(key: key);
 
+  Widget _buildBox(int i, double width) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 4),
+      width: width,
+      child: Focus(
+        // Focus creates its own node so we don’t clash with the TextField’s node
+        onKey: (node, evt) {
+          if (evt is RawKeyDownEvent &&
+              evt.logicalKey == LogicalKeyboardKey.backspace &&
+              verificationCodeControllers[i].text.isEmpty) {
+            // if empty and not the first box, move back
+            if (i > 0) {
+              verificationCodeControllers[i - 1].clear();
+              verificationCodeFocusNodes[i - 1].requestFocus();
+            }
+            return KeyEventResult.handled;
+          }
+          return KeyEventResult.ignored;
+        },
+        child: TextField(
+          controller: verificationCodeControllers[i],
+          focusNode: verificationCodeFocusNodes[i],
+          textAlign: TextAlign.center,
+          maxLength: 1,
+          keyboardType: TextInputType.number,
+          decoration: const InputDecoration(
+            counterText: '',
+            border: OutlineInputBorder(),
+          ),
+          onChanged: (val) {
+            if (val.isNotEmpty) {
+              // move forward or unfocus on last box
+              if (i < verificationCodeFocusNodes.length - 1) {
+                verificationCodeFocusNodes[i + 1].requestFocus();
+              } else {
+                verificationCodeFocusNodes[i].unfocus();
+              }
+            }
+          },
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    // Common shape for both buttons.
     final shape = RoundedRectangleBorder(
       borderRadius: BorderRadius.circular(8),
     );
@@ -45,48 +89,17 @@ class JoinSpaceWidget extends StatelessWidget {
           // Code Input Fields
           LayoutBuilder(
             builder: (context, constraints) {
-              // Calculate the width of each TextField dynamically.
-              final textFieldWidth = constraints.maxWidth * 0.12;
+              final fieldWidth = constraints.maxWidth * 0.12;
               return Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   // First 3 fields
-                  for (int i = 0; i < 3; i++)
-                    Container(
-                      margin: const EdgeInsets.symmetric(horizontal: 4),
-                      width: textFieldWidth,
-                      child: TextField(
-                        controller: verificationCodeControllers[i],
-                        focusNode: verificationCodeFocusNodes[i],
-                        textAlign: TextAlign.center,
-                        maxLength: 1,
-                        keyboardType: TextInputType.number,
-                        decoration: const InputDecoration(
-                          counterText: '',
-                          border: OutlineInputBorder(),
-                        ),
-                      ),
-                    ),
+                  for (int i = 0; i < 3; i++) _buildBox(i, fieldWidth),
                   const SizedBox(width: 8),
                   const Text('-', style: TextStyle(fontSize: 20)),
                   const SizedBox(width: 8),
                   // Last 3 fields
-                  for (int i = 3; i < 6; i++)
-                    Container(
-                      margin: const EdgeInsets.symmetric(horizontal: 4),
-                      width: textFieldWidth,
-                      child: TextField(
-                        controller: verificationCodeControllers[i],
-                        focusNode: verificationCodeFocusNodes[i],
-                        textAlign: TextAlign.center,
-                        maxLength: 1,
-                        keyboardType: TextInputType.number,
-                        decoration: const InputDecoration(
-                          counterText: '',
-                          border: OutlineInputBorder(),
-                        ),
-                      ),
-                    ),
+                  for (int i = 3; i < 6; i++) _buildBox(i, fieldWidth),
                 ],
               );
             },

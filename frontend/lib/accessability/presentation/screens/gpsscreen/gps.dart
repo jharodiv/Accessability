@@ -538,7 +538,7 @@ class _GpsScreenState extends State<GpsScreen> {
                         zoom: 14,
                       ),
                       myLocationEnabled: true,
-                      myLocationButtonEnabled: true,
+                      myLocationButtonEnabled: false,
                       mapType: _currentMapType,
                       markers: _markers,
                       circles: _circles,
@@ -558,6 +558,14 @@ class _GpsScreenState extends State<GpsScreen> {
                           _pendingPerspective = null;
                         }
                       },
+                      zoomControlsEnabled: false, // hides the + / – buttons
+                      compassEnabled: false, // hides the north-arrow compass
+                      mapToolbarEnabled:
+                          false, // <-- this removes that little circular toolbar
+
+                      zoomGesturesEnabled:
+                          true, // (optional) still allow pinch-to-zoom
+
                       polygons:
                           _markerHandler.createPolygons(pwdFriendlyLocations),
                       onTap: (LatLng position) {

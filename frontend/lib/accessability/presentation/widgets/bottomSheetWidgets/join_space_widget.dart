@@ -7,6 +7,7 @@ class JoinSpaceWidget extends StatelessWidget {
   final List<FocusNode> verificationCodeFocusNodes;
   final VoidCallback onJoinSpace;
   final VoidCallback onCancel;
+  final VoidCallback onCodeInput;
 
   const JoinSpaceWidget({
     Key? key,
@@ -14,6 +15,7 @@ class JoinSpaceWidget extends StatelessWidget {
     required this.verificationCodeFocusNodes,
     required this.onJoinSpace,
     required this.onCancel,
+    required this.onCodeInput,
   }) : super(key: key);
 
   Widget _buildBox(int i, double width) {
@@ -47,6 +49,7 @@ class JoinSpaceWidget extends StatelessWidget {
           ),
           onChanged: (val) {
             if (val.isNotEmpty) {
+              onCodeInput();
               // move forward or unfocus on last box
               if (i < verificationCodeFocusNodes.length - 1) {
                 verificationCodeFocusNodes[i + 1].requestFocus();

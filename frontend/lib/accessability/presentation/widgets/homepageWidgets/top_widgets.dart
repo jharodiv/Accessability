@@ -1,10 +1,9 @@
+import 'package:AccessAbility/accessability/presentation/widgets/gpsWidgets/space_dropdown_widget.dart';
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:AccessAbility/accessability/presentation/widgets/homepageWidgets/category_item.dart';
-import 'package:provider/provider.dart';
 import 'package:AccessAbility/accessability/themes/theme_provider.dart';
 import 'package:easy_localization/easy_localization.dart';
+import 'package:provider/provider.dart';
 
 class Topwidgets extends StatefulWidget {
   final Function(bool) onOverlayChange;
@@ -17,8 +16,8 @@ class Topwidgets extends StatefulWidget {
 
   const Topwidgets({
     super.key,
-    required this.onCategorySelected,
     required this.onOverlayChange,
+    required this.onCategorySelected,
     required this.inboxKey,
     required this.settingsKey,
     required this.onSpaceSelected,
@@ -31,82 +30,82 @@ class Topwidgets extends StatefulWidget {
 }
 
 class TopwidgetsState extends State<Topwidgets> {
-  bool _isDropdownOpen = false;
-  List<Map<String, dynamic>> _spaces = [];
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final FirebaseAuth _auth = FirebaseAuth.instance;
-  String _activeSpaceName = "mySpace".tr(); // Use localized default value
+  String _activeSpaceName = "mySpace".tr();
   String? _selectedCategory;
 
-  @override
-  void initState() {
-    super.initState();
-    _listenToSpaces();
-  }
-
-  void _listenToSpaces() {
-    final user = _auth.currentUser;
-    if (user == null) return;
-
-    _firestore
-        .collection('Spaces')
-        .where('members', arrayContains: user.uid)
-        .snapshots()
-        .listen((snapshot) {
-      setState(() {
-        _spaces = snapshot.docs.map((doc) {
-          return {
-            'id': doc.id,
-            'name': doc['name'],
-            'creator': doc['creator'],
-          };
-        }).toList();
-      });
-    });
-  }
-
-  void _selectSpace(String spaceId, String spaceName) {
-    widget.onSpaceSelected(spaceId);
-    widget.onSpaceIdChanged(spaceId);
+  void _handleCategorySelection(String cat) {
+    final map = {
+      'Restawran': 'Restaurant',
+      'Pamimili': 'Shopping',
+      'Grocery': 'Groceries',
+    };
+    final mapped = map[cat] ?? cat;
     setState(() {
-      _activeSpaceName = spaceName;
-      _isDropdownOpen = false;
-    });
-  }
-
-  void _selectMySpace() {
-    widget.onSpaceSelected('');
-    widget.onSpaceIdChanged('');
-    widget.onMySpaceSelected();
-    setState(() {
-      _activeSpaceName = "mySpace".tr(); // Reset to localized default
-      _isDropdownOpen = false;
-    });
-  }
-
-  void _handleCategorySelection(String category) {
-    // Map the incoming category to the desired title
-    String mappedCategory;
-    if (category == 'Restawran') {
-      mappedCategory = 'Restaurant';
-    } else if (category == 'Pamimili') {
-      mappedCategory = 'Shopping';
-    } else if (category == 'Grocery') {
-      mappedCategory = 'Groceries';
-    } else {
-      mappedCategory = category;
-    }
-
-    setState(() {
-      _selectedCategory =
-          _selectedCategory == mappedCategory ? null : mappedCategory;
+      _selectedCategory = _selectedCategory == mapped ? null : mapped;
     });
     widget.onCategorySelected(_selectedCategory ?? '');
   }
 
+  Future<void> _openSpaceDialog(BuildContext ctx) async {
+    widget.onOverlayChange(true);
+
+    final result = await showGeneralDialog<Map<String, String>>(
+      context: ctx,
+      barrierDismissible: true,
+      barrierLabel: 'Dismiss',
+      transitionDuration: const Duration(milliseconds: 300),
+      pageBuilder: (_, __, ___) {
+        return GestureDetector(
+          onTap: () => Navigator.of(ctx).pop(),
+          child: Container(color: Colors.black26),
+        );
+      },
+      transitionBuilder: (ctx, anim1, anim2, child) {
+        return SlideTransition(
+          position: Tween<Offset>(
+            begin: const Offset(0, -1),
+            end: Offset.zero,
+          ).animate(CurvedAnimation(parent: anim1, curve: Curves.easeOut)),
+          child: Align(
+            alignment: Alignment.topCenter,
+            child: Material(
+              color: Provider.of<ThemeProvider>(ctx, listen: false).isDarkMode
+                  ? Colors.grey[800]
+                  : Colors.white,
+              borderRadius: const BorderRadius.vertical(
+                bottom: Radius.circular(12),
+              ),
+              child: SizedBox(
+                width: MediaQuery.of(ctx).size.width,
+                height: MediaQuery.of(ctx).size.height * 0.6,
+                child: SpaceSelectionSheet(
+                  onPick: (id, name) {
+                    Navigator.of(ctx).pop({'id': id, 'name': name});
+                  },
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+
+    widget.onOverlayChange(false);
+
+    if (result != null) {
+      setState(() {
+        _activeSpaceName = result['name']!;
+      });
+      widget.onSpaceSelected(result['id']!);
+      widget.onSpaceIdChanged(result['id']!);
+      if (result['id']!.isEmpty) widget.onMySpaceSelected();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    final bool isDarkMode = Provider.of<ThemeProvider>(context).isDarkMode;
+    final isDark = Provider.of<ThemeProvider>(context).isDarkMode;
+    final purple = const Color(0xFF6750A4);
 
     return Positioned(
       top: 0,
@@ -114,43 +113,39 @@ class TopwidgetsState extends State<Topwidgets> {
       right: 0,
       child: SafeArea(
         child: Container(
-          padding: const EdgeInsets.only(top: 15.0, left: 20.0, right: 20.0),
+          padding: const EdgeInsets.fromLTRB(0, 15, 0, 0),
           color: Colors.transparent,
           child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              // Header row
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  // Settings button
-                  GestureDetector(
-                    key: widget.settingsKey,
-                    onTap: () {
-                      Navigator.pushNamed(context, '/settings');
-                    },
+                  // Settings
+                  Padding(
+                    padding: const EdgeInsets.only(left: 20.0),
                     child: CircleAvatar(
+                      key: widget.settingsKey,
                       radius: 20,
-                      backgroundColor:
-                          isDarkMode ? Colors.grey[800] : Colors.white,
-                      child: Icon(
-                        Icons.settings,
-                        color:
-                            isDarkMode ? Colors.white : const Color(0xFF6750A4),
+                      backgroundColor: isDark ? Colors.grey[800] : Colors.white,
+                      child: IconButton(
+                        icon: Icon(Icons.settings,
+                            color: isDark ? Colors.white : purple),
+                        onPressed: () =>
+                            Navigator.pushNamed(context, '/settings'),
                       ),
                     ),
                   ),
-                  // My Space Dropdown Button
+
+                  // Fixed-width "My Space" pill
                   GestureDetector(
-                    onTap: () {
-                      setState(() {
-                        _isDropdownOpen = !_isDropdownOpen;
-                      });
-                      widget.onOverlayChange(_isDropdownOpen);
-                    },
+                    onTap: () => _openSpaceDialog(context),
                     child: Container(
                       width: 175,
                       height: 30,
                       decoration: BoxDecoration(
-                        color: isDarkMode ? Colors.grey[800] : Colors.white,
+                        color: isDark ? Colors.grey[800] : Colors.white,
                         borderRadius: BorderRadius.circular(20),
                         boxShadow: const [
                           BoxShadow(
@@ -160,157 +155,92 @@ class TopwidgetsState extends State<Topwidgets> {
                           ),
                         ],
                       ),
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Padding(
-                            padding: const EdgeInsets.only(left: 20),
+                          Flexible(
                             child: Text(
-                              _activeSpaceName.length > 8
-                                  ? '${_activeSpaceName.substring(0, 8)}...'
+                              _activeSpaceName.length > 12
+                                  ? '${_activeSpaceName.substring(0, 12)}…'
                                   : _activeSpaceName,
+                              overflow: TextOverflow.ellipsis,
                               style: TextStyle(
-                                color: isDarkMode
-                                    ? Colors.white
-                                    : const Color(0xFF6750A4),
                                 fontWeight: FontWeight.bold,
+                                color: isDark ? Colors.white : purple,
                               ),
                             ),
                           ),
-                          Padding(
-                            padding: const EdgeInsets.only(right: 15),
-                            child: Icon(
-                              _isDropdownOpen
-                                  ? Icons.arrow_drop_up
-                                  : Icons.arrow_drop_down,
-                              color: isDarkMode ? Colors.white : Colors.black,
-                            ),
+                          Icon(
+                            Icons.keyboard_arrow_down,
+                            size: 20,
+                            color: isDark ? Colors.white : purple,
                           ),
                         ],
                       ),
                     ),
                   ),
-                  // Inbox button
-                  GestureDetector(
-                    key: widget.inboxKey,
-                    onTap: () {
-                      Navigator.pushNamed(context, '/inbox');
-                    },
+
+                  // Inbox
+                  Padding(
+                    padding: const EdgeInsets.only(right: 20),
                     child: CircleAvatar(
+                      key: widget.inboxKey,
                       radius: 20,
-                      backgroundColor:
-                          isDarkMode ? Colors.grey[800] : Colors.white,
-                      child: Icon(
-                        Icons.chat,
-                        color:
-                            isDarkMode ? Colors.white : const Color(0xFF6750A4),
+                      backgroundColor: isDark ? Colors.grey[800] : Colors.white,
+                      child: IconButton(
+                        icon: Icon(Icons.chat,
+                            color: isDark ? Colors.white : purple),
+                        onPressed: () => Navigator.pushNamed(context, '/inbox'),
                       ),
                     ),
                   ),
                 ],
               ),
-              // Dropdown Content
-              if (_isDropdownOpen)
-                Container(
-                  margin: const EdgeInsets.only(top: 10),
-                  // only 5px padding at the bottom now
-                  padding: const EdgeInsets.fromLTRB(10, 10, 10, 0),
-                  decoration: BoxDecoration(
-                    color: isDarkMode ? Colors.grey[800] : Colors.white,
-                    borderRadius: BorderRadius.circular(10),
-                    boxShadow: const [
-                      BoxShadow(
-                        color: Colors.black26,
-                        blurRadius: 4,
-                        offset: Offset(2, 2),
-                      ),
-                    ],
-                  ),
-                  child: ConstrainedBox(
-                    constraints: BoxConstraints(
-                      // three tiles tall, plus top padding (10) + bottom padding (5)
-                      maxHeight: 56 * 3 + 10 + 5,
-                    ),
-                    child: Scrollbar(
-                      thumbVisibility: true,
-                      child: ListView(
-                        shrinkWrap: true,
-                        physics: BouncingScrollPhysics(),
-                        // remove any default list padding
-                        padding: EdgeInsets.zero,
-                        children: [
-                          ListTile(
-                            title: Text(
-                              "mySpace".tr(),
-                              style: TextStyle(
-                                color: isDarkMode ? Colors.white : Colors.black,
-                              ),
-                            ),
-                            onTap: _selectMySpace,
-                          ),
-                          ..._spaces.map((space) => ListTile(
-                                title: Text(
-                                  space['name'],
-                                  style: TextStyle(
-                                    color: isDarkMode
-                                        ? Colors.white
-                                        : Colors.black,
-                                  ),
-                                ),
-                                onTap: () =>
-                                    _selectSpace(space['id'], space['name']),
-                              )),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
 
-              // Horizontally Scrollable List of Categories
-              if (!_isDropdownOpen)
-                SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(vertical: 10),
-                    child: Row(
-                      children: [
-                        CategoryItem(
-                          title: 'hotel'.tr(),
-                          icon: Icons.hotel,
-                          onCategorySelected: _handleCategorySelection,
-                          isSelected: _selectedCategory == 'Hotel',
-                        ),
-                        CategoryItem(
-                          title: 'restaurant'.tr(),
-                          icon: Icons.restaurant,
-                          onCategorySelected: _handleCategorySelection,
-                          isSelected: ['Restaurant', 'Restawran']
-                              .contains(_selectedCategory),
-                        ),
-                        CategoryItem(
-                          title: 'bus'.tr(),
-                          icon: Icons.directions_bus,
-                          onCategorySelected: _handleCategorySelection,
-                          isSelected: _selectedCategory == 'Bus',
-                        ),
-                        CategoryItem(
-                          title: 'shopping'.tr(),
-                          icon: Icons.shop_2,
-                          onCategorySelected: _handleCategorySelection,
-                          isSelected: ['Shopping', 'Pamimili']
-                              .contains(_selectedCategory),
-                        ),
-                        CategoryItem(
-                          title: 'groceries'.tr(),
-                          icon: Icons.shopping_cart,
-                          onCategorySelected: _handleCategorySelection,
-                          isSelected: ['Groceries', 'Grocery']
-                              .contains(_selectedCategory),
-                        ),
-                      ],
+              const SizedBox(height: 10),
+
+              // Category row
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: [
+                    CategoryItem(
+                      title: 'hotel'.tr(),
+                      icon: Icons.hotel,
+                      onCategorySelected: _handleCategorySelection,
+                      isSelected: _selectedCategory == 'Hotel',
                     ),
-                  ),
+                    CategoryItem(
+                      title: 'restaurant'.tr(),
+                      icon: Icons.restaurant,
+                      onCategorySelected: _handleCategorySelection,
+                      isSelected: ['Restaurant', 'Restawran']
+                          .contains(_selectedCategory),
+                    ),
+                    CategoryItem(
+                      title: 'bus'.tr(),
+                      icon: Icons.directions_bus,
+                      onCategorySelected: _handleCategorySelection,
+                      isSelected: _selectedCategory == 'Bus',
+                    ),
+                    CategoryItem(
+                      title: 'shopping'.tr(),
+                      icon: Icons.shop_2,
+                      onCategorySelected: _handleCategorySelection,
+                      isSelected:
+                          ['Shopping', 'Pamimili'].contains(_selectedCategory),
+                    ),
+                    CategoryItem(
+                      title: 'groceries'.tr(),
+                      icon: Icons.shopping_cart,
+                      onCategorySelected: _handleCategorySelection,
+                      isSelected:
+                          ['Groceries', 'Grocery'].contains(_selectedCategory),
+                    ),
+                  ],
                 ),
+              ),
             ],
           ),
         ),

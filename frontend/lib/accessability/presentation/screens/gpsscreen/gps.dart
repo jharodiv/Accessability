@@ -58,9 +58,7 @@ class _GpsScreenState extends State<GpsScreen> {
   late Key _mapKey = UniqueKey();
   String _activeSpaceId = '';
   bool _isLoading = false;
-  bool _hideTop = false;
   Place? _selectedPlace;
-  bool _isJoining = false;
 
   MapType _currentMapType = MapType.normal;
   MapPerspective? _pendingPerspective; // New field
@@ -539,8 +537,16 @@ class _GpsScreenState extends State<GpsScreen> {
                             const LatLng(16.0430, 120.3333),
                         zoom: 14,
                       ),
+                      // ———— DISABLE ALL THE CONTROLS ————
+                      zoomControlsEnabled: false, // hides the + / – buttons
+                      zoomGesturesEnabled:
+                          true, // (optional) disables pinch‐to‐zoom
+                      myLocationButtonEnabled:
+                          false, // hides the blue “you are here” button
+                      compassEnabled: false, // hides the compass icon
+                      mapToolbarEnabled: false, // hides the Google Maps toolbar
+                      // ——————————————————————————
                       myLocationEnabled: true,
-                      myLocationButtonEnabled: false,
                       mapType: _currentMapType,
                       markers: _markers,
                       circles: _circles,
@@ -560,14 +566,6 @@ class _GpsScreenState extends State<GpsScreen> {
                           _pendingPerspective = null;
                         }
                       },
-                      zoomControlsEnabled: false, // hides the + / – buttons
-                      compassEnabled: false, // hides the north-arrow compass
-                      mapToolbarEnabled:
-                          false, // <-- this removes that little circular toolbar
-
-                      zoomGesturesEnabled:
-                          true, // (optional) still allow pinch-to-zoom
-
                       polygons:
                           _markerHandler.createPolygons(pwdFriendlyLocations),
                       onTap: (LatLng position) {
@@ -576,54 +574,40 @@ class _GpsScreenState extends State<GpsScreen> {
                         });
                       },
                     ),
-                    AnimatedSlide(
-                      offset: _hideTop ? const Offset(0, -1) : Offset.zero,
-                      duration: const Duration(milliseconds: 300),
-                      curve: Curves.easeInOut,
-                      child: AnimatedOpacity(
-                        duration: const Duration(milliseconds: 300),
-                        opacity: _hideTop ? 0.0 : 1.0,
-                        child: IgnorePointer(
-                          ignoring: _hideTop,
-                          child: Topwidgets(
-                            key: _topWidgetsKey,
-                            inboxKey: inboxKey,
-                            settingsKey: settingsKey,
-                            onCategorySelected: _fetchNearbyPlaces,
-                            onOverlayChange: (_) => setState(() {}),
-                            onSpaceSelected:
-                                _locationHandler.updateActiveSpaceId,
-                            onMySpaceSelected: _onMySpaceSelected,
-                            onSpaceIdChanged: _handleSpaceIdChanged,
-                          ),
-                        ),
-                      ),
+                    Topwidgets(
+                      key: _topWidgetsKey,
+                      inboxKey: inboxKey,
+                      settingsKey: settingsKey,
+                      onCategorySelected: (selectedType) {
+                        _fetchNearbyPlaces(selectedType);
+                      },
+                      onOverlayChange: (isVisible) {
+                        setState(() {});
+                      },
+                      onSpaceSelected: _locationHandler.updateActiveSpaceId,
+                      onMySpaceSelected: _onMySpaceSelected,
+                      onSpaceIdChanged: _handleSpaceIdChanged,
                     ),
                     if (_locationHandler.currentIndex == 0)
                       BottomWidgets(
                         key: ValueKey(_locationHandler.activeSpaceId),
-                        isJoining: _isJoining,
-                        onJoinStateChanged: (joining) {
-                          setState(() {
-                            _isJoining = joining;
-                          });
-                        },
-                        onSheetExpanded: (expanded) {
-                          setState(() {
-                            _hideTop = expanded;
-                          });
-                        },
                         scrollController: ScrollController(),
                         activeSpaceId: _locationHandler.activeSpaceId,
-                        onCategorySelected: (loc) =>
-                            _locationHandler.panCameraToLocation(loc),
+                        onCategorySelected: (LatLng location) {
+                          _locationHandler.panCameraToLocation(location);
+                        },
                         onMapViewPressed: _openMapSettings,
                         onMemberPressed: _onMemberPressed,
                         selectedPlace: _selectedPlace,
-                        onCloseSelectedPlace: () =>
-                            setState(() => _selectedPlace = null),
+                        onCloseSelectedPlace: () {
+                          setState(() {
+                            _selectedPlace = null;
+                          });
+                        },
                         fetchNearbyPlaces: _fetchNearbyPlaces,
                         onPlaceSelected: _updateMapLocation,
+                        isJoining: false,
+                        onJoinStateChanged: (bool value) {},
                       ),
                     if (_locationHandler.currentIndex == 1)
                       FavoriteWidget(

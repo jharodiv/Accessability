@@ -25,7 +25,6 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:provider/provider.dart';
 
 class BottomWidgets extends StatefulWidget {
-  final ScrollController scrollController;
   final String activeSpaceId;
   final Function(LatLng) onCategorySelected;
   final Function(LatLng, String) onMemberPressed;
@@ -40,7 +39,6 @@ class BottomWidgets extends StatefulWidget {
 
   const BottomWidgets({
     super.key,
-    required this.scrollController,
     required this.activeSpaceId,
     required this.onCategorySelected,
     required this.onMemberPressed,
@@ -89,8 +87,8 @@ class _BottomWidgetsState extends State<BottomWidgets> {
   final List<StreamSubscription<DocumentSnapshot>> _locationListeners = [];
   bool _isExpanded = false;
   late VoidCallback _sheetListener;
-  late final double _expandThreshold = 0.5;
-  late final double _collapseThreshold = 0.8;
+  late final double _expandThreshold = 0.8;
+  late final double _collapseThreshold = 0.3;
   @override
   void initState() {
     super.initState();
@@ -101,19 +99,17 @@ class _BottomWidgetsState extends State<BottomWidgets> {
     _sheetListener = () {
       final extent = _draggableController.size;
 
-      // 1) snap up when you cross halfway
+      // 1) if you cross 80%, snap to full screen
       if (!_isExpanded && extent >= _expandThreshold) {
         _isExpanded = true;
         widget.onSheetExpanded?.call(true);
-        _draggableController.animateTo(
-          1.0,
-          duration: const Duration(milliseconds: 200),
-          curve: Curves.easeInOut,
-        );
+        _draggableController.animateTo(1.0,
+            duration: const Duration(milliseconds: 200),
+            curve: Curves.easeInOut);
         return;
       }
 
-      // 2) snap down when you drag back below 80%
+      // 2) if you drop below 30%, snap back to collapsed
       if (_isExpanded && extent <= _collapseThreshold) {
         _isExpanded = false;
         widget.onSheetExpanded?.call(false);

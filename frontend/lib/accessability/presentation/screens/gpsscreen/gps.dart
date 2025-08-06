@@ -591,7 +591,6 @@ class _GpsScreenState extends State<GpsScreen> {
                     if (_locationHandler.currentIndex == 0)
                       BottomWidgets(
                         key: ValueKey(_locationHandler.activeSpaceId),
-                        scrollController: ScrollController(),
                         activeSpaceId: _locationHandler.activeSpaceId,
                         onCategorySelected: (LatLng location) {
                           _locationHandler.panCameraToLocation(location);

@@ -32,6 +32,7 @@ class Topwidgets extends StatefulWidget {
 class TopwidgetsState extends State<Topwidgets> {
   String _activeSpaceName = "mySpace".tr();
   String? _selectedCategory;
+  String _activeSpaceId = ''; // track the ID, too
 
   void _handleCategorySelection(String cat) {
     final map = {
@@ -79,6 +80,8 @@ class TopwidgetsState extends State<Topwidgets> {
                 width: MediaQuery.of(ctx).size.width,
                 height: MediaQuery.of(ctx).size.height * 0.6,
                 child: SpaceSelectionSheet(
+                  initialId: _activeSpaceId,
+                  initialName: _activeSpaceName,
                   onPick: (id, name) {
                     Navigator.of(ctx).pop({'id': id, 'name': name});
                   },
@@ -95,6 +98,7 @@ class TopwidgetsState extends State<Topwidgets> {
     if (result != null) {
       setState(() {
         _activeSpaceName = result['name']!;
+        _activeSpaceId = result['id']!;
       });
       widget.onSpaceSelected(result['id']!);
       widget.onSpaceIdChanged(result['id']!);

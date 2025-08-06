@@ -598,6 +598,9 @@ class _BottomWidgetsState extends State<BottomWidgets> {
       minChildSize: 0.20,
       maxChildSize: 1,
       builder: (context, scrollController) {
+        final displayName = _auth.currentUser?.displayName ?? '';
+        final avatarLetter =
+            displayName.isNotEmpty ? displayName[0].toUpperCase() : 'U';
         return Column(
           children: [
             IgnorePointer(
@@ -698,156 +701,116 @@ class _BottomWidgetsState extends State<BottomWidgets> {
                           ),
                           const SizedBox(height: 20),
                           // People Tab: Create/Join Space UI
-                          if (_activeIndex == 0 &&
-                              widget.activeSpaceId.isEmpty) ...[
-                            if (!_showCreateSpace && !_showJoinSpace) ...[
-                              const SizedBox(height: 10),
-                              Align(
-                                alignment: Alignment.center,
-                                child: Text(
-                                  "mySpace".tr(),
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 20,
-                                    color: isDarkMode
-                                        ? Colors.white
-                                        : Colors.black,
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(height: 5),
-                              Align(
-                                alignment: Alignment.center,
-                                child: Text(
-                                  "createOrJoinSpace".tr(),
-                                  style: TextStyle(
-                                    fontSize: 15,
-                                    fontWeight: FontWeight.w400,
-                                    color: isDarkMode
-                                        ? Colors.grey[400]
-                                        : Colors.grey,
-                                  ),
-                                  textAlign: TextAlign.center,
-                                ),
-                              ),
-                              const SizedBox(height: 25),
+                          if (_activeIndex == 0) ...[
+                            if (widget.activeSpaceId.isEmpty)
+                              // No space selected: user-card + button
                               Padding(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 16.0), // Add horizontal padding
-                                child: Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
+                                padding:
+                                    const EdgeInsets.symmetric(horizontal: 16),
+                                child: Column(
                                   children: [
-                                    // Create Space Button
-                                    Flexible(
-                                      child: SizedBox(
-                                        width: double.infinity,
-                                        child: ElevatedButton(
-                                          onPressed: () {
-                                            setState(() {
-                                              _showCreateSpace = true;
-                                            });
-                                          },
-                                          style: ElevatedButton.styleFrom(
-                                            backgroundColor:
-                                                const Color(0xFF6750A4),
-                                            padding: const EdgeInsets.symmetric(
-                                                vertical: 15),
-                                          ),
-                                          child: Text(
-                                            'createSpace'.tr(),
-                                            style: const TextStyle(
-                                                color: Colors.white),
-                                          ),
+                                    Card(
+                                      shape: RoundedRectangleBorder(
+                                          borderRadius:
+                                              BorderRadius.circular(12)),
+                                      elevation: 4,
+                                      child: ListTile(
+                                        leading: CircleAvatar(
+                                          backgroundColor:
+                                              const Color(0xFF6750A4)
+                                                  .withOpacity(0.2),
+                                          child: Text(avatarLetter,
+                                              style: const TextStyle(
+                                                  color: Colors.white)),
                                         ),
+                                        title: Text(
+                                          displayName.isNotEmpty
+                                              ? displayName
+                                              : (_auth.currentUser?.email ??
+                                                  'Unknown'),
+                                          style: const TextStyle(
+                                              fontWeight: FontWeight.bold),
+                                        ),
+                                        subtitle: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            const SizedBox(height: 4),
+                                            const Text("Battery saver on"),
+                                            Text(
+                                                "Since ${TimeOfDay.fromDateTime(DateTime.now()).format(context)}"),
+                                          ],
+                                        ),
+                                        trailing: const Icon(Icons.warning,
+                                            color: Colors.redAccent),
                                       ),
                                     ),
-                                    const SizedBox(
-                                        width:
-                                            10), // Add spacing between buttons
-                                    // Join Space Button
-                                    Flexible(
-                                      child: SizedBox(
-                                        width: double.infinity,
-                                        child: ElevatedButton(
-                                          onPressed: () {
-                                            setState(() {
-                                              _showJoinSpace = true;
-                                            });
-                                            widget.onJoinStateChanged(true);
-                                            _draggableController.animateTo(
-                                              1.0,
-                                              duration: const Duration(
-                                                  milliseconds: 300),
-                                              curve: Curves.easeInOut,
-                                            );
-                                          },
-                                          style: ElevatedButton.styleFrom(
-                                            backgroundColor:
-                                                const Color(0xFF6750A4),
-                                            padding: const EdgeInsets.symmetric(
-                                                vertical: 15),
-                                          ),
-                                          child: Text(
-                                            'joinSpace'.tr(),
-                                            style: const TextStyle(
-                                                color: Colors.white),
-                                          ),
-                                        ),
+                                    const SizedBox(height: 24),
+                                    ElevatedButton.icon(
+                                      onPressed: _addPerson,
+                                      icon: const Icon(Icons.person_add),
+                                      label: const Text("Add a person"),
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor:
+                                            const Color(0xFF6750A4),
+                                        padding: const EdgeInsets.symmetric(
+                                            vertical: 14, horizontal: 20),
+                                        shape: RoundedRectangleBorder(
+                                            borderRadius:
+                                                BorderRadius.circular(8)),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              )
+                            else ...[
+                              // Space selected: show members
+                              MemberListWidget(
+                                activeSpaceId: widget.activeSpaceId,
+                                members: _members,
+                                selectedMemberId: _selectedMemberId,
+                                yourLocation: _locationHandler.currentLocation,
+                                yourAddressLabel: 'Current Location',
+                                onMemberPressed: widget.onMemberPressed,
+                                onAddPerson: _addPerson,
+                              ),
+                              const Padding(
+                                padding: EdgeInsets.symmetric(vertical: 16.0),
+                                child: Divider(thickness: 1),
+                              ),
+                              Padding(
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 8),
+                                child: Row(
+                                  crossAxisAlignment: CrossAxisAlignment
+                                      .center, // <-- ensure perfect centering
+                                  children: [
+                                    // slightly larger circle to cradle the icon
+                                    CircleAvatar(
+                                      radius: 24, // was 20
+                                      backgroundColor: const Color(0xFF6750A4)
+                                          .withOpacity(0.2),
+                                      child: const Icon(
+                                        Icons.person_add,
+                                        size: 28, // bump icon size up a bit
+                                        color: Color(0xFF6750A4),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    // bigger, bold text aligned with icon
+                                    const Text(
+                                      "Add a person",
+                                      style: TextStyle(
+                                        color: Color(0xFF6750A4),
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 18,
                                       ),
                                     ),
                                   ],
                                 ),
                               ),
                             ],
-                            if (_showCreateSpace)
-                              CreateSpaceWidget(
-                                spaceNameController: _spaceNameController,
-                                onCreateSpace: _createSpace,
-                                onCancel: () {
-                                  setState(() {
-                                    _showCreateSpace = false;
-                                  });
-                                },
-                              ),
-                            if (_showJoinSpace)
-                              JoinSpaceWidget(
-                                verificationCodeControllers:
-                                    _verificationCodeControllers,
-                                verificationCodeFocusNodes:
-                                    _verificationCodeFocusNodes,
-                                onJoinSpace: _joinSpace,
-                                onCodeInput: () {
-                                  _draggableController.animateTo(
-                                    1.0,
-                                    duration: const Duration(milliseconds: 300),
-                                    curve: Curves.easeInOut,
-                                  );
-                                  widget.onJoinStateChanged(true);
-                                },
-                                onCancel: () {
-                                  setState(() => _showJoinSpace = false);
-                                  widget.onJoinStateChanged(false);
-                                },
-                              ),
                           ],
-                          // People Tab: Show MemberListWidget if active space is set.
-                          if (_activeIndex == 0 &&
-                              widget.activeSpaceId.isNotEmpty)
-                            MemberListWidget(
-                              members: _members,
-                              onMemberPressed: widget.onMemberPressed,
-                              selectedMemberId: _selectedMemberId,
-                              activeSpaceId: widget.activeSpaceId,
-                            ),
-                          // People Tab: Show VerificationCodeWidget if current user is creator.
-                          if (_creatorId == _auth.currentUser?.uid &&
-                              _activeIndex == 0 &&
-                              widget.activeSpaceId.isNotEmpty)
-                            VerificationCodeWidget(
-                              verificationCode: _verificationCode ??
-                                  'defaultVerificationCode'.tr(),
-                              onSendCode: _addPerson,
-                            ),
                           // Business Tab: Show AddPlaceWidget.
                           if (_activeIndex == 1)
                             AddPlaceWidget(

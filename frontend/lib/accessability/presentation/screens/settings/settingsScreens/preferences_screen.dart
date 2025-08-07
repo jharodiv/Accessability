@@ -11,13 +11,14 @@ class PreferencesScreen extends StatefulWidget {
 }
 
 class _PreferencesScreenState extends State<PreferencesScreen> {
-  bool isColorblindmode = false;
+  // Removed local isColorblindmode, use ThemeProvider instead
 
   @override
   Widget build(BuildContext context) {
     final themeProvider = Provider.of<ThemeProvider>(context);
     final String currentLanguage = context.locale.languageCode;
     final bool isDarkMode = themeProvider.isDarkMode;
+    final bool isColorBlindMode = themeProvider.isColorBlindMode;
 
     return Scaffold(
       appBar: PreferredSize(
@@ -94,12 +95,11 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
                   style: const TextStyle(fontWeight: FontWeight.bold),
                 ),
                 trailing: Switch(
-                  value: isColorblindmode,
+                  value: isColorBlindMode,
                   activeColor: const Color(0xFF6750A4),
-                  onChanged: (bool value) {
-                    setState(() {
-                      isColorblindmode = value;
-                    });
+                  onChanged: (bool value) async {
+                    await themeProvider.toggleColorBlindMode();
+                    setState(() {}); // Update UI after toggling
                   },
                 ),
               ),

@@ -155,7 +155,7 @@ class MyApp extends StatelessWidget {
       ],
       child: Consumer<ThemeProvider>(
         builder: (context, themeProvider, child) {
-          return MaterialApp(
+          Widget app = MaterialApp(
             key: ValueKey(context.locale),
             navigatorKey: navigatorKey,
             navigatorObservers: [routeObserver],
@@ -198,6 +198,38 @@ class MyApp extends StatelessWidget {
               return child!;
             },
           );
+
+          // Protanopia color filter matrix
+          const List<double> protanopiaMatrix = [
+            0.567,
+            0.433,
+            0,
+            0,
+            0,
+            0.558,
+            0.442,
+            0,
+            0,
+            0,
+            0,
+            0.242,
+            0.758,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+          ];
+
+          if (themeProvider.isColorBlindMode) {
+            app = ColorFiltered(
+              colorFilter: const ColorFilter.matrix(protanopiaMatrix),
+              child: app,
+            );
+          }
+          return app;
         },
       ),
     );

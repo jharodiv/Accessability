@@ -44,29 +44,71 @@ class _MemberListWidgetState extends State<MemberListWidget> {
     final isDark = Provider.of<ThemeProvider>(context).isDarkMode;
     final purple = const Color(0xFF6750A4);
 
+    final currentUser = _auth.currentUser;
+    final userName = (currentUser?.displayName?.trim().isNotEmpty ?? false)
+        ? currentUser!.displayName!.trim()
+        : 'You';
+    final avatarChar = userName[0];
+
     // Nothing to show?
     if (widget.activeSpaceId.isEmpty) return const SizedBox();
 
     // Build a single list of Widgets:
     final List<Widget> rows = [];
 
+    if (widget.members.isEmpty) {
+      if (widget.yourLocation == null || widget.yourAddressLabel == null) {
+        return const SizedBox();
+      }
+      return Column(
+        children: [
+          ListTile(
+            leading: CircleAvatar(
+              backgroundImage: currentUser?.photoURL != null
+                  ? NetworkImage(_auth.currentUser!.photoURL!)
+                  : null,
+              child: currentUser?.photoURL == null
+                  ? Text(
+                      avatarChar,
+                      style: const TextStyle(color: Colors.white),
+                    )
+                  : null,
+            ),
+            title: Text(
+              _auth.currentUser?.displayName ?? 'You',
+              style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: isDark ? Colors.white : Colors.black),
+            ),
+            subtitle: Text(
+              widget.yourAddressLabel!,
+              style: TextStyle(
+                  fontSize: 12,
+                  color: isDark ? Colors.white70 : Colors.black54),
+            ),
+            onTap: () => widget.onMemberPressed(
+              widget.yourLocation!,
+              _auth.currentUser!.uid,
+            ),
+          ),
+        ],
+      );
+    }
+
     // 1) “You” at top
     if (widget.yourLocation != null && widget.yourAddressLabel != null) {
       rows.add(
         ListTile(
           leading: CircleAvatar(
-            backgroundImage: _auth.currentUser?.photoURL != null
-                ? NetworkImage(_auth.currentUser!.photoURL!)
+            backgroundImage: currentUser?.photoURL != null
+                ? NetworkImage(currentUser!.photoURL!)
                 : null,
-            child: _auth.currentUser?.photoURL == null
-                ? Text(
-                    (_auth.currentUser?.displayName ?? 'U')[0],
-                    style: const TextStyle(color: Colors.white),
-                  )
+            child: currentUser?.photoURL == null
+                ? Text(avatarChar, style: const TextStyle(color: Colors.white))
                 : null,
           ),
           title: Text(
-            _auth.currentUser?.displayName ?? 'You',
+            userName,
             style: TextStyle(
                 fontWeight: FontWeight.bold,
                 color: isDark ? Colors.white : Colors.black),
@@ -78,9 +120,8 @@ class _MemberListWidgetState extends State<MemberListWidget> {
           ),
           selected: widget.selectedMemberId == _auth.currentUser?.uid,
           onTap: () {
-            setState(() => _selectedId = _auth.currentUser!.uid);
-            widget.onMemberPressed(
-                widget.yourLocation!, _auth.currentUser!.uid);
+            setState(() => _selectedId = currentUser!.uid);
+            widget.onMemberPressed(widget.yourLocation!, currentUser!.uid);
           },
         ),
       );

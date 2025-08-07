@@ -12,17 +12,15 @@ import 'package:AccessAbility/accessability/presentation/widgets/gpsWidgets/esta
 import 'package:AccessAbility/accessability/presentation/widgets/homepageWidgets/bottomWidgetFiles/member_list_widget.dart';
 import 'package:AccessAbility/accessability/presentation/widgets/homepageWidgets/bottomWidgetFiles/searchBar/search_bar.dart';
 import 'package:AccessAbility/accessability/presentation/widgets/homepageWidgets/bottomWidgetFiles/service_buttons.dart';
-import 'package:AccessAbility/accessability/presentation/widgets/homepageWidgets/bottomWidgetFiles/verification_code_widget.dart';
 import 'package:AccessAbility/accessability/themes/theme_provider.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:AccessAbility/accessability/presentation/widgets/bottomSheetWidgets/create_space_widget.dart';
-import 'package:AccessAbility/accessability/presentation/widgets/bottomSheetWidgets/join_space_widget.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:provider/provider.dart';
+import 'package:flutter/scheduler.dart';
 
 class BottomWidgets extends StatefulWidget {
   final String activeSpaceId;
@@ -71,57 +69,59 @@ class _BottomWidgetsState extends State<BottomWidgets> {
   String? _verificationCode;
   String? _creatorId;
   String? _selectedMemberId;
-  bool _showCreateSpace = false;
-  bool _showJoinSpace = false;
+
   final TextEditingController _spaceNameController = TextEditingController();
-  final List<TextEditingController> _verificationCodeControllers =
-      List.generate(6, (index) => TextEditingController());
-  final List<FocusNode> _verificationCodeFocusNodes =
-      List.generate(6, (index) => FocusNode());
   final FlutterTts flutterTts = FlutterTts();
   bool _isLoading = false;
-  final DraggableScrollableController _draggableController =
-      DraggableScrollableController();
+  // final DraggableScrollableController _draggableController =
+  //     DraggableScrollableController();
 
   StreamSubscription<DocumentSnapshot>? _membersListener;
   final List<StreamSubscription<DocumentSnapshot>> _locationListeners = [];
   bool _isExpanded = false;
-  late VoidCallback _sheetListener;
+  // late VoidCallback _sheetListener;
   late final double _expandThreshold = 0.8;
   late final double _collapseThreshold = 0.3;
   @override
   void initState() {
     super.initState();
     _listenToMembers();
-    _setupVerificationCodeFocusListeners();
     _initializeLocation();
     _initializeTts();
-    _sheetListener = () {
-      final extent = _draggableController.size;
+    // _sheetListener = () {
+    //   final extent = _draggableController.size;
+    //   if (!_isExpanded && extent >= _expandThreshold) {
+    //     _isExpanded = true;
+    //     widget.onSheetExpanded?.call(true);
+    //     SchedulerBinding.instance.addPostFrameCallback((_) {
+    //       try {
+    //         _draggableController.animateTo(
+    //           1.0,
+    //           duration: const Duration(milliseconds: 200),
+    //           curve: Curves.easeInOut,
+    //         );
+    //       } on RangeError catch (_) {}
+    //     });
+    //     return;
+    //   }
 
-      // 1) if you cross 80%, snap to full screen
-      if (!_isExpanded && extent >= _expandThreshold) {
-        _isExpanded = true;
-        widget.onSheetExpanded?.call(true);
-        _draggableController.animateTo(1.0,
-            duration: const Duration(milliseconds: 200),
-            curve: Curves.easeInOut);
-        return;
-      }
+    //   if (_isExpanded && extent <= _collapseThreshold) {
+    //     _isExpanded = false;
+    //     widget.onSheetExpanded?.call(false);
 
-      // 2) if you drop below 30%, snap back to collapsed
-      if (_isExpanded && extent <= _collapseThreshold) {
-        _isExpanded = false;
-        widget.onSheetExpanded?.call(false);
-        _draggableController.animateTo(
-          widget.selectedPlace != null ? 0.6 : 0.3,
-          duration: const Duration(milliseconds: 200),
-          curve: Curves.easeInOut,
-        );
-      }
-    };
+    //     SchedulerBinding.instance.addPostFrameCallback((_) {
+    //       try {
+    //         _draggableController.animateTo(
+    //           widget.selectedPlace != null ? 0.6 : 0.30,
+    //           duration: const Duration(milliseconds: 200),
+    //           curve: Curves.easeInOut,
+    //         );
+    //       } on RangeError catch (_) {}
+    //     });
+    //   }
+    // };
 
-    _draggableController.addListener(_sheetListener);
+    // _draggableController.addListener(_sheetListener);
   }
 
   Future<void> _initializeLocation() async {
@@ -136,47 +136,47 @@ class _BottomWidgetsState extends State<BottomWidgets> {
   @override
   void didUpdateWidget(BottomWidgets oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (widget.activeSpaceId != oldWidget.activeSpaceId) {
-      // Set loading state when space ID changes
-      setState(() {
-        _isLoading = true;
-      });
-      _listenToMembers(); // Re-fetch members
-    }
-    // Check for changes in the establishment selection.
-    if (oldWidget.selectedPlace == null && widget.selectedPlace != null) {
-      // Expand the sheet when an establishment is selected.
-      _draggableController.animateTo(
-        0.6, // Expanded size (40% of the screen)
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeInOut,
-      );
-    } else if (oldWidget.selectedPlace != null &&
-        widget.selectedPlace == null) {
-      // Collapse the sheet when the establishment is deselected/closed.
-      _draggableController.animateTo(
-        0.15, // Collapsed size (15% of the screen)
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeInOut,
-      );
-    }
+    // if (widget.activeSpaceId != oldWidget.activeSpaceId) {
+    //   // Set loading state when space ID changes
+    //   setState(() {
+    //     _isLoading = true;
+    //   });
+    //   _listenToMembers(); // Re-fetch members
+    // }
+    // // Check for changes in the establishment selection.
+    // if (oldWidget.selectedPlace == null && widget.selectedPlace != null) {
+    //   SchedulerBinding.instance.addPostFrameCallback((_) {
+    //     try {
+    //       _draggableController.animateTo(
+    //         0.6,
+    //         duration: const Duration(milliseconds: 300),
+    //         curve: Curves.easeInOut,
+    //       );
+    //     } on RangeError catch (_) {}
+    //   });
+    // } else if (oldWidget.selectedPlace != null &&
+    //     widget.selectedPlace == null) {
+    //   SchedulerBinding.instance.addPostFrameCallback((_) {
+    //     try {
+    //       _draggableController.animateTo(
+    //         widget.selectedPlace != null ? 0.6 : 0.30,
+    //         duration: const Duration(milliseconds: 300),
+    //         curve: Curves.easeInOut,
+    //       );
+    //     } on RangeError catch (_) {}
+    //   });
+    // }
   }
 
   @override
   void dispose() {
-    _draggableController.removeListener(_sheetListener);
+    // _draggableController.removeListener(_sheetListener);
 
     _membersListener?.cancel();
     _locationListeners.forEach((listener) => listener.cancel());
     _locationListeners.clear();
     flutterTts.stop();
     _spaceNameController.dispose();
-    for (final controller in _verificationCodeControllers) {
-      controller.dispose();
-    }
-    for (final node in _verificationCodeFocusNodes) {
-      node.dispose();
-    }
     super.dispose();
   }
 
@@ -215,19 +215,24 @@ class _BottomWidgetsState extends State<BottomWidgets> {
         return;
       }
 
-      final members = snapshot['members'] != null
-          ? List<String>.from(snapshot['members'])
-          : [];
+      // 1. grab the array
+      final raw = snapshot.data()?['members'];
+      // 2. only allow a non-empty List<String>
+      final members = <String>[];
+      if (raw is List && raw.isNotEmpty) {
+        // only now am I sure raw has at least one element
+        members.addAll(List<String>.from(raw));
+      }
       final creatorId = snapshot['creator'];
       final spaceName = snapshot['name'] ?? 'Unnamed Space';
       final verificationCode = snapshot['verificationCode'];
-
       if (members.isEmpty) {
         setState(() {
           _members = [];
           _spaceName = spaceName;
           _verificationCode = verificationCode;
           _creatorId = creatorId;
+          _isLoading = false;
         });
         return;
       }
@@ -291,16 +296,16 @@ class _BottomWidgetsState extends State<BottomWidgets> {
     });
   }
 
-  void _setupVerificationCodeFocusListeners() {
-    for (int i = 0; i < _verificationCodeControllers.length; i++) {
-      _verificationCodeControllers[i].addListener(() {
-        if (_verificationCodeControllers[i].text.isNotEmpty && i < 5) {
-          FocusScope.of(context)
-              .requestFocus(_verificationCodeFocusNodes[i + 1]);
-        }
-      });
-    }
-  }
+  // void _setupVerificationCodeFocusListeners() {
+  //   for (int i = 0; i < _verificationCodeControllers.length; i++) {
+  //     _verificationCodeControllers[i].addListener(() {
+  //       if (_verificationCodeControllers[i].text.isNotEmpty && i < 5) {
+  //         FocusScope.of(context)
+  //             .requestFocus(_verificationCodeFocusNodes[i + 1]);
+  //       }
+  //     });
+  //   }
+  // }
 
   Future<void> _initializeTts() async {
     await flutterTts.setLanguage("en-US");
@@ -356,7 +361,8 @@ class _BottomWidgetsState extends State<BottomWidgets> {
     if (email == user.email) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-            content: Text('You cannot send a verification code to yourself')),
+          content: Text('You cannot add yourself'),
+        ),
       );
       return;
     }
@@ -385,39 +391,21 @@ class _BottomWidgetsState extends State<BottomWidgets> {
       return;
     }
 
-    final existingCode = spaceSnapshot['verificationCode'];
-    final codeTimestamp = spaceSnapshot['codeTimestamp']?.toDate();
-
-    String verificationCode;
-    if (existingCode != null && codeTimestamp != null) {
-      final now = DateTime.now();
-      final difference = now.difference(codeTimestamp).inMinutes;
-      verificationCode =
-          difference < 10 ? existingCode : _generateVerificationCode();
-    } else {
-      verificationCode = _generateVerificationCode();
-    }
-
     final hasChatRoom = await _chatService.hasChatRoom(user.uid, receiverID);
     if (!hasChatRoom) {
       await _chatService.sendChatRequest(
         receiverID,
-        'Join My Space! \n Your verification code is: $verificationCode (Expires in 10 minutes)',
+        'Join my space!',
       );
     } else {
       await _chatService.sendMessage(
         receiverID,
-        'Join My Space! \n Your verification code is: $verificationCode (Expires in 10 minutes)',
+        'Join my space!',
       );
     }
 
-    await _firestore.collection('Spaces').doc(widget.activeSpaceId).update({
-      'verificationCode': verificationCode,
-      'codeTimestamp': DateTime.now(),
-    });
-
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Verification code sent via chat')),
+      const SnackBar(content: Text('Invitation sent via chat')),
     );
   }
 
@@ -487,92 +475,92 @@ class _BottomWidgetsState extends State<BottomWidgets> {
     return email;
   }
 
-  Future<void> _createSpace() async {
-    final user = _auth.currentUser;
-    if (user == null) return;
+  // Future<void> _createSpace() async {
+  //   final user = _auth.currentUser;
+  //   if (user == null) return;
 
-    final spaceName = _spaceNameController.text;
-    if (spaceName.isEmpty) return;
+  //   final spaceName = _spaceNameController.text;
+  //   if (spaceName.isEmpty) return;
 
-    final verificationCode = _generateVerificationCode();
-    final spaceRef = await _firestore.collection('Spaces').add({
-      'name': spaceName,
-      'creator': user.uid,
-      'members': [user.uid],
-      'verificationCode': verificationCode,
-      'codeTimestamp': DateTime.now(),
-      'createdAt': DateTime.now(),
-    });
+  //   final verificationCode = _generateVerificationCode();
+  //   final spaceRef = await _firestore.collection('Spaces').add({
+  //     'name': spaceName,
+  //     'creator': user.uid,
+  //     'members': [user.uid],
+  //     'verificationCode': verificationCode,
+  //     'codeTimestamp': DateTime.now(),
+  //     'createdAt': DateTime.now(),
+  //   });
 
-    await _chatService.createSpaceChatRoom(spaceRef.id, spaceName);
+  //   await _chatService.createSpaceChatRoom(spaceRef.id, spaceName);
 
-    _spaceNameController.clear();
-    setState(() {
-      _showCreateSpace = false;
-    });
+  //   _spaceNameController.clear();
+  //   setState(() {
+  //     _showCreateSpace = false;
+  //   });
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Space created successfully')),
-    );
-  }
+  //   ScaffoldMessenger.of(context).showSnackBar(
+  //     const SnackBar(content: Text('Space created successfully')),
+  //   );
+  // }
 
-  Future<void> _joinSpace() async {
-    final user = _auth.currentUser;
-    if (user == null) return;
+  // Future<void> _joinSpace() async {
+  //   final user = _auth.currentUser;
+  //   if (user == null) return;
 
-    final verificationCode = _verificationCodeControllers
-        .map((controller) => controller.text)
-        .join();
-    if (verificationCode.isEmpty) return;
+  //   final verificationCode = _verificationCodeControllers
+  //       .map((controller) => controller.text)
+  //       .join();
+  //   if (verificationCode.isEmpty) return;
 
-    final snapshot = await _firestore
-        .collection('Spaces')
-        .where('verificationCode', isEqualTo: verificationCode)
-        .get();
+  //   final snapshot = await _firestore
+  //       .collection('Spaces')
+  //       .where('verificationCode', isEqualTo: verificationCode)
+  //       .get();
 
-    if (snapshot.docs.isNotEmpty) {
-      final spaceId = snapshot.docs.first.id;
-      final codeTimestamp = snapshot.docs.first['codeTimestamp']?.toDate();
+  //   if (snapshot.docs.isNotEmpty) {
+  //     final spaceId = snapshot.docs.first.id;
+  //     final codeTimestamp = snapshot.docs.first['codeTimestamp']?.toDate();
 
-      if (codeTimestamp != null) {
-        final now = DateTime.now();
-        final difference = now.difference(codeTimestamp).inMinutes;
-        if (difference > 10) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Verification code has expired')),
-          );
-          return;
-        }
-      }
+  //     if (codeTimestamp != null) {
+  //       final now = DateTime.now();
+  //       final difference = now.difference(codeTimestamp).inMinutes;
+  //       if (difference > 10) {
+  //         ScaffoldMessenger.of(context).showSnackBar(
+  //           const SnackBar(content: Text('Verification code has expired')),
+  //         );
+  //         return;
+  //       }
+  //     }
 
-      await _firestore.collection('Spaces').doc(spaceId).update({
-        'members': FieldValue.arrayUnion([_auth.currentUser!.uid]),
-      });
+  //     await _firestore.collection('Spaces').doc(spaceId).update({
+  //       'members': FieldValue.arrayUnion([_auth.currentUser!.uid]),
+  //     });
 
-      await _chatService.addMemberToSpaceChatRoom(
-          spaceId, _auth.currentUser!.uid);
+  //     await _chatService.addMemberToSpaceChatRoom(
+  //         spaceId, _auth.currentUser!.uid);
 
-      for (final controller in _verificationCodeControllers) {
-        controller.clear();
-      }
-      setState(() {
-        _showJoinSpace = false;
-      });
+  //     for (final controller in _verificationCodeControllers) {
+  //       controller.clear();
+  //     }
+  //     setState(() {
+  //       _showJoinSpace = false;
+  //     });
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Joined space successfully')),
-      );
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Invalid verification code')),
-      );
-    }
-  }
+  //     ScaffoldMessenger.of(context).showSnackBar(
+  //       const SnackBar(content: Text('Joined space successfully')),
+  //     );
+  //   } else {
+  //     ScaffoldMessenger.of(context).showSnackBar(
+  //       const SnackBar(content: Text('Invalid verification code')),
+  //     );
+  //   }
+  // }
 
-  String _generateVerificationCode() {
-    final random = Random();
-    return (100000 + random.nextInt(900000)).toString();
-  }
+  // String _generateVerificationCode() {
+  //   final random = Random();
+  //   return (100000 + random.nextInt(900000)).toString();
+  // }
 
   Future<String> _getAddressFromLatLng(LatLng latLng) async {
     try {
@@ -590,7 +578,7 @@ class _BottomWidgetsState extends State<BottomWidgets> {
     final bool isDarkMode = Provider.of<ThemeProvider>(context).isDarkMode;
 
     return DraggableScrollableSheet(
-      controller: _draggableController,
+      // controller: _draggableController,
       expand: true,
       initialChildSize: widget.isJoining
           ? 1.0 // full‐screen while joining
@@ -700,68 +688,68 @@ class _BottomWidgetsState extends State<BottomWidgets> {
                             ],
                           ),
                           const SizedBox(height: 20),
-                          // People Tab: Create/Join Space UI
                           if (_activeIndex == 0) ...[
                             if (widget.activeSpaceId.isEmpty)
                               // No space selected: user-card + button
-                              Padding(
-                                padding:
-                                    const EdgeInsets.symmetric(horizontal: 16),
-                                child: Column(
-                                  children: [
-                                    Card(
+                              Column(
+                                children: [
+                                  ListTile(
+                                    leading: CircleAvatar(
+                                      backgroundImage:
+                                          _auth.currentUser?.photoURL != null
+                                              ? NetworkImage(
+                                                  _auth.currentUser!.photoURL!)
+                                              : null,
+                                      child: _auth.currentUser?.photoURL == null
+                                          ? Text(
+                                              avatarLetter,
+                                              style: const TextStyle(
+                                                  color: Colors.white),
+                                            )
+                                          : null,
+                                    ),
+                                    title: Text(
+                                      displayName.isNotEmpty
+                                          ? displayName
+                                          : (_auth.currentUser?.email ?? 'You'),
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        color: isDarkMode
+                                            ? Colors.white
+                                            : Colors.black,
+                                      ),
+                                    ),
+                                    subtitle: Text(
+                                      'Current Location',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: isDarkMode
+                                            ? Colors.white70
+                                            : Colors.black54,
+                                      ),
+                                    ),
+                                    onTap: () {
+                                      widget.onMemberPressed(
+                                        _locationHandler.currentLocation!,
+                                        _auth.currentUser!.uid,
+                                      );
+                                    },
+                                  ),
+                                  const SizedBox(height: 24),
+                                  ElevatedButton.icon(
+                                    onPressed: _addPerson,
+                                    icon: const Icon(Icons.person_add),
+                                    label: const Text("Add a person"),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: const Color(0xFF6750A4),
+                                      padding: const EdgeInsets.symmetric(
+                                          vertical: 14, horizontal: 20),
                                       shape: RoundedRectangleBorder(
                                           borderRadius:
-                                              BorderRadius.circular(12)),
-                                      elevation: 4,
-                                      child: ListTile(
-                                        leading: CircleAvatar(
-                                          backgroundColor:
-                                              const Color(0xFF6750A4)
-                                                  .withOpacity(0.2),
-                                          child: Text(avatarLetter,
-                                              style: const TextStyle(
-                                                  color: Colors.white)),
-                                        ),
-                                        title: Text(
-                                          displayName.isNotEmpty
-                                              ? displayName
-                                              : (_auth.currentUser?.email ??
-                                                  'Unknown'),
-                                          style: const TextStyle(
-                                              fontWeight: FontWeight.bold),
-                                        ),
-                                        subtitle: Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: [
-                                            const SizedBox(height: 4),
-                                            const Text("Battery saver on"),
-                                            Text(
-                                                "Since ${TimeOfDay.fromDateTime(DateTime.now()).format(context)}"),
-                                          ],
-                                        ),
-                                        trailing: const Icon(Icons.warning,
-                                            color: Colors.redAccent),
-                                      ),
+                                              BorderRadius.circular(8)),
                                     ),
-                                    const SizedBox(height: 24),
-                                    ElevatedButton.icon(
-                                      onPressed: _addPerson,
-                                      icon: const Icon(Icons.person_add),
-                                      label: const Text("Add a person"),
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor:
-                                            const Color(0xFF6750A4),
-                                        padding: const EdgeInsets.symmetric(
-                                            vertical: 14, horizontal: 20),
-                                        shape: RoundedRectangleBorder(
-                                            borderRadius:
-                                                BorderRadius.circular(8)),
-                                      ),
-                                    ),
-                                  ],
-                                ),
+                                  ),
+                                ],
                               )
                             else ...[
                               // Space selected: show members
@@ -773,41 +761,6 @@ class _BottomWidgetsState extends State<BottomWidgets> {
                                 yourAddressLabel: 'Current Location',
                                 onMemberPressed: widget.onMemberPressed,
                                 onAddPerson: _addPerson,
-                              ),
-                              const Padding(
-                                padding: EdgeInsets.symmetric(vertical: 16.0),
-                                child: Divider(thickness: 1),
-                              ),
-                              Padding(
-                                padding:
-                                    const EdgeInsets.symmetric(vertical: 8),
-                                child: Row(
-                                  crossAxisAlignment: CrossAxisAlignment
-                                      .center, // <-- ensure perfect centering
-                                  children: [
-                                    // slightly larger circle to cradle the icon
-                                    CircleAvatar(
-                                      radius: 24, // was 20
-                                      backgroundColor: const Color(0xFF6750A4)
-                                          .withOpacity(0.2),
-                                      child: const Icon(
-                                        Icons.person_add,
-                                        size: 28, // bump icon size up a bit
-                                        color: Color(0xFF6750A4),
-                                      ),
-                                    ),
-                                    const SizedBox(width: 12),
-                                    // bigger, bold text aligned with icon
-                                    const Text(
-                                      "Add a person",
-                                      style: TextStyle(
-                                        color: Color(0xFF6750A4),
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 18,
-                                      ),
-                                    ),
-                                  ],
-                                ),
                               ),
                             ],
                           ],

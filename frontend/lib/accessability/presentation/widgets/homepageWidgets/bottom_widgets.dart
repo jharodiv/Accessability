@@ -69,6 +69,9 @@ class _BottomWidgetsState extends State<BottomWidgets> {
   String? _verificationCode;
   String? _creatorId;
   String? _selectedMemberId;
+  String? _yourAddress;
+  DateTime? _yourLastUpdate;
+  StreamSubscription<DocumentSnapshot>? _yourLocationListener;
 
   final TextEditingController _spaceNameController = TextEditingController();
   final FlutterTts flutterTts = FlutterTts();
@@ -88,6 +91,7 @@ class _BottomWidgetsState extends State<BottomWidgets> {
     _listenToMembers();
     _initializeLocation();
     _initializeTts();
+
     // _sheetListener = () {
     //   final extent = _draggableController.size;
     //   if (!_isExpanded && extent >= _expandThreshold) {
@@ -127,7 +131,15 @@ class _BottomWidgetsState extends State<BottomWidgets> {
   Future<void> _initializeLocation() async {
     try {
       await _locationHandler.getUserLocation();
-      setState(() {}); // Trigger a rebuild after location is fetched
+      // get the human readable address for current location (if available)
+      if (_locationHandler.currentLocation != null) {
+        final addr =
+            await _getAddressFromLatLng(_locationHandler.currentLocation!);
+        setState(() {
+          _yourAddress = addr;
+        });
+      }
+      setState(() {}); // Trigger a rebuild after location + address is fetched
     } catch (e) {
       print("Error fetching user location: $e");
     }
@@ -175,31 +187,73 @@ class _BottomWidgetsState extends State<BottomWidgets> {
     _membersListener?.cancel();
     _locationListeners.forEach((listener) => listener.cancel());
     _locationListeners.clear();
+    _yourLocationListener?.cancel();
+
     flutterTts.stop();
     _spaceNameController.dispose();
     super.dispose();
   }
 
   void _listenToMembers() async {
-    if (widget.activeSpaceId.isEmpty) {
-      _membersListener?.cancel();
-      _membersListener = null;
-      _locationListeners.forEach((listener) => listener.cancel());
-      _locationListeners.clear();
-      setState(() {
-        _members = [];
-        _spaceName = null;
-        _verificationCode = null;
-        _isLoading = false; // Reset loading state
-      });
-      return;
-    }
-
+    // cancel previous listeners
     _membersListener?.cancel();
     _membersListener = null;
     _locationListeners.forEach((listener) => listener.cancel());
     _locationListeners.clear();
+    _yourLocationListener?.cancel();
 
+    // --- ALWAYS listen to current user's UserLocations doc ---
+    final currentUid = _auth.currentUser?.uid;
+    if (currentUid != null) {
+      _yourLocationListener = _firestore
+          .collection('UserLocations')
+          .doc(currentUid)
+          .snapshots()
+          .listen((snap) async {
+        final data = snap.data();
+        if (data != null) {
+          final lat = data['latitude'];
+          final lng = data['longitude'];
+
+          // convert timestamp safely
+          DateTime? ts;
+          final rawTs = data['timestamp'];
+          if (rawTs is Timestamp)
+            ts = rawTs.toDate();
+          else if (rawTs is int)
+            ts = DateTime.fromMillisecondsSinceEpoch(rawTs);
+
+          // fetch readable address (optional but consistent with members)
+          String addr;
+          try {
+            addr = await _getAddressFromLatLng(LatLng(lat, lng));
+          } catch (_) {
+            addr = 'Unavailable';
+          }
+
+          setState(() {
+            _yourAddress = addr;
+            _yourLastUpdate = ts;
+          });
+        }
+      });
+
+      // add to _locationListeners so it's canceled along with others if needed
+      _locationListeners.add(_yourLocationListener!);
+    }
+
+    // If no active space, clear member list and return
+    if (widget.activeSpaceId.isEmpty) {
+      setState(() {
+        _members = [];
+        _spaceName = null;
+        _verificationCode = null;
+        _isLoading = false;
+      });
+      return;
+    }
+
+    // --- existing members listener logic (unchanged) ---
     _membersListener = _firestore
         .collection('Spaces')
         .doc(widget.activeSpaceId)
@@ -210,22 +264,21 @@ class _BottomWidgetsState extends State<BottomWidgets> {
           _members = [];
           _spaceName = null;
           _verificationCode = null;
-          _isLoading = false; // Reset loading state
+          _isLoading = false;
         });
         return;
       }
 
-      // 1. grab the array
       final raw = snapshot.data()?['members'];
-      // 2. only allow a non-empty List<String>
       final members = <String>[];
       if (raw is List && raw.isNotEmpty) {
-        // only now am I sure raw has at least one element
         members.addAll(List<String>.from(raw));
       }
+
       final creatorId = snapshot['creator'];
       final spaceName = snapshot['name'] ?? 'Unnamed Space';
       final verificationCode = snapshot['verificationCode'];
+
       if (members.isEmpty) {
         setState(() {
           _members = [];
@@ -271,6 +324,7 @@ class _BottomWidgetsState extends State<BottomWidgets> {
         _isLoading = false;
       });
 
+      // set up per-member listeners
       for (final member in members) {
         final listener = _firestore
             .collection('UserLocations')
@@ -758,7 +812,9 @@ class _BottomWidgetsState extends State<BottomWidgets> {
                                 members: _members,
                                 selectedMemberId: _selectedMemberId,
                                 yourLocation: _locationHandler.currentLocation,
-                                yourAddressLabel: 'Current Location',
+                                yourAddressLabel:
+                                    _yourAddress ?? 'Current Location',
+                                yourLastUpdate: _yourLastUpdate,
                                 onMemberPressed: widget.onMemberPressed,
                                 onAddPerson: _addPerson,
                               ),

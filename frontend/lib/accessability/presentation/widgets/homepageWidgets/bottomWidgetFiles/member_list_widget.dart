@@ -1,3 +1,4 @@
+import 'package:AccessAbility/accessability/presentation/widgets/shimmer/shimmer_member_list.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -10,6 +11,7 @@ class MemberListWidget extends StatefulWidget {
   final String activeSpaceId;
   final List<Map<String, dynamic>> members;
   final String? selectedMemberId;
+  final DateTime? yourLastUpdate;
 
   /// Your own location + label
   final LatLng? yourLocation;
@@ -18,6 +20,8 @@ class MemberListWidget extends StatefulWidget {
   /// Called for both member taps and “Add a person”
   final Function(LatLng, String) onMemberPressed;
   final VoidCallback onAddPerson;
+
+  final bool isLoading;
 
   const MemberListWidget({
     super.key,
@@ -28,6 +32,8 @@ class MemberListWidget extends StatefulWidget {
     this.selectedMemberId,
     this.yourLocation,
     this.yourAddressLabel,
+    this.yourLastUpdate,
+    this.isLoading = false, // default false
   });
 
   @override
@@ -44,18 +50,24 @@ class _MemberListWidgetState extends State<MemberListWidget> {
     final isDark = Provider.of<ThemeProvider>(context).isDarkMode;
     final purple = const Color(0xFF6750A4);
 
+    if (widget.isLoading) {
+      return ShimmerMemberList(isDark: isDark, itemCount: 3);
+    }
+
     final currentUser = _auth.currentUser;
+    // prefer displayName; fallback to email local-part; final fallback 'User'
     final userName = (currentUser?.displayName?.trim().isNotEmpty ?? false)
         ? currentUser!.displayName!.trim()
-        : 'You';
-    final avatarChar = userName[0];
+        : (currentUser?.email?.split('@').first ?? 'User');
+    final avatarChar = (userName.isNotEmpty) ? userName[0].toUpperCase() : 'U';
 
     // Nothing to show?
     if (widget.activeSpaceId.isEmpty) return const SizedBox();
 
-    // Build a single list of Widgets:
+    // Build rows
     final List<Widget> rows = [];
 
+    // If there are no other members, but we have a user location, show only the current user
     if (widget.members.isEmpty) {
       if (widget.yourLocation == null || widget.yourAddressLabel == null) {
         return const SizedBox();
@@ -65,37 +77,75 @@ class _MemberListWidgetState extends State<MemberListWidget> {
           ListTile(
             leading: CircleAvatar(
               backgroundImage: currentUser?.photoURL != null
-                  ? NetworkImage(_auth.currentUser!.photoURL!)
+                  ? NetworkImage(currentUser!.photoURL!)
                   : null,
               child: currentUser?.photoURL == null
-                  ? Text(
-                      avatarChar,
-                      style: const TextStyle(color: Colors.white),
-                    )
+                  ? Text(avatarChar,
+                      style: const TextStyle(color: Colors.white))
                   : null,
             ),
             title: Text(
-              _auth.currentUser?.displayName ?? 'You',
+              userName,
               style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  color: isDark ? Colors.white : Colors.black),
+                fontWeight: FontWeight.bold,
+                color: isDark ? Colors.white : Colors.black,
+              ),
             ),
-            subtitle: Text(
-              widget.yourAddressLabel!,
-              style: TextStyle(
-                  fontSize: 12,
-                  color: isDark ? Colors.white70 : Colors.black54),
+            subtitle: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  widget.yourAddressLabel!,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: isDark ? Colors.white70 : Colors.black54,
+                  ),
+                ),
+                if (widget.yourLastUpdate != null)
+                  Text(
+                    'Updated: ${_timeDiff(widget.yourLastUpdate!)}',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: isDark ? Colors.white70 : Colors.black54,
+                    ),
+                  ),
+              ],
             ),
             onTap: () => widget.onMemberPressed(
               widget.yourLocation!,
               _auth.currentUser!.uid,
             ),
           ),
+          // Add-person CTA still useful even if no members
+          const SizedBox(height: 8),
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+            child: InkWell(
+              onTap: widget.onAddPerson,
+              child: Row(
+                children: [
+                  CircleAvatar(
+                    radius: 24,
+                    backgroundColor: purple.withOpacity(0.2),
+                    child: Icon(Icons.person_add, size: 28, color: purple),
+                  ),
+                  const SizedBox(width: 12),
+                  Text(
+                    'Add a person',
+                    style: TextStyle(
+                        color: purple,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 18),
+                  ),
+                ],
+              ),
+            ),
+          ),
         ],
       );
     }
 
-    // 1) “You” at top
+    // 1) Current user row (if we have location/address)
     if (widget.yourLocation != null && widget.yourAddressLabel != null) {
       rows.add(
         ListTile(
@@ -113,12 +163,26 @@ class _MemberListWidgetState extends State<MemberListWidget> {
                 fontWeight: FontWeight.bold,
                 color: isDark ? Colors.white : Colors.black),
           ),
-          subtitle: Text(
-            widget.yourAddressLabel!,
-            style: TextStyle(
-                fontSize: 12, color: isDark ? Colors.white70 : Colors.black54),
+          subtitle: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                widget.yourAddressLabel!,
+                style: TextStyle(
+                    fontSize: 12,
+                    color: isDark ? Colors.white70 : Colors.black54),
+              ),
+              if (widget.yourLastUpdate != null)
+                Text(
+                  'Updated: ${_timeDiff(widget.yourLastUpdate!)}',
+                  style: TextStyle(
+                      fontSize: 12,
+                      color: isDark ? Colors.white70 : Colors.black54),
+                ),
+            ],
           ),
-          selected: widget.selectedMemberId == _auth.currentUser?.uid,
+          selected: widget.selectedMemberId == _auth.currentUser?.uid ||
+              _selectedId == currentUser?.uid,
           onTap: () {
             setState(() => _selectedId = currentUser!.uid);
             widget.onMemberPressed(widget.yourLocation!, currentUser!.uid);
@@ -143,8 +207,11 @@ class _MemberListWidgetState extends State<MemberListWidget> {
             if (data != null) {
               final lat = data['latitude'], lng = data['longitude'];
               final addr = await _getAddressFromLatLng(LatLng(lat, lng));
-              m['address'] = addr;
-              m['lastUpdate'] = data['timestamp'];
+              // update local model so UI shows address immediately
+              setState(() {
+                m['address'] = addr;
+                m['lastUpdate'] = data['timestamp'];
+              });
               widget.onMemberPressed(LatLng(lat, lng), m['uid']);
             }
           },
@@ -163,10 +230,12 @@ class _MemberListWidgetState extends State<MemberListWidget> {
                                 'assets/images/others/default_profile.png')
                             as ImageProvider,
               ),
-              title: Text(m['username'],
-                  style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: isDark ? Colors.white : Colors.black)),
+              title: Text(
+                m['username'] ?? 'Unknown',
+                style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: isDark ? Colors.white : Colors.black),
+              ),
               subtitle: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -178,7 +247,7 @@ class _MemberListWidgetState extends State<MemberListWidget> {
                   ),
                   if (m['lastUpdate'] != null)
                     Text(
-                      'Updated: ${_timeDiff((m['lastUpdate'] as Timestamp).toDate())}',
+                      'Updated: ${_formatLastUpdate(m['lastUpdate'])}',
                       style: TextStyle(
                           fontSize: 12,
                           color: isDark ? Colors.white70 : Colors.black54),
@@ -204,7 +273,7 @@ class _MemberListWidgetState extends State<MemberListWidget> {
       rows.add(const Divider());
     }
 
-    // 3) “Add a person” at bottom
+    // 3) Add a person CTA
     rows.add(
       Padding(
         padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
@@ -232,12 +301,19 @@ class _MemberListWidgetState extends State<MemberListWidget> {
     return Column(children: rows);
   }
 
-  Future<String> _getAddressFromLatLng(LatLng pos) async {
-    try {
-      return await OpenStreetMapGeocodingService().getAddressFromLatLng(pos);
-    } catch (_) {
-      return 'Unavailable';
-    }
+  /// Convert different timestamp types to a human friendly "x ago" string.
+  String _formatLastUpdate(dynamic ts) {
+    DateTime? dt;
+    if (ts == null) return 'Unknown';
+    if (ts is Timestamp)
+      dt = ts.toDate();
+    else if (ts is DateTime)
+      dt = ts;
+    else if (ts is int)
+      dt = DateTime.fromMillisecondsSinceEpoch(ts);
+    else
+      return 'Unknown';
+    return _timeDiff(dt);
   }
 
   String _timeDiff(DateTime ts) {
@@ -246,5 +322,13 @@ class _MemberListWidgetState extends State<MemberListWidget> {
     if (d.inHours < 1) return '${d.inMinutes}m ago';
     if (d.inDays < 1) return '${d.inHours}h ago';
     return '${d.inDays}d ago';
+  }
+
+  Future<String> _getAddressFromLatLng(LatLng pos) async {
+    try {
+      return await OpenStreetMapGeocodingService().getAddressFromLatLng(pos);
+    } catch (_) {
+      return 'Unavailable';
+    }
   }
 }

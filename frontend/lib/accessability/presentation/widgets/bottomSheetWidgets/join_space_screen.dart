@@ -9,10 +9,10 @@ class JoinSpaceScreen extends StatefulWidget {
   const JoinSpaceScreen({super.key});
 
   @override
-  _JoinSpacePageState createState() => _JoinSpacePageState();
+  _JoinSpaceScreenState createState() => _JoinSpaceScreenState();
 }
 
-class _JoinSpacePageState extends State<JoinSpaceScreen> {
+class _JoinSpaceScreenState extends State<JoinSpaceScreen> {
   final List<TextEditingController> _controllers =
       List.generate(6, (index) => TextEditingController());
   final List<FocusNode> _focusNodes = List.generate(6, (index) => FocusNode());
@@ -20,9 +20,20 @@ class _JoinSpacePageState extends State<JoinSpaceScreen> {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final ChatService _chatService = ChatService();
   bool _isLoading = false;
+  bool _isDisposed = false;
+  bool _navigationCompleted = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!_isDisposed) FocusScope.of(context).requestFocus(_focusNodes[0]);
+    });
+  }
 
   @override
   void dispose() {
+    _isDisposed = true;
     for (var controller in _controllers) {
       controller.dispose();
     }
@@ -33,11 +44,19 @@ class _JoinSpacePageState extends State<JoinSpaceScreen> {
   }
 
   Future<void> _joinSpace() async {
+    if (_isLoading || _isDisposed || _navigationCompleted) return;
+
     final user = _auth.currentUser;
-    if (user == null) return;
+    if (user == null) {
+      _showSnackBar('login_required'.tr());
+      return;
+    }
 
     final verificationCode = _controllers.map((c) => c.text).join();
-    if (verificationCode.length != 6) return;
+    if (verificationCode.length != 6) {
+      _showSnackBar('complete_verification_code'.tr());
+      return;
+    }
 
     setState(() => _isLoading = true);
 
@@ -45,104 +64,192 @@ class _JoinSpacePageState extends State<JoinSpaceScreen> {
       final snapshot = await _firestore
           .collection('Spaces')
           .where('verificationCode', isEqualTo: verificationCode)
+          .limit(1)
           .get();
 
-      if (snapshot.docs.isNotEmpty) {
-        final spaceId = snapshot.docs.first.id;
-        final codeTimestamp = snapshot.docs.first['codeTimestamp']?.toDate();
-
-        if (codeTimestamp != null) {
-          final now = DateTime.now();
-          final difference = now.difference(codeTimestamp).inMinutes;
-          if (difference > 10) {
-            if (mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Verification code has expired')),
-              );
-            }
-            return;
-          }
-        }
-
-        await _firestore.collection('Spaces').doc(spaceId).update({
-          'members': FieldValue.arrayUnion([user.uid]),
-        });
-
-        await _chatService.addMemberToSpaceChatRoom(spaceId, user.uid);
-
-        if (mounted) {
-          Navigator.pop(context, true); // Return success
-        }
-      } else {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Invalid verification code')),
-          );
-        }
+      if (snapshot.docs.isEmpty) {
+        _showSnackBar('invalid_verification_code'.tr());
+        return;
       }
+
+      final spaceDoc = snapshot.docs.first;
+      final codeTimestamp = spaceDoc['codeTimestamp']?.toDate();
+
+      if (codeTimestamp != null &&
+          DateTime.now().difference(codeTimestamp).inMinutes > 10) {
+        _showSnackBar('verification_code_expired'.tr());
+        return;
+      }
+
+      await _firestore.collection('Spaces').doc(spaceDoc.id).update({
+        'members': FieldValue.arrayUnion([user.uid]),
+      });
+
+      await _chatService.addMemberToSpaceChatRoom(spaceDoc.id, user.uid);
+
+      _showSnackBar('joined_space_successfully'.tr());
+
+      // Mark navigation as completed
+      _navigationCompleted = true;
+
+      // Use a microtask to ensure safe navigation
+      Future.microtask(() {
+        if (!_isDisposed && Navigator.canPop(context)) {
+          Navigator.of(context).pop({
+            'success': true,
+            'spaceId': spaceDoc.id,
+            'spaceName': spaceDoc['name']
+          });
+        }
+      });
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error joining space: $e')),
-        );
+      if (!_isDisposed) {
+        _showSnackBar('error_joining_space'.tr(args: [e.toString()]));
       }
     } finally {
-      if (mounted) {
+      if (!_isDisposed && !_navigationCompleted) {
         setState(() => _isLoading = false);
       }
     }
+  }
+
+  void _showSnackBar(String message) {
+    if (_isDisposed) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
+
+  void _safePop() {
+    if (_isLoading ||
+        _isDisposed ||
+        _navigationCompleted ||
+        !Navigator.canPop(context)) return;
+
+    // Mark navigation as completed
+    _navigationCompleted = true;
+
+    // Use a microtask to ensure safe navigation
+    Future.microtask(() {
+      if (!_isDisposed) {
+        Navigator.of(context).pop({'success': false});
+      }
+    });
+  }
+
+  Widget _buildCodeBox(int index, double width) {
+    return Container(
+      width: width,
+      margin: const EdgeInsets.symmetric(horizontal: 4),
+      child: TextField(
+        controller: _controllers[index],
+        focusNode: _focusNodes[index],
+        textAlign: TextAlign.center,
+        maxLength: 1,
+        keyboardType: TextInputType.number,
+        inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+        decoration: InputDecoration(
+          counterText: '',
+          border: const OutlineInputBorder(),
+          focusedBorder: OutlineInputBorder(
+            borderSide: BorderSide(
+              color: Theme.of(context).colorScheme.primary,
+              width: 2,
+            ),
+          ),
+        ),
+        onChanged: (value) {
+          if (!_isDisposed) {
+            if (value.isNotEmpty && index < 5) {
+              FocusScope.of(context).requestFocus(_focusNodes[index + 1]);
+            } else if (value.isEmpty && index > 0) {
+              FocusScope.of(context).requestFocus(_focusNodes[index - 1]);
+            }
+          }
+        },
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('join_space'.tr()),
+        title: const Text('Join Space').tr(),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
-          onPressed: () => Navigator.pop(context),
+          onPressed: _safePop,
         ),
       ),
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text(
-              'enter_invite_code'.tr(),
-              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 20),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: List.generate(6, (index) {
-                return Container(
-                  width: 40,
-                  margin: const EdgeInsets.symmetric(horizontal: 4),
-                  child: TextField(
-                    controller: _controllers[index],
-                    focusNode: _focusNodes[index],
-                    textAlign: TextAlign.center,
-                    maxLength: 1,
-                    keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(
-                      counterText: '',
-                      border: OutlineInputBorder(),
-                    ),
-                    onChanged: (value) {
-                      if (value.isNotEmpty && index < 5) {
-                        _focusNodes[index + 1].requestFocus();
-                      }
-                    },
-                  ),
+            const Text(
+              'Enter Invite Code',
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            ).tr(),
+            const SizedBox(height: 8),
+            const Text(
+              'Enter the 6-digit code provided by the space creator',
+              style: TextStyle(fontSize: 14),
+            ).tr(),
+            const SizedBox(height: 24),
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final fieldWidth = constraints.maxWidth * 0.12;
+                return Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    for (int i = 0; i < 3; i++) _buildCodeBox(i, fieldWidth),
+                    const SizedBox(width: 8),
+                    const Text('-', style: TextStyle(fontSize: 20)),
+                    const SizedBox(width: 8),
+                    for (int i = 3; i < 6; i++) _buildCodeBox(i, fieldWidth),
+                  ],
                 );
-              }),
+              },
             ),
-            const SizedBox(height: 20),
-            ElevatedButton(
-              onPressed: _isLoading ? null : _joinSpace,
-              child: _isLoading
-                  ? const CircularProgressIndicator()
-                  : Text('join'.tr()),
+            const SizedBox(height: 24),
+            Row(
+              children: [
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: _isLoading ? null : _joinSpace,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF6750A4),
+                      shape: const StadiumBorder(),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                    child: _isLoading
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
+                        : const Text('Submit').tr(),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: _isLoading ? null : _safePop,
+                    style: OutlinedButton.styleFrom(
+                      side: const BorderSide(color: Color(0xFF6750A4)),
+                      shape: const StadiumBorder(),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                    child: const Text('Back').tr(),
+                  ),
+                ),
+              ],
             ),
           ],
         ),

@@ -819,16 +819,14 @@ class _BottomWidgetsState extends State<BottomWidgets> {
                                 onAddPerson: _addPerson,
                               ),
                             ],
-                          ],
-                          // Business Tab: Show AddPlaceWidget.
-                          if (_activeIndex == 1)
+                          ] else if (_activeIndex == 1) ...[
                             AddPlaceWidget(
                               onShowPlace: (Place place) {
                                 widget.onPlaceSelected?.call(place);
                               },
                             ),
-                          // Map Tab: Show MapContent.
-                          if (_activeIndex == 2)
+                            // Map Tab: Show MapContent.
+                          ] else if (_activeIndex == 2)
                             MapContent(
                               onCategorySelected: (category) {
                                 widget.fetchNearbyPlaces(category);

@@ -91,41 +91,6 @@ class _BottomWidgetsState extends State<BottomWidgets> {
     _listenToMembers();
     _initializeLocation();
     _initializeTts();
-
-    // _sheetListener = () {
-    //   final extent = _draggableController.size;
-    //   if (!_isExpanded && extent >= _expandThreshold) {
-    //     _isExpanded = true;
-    //     widget.onSheetExpanded?.call(true);
-    //     SchedulerBinding.instance.addPostFrameCallback((_) {
-    //       try {
-    //         _draggableController.animateTo(
-    //           1.0,
-    //           duration: const Duration(milliseconds: 200),
-    //           curve: Curves.easeInOut,
-    //         );
-    //       } on RangeError catch (_) {}
-    //     });
-    //     return;
-    //   }
-
-    //   if (_isExpanded && extent <= _collapseThreshold) {
-    //     _isExpanded = false;
-    //     widget.onSheetExpanded?.call(false);
-
-    //     SchedulerBinding.instance.addPostFrameCallback((_) {
-    //       try {
-    //         _draggableController.animateTo(
-    //           widget.selectedPlace != null ? 0.6 : 0.30,
-    //           duration: const Duration(milliseconds: 200),
-    //           curve: Curves.easeInOut,
-    //         );
-    //       } on RangeError catch (_) {}
-    //     });
-    //   }
-    // };
-
-    // _draggableController.addListener(_sheetListener);
   }
 
   String _timeDiff(DateTime dt) {
@@ -157,36 +122,6 @@ class _BottomWidgetsState extends State<BottomWidgets> {
   @override
   void didUpdateWidget(BottomWidgets oldWidget) {
     super.didUpdateWidget(oldWidget);
-    // if (widget.activeSpaceId != oldWidget.activeSpaceId) {
-    //   // Set loading state when space ID changes
-    //   setState(() {
-    //     _isLoading = true;
-    //   });
-    //   _listenToMembers(); // Re-fetch members
-    // }
-    // // Check for changes in the establishment selection.
-    // if (oldWidget.selectedPlace == null && widget.selectedPlace != null) {
-    //   SchedulerBinding.instance.addPostFrameCallback((_) {
-    //     try {
-    //       _draggableController.animateTo(
-    //         0.6,
-    //         duration: const Duration(milliseconds: 300),
-    //         curve: Curves.easeInOut,
-    //       );
-    //     } on RangeError catch (_) {}
-    //   });
-    // } else if (oldWidget.selectedPlace != null &&
-    //     widget.selectedPlace == null) {
-    //   SchedulerBinding.instance.addPostFrameCallback((_) {
-    //     try {
-    //       _draggableController.animateTo(
-    //         widget.selectedPlace != null ? 0.6 : 0.30,
-    //         duration: const Duration(milliseconds: 300),
-    //         curve: Curves.easeInOut,
-    //       );
-    //     } on RangeError catch (_) {}
-    //   });
-    // }
   }
 
   @override
@@ -361,17 +296,6 @@ class _BottomWidgetsState extends State<BottomWidgets> {
     });
   }
 
-  // void _setupVerificationCodeFocusListeners() {
-  //   for (int i = 0; i < _verificationCodeControllers.length; i++) {
-  //     _verificationCodeControllers[i].addListener(() {
-  //       if (_verificationCodeControllers[i].text.isNotEmpty && i < 5) {
-  //         FocusScope.of(context)
-  //             .requestFocus(_verificationCodeFocusNodes[i + 1]);
-  //       }
-  //     });
-  //   }
-  // }
-
   Future<void> _initializeTts() async {
     await flutterTts.setLanguage("en-US");
     await flutterTts.setSpeechRate(0.5);
@@ -426,7 +350,7 @@ class _BottomWidgetsState extends State<BottomWidgets> {
     if (email == user.email) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('You cannot add yourself'),
+          content: Text('You cannot send a verification code to yourself'),
         ),
       );
       return;
@@ -456,22 +380,47 @@ class _BottomWidgetsState extends State<BottomWidgets> {
       return;
     }
 
+    // Get or generate verification code
+    final existingCode = spaceSnapshot['verificationCode'];
+    final codeTimestamp = spaceSnapshot['codeTimestamp']?.toDate();
+
+    String verificationCode;
+    if (existingCode != null && codeTimestamp != null) {
+      final now = DateTime.now();
+      final difference = now.difference(codeTimestamp).inMinutes;
+      verificationCode =
+          difference < 10 ? existingCode : _generateVerificationCode();
+    } else {
+      verificationCode = _generateVerificationCode();
+    }
+
     final hasChatRoom = await _chatService.hasChatRoom(user.uid, receiverID);
     if (!hasChatRoom) {
       await _chatService.sendChatRequest(
         receiverID,
-        'Join my space!',
+        'Join My Space! \n Your verification code is: $verificationCode (Expires in 10 minutes)',
       );
     } else {
       await _chatService.sendMessage(
         receiverID,
-        'Join my space!',
+        'Join My Space! \n Your verification code is: $verificationCode (Expires in 10 minutes)',
       );
     }
 
+    // Update space with new verification code and timestamp
+    await _firestore.collection('Spaces').doc(widget.activeSpaceId).update({
+      'verificationCode': verificationCode,
+      'codeTimestamp': DateTime.now(),
+    });
+
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Invitation sent via chat')),
+      const SnackBar(content: Text('Verification code sent via chat')),
     );
+  }
+
+  String _generateVerificationCode() {
+    final random = Random();
+    return (100000 + random.nextInt(900000)).toString();
   }
 
   Future<String?> _showAddPersonDialog() async {
@@ -539,93 +488,6 @@ class _BottomWidgetsState extends State<BottomWidgets> {
     );
     return email;
   }
-
-  // Future<void> _createSpace() async {
-  //   final user = _auth.currentUser;
-  //   if (user == null) return;
-
-  //   final spaceName = _spaceNameController.text;
-  //   if (spaceName.isEmpty) return;
-
-  //   final verificationCode = _generateVerificationCode();
-  //   final spaceRef = await _firestore.collection('Spaces').add({
-  //     'name': spaceName,
-  //     'creator': user.uid,
-  //     'members': [user.uid],
-  //     'verificationCode': verificationCode,
-  //     'codeTimestamp': DateTime.now(),
-  //     'createdAt': DateTime.now(),
-  //   });
-
-  //   await _chatService.createSpaceChatRoom(spaceRef.id, spaceName);
-
-  //   _spaceNameController.clear();
-  //   setState(() {
-  //     _showCreateSpace = false;
-  //   });
-
-  //   ScaffoldMessenger.of(context).showSnackBar(
-  //     const SnackBar(content: Text('Space created successfully')),
-  //   );
-  // }
-
-  // Future<void> _joinSpace() async {
-  //   final user = _auth.currentUser;
-  //   if (user == null) return;
-
-  //   final verificationCode = _verificationCodeControllers
-  //       .map((controller) => controller.text)
-  //       .join();
-  //   if (verificationCode.isEmpty) return;
-
-  //   final snapshot = await _firestore
-  //       .collection('Spaces')
-  //       .where('verificationCode', isEqualTo: verificationCode)
-  //       .get();
-
-  //   if (snapshot.docs.isNotEmpty) {
-  //     final spaceId = snapshot.docs.first.id;
-  //     final codeTimestamp = snapshot.docs.first['codeTimestamp']?.toDate();
-
-  //     if (codeTimestamp != null) {
-  //       final now = DateTime.now();
-  //       final difference = now.difference(codeTimestamp).inMinutes;
-  //       if (difference > 10) {
-  //         ScaffoldMessenger.of(context).showSnackBar(
-  //           const SnackBar(content: Text('Verification code has expired')),
-  //         );
-  //         return;
-  //       }
-  //     }
-
-  //     await _firestore.collection('Spaces').doc(spaceId).update({
-  //       'members': FieldValue.arrayUnion([_auth.currentUser!.uid]),
-  //     });
-
-  //     await _chatService.addMemberToSpaceChatRoom(
-  //         spaceId, _auth.currentUser!.uid);
-
-  //     for (final controller in _verificationCodeControllers) {
-  //       controller.clear();
-  //     }
-  //     setState(() {
-  //       _showJoinSpace = false;
-  //     });
-
-  //     ScaffoldMessenger.of(context).showSnackBar(
-  //       const SnackBar(content: Text('Joined space successfully')),
-  //     );
-  //   } else {
-  //     ScaffoldMessenger.of(context).showSnackBar(
-  //       const SnackBar(content: Text('Invalid verification code')),
-  //     );
-  //   }
-  // }
-
-  // String _generateVerificationCode() {
-  //   final random = Random();
-  //   return (100000 + random.nextInt(900000)).toString();
-  // }
 
   Future<String> _getAddressFromLatLng(LatLng latLng) async {
     try {
@@ -879,6 +741,44 @@ class _BottomWidgetsState extends State<BottomWidgets> {
                                 isLoading: _isLoading,
                               ),
                             ],
+                            if (_creatorId == _auth.currentUser?.uid &&
+                                widget.activeSpaceId.isNotEmpty)
+                              Padding(
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 16.0),
+                                child: Column(
+                                  children: [
+                                    Text(
+                                      'Verification Code',
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold,
+                                        color: isDarkMode
+                                            ? Colors.white
+                                            : Colors.black,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      _verificationCode ?? 'Generating...',
+                                      style: TextStyle(
+                                        fontSize: 24,
+                                        fontWeight: FontWeight.bold,
+                                        color: const Color(0xFF6750A4),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    ElevatedButton(
+                                      onPressed: _addPerson,
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor:
+                                            const Color(0xFF6750A4),
+                                      ),
+                                      child: const Text('Send Code'),
+                                    ),
+                                  ],
+                                ),
+                              ),
                           ] else if (_activeIndex == 1) ...[
                             AddPlaceWidget(
                               onShowPlace: (Place place) {

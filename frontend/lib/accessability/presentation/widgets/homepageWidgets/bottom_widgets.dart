@@ -128,6 +128,15 @@ class _BottomWidgetsState extends State<BottomWidgets> {
     // _draggableController.addListener(_sheetListener);
   }
 
+  String _timeDiff(DateTime dt) {
+    final diff = DateTime.now().difference(dt);
+    if (diff.inSeconds < 60) return 'just now';
+    if (diff.inMinutes < 60) return '${diff.inMinutes}m';
+    if (diff.inHours < 24) return '${diff.inHours}h';
+    if (diff.inDays < 7) return '${diff.inDays}d';
+    return '${diff.inDays}d';
+  }
+
   Future<void> _initializeLocation() async {
     try {
       await _locationHandler.getUserLocation();
@@ -640,9 +649,13 @@ class _BottomWidgetsState extends State<BottomWidgets> {
       minChildSize: 0.20,
       maxChildSize: 1,
       builder: (context, scrollController) {
-        final displayName = _auth.currentUser?.displayName ?? '';
+        final currentUser = _auth.currentUser;
+// prefer displayName; fallback to email local-part; final fallback 'User'
+        final userName = (currentUser?.displayName?.trim().isNotEmpty ?? false)
+            ? currentUser!.displayName!.trim()
+            : (currentUser?.email?.split('@').first ?? 'User');
         final avatarLetter =
-            displayName.isNotEmpty ? displayName[0].toUpperCase() : 'U';
+            (userName.isNotEmpty) ? userName[0].toUpperCase() : 'U';
         return Column(
           children: [
             IgnorePointer(
@@ -746,7 +759,9 @@ class _BottomWidgetsState extends State<BottomWidgets> {
                             if (widget.activeSpaceId.isEmpty)
                               // No space selected: user-card + button
                               Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
+                                  // 1) Current user row (same as MemberListWidget)
                                   ListTile(
                                     leading: CircleAvatar(
                                       backgroundImage:
@@ -755,17 +770,13 @@ class _BottomWidgetsState extends State<BottomWidgets> {
                                                   _auth.currentUser!.photoURL!)
                                               : null,
                                       child: _auth.currentUser?.photoURL == null
-                                          ? Text(
-                                              avatarLetter,
+                                          ? Text(avatarLetter,
                                               style: const TextStyle(
-                                                  color: Colors.white),
-                                            )
+                                                  color: Colors.white))
                                           : null,
                                     ),
                                     title: Text(
-                                      displayName.isNotEmpty
-                                          ? displayName
-                                          : (_auth.currentUser?.email ?? 'You'),
+                                      userName,
                                       style: TextStyle(
                                         fontWeight: FontWeight.bold,
                                         color: isDarkMode
@@ -773,34 +784,81 @@ class _BottomWidgetsState extends State<BottomWidgets> {
                                             : Colors.black,
                                       ),
                                     ),
-                                    subtitle: Text(
-                                      'Current Location',
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        color: isDarkMode
-                                            ? Colors.white70
-                                            : Colors.black54,
-                                      ),
+                                    subtitle: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          _yourAddress ?? 'Current Location',
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            color: isDarkMode
+                                                ? Colors.white70
+                                                : Colors.black54,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 2),
+                                        Text(
+                                          'Updated: ${_yourLastUpdate != null ? _timeDiff(_yourLastUpdate!) : 'just now'}',
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            color: isDarkMode
+                                                ? Colors.white70
+                                                : Colors.black54,
+                                          ),
+                                        ),
+                                      ],
                                     ),
                                     onTap: () {
-                                      widget.onMemberPressed(
-                                        _locationHandler.currentLocation!,
-                                        _auth.currentUser!.uid,
-                                      );
+                                      if (_locationHandler.currentLocation !=
+                                          null) {
+                                        widget.onMemberPressed(
+                                            _locationHandler.currentLocation!,
+                                            _auth.currentUser!.uid);
+                                      }
                                     },
                                   ),
-                                  const SizedBox(height: 24),
-                                  ElevatedButton.icon(
-                                    onPressed: _addPerson,
-                                    icon: const Icon(Icons.person_add),
-                                    label: const Text("Add a person"),
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: const Color(0xFF6750A4),
-                                      padding: const EdgeInsets.symmetric(
-                                          vertical: 14, horizontal: 20),
-                                      shape: RoundedRectangleBorder(
-                                          borderRadius:
-                                              BorderRadius.circular(8)),
+
+                                  // small spacing + divider (same visual separation used in MemberListWidget)
+                                  const SizedBox(height: 8),
+                                  Divider(
+                                      color: isDarkMode
+                                          ? Colors.grey[700]
+                                          : Colors.grey[300]),
+
+                                  // 2) Create-circle CTA aligned with avatar (left)
+                                  Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                        vertical: 12.0, horizontal: 16.0),
+                                    child: InkWell(
+                                      // onTap:
+                                      //     _createCircleAuto, // creates a circle immediately (no dialog)
+                                      child: Row(
+                                        children: [
+                                          // left: circular button (aligned like avatar)
+                                          CircleAvatar(
+                                            radius: 24,
+                                            backgroundColor:
+                                                const Color(0xFF6750A4)
+                                                    .withOpacity(0.2),
+                                            child: Icon(Icons.add,
+                                                size: 26,
+                                                color: const Color(0xFF6750A4)),
+                                          ),
+
+                                          const SizedBox(width: 12),
+
+                                          // right: CTA text
+                                          Text(
+                                            'Create a circle',
+                                            style: TextStyle(
+                                              color: const Color(0xFF6750A4),
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 18,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
                                     ),
                                   ),
                                 ],

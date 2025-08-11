@@ -283,7 +283,12 @@ class LocationHandler {
                   position: location,
                   infoWindow: InfoWindow(
                     title: username,
-                    snippet: address,
+                    snippet: '${_calculateDistance(
+                      currentLocation!.latitude,
+                      currentLocation!.longitude,
+                      lat,
+                      lng,
+                    ).toStringAsFixed(1)} km • $address',
                   ),
                   icon: customIcon,
                   onTap: () => _onMarkerTapped(MarkerId('user_$userId')),

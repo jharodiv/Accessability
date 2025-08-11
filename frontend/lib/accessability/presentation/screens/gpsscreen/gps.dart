@@ -1,4 +1,8 @@
 import 'dart:convert'; // For JSON decoding.
+import 'dart:math';
+import 'package:AccessAbility/accessability/logic/bloc/place/bloc/place_state.dart'
+    as place_state;
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:http/http.dart' as http; // For HTTP requests.
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -20,7 +24,8 @@ import 'package:AccessAbility/accessability/presentation/widgets/google_helper/m
 import 'package:AccessAbility/accessability/presentation/widgets/homepageWidgets/top_widgets.dart';
 import 'package:AccessAbility/accessability/themes/theme_provider.dart';
 import 'package:AccessAbility/accessability/logic/bloc/user/user_bloc.dart';
-import 'package:AccessAbility/accessability/logic/bloc/user/user_state.dart';
+import 'package:AccessAbility/accessability/logic/bloc/user/user_state.dart'
+    as user_state;
 import 'package:AccessAbility/accessability/presentation/screens/gpsscreen/marker_handler.dart';
 import 'package:AccessAbility/accessability/presentation/screens/gpsscreen/nearby_places_handler.dart';
 import 'package:AccessAbility/accessability/presentation/screens/gpsscreen/tutorial_widget.dart';
@@ -30,8 +35,6 @@ import 'package:AccessAbility/accessability/presentation/widgets/bottomSheetWidg
 import 'package:AccessAbility/accessability/logic/bloc/auth/auth_bloc.dart';
 import 'package:AccessAbility/accessability/logic/bloc/auth/auth_state.dart';
 import 'package:AccessAbility/accessability/logic/bloc/place/bloc/place_bloc.dart';
-import 'package:AccessAbility/accessability/logic/bloc/place/bloc/place_state.dart'
-    as placeState;
 import 'package:AccessAbility/accessability/firebaseServices/models/place.dart';
 
 class GpsScreen extends StatefulWidget {
@@ -124,7 +127,9 @@ class _GpsScreenState extends State<GpsScreen> {
 
     // Create markers for PWD-friendly locations.
     // Modify each marker so that tapping it creates a route.
-    _markerHandler.createMarkers(pwdFriendlyLocations).then((markers) {
+    _markerHandler
+        .createMarkers(pwdFriendlyLocations, _locationHandler.currentLocation)
+        .then((markers) {
       final pwdMarkers = markers.map((marker) {
         if (marker.markerId.value.startsWith('pwd_')) {
           return Marker(
@@ -198,6 +203,68 @@ class _GpsScreenState extends State<GpsScreen> {
     }
   }
 
+  void _showMarkerOptions(LatLng position) {
+    showModalBottomSheet(
+      context: context,
+      builder: (context) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: Icon(Icons.image, color: Color(0xFF6750A4)),
+                title: Text('Show Image'),
+                onTap: () {
+                  Navigator.pop(context);
+                  final currentUser = FirebaseAuth.instance.currentUser;
+                  final state =
+                      context.read<PlaceBloc>().state; // Changed variable name
+
+                  final place = state is place_state.PlacesLoaded
+                      ? state.places.firstWhere(
+                          (p) =>
+                              p.latitude == position.latitude &&
+                              p.longitude == position.longitude,
+                          orElse: () => Place(
+                            id: 'temp_${DateTime.now().millisecondsSinceEpoch}',
+                            name: 'Unknown',
+                            latitude: position.latitude,
+                            longitude: position.longitude,
+                            category: 'temporary',
+                            userId: currentUser?.uid ?? '',
+                            timestamp: DateTime.now(),
+                          ),
+                        )
+                      : Place(
+                          id: 'temp_${DateTime.now().millisecondsSinceEpoch}',
+                          name: 'Unknown',
+                          latitude: position.latitude,
+                          longitude: position.longitude,
+                          category: 'temporary',
+                          userId: currentUser?.uid ?? '',
+                          timestamp: DateTime.now(),
+                        );
+
+                  setState(() => _selectedPlace = place);
+                },
+              ),
+              ListTile(
+                leading: Icon(Icons.directions, color: Color(0xFF6750A4)),
+                title: Text('Show Route'),
+                onTap: () {
+                  Navigator.pop(context);
+                  if (_locationHandler.currentLocation != null) {
+                    _createRoute(_locationHandler.currentLocation!, position);
+                  }
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   // Callback when the tutorial is completed.
   void _onTutorialComplete() {
     _locationHandler.getUserLocation().then((_) {
@@ -212,7 +279,9 @@ class _GpsScreenState extends State<GpsScreen> {
       }
       _locationHandler.initializeUserMarker();
     });
-    _markerHandler.createMarkers(pwdFriendlyLocations).then((markers) {
+    _markerHandler
+        .createMarkers(pwdFriendlyLocations, _locationHandler.currentLocation)
+        .then((markers) {
       setState(() {
         _markers.addAll(markers);
       });
@@ -275,14 +344,27 @@ class _GpsScreenState extends State<GpsScreen> {
           final markersSet = result['markers'] is Set
               ? result['markers']
               : Set<Marker>.from(result['markers']);
+
           for (final marker in markersSet) {
             print("Adding marker: ${marker.markerId} at ${marker.position}");
+
+            // Calculate distance
+            final distance = _calculateDistance(
+              _locationHandler.currentLocation!,
+              marker.position,
+            );
+
             newMarkers.add(Marker(
               markerId: marker.markerId,
               position: marker.position,
               icon: marker.icon,
-              infoWindow: marker.infoWindow,
+              infoWindow: InfoWindow(
+                title: marker.infoWindow.title,
+                snippet: '${distance.toStringAsFixed(1)} km away',
+                onTap: () => _showMarkerOptions(marker.position),
+              ),
               onTap: () async {
+                // Single tap shows place details
                 final openStreetMapHelper = OpenStreetMapHelper();
                 try {
                   final detailedPlace =
@@ -294,12 +376,6 @@ class _GpsScreenState extends State<GpsScreen> {
                   setState(() {
                     _selectedPlace = detailedPlace;
                   });
-                  if (_locationHandler.currentLocation != null) {
-                    await _createRoute(
-                      _locationHandler.currentLocation!,
-                      marker.position,
-                    );
-                  }
                 } catch (e) {
                   print("Error fetching place details: $e");
                 }
@@ -354,6 +430,23 @@ class _GpsScreenState extends State<GpsScreen> {
     }
   }
 
+  double _calculateDistance(LatLng start, LatLng end) {
+    const double earthRadius = 6371; // km
+    double lat1 = start.latitude * (pi / 180);
+    double lon1 = start.longitude * (pi / 180);
+    double lat2 = end.latitude * (pi / 180);
+    double lon2 = end.longitude * (pi / 180);
+
+    double dLat = lat2 - lat1;
+    double dLon = lon2 - lon1;
+
+    double a = sin(dLat / 2) * sin(dLat / 2) +
+        cos(lat1) * cos(lat2) * sin(dLon / 2) * sin(dLon / 2);
+    double c = 2 * atan2(sqrt(a), sqrt(1 - a));
+
+    return earthRadius * c;
+  }
+
   /// Create a route using Google Routes API from [origin] to [destination]
   /// and display it on the map.
   Future<void> _createRoute(LatLng origin, LatLng destination) async {
@@ -367,6 +460,12 @@ class _GpsScreenState extends State<GpsScreen> {
         final data = json.decode(response.body);
         final geometry = data['routes'][0]['geometry']['coordinates'];
 
+        // Calculate distance and duration
+        final distance =
+            (data['routes'][0]['distance'] / 1000).toStringAsFixed(1);
+        final duration =
+            (data['routes'][0]['duration'] / 60).toStringAsFixed(0);
+
         setState(() {
           _polylines = {
             Polyline(
@@ -378,11 +477,32 @@ class _GpsScreenState extends State<GpsScreen> {
               width: 6,
             ),
           };
+
+          // Update the info window with route info
+          _updateMarkerWithRouteInfo(destination, distance, duration);
         });
       }
     } catch (e) {
       print('Routing failed: $e');
     }
+  }
+
+  void _updateMarkerWithRouteInfo(
+      LatLng position, String distance, String duration) {
+    final marker = _markers.firstWhere(
+      (m) => m.position == position,
+      orElse: () => throw Exception('Marker not found'),
+    );
+
+    setState(() {
+      _markers.remove(marker);
+      _markers.add(marker.copyWith(
+        infoWindowParam: InfoWindow(
+          title: marker.infoWindow.title,
+          snippet: '$distance km • $duration mins',
+        ),
+      ));
+    });
   }
 
   void _onMemberPressed(LatLng location, String userId) {
@@ -463,9 +583,9 @@ class _GpsScreenState extends State<GpsScreen> {
     final bool isDarkMode = Provider.of<ThemeProvider>(context).isDarkMode;
     _mapKey = ValueKey(isDarkMode);
 
-    return BlocListener<PlaceBloc, placeState.PlaceState>(
+    return BlocListener<PlaceBloc, place_state.PlaceState>(
       listener: (context, state) {
-        if (state is placeState.PlacesLoaded) {
+        if (state is place_state.PlacesLoaded) {
           // Create markers for every place from PlaceBloc.
           Set<Marker> placeMarkers = {};
           for (Place place in state.places) {
@@ -501,15 +621,16 @@ class _GpsScreenState extends State<GpsScreen> {
                 (marker) => marker.markerId.value.startsWith('place_'));
             _markers.addAll(placeMarkers);
           });
-        } else if (state is placeState.PlaceOperationError) {
+        } else if (state is place_state.PlaceOperationError) {
           print("Error loading places: ${state.message}");
         }
       },
-      child: BlocBuilder<UserBloc, UserState>(
+      child: BlocBuilder<UserBloc, user_state.UserState>(
         builder: (context, userState) {
-          if (userState is UserInitial || userState is UserLoading) {
+          if (userState is user_state.UserInitial ||
+              userState is user_state.UserLoading) {
             return const Center(child: CircularProgressIndicator());
-          } else if (userState is UserError) {
+          } else if (userState is user_state.UserError) {
             return Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -524,7 +645,7 @@ class _GpsScreenState extends State<GpsScreen> {
                 ],
               ),
             );
-          } else if (userState is UserLoaded) {
+          } else if (userState is user_state.UserLoaded) {
             return WillPopScope(
               onWillPop: () => _locationHandler.onWillPop(context),
               child: Scaffold(

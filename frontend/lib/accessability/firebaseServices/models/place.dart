@@ -14,7 +14,7 @@ class Place {
   final String category;
   final double latitude;
   final double longitude;
-  final DateTime timestamp;
+  final DateTime? timestamp;
   final bool? isFromOSM; // Flag to indicate OpenStreetMap source
 
   Place({
@@ -88,7 +88,7 @@ class Place {
       category: '',
       latitude: marker.position.latitude,
       longitude: marker.position.longitude,
-      timestamp: DateTime.now(),
+      timestamp: DateTime.now(), // Added timestamp
       isFromOSM: isOSM,
     );
   }

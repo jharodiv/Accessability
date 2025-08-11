@@ -4,23 +4,53 @@ import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 class MarkerHandler {
-  Set<Marker> markers = {};
-
   Future<Set<Marker>> createMarkers(
-      List<Map<String, dynamic>> pwdFriendlyLocations) async {
+    List<Map<String, dynamic>> locations,
+    LatLng? userLocation, // Make parameter nullable
+  ) async {
     final customIcon = await getCustomIcon();
-    return pwdFriendlyLocations.map((location) {
+    return locations.map((location) {
+      // Calculate distance if user location is available
+      String distanceText = '';
+      if (userLocation != null) {
+        final distance = _calculateDistance(
+          userLocation.latitude,
+          userLocation.longitude,
+          location["latitude"],
+          location["longitude"],
+        );
+        distanceText = '${distance.toStringAsFixed(1)} km';
+      }
+
       return Marker(
         markerId: MarkerId("pwd_${location["name"]}"),
         position: LatLng(location["latitude"], location["longitude"]),
         infoWindow: InfoWindow(
           title: location["name"],
-          snippet: location["details"],
+          snippet: distanceText.isNotEmpty ? distanceText : location["details"],
         ),
         icon: customIcon,
       );
     }).toSet();
   }
+
+  double _calculateDistance(
+      double lat1, double lon1, double lat2, double lon2) {
+    const earthRadius = 6371; // km
+    final dLat = _toRadians(lat2 - lat1);
+    final dLon = _toRadians(lon2 - lon1);
+
+    final a = sin(dLat / 2) * sin(dLat / 2) +
+        cos(_toRadians(lat1)) *
+            cos(_toRadians(lat2)) *
+            sin(dLon / 2) *
+            sin(dLon / 2);
+
+    final c = 2 * atan2(sqrt(a), sqrt(1 - a));
+    return earthRadius * c;
+  }
+
+  double _toRadians(double degrees) => degrees * pi / 180;
 
   Future<BitmapDescriptor> getCustomIcon() async {
     return await BitmapDescriptor.fromAssetImage(

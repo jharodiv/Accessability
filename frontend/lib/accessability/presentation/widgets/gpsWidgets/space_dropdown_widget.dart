@@ -365,33 +365,46 @@ class _SpaceSelectionSheetState extends State<SpaceSelectionSheet> {
             ],
             const Divider(height: 1, thickness: 0.5),
             const SizedBox(height: 8),
+            // Update the buttons in the build method:
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Row(
                 children: [
                   Expanded(
                     child: ElevatedButton(
-                      onPressed: () => widget.onPick('', 'createSpace'),
+                      onPressed: () =>
+                          Navigator.pushNamed(context, '/createSpace')
+                              .then((success) {
+                        if (success == true) {
+                          // Refresh spaces if creation was successful
+                          _listenToSpaces();
+                        }
+                      }),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: _purple,
                         shape: const StadiumBorder(),
                         padding: const EdgeInsets.symmetric(vertical: 8),
                       ),
-                      child: Text('createSpace'.tr(),
-                          style: const TextStyle(color: Colors.white)),
+                      child: Text('createSpace'.tr()),
                     ),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
                     child: ElevatedButton(
-                      onPressed: () => widget.onPick('', 'joinSpace'),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: _purple,
                         shape: const StadiumBorder(),
                         padding: const EdgeInsets.symmetric(vertical: 8),
                       ),
-                      child: Text('joinSpace'.tr(),
-                          style: const TextStyle(color: Colors.white)),
+                      onPressed: () =>
+                          Navigator.pushNamed(context, '/joinSpace')
+                              .then((success) {
+                        if (success == true) {
+                          // Refresh spaces if join was successful
+                          _listenToSpaces();
+                        }
+                      }),
+                      child: Text('joinSpace'.tr()),
                     ),
                   ),
                 ],

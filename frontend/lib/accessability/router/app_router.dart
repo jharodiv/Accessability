@@ -19,6 +19,9 @@ import 'package:AccessAbility/accessability/presentation/screens/settings/settin
 import 'package:AccessAbility/accessability/presentation/screens/settings/settingsScreens/privacy_security_screen.dart';
 import 'package:AccessAbility/accessability/presentation/screens/settings/settingsScreens/about_screen.dart';
 import 'package:AccessAbility/accessability/presentation/widgets/chatWidgets/chat_convo_screen.dart';
+import 'package:AccessAbility/accessability/presentation/widgets/bottomSheetWidgets/create_space_screen.dart';
+import 'package:AccessAbility/accessability/presentation/widgets/bottomSheetWidgets/join_space_screen.dart';
+
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 // Import the new privacy & security detail screens.
@@ -73,6 +76,10 @@ class AppRouter {
         return _buildRoute(const SOSScreen(), settings: routeSettings);
       case '/about':
         return _buildRoute(const AboutScreen(), settings: routeSettings);
+      case '/createSpace':
+        return _buildRoute(const CreateSpaceScreen(), settings: routeSettings);
+      case '/joinSpace':
+        return _buildRoute(const JoinSpaceScreen(), settings: routeSettings);
       case '/send-location':
         final args = routeSettings.arguments as Map<String, dynamic>?;
         if (args == null) {

@@ -1,3 +1,4 @@
+import 'package:AccessAbility/accessability/presentation/widgets/shimmer/shimmer_member_list.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -20,6 +21,8 @@ class MemberListWidget extends StatefulWidget {
   final Function(LatLng, String) onMemberPressed;
   final VoidCallback onAddPerson;
 
+  final bool isLoading;
+
   const MemberListWidget({
     super.key,
     required this.activeSpaceId,
@@ -30,6 +33,7 @@ class MemberListWidget extends StatefulWidget {
     this.yourLocation,
     this.yourAddressLabel,
     this.yourLastUpdate,
+    this.isLoading = false, // default false
   });
 
   @override
@@ -45,6 +49,10 @@ class _MemberListWidgetState extends State<MemberListWidget> {
   Widget build(BuildContext context) {
     final isDark = Provider.of<ThemeProvider>(context).isDarkMode;
     final purple = const Color(0xFF6750A4);
+
+    if (widget.isLoading) {
+      return ShimmerMemberList(isDark: isDark, itemCount: 3);
+    }
 
     final currentUser = _auth.currentUser;
     // prefer displayName; fallback to email local-part; final fallback 'User'

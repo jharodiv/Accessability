@@ -205,6 +205,8 @@ class _BottomWidgetsState extends State<BottomWidgets> {
 
   void _listenToMembers() async {
     // cancel previous listeners
+    setState(() => _isLoading = true);
+
     _membersListener?.cancel();
     _membersListener = null;
     _locationListeners.forEach((listener) => listener.cancel());
@@ -693,8 +695,6 @@ class _BottomWidgetsState extends State<BottomWidgets> {
                     padding: const EdgeInsets.all(16.0),
                     child: Column(
                       children: [
-                        if (_isLoading)
-                          const Center(child: CircularProgressIndicator()),
                         // --- Default Layout: Always show these ---
                         Container(
                           width: 100,
@@ -838,9 +838,10 @@ class _BottomWidgetsState extends State<BottomWidgets> {
                                           // left: circular button (aligned like avatar)
                                           CircleAvatar(
                                             radius: 24,
-                                            backgroundColor:
-                                                const Color(0xFF6750A4)
-                                                    .withOpacity(0.2),
+                                            backgroundColor: const Color(
+                                                    0xFF6750A4)
+                                                // ignore: deprecated_member_use
+                                                .withOpacity(0.2),
                                             child: Icon(Icons.add,
                                                 size: 26,
                                                 color: const Color(0xFF6750A4)),
@@ -849,10 +850,10 @@ class _BottomWidgetsState extends State<BottomWidgets> {
                                           const SizedBox(width: 12),
 
                                           // right: CTA text
-                                          Text(
+                                          const Text(
                                             'Create a circle',
                                             style: TextStyle(
-                                              color: const Color(0xFF6750A4),
+                                              color: Color(0xFF6750A4),
                                               fontWeight: FontWeight.bold,
                                               fontSize: 18,
                                             ),
@@ -875,6 +876,7 @@ class _BottomWidgetsState extends State<BottomWidgets> {
                                 yourLastUpdate: _yourLastUpdate,
                                 onMemberPressed: widget.onMemberPressed,
                                 onAddPerson: _addPerson,
+                                isLoading: _isLoading,
                               ),
                             ],
                           ] else if (_activeIndex == 1) ...[

@@ -1,5 +1,7 @@
+import 'dart:async';
 import 'dart:convert'; // For JSON decoding.
 import 'dart:math';
+import 'package:AccessAbility/accessability/firebaseServices/place/geocoding_service.dart';
 import 'package:AccessAbility/accessability/logic/bloc/place/bloc/place_state.dart'
     as place_state;
 import 'package:firebase_auth/firebase_auth.dart';
@@ -62,6 +64,13 @@ class _GpsScreenState extends State<GpsScreen> {
   String _activeSpaceId = '';
   bool _isLoading = false;
   Place? _selectedPlace;
+  double _routeBearing = 0.0;
+  double _routeTilt = 60.0;
+  double _routeZoom = 18.0;
+  bool _isRouteActive = false;
+  Timer? _routeUpdateTimer;
+  LatLng? _routeDestination;
+  List<LatLng> _routePoints = [];
 
   MapType _currentMapType = MapType.normal;
   MapPerspective? _pendingPerspective; // New field
@@ -132,20 +141,29 @@ class _GpsScreenState extends State<GpsScreen> {
         .then((markers) {
       final pwdMarkers = markers.map((marker) {
         if (marker.markerId.value.startsWith('pwd_')) {
+          // Calculate distance
+          double distance = 0;
+          if (_locationHandler.currentLocation != null) {
+            distance = _calculateDistance(
+              _locationHandler.currentLocation!,
+              marker.position,
+            );
+          }
+
           return Marker(
             markerId: marker.markerId,
             position: marker.position,
             icon: marker.icon,
-            infoWindow: marker.infoWindow,
-            onTap: () async {
-              // When a PWD-friendly marker is tapped, create a route from the user's current location to the marker.
-              if (_locationHandler.currentLocation != null) {
-                await _createRoute(
-                  _locationHandler.currentLocation!,
-                  marker.position,
-                );
-              }
-            },
+            infoWindow: InfoWindow(
+              title: marker.infoWindow.title,
+              snippet: 'Tap to show route',
+              onTap: () {
+                if (_locationHandler.currentLocation != null) {
+                  _createRoute(
+                      _locationHandler.currentLocation!, marker.position);
+                }
+              },
+            ),
           );
         }
         return marker;
@@ -166,6 +184,47 @@ class _GpsScreenState extends State<GpsScreen> {
         _tutorialWidget.showTutorial(context);
       }
     });
+  }
+
+  Widget _buildCustomInfoWindow(String title, String snippet) {
+    return Container(
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(8),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black26,
+            blurRadius: 4,
+            offset: Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 14,
+            ),
+          ),
+          SizedBox(height: 4),
+          Row(
+            children: [
+              Icon(Icons.route, size: 16, color: Color(0xFF6750A4)),
+              SizedBox(width: 4),
+              Text(
+                snippet,
+                style: TextStyle(fontSize: 12),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -201,68 +260,6 @@ class _GpsScreenState extends State<GpsScreen> {
         ),
       );
     }
-  }
-
-  void _showMarkerOptions(LatLng position) {
-    showModalBottomSheet(
-      context: context,
-      builder: (context) {
-        return SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ListTile(
-                leading: Icon(Icons.image, color: Color(0xFF6750A4)),
-                title: Text('Show Image'),
-                onTap: () {
-                  Navigator.pop(context);
-                  final currentUser = FirebaseAuth.instance.currentUser;
-                  final state =
-                      context.read<PlaceBloc>().state; // Changed variable name
-
-                  final place = state is place_state.PlacesLoaded
-                      ? state.places.firstWhere(
-                          (p) =>
-                              p.latitude == position.latitude &&
-                              p.longitude == position.longitude,
-                          orElse: () => Place(
-                            id: 'temp_${DateTime.now().millisecondsSinceEpoch}',
-                            name: 'Unknown',
-                            latitude: position.latitude,
-                            longitude: position.longitude,
-                            category: 'temporary',
-                            userId: currentUser?.uid ?? '',
-                            timestamp: DateTime.now(),
-                          ),
-                        )
-                      : Place(
-                          id: 'temp_${DateTime.now().millisecondsSinceEpoch}',
-                          name: 'Unknown',
-                          latitude: position.latitude,
-                          longitude: position.longitude,
-                          category: 'temporary',
-                          userId: currentUser?.uid ?? '',
-                          timestamp: DateTime.now(),
-                        );
-
-                  setState(() => _selectedPlace = place);
-                },
-              ),
-              ListTile(
-                leading: Icon(Icons.directions, color: Color(0xFF6750A4)),
-                title: Text('Show Route'),
-                onTap: () {
-                  Navigator.pop(context);
-                  if (_locationHandler.currentLocation != null) {
-                    _createRoute(_locationHandler.currentLocation!, position);
-                  }
-                },
-              ),
-            ],
-          ),
-        );
-      },
-    );
   }
 
   // Callback when the tutorial is completed.
@@ -360,8 +357,13 @@ class _GpsScreenState extends State<GpsScreen> {
               icon: marker.icon,
               infoWindow: InfoWindow(
                 title: marker.infoWindow.title,
-                snippet: '${distance.toStringAsFixed(1)} km away',
-                onTap: () => _showMarkerOptions(marker.position),
+                snippet: 'Tap to show route',
+                onTap: () {
+                  if (_locationHandler.currentLocation != null) {
+                    _createRoute(
+                        _locationHandler.currentLocation!, marker.position);
+                  }
+                },
               ),
               onTap: () async {
                 // Single tap shows place details
@@ -451,6 +453,19 @@ class _GpsScreenState extends State<GpsScreen> {
   /// and display it on the map.
   Future<void> _createRoute(LatLng origin, LatLng destination) async {
     try {
+      setState(() {
+        _isRouteActive = true;
+        _routeDestination = destination;
+      });
+
+      // First show overview of the entire route
+      if (_locationHandler.mapController != null) {
+        final bounds = _locationHandler.getLatLngBounds([origin, destination]);
+        await _locationHandler.mapController!.animateCamera(
+          CameraUpdate.newLatLngBounds(bounds, 100),
+        );
+      }
+
       final url = Uri.parse('https://router.project-osrm.org/route/v1/driving/'
           '${origin.longitude},${origin.latitude};'
           '${destination.longitude},${destination.latitude}?overview=full&geometries=geojson');
@@ -459,6 +474,11 @@ class _GpsScreenState extends State<GpsScreen> {
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         final geometry = data['routes'][0]['geometry']['coordinates'];
+
+        // Store route points for following
+        _routePoints = geometry
+            .map<LatLng>((coord) => LatLng(coord[1], coord[0]))
+            .toList();
 
         // Calculate distance and duration
         final distance =
@@ -470,20 +490,140 @@ class _GpsScreenState extends State<GpsScreen> {
           _polylines = {
             Polyline(
               polylineId: const PolylineId('route'),
-              points: geometry
-                  .map<LatLng>((coord) => LatLng(coord[1], coord[0]))
-                  .toList(),
+              points: _routePoints,
               color: const Color(0xFF6750A4),
               width: 6,
             ),
           };
-
-          // Update the info window with route info
-          _updateMarkerWithRouteInfo(destination, distance, duration);
         });
+
+        // Start following user's location
+        _startFollowingUser();
+
+        _updateMarkerWithRouteInfo(destination, distance, duration);
       }
     } catch (e) {
       print('Routing failed: $e');
+      _stopFollowingUser();
+      setState(() {
+        _isRouteActive = false;
+      });
+    }
+  }
+
+  double _calculateBearing(LatLng start, LatLng end) {
+    final startLat = start.latitude * (pi / 180);
+    final startLng = start.longitude * (pi / 180);
+    final endLat = end.latitude * (pi / 180);
+    final endLng = end.longitude * (pi / 180);
+
+    final y = sin(endLng - startLng) * cos(endLat);
+    final x = cos(startLat) * sin(endLat) -
+        sin(startLat) * cos(endLat) * cos(endLng - startLng);
+    final bearing = atan2(y, x);
+
+    return (bearing * (180 / pi) + 360) % 360;
+  }
+
+  void _startFollowingUser() {
+    // Cancel any existing timer
+    _stopFollowingUser();
+
+    // Update immediately
+    _updateCameraForNavigation();
+
+    // Set up periodic updates
+    _routeUpdateTimer = Timer.periodic(Duration(seconds: 1), (timer) {
+      _updateCameraForNavigation();
+    });
+  }
+
+  void _updateCameraForNavigation() {
+    if (_locationHandler.currentLocation == null ||
+        _routeDestination == null ||
+        _locationHandler.mapController == null) {
+      return;
+    }
+
+    final currentLocation = _locationHandler.currentLocation!;
+
+    // Calculate bearing to destination
+    _routeBearing = _calculateBearing(currentLocation, _routeDestination!);
+
+    // Find the closest point on the route ahead of user
+    LatLng? targetPoint;
+    double minDistance = double.infinity;
+    bool foundCurrent = false;
+
+    for (int i = 0; i < _routePoints.length - 1; i++) {
+      final distance = _calculateDistance(currentLocation, _routePoints[i]);
+
+      if (distance < 50) {
+        // Within 50 meters is considered "on route"
+        foundCurrent = true;
+        // Look ahead to next points
+        for (int j = i + 1; j < min(i + 20, _routePoints.length); j++) {
+          final lookAheadDistance =
+              _calculateDistance(currentLocation, _routePoints[j]);
+          if (lookAheadDistance < minDistance) {
+            minDistance = lookAheadDistance;
+            targetPoint = _routePoints[j];
+          }
+        }
+        break;
+      }
+    }
+
+    // If we didn't find a point ahead, use the destination
+    targetPoint ??= _routeDestination;
+
+    // Smooth transition factor (0.1 to 1.0)
+    final smoothFactor = 0.3;
+
+    // Update camera position
+    _locationHandler.mapController!.animateCamera(
+      CameraUpdate.newCameraPosition(
+        CameraPosition(
+          target: LatLng(
+            currentLocation.latitude * (1 - smoothFactor) +
+                targetPoint!.latitude * smoothFactor,
+            currentLocation.longitude * (1 - smoothFactor) +
+                targetPoint.longitude * smoothFactor,
+          ),
+          zoom: _routeZoom,
+          tilt: _routeTilt,
+          bearing: _routeBearing,
+        ),
+      ),
+    );
+  }
+
+  void _stopFollowingUser() {
+    _routeUpdateTimer?.cancel();
+    _routeUpdateTimer = null;
+  }
+
+  void _resetCameraToNormal() {
+    _stopFollowingUser();
+
+    if (_locationHandler.mapController != null &&
+        _locationHandler.currentLocation != null) {
+      _locationHandler.mapController!.animateCamera(
+        CameraUpdate.newCameraPosition(
+          CameraPosition(
+            target: _locationHandler.currentLocation!,
+            zoom: 14.5,
+            tilt: 0,
+            bearing: 0,
+          ),
+        ),
+      );
+      setState(() {
+        _isRouteActive = false;
+        _polylines.clear();
+        _routeDestination = null;
+        _routePoints.clear();
+      });
     }
   }
 
@@ -582,11 +722,11 @@ class _GpsScreenState extends State<GpsScreen> {
   Widget build(BuildContext context) {
     final bool isDarkMode = Provider.of<ThemeProvider>(context).isDarkMode;
     _mapKey = ValueKey(isDarkMode);
+    final screenHeight = MediaQuery.of(context).size.height;
 
     return BlocListener<PlaceBloc, place_state.PlaceState>(
       listener: (context, state) {
         if (state is place_state.PlacesLoaded) {
-          // Create markers for every place from PlaceBloc.
           Set<Marker> placeMarkers = {};
           for (Place place in state.places) {
             Marker marker = Marker(
@@ -595,16 +735,25 @@ class _GpsScreenState extends State<GpsScreen> {
               icon: BitmapDescriptor.defaultMarkerWithHue(256.43),
               infoWindow: InfoWindow(
                 title: place.name,
-                snippet: '${'category'.tr()}: ${place.category}',
+                snippet:
+                    '${'category'.tr()}: ${place.category}\nTap for 3D navigation',
+                onTap: () {
+                  if (_locationHandler.currentLocation != null) {
+                    _createRoute(
+                      _locationHandler.currentLocation!,
+                      LatLng(place.latitude, place.longitude),
+                    );
+                  }
+                },
               ),
               onTap: () async {
                 try {
                   final openStreetMapHelper = OpenStreetMapHelper();
                   final detailedPlace =
                       await openStreetMapHelper.fetchPlaceDetails(
-                    place.latitude, // Use the place's existing coordinates
+                    place.latitude,
                     place.longitude,
-                    place.name, // Fallback name
+                    place.name,
                   );
                   setState(() {
                     _selectedPlace = detailedPlace;
@@ -658,20 +807,16 @@ class _GpsScreenState extends State<GpsScreen> {
                             const LatLng(16.0430, 120.3333),
                         zoom: 14,
                       ),
-                      // ———— DISABLE ALL THE CONTROLS ————
-                      zoomControlsEnabled: false, // hides the + / – buttons
-                      zoomGesturesEnabled:
-                          true, // (optional) disables pinch‐to‐zoom
-                      myLocationButtonEnabled:
-                          false, // hides the blue “you are here” button
-                      compassEnabled: false, // hides the compass icon
-                      mapToolbarEnabled: false, // hides the Google Maps toolbar
-                      // ——————————————————————————
+                      zoomControlsEnabled: false,
+                      zoomGesturesEnabled: true,
+                      myLocationButtonEnabled: false,
+                      compassEnabled: false,
+                      mapToolbarEnabled: false,
                       myLocationEnabled: true,
                       mapType: _currentMapType,
                       markers: _markers,
                       circles: _circles,
-                      polylines: _polylines, // Display the route polyline.
+                      polylines: _polylines,
                       onMapCreated: (controller) {
                         _locationHandler.onMapCreated(controller, isDarkMode);
                         if (_isLocationFetched &&
@@ -695,6 +840,125 @@ class _GpsScreenState extends State<GpsScreen> {
                         });
                       },
                     ),
+
+                    // Navigation Controls
+                    if (_isRouteActive)
+                      Positioned(
+                        top: screenHeight * 0.18, // 8% from top
+                        right: 20,
+                        child: Material(
+                          color: Colors.transparent,
+                          child: Column(
+                            children: [
+                              // Close Button
+                              Container(
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withOpacity(0.9),
+                                  shape: BoxShape.circle,
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black26,
+                                      blurRadius: 4,
+                                      offset: Offset(0, 2),
+                                    ),
+                                  ],
+                                ),
+                                child: IconButton(
+                                  icon: Icon(Icons.close),
+                                  color: Colors.black,
+                                  onPressed: _resetCameraToNormal,
+                                  tooltip: 'Exit navigation',
+                                ),
+                              ),
+                              SizedBox(height: 10),
+                              // Navigation Mode Toggle
+                              Container(
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withOpacity(0.9),
+                                  shape: BoxShape.circle,
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black26,
+                                      blurRadius: 4,
+                                      offset: Offset(0, 2),
+                                    ),
+                                  ],
+                                ),
+                                child: IconButton(
+                                  icon: Icon(
+                                    _routeUpdateTimer == null
+                                        ? Icons.navigation
+                                        : Icons.zoom_out_map,
+                                  ),
+                                  color: Colors.black,
+                                  onPressed: _toggleNavigationMode,
+                                  tooltip: _routeUpdateTimer == null
+                                      ? 'Follow my position'
+                                      : 'Show overview',
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+
+                    // Navigation Info Panel - Positioned above bottom widgets
+                    if (_isRouteActive && _routeDestination != null)
+                      Positioned(
+                        bottom: screenHeight * 0.20, // 18% from bottom
+                        left: 20,
+                        right: 20,
+                        child: Container(
+                          padding: EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.9),
+                            borderRadius: BorderRadius.circular(12),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black26,
+                                blurRadius: 6,
+                                offset: Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Navigating to destination',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 16,
+                                ),
+                              ),
+                              SizedBox(height: 8),
+                              if (_locationHandler.currentLocation != null)
+                                FutureBuilder<String>(
+                                  future: _getLocationName(_routeDestination!),
+                                  builder: (context, snapshot) {
+                                    return Text(
+                                      snapshot.data ?? 'Calculating...',
+                                      style: TextStyle(fontSize: 14),
+                                    );
+                                  },
+                                ),
+                              SizedBox(height: 8),
+                              if (_polylines.isNotEmpty)
+                                FutureBuilder<double>(
+                                  future: _calculateRouteDistance(),
+                                  builder: (context, snapshot) {
+                                    return Text(
+                                      'Distance remaining: ${snapshot.hasData ? '${snapshot.data!.toStringAsFixed(1)} km' : 'Calculating...'}',
+                                      style: TextStyle(fontSize: 14),
+                                    );
+                                  },
+                                ),
+                            ],
+                          ),
+                        ),
+                      ),
+
+                    // Regular UI Elements
                     Topwidgets(
                       key: _topWidgetsKey,
                       inboxKey: inboxKey,
@@ -766,5 +1030,62 @@ class _GpsScreenState extends State<GpsScreen> {
         },
       ),
     );
+  }
+
+// Helper methods for navigation
+  Future<String> _getLocationName(LatLng location) async {
+    try {
+      final geocodingService = OpenStreetMapGeocodingService();
+      return await geocodingService.getAddressFromLatLng(location);
+    } catch (e) {
+      return 'Destination';
+    }
+  }
+
+// New method to toggle navigation mode
+  void _toggleNavigationMode() {
+    if (_routeUpdateTimer == null) {
+      _startFollowingUser();
+    } else {
+      _stopFollowingUser();
+      if (_locationHandler.currentLocation != null &&
+          _routeDestination != null) {
+        final bounds = _locationHandler.getLatLngBounds(
+            [_locationHandler.currentLocation!, _routeDestination!]);
+        _locationHandler.mapController
+            ?.animateCamera(CameraUpdate.newLatLngBounds(bounds, 100));
+      }
+    }
+  }
+
+  Future<double> _calculateRouteDistance() async {
+    if (_locationHandler.currentLocation == null || _routePoints.isEmpty) {
+      return 0.0;
+    }
+
+    // Find the nearest point on the route
+    int nearestIndex = 0;
+    double minDistance = double.infinity;
+    for (int i = 0; i < _routePoints.length; i++) {
+      final distance = _calculateDistance(
+        _locationHandler.currentLocation!,
+        _routePoints[i],
+      );
+      if (distance < minDistance) {
+        minDistance = distance;
+        nearestIndex = i;
+      }
+    }
+
+    // Calculate remaining distance
+    double remainingDistance = 0.0;
+    for (int i = nearestIndex; i < _routePoints.length - 1; i++) {
+      remainingDistance += _calculateDistance(
+        _routePoints[i],
+        _routePoints[i + 1],
+      );
+    }
+
+    return remainingDistance;
   }
 }

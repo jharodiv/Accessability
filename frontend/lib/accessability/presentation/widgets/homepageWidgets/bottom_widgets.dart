@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:math';
 
 import 'package:AccessAbility/accessability/firebaseServices/chat/chat_service.dart';
-import 'package:AccessAbility/accessability/firebaseServices/models/place.dart';
+import 'package:AccessAbility/accessability/data/model/place.dart';
 import 'package:AccessAbility/accessability/firebaseServices/place/geocoding_service.dart';
 import 'package:AccessAbility/accessability/presentation/screens/gpsscreen/location_handler.dart';
 import 'package:AccessAbility/accessability/presentation/widgets/bottomSheetWidgets/add_place.dart';

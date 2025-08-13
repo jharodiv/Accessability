@@ -13,7 +13,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  late FCMService _fcmService;
   final FirebaseStorage _firebaseStorage = FirebaseStorage.instance;
 
   User? getCurrentUser() {

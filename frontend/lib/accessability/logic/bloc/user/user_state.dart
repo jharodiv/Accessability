@@ -1,6 +1,6 @@
 import 'package:AccessAbility/accessability/data/model/user_model.dart';
-import 'package:AccessAbility/accessability/firebaseServices/models/emergency_contact.dart';
-import 'package:AccessAbility/accessability/firebaseServices/models/place.dart';
+import 'package:AccessAbility/accessability/data/model/emergency_contact.dart';
+import 'package:AccessAbility/accessability/data/model/place.dart';
 
 abstract class UserState {}
 

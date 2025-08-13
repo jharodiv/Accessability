@@ -1,5 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:AccessAbility/accessability/firebaseServices/models/emergency_contact.dart';
+import 'package:AccessAbility/accessability/data/model/emergency_contact.dart';
 
 class EmergencyService {
   final FirebaseFirestore _firestore;

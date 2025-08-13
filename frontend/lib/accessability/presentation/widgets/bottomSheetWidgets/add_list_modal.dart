@@ -1,4 +1,4 @@
-import 'package:AccessAbility/accessability/firebaseServices/models/place.dart';
+import 'package:AccessAbility/accessability/data/model/place.dart';
 import 'package:AccessAbility/accessability/logic/bloc/place/bloc/place_bloc.dart';
 import 'package:AccessAbility/accessability/logic/bloc/place/bloc/place_state.dart';
 import 'package:flutter/material.dart';

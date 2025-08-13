@@ -10,7 +10,6 @@ import 'package:flutter/services.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:http/http.dart' as http;
 import 'package:location/location.dart' as location_package;
-import 'package:AccessAbility/accessability/presentation/widgets/google_helper/openstreetmap_helper.dart';
 
 class LocationHandler {
   final location_package.Location _location = location_package.Location();

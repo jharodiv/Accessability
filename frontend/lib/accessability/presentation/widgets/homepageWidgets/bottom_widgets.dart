@@ -66,7 +66,6 @@ class _BottomWidgetsState extends State<BottomWidgets> {
   final ChatService _chatService = ChatService();
   List<Map<String, dynamic>> _members = [];
   String? _spaceName;
-  String? _verificationCode;
   String? _creatorId;
   String? _selectedMemberId;
   String? _yourAddress;
@@ -193,7 +192,6 @@ class _BottomWidgetsState extends State<BottomWidgets> {
       setState(() {
         _members = [];
         _spaceName = null;
-        _verificationCode = null;
         _isLoading = false;
       });
       return;
@@ -209,7 +207,6 @@ class _BottomWidgetsState extends State<BottomWidgets> {
         setState(() {
           _members = [];
           _spaceName = null;
-          _verificationCode = null;
           _isLoading = false;
         });
         return;
@@ -229,7 +226,6 @@ class _BottomWidgetsState extends State<BottomWidgets> {
         setState(() {
           _members = [];
           _spaceName = spaceName;
-          _verificationCode = verificationCode;
           _creatorId = creatorId;
           _isLoading = false;
         });
@@ -266,7 +262,6 @@ class _BottomWidgetsState extends State<BottomWidgets> {
         _members = updatedMembers;
         _creatorId = creatorId;
         _spaceName = spaceName;
-        _verificationCode = verificationCode;
         _isLoading = false;
       });
 
@@ -741,44 +736,6 @@ class _BottomWidgetsState extends State<BottomWidgets> {
                                 isLoading: _isLoading,
                               ),
                             ],
-                            if (_creatorId == _auth.currentUser?.uid &&
-                                widget.activeSpaceId.isNotEmpty)
-                              Padding(
-                                padding:
-                                    const EdgeInsets.symmetric(vertical: 16.0),
-                                child: Column(
-                                  children: [
-                                    Text(
-                                      'Verification Code',
-                                      style: TextStyle(
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.bold,
-                                        color: isDarkMode
-                                            ? Colors.white
-                                            : Colors.black,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 8),
-                                    Text(
-                                      _verificationCode ?? 'Generating...',
-                                      style: TextStyle(
-                                        fontSize: 24,
-                                        fontWeight: FontWeight.bold,
-                                        color: const Color(0xFF6750A4),
-                                      ),
-                                    ),
-                                    const SizedBox(height: 8),
-                                    ElevatedButton(
-                                      onPressed: _addPerson,
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor:
-                                            const Color(0xFF6750A4),
-                                      ),
-                                      child: const Text('Send Code'),
-                                    ),
-                                  ],
-                                ),
-                              ),
                           ] else if (_activeIndex == 1) ...[
                             AddPlaceWidget(
                               onShowPlace: (Place place) {

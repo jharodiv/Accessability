@@ -5,16 +5,17 @@ import 'package:AccessAbility/accessability/data/model/place.dart';
 import 'package:AccessAbility/accessability/firebaseServices/place/geocoding_service.dart';
 import 'package:AccessAbility/accessability/logic/bloc/place/bloc/place_state.dart'
     as place_state;
+import 'package:AccessAbility/accessability/utils/badge_icon.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:flutter_polyline_points/flutter_polyline_points.dart';
 import 'package:provider/provider.dart';
 import 'package:easy_localization/easy_localization.dart';
+// Import your own packages (update the paths as needed)
 import 'package:AccessAbility/accessability/logic/bloc/place/bloc/place_event.dart';
 import 'package:AccessAbility/accessability/logic/bloc/user/user_event.dart';
 import 'package:AccessAbility/accessability/presentation/screens/gpsscreen/location_handler.dart';
@@ -36,6 +37,7 @@ import 'package:AccessAbility/accessability/presentation/widgets/bottomSheetWidg
 import 'package:AccessAbility/accessability/logic/bloc/auth/auth_bloc.dart';
 import 'package:AccessAbility/accessability/logic/bloc/auth/auth_state.dart';
 import 'package:AccessAbility/accessability/logic/bloc/place/bloc/place_bloc.dart';
+import 'package:AccessAbility/accessability/data/model/place.dart';
 
 class GpsScreen extends StatefulWidget {
   const GpsScreen({super.key});
@@ -48,6 +50,7 @@ class _GpsScreenState extends State<GpsScreen> {
   late LocationHandler _locationHandler;
   final MarkerHandler _markerHandler = MarkerHandler();
   final NearbyPlacesHandler _nearbyPlacesHandler = NearbyPlacesHandler();
+  final Map<String, BitmapDescriptor> _badgeIconCache = {};
   late TutorialWidget _tutorialWidget;
   final GlobalKey inboxKey = GlobalKey();
   final GlobalKey settingsKey = GlobalKey();
@@ -69,16 +72,20 @@ class _GpsScreenState extends State<GpsScreen> {
   Timer? _routeUpdateTimer;
   LatLng? _routeDestination;
   List<LatLng> _routePoints = [];
+  double _currentZoom = 14.0; // track current zoom
+  final double _pwdBaseRadiusMeters =
+      40.0; // base radius for pwd locations — tweak as needed
+  final Color _pwdCircleColor = const Color(0xFF7C4DFF);
   double _navigationPanelOffset = 0.0;
-  final double _initialNavigationPanelBottom = 0.20;
 
   MapType _currentMapType = MapType.normal;
   MapPerspective? _pendingPerspective; // New field
 
-  // Variables for polylines.
+  // Variables for polylines.a
   Set<Polyline> _polylines = {};
   final PolylinePoints _polylinePoints = PolylinePoints();
   final String _googleAPIKey = dotenv.env['GOOGLE_API_KEY'] ?? '';
+  final double _initialNavigationPanelBottom = 0.20;
 
   @override
   void initState() {
@@ -186,45 +193,46 @@ class _GpsScreenState extends State<GpsScreen> {
     });
   }
 
-  Widget _buildCustomInfoWindow(String title, String snippet) {
-    return Container(
-      padding: const EdgeInsets.all(8),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(8),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black26,
-            blurRadius: 4,
-            offset: Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            title,
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 14,
-            ),
-          ),
-          SizedBox(height: 4),
-          Row(
-            children: [
-              Icon(Icons.route, size: 16, color: Color(0xFF6750A4)),
-              SizedBox(width: 4),
-              Text(
-                snippet,
-                style: TextStyle(fontSize: 12),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
+  // inside _GpsScreenState
+
+  /// Convert a base meter radius into a zoom-adaptive radius so the circle stays visible
+  double _radiusForZoom(double zoom, double baseMeters) {
+    // Heuristic: when zoomed out, make radius bigger so it remains visible.
+    // You can tweak the constants 14.0 and 1.8 to taste.
+    final num factor = pow(2, 14.0 - zoom).clamp(0.25, 6.0);
+    return max(8.0, baseMeters * factor);
+  }
+
+  /// Create circles for the given pwd-friendly locations list.
+  /// Expects objects in `pwdFriendlyLocations` to have `latitude`, `longitude`, and optional `radiusMeters`.
+  Set<Circle> createPwdfriendlyRouteCircles(List<dynamic> pwdLocations) {
+    final Set<Circle> circles = {};
+
+    for (final loc in pwdLocations) {
+      // adapt to your data structure; here I assume `loc.latitude` and `loc.longitude`.
+      final lat = loc.latitude as double;
+      final lng = loc.longitude as double;
+      final baseRadius = (loc.radiusMeters != null)
+          ? loc.radiusMeters as double
+          : _pwdBaseRadiusMeters;
+
+      final double radiusMeters = _radiusForZoom(_currentZoom, baseRadius);
+
+      final circle = Circle(
+        circleId: CircleId('pwd_circle_${lat}_${lng}'),
+        center: LatLng(lat, lng),
+        radius: radiusMeters, // in meters
+        fillColor: _pwdCircleColor.withOpacity(0.14),
+        strokeColor: _pwdCircleColor.withOpacity(0.95),
+        strokeWidth: 3,
+        zIndex: 20,
+        visible: true,
+      );
+
+      circles.add(circle);
+    }
+
+    return circles;
   }
 
   @override
@@ -302,7 +310,7 @@ class _GpsScreenState extends State<GpsScreen> {
 
     print("Fetching nearby $placeType places...");
 
-    // First, return camera to user's location
+    // return camera to user location briefly
     if (_locationHandler.mapController != null) {
       await _locationHandler.mapController!.animateCamera(
         CameraUpdate.newCameraPosition(
@@ -325,8 +333,7 @@ class _GpsScreenState extends State<GpsScreen> {
       if (result != null && result.isNotEmpty) {
         print("Processing ${result['markers']?.length ?? 0} markers...");
 
-        // Clear only previous nearby search markers (from top widgets)
-        // Keep: pwd_ markers, user_ markers, and place_ markers (user-added)
+        // Preserve special markers
         final existingMarkers = _markers
             .where((marker) =>
                 marker.markerId.value.startsWith("pwd_") ||
@@ -336,25 +343,65 @@ class _GpsScreenState extends State<GpsScreen> {
 
         final Set<Marker> newMarkers = {};
 
-        // Process new markers - ensure we're working with a Set
+        // mapping placeType -> icon & color (tweak to your taste)
+        IconData _iconForPlaceType(String type) {
+          final t = type.toLowerCase();
+          if (t.contains('bus')) return Icons.directions_bus;
+          if (t.contains('restaurant') || t.contains('restawran'))
+            return Icons.restaurant;
+          if (t.contains('grocery') || t.contains('grocer'))
+            return Icons.local_grocery_store;
+          if (t.contains('hotel')) return Icons.hotel;
+          return Icons.place;
+        }
+
+        Color _colorForPlaceType(String type) {
+          final t = type.toLowerCase();
+          if (t.contains('bus')) return Colors.blue;
+          if (t.contains('restaurant') || t.contains('restawran'))
+            return Colors.red;
+          if (t.contains('grocery') || t.contains('grocer'))
+            return Colors.green;
+          if (t.contains('hotel')) return Colors.teal;
+          return const Color(0xFF6750A4);
+        }
+
+        // Prepare/cache badge for this category
+        final cacheKey = 'badge_$placeType';
+        BitmapDescriptor badgeIcon;
+        if (_badgeIconCache.containsKey(cacheKey)) {
+          badgeIcon = _badgeIconCache[cacheKey]!;
+        } else {
+          // create composite badge: white outer, colored inner, white icon
+          final iconData = _iconForPlaceType(placeType);
+          final accentColor = _colorForPlaceType(placeType);
+          badgeIcon = await BadgeIcon.createBadgeWithIcon(
+            ctx: context,
+            size: 50,
+            outerRingColor: Colors.white,
+            innerBgColor: Colors.transparent,
+            iconBgColor: accentColor, // your purple
+            innerRatio: 0.86,
+            iconBgRatio: 0.34,
+            iconRatio: 0.95,
+            icon: iconData,
+          );
+          _badgeIconCache[cacheKey] = badgeIcon;
+        }
+
+        // Build new markers from handler result
         if (result['markers'] != null) {
           final markersSet = result['markers'] is Set
-              ? result['markers']
+              ? result['markers'] as Set<Marker>
               : Set<Marker>.from(result['markers']);
 
           for (final marker in markersSet) {
             print("Adding marker: ${marker.markerId} at ${marker.position}");
 
-            // Calculate distance
-            final distance = _calculateDistance(
-              _locationHandler.currentLocation!,
-              marker.position,
-            );
-
-            newMarkers.add(Marker(
+            final Marker newMarker = Marker(
               markerId: marker.markerId,
               position: marker.position,
-              icon: marker.icon,
+              icon: badgeIcon, // <- use our composite badge
               infoWindow: InfoWindow(
                 title: marker.infoWindow.title,
                 snippet: 'Tap to show route',
@@ -366,7 +413,7 @@ class _GpsScreenState extends State<GpsScreen> {
                 },
               ),
               onTap: () async {
-                // Single tap shows place details
+                // same detail behavior
                 final openStreetMapHelper = OpenStreetMapHelper();
                 try {
                   final detailedPlace =
@@ -382,15 +429,18 @@ class _GpsScreenState extends State<GpsScreen> {
                   print("Error fetching place details: $e");
                 }
               },
-            ));
+              anchor: const Offset(0.5, 0.9),
+            );
+
+            newMarkers.add(newMarker);
           }
         }
 
-        // Handle circles - convert to Set if needed
+        // Circles (if any)
         Set<Circle> newCircles = {};
         if (result['circles'] != null) {
           newCircles = result['circles'] is Set<Circle>
-              ? result['circles']
+              ? result['circles'] as Set<Circle>
               : Set<Circle>.from(result['circles']);
         }
 
@@ -403,11 +453,8 @@ class _GpsScreenState extends State<GpsScreen> {
         print("Total markers after update: ${_markers.length}");
         print("Total circles after update: ${_circles.length}");
 
-        // Adjust view to show all markers
+        // Keep your previous camera behavior
         if (_markers.isNotEmpty && _locationHandler.mapController != null) {
-          final bounds = _locationHandler.getLatLngBounds(
-            _markers.map((m) => m.position).toList(),
-          );
           _locationHandler.mapController!.animateCamera(
             CameraUpdate.newCameraPosition(
               CameraPosition(
@@ -419,16 +466,13 @@ class _GpsScreenState extends State<GpsScreen> {
         }
       } else {
         print("No results found for $placeType");
-        // Only clear circles, keep all markers
         setState(() {
           _circles.clear();
         });
       }
     } catch (e) {
       print("Error fetching nearby places: $e");
-      if (e is TypeError) {
-        print("Type error details: ${e.toString()}");
-      }
+      if (e is TypeError) print("Type error details: ${e.toString()}");
     }
   }
 
@@ -818,6 +862,18 @@ class _GpsScreenState extends State<GpsScreen> {
                             const LatLng(16.0430, 120.3333),
                         zoom: 14,
                       ),
+                      onCameraMove: (CameraPosition pos) {
+                        // update current zoom and recompute circles only when zoom changed enough
+                        final newZoom = pos.zoom;
+                        if ((newZoom - _currentZoom).abs() > 0.01) {
+                          setState(() {
+                            _currentZoom = newZoom;
+                            // recompute circles using the existing pwdFriendlyLocations list
+                            _circles = createPwdfriendlyRouteCircles(
+                                pwdFriendlyLocations);
+                          });
+                        }
+                      },
                       zoomControlsEnabled: false,
                       zoomGesturesEnabled: true,
                       myLocationButtonEnabled: false,
@@ -866,7 +922,7 @@ class _GpsScreenState extends State<GpsScreen> {
                                 decoration: BoxDecoration(
                                   color: Colors.white.withOpacity(0.9),
                                   shape: BoxShape.circle,
-                                  boxShadow: [
+                                  boxShadow: const [
                                     BoxShadow(
                                       color: Colors.black26,
                                       blurRadius: 4,
@@ -1076,7 +1132,7 @@ class _GpsScreenState extends State<GpsScreen> {
     );
   }
 
-// Helper methods for navigation
+  // Helper methods for navigation
   Future<String> _getLocationName(LatLng location) async {
     try {
       final geocodingService = OpenStreetMapGeocodingService();
@@ -1086,7 +1142,7 @@ class _GpsScreenState extends State<GpsScreen> {
     }
   }
 
-// New method to toggle navigation mode
+  // New method to toggle navigation mode
   void _toggleNavigationMode() {
     if (_routeUpdateTimer == null) {
       _startFollowingUser();

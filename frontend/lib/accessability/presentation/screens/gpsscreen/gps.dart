@@ -74,7 +74,7 @@ class _GpsScreenState extends State<GpsScreen> {
   List<LatLng> _routePoints = [];
   double _currentZoom = 14.0; // track current zoom
   final double _pwdBaseRadiusMeters =
-      40.0; // base radius for pwd locations — tweak as needed
+      30.0; // base radius for pwd locations — tweak as needed
   final Color _pwdCircleColor = const Color(0xFF7C4DFF);
   double _navigationPanelOffset = 0.0;
 
@@ -86,6 +86,7 @@ class _GpsScreenState extends State<GpsScreen> {
   final PolylinePoints _polylinePoints = PolylinePoints();
   final String _googleAPIKey = dotenv.env['GOOGLE_API_KEY'] ?? '';
   final double _initialNavigationPanelBottom = 0.20;
+  double _pwdRadiusMultiplier = 1.0;
 
   @override
   void initState() {
@@ -193,13 +194,22 @@ class _GpsScreenState extends State<GpsScreen> {
     });
   }
 
+  /// Call this to change PWD circle size and immediately rebuild circles
+  void setPwdRadiusMultiplier(double multiplier) {
+    setState(() {
+      _pwdRadiusMultiplier = multiplier.clamp(0.2, 3.0);
+      // recompute circles using the existing pwdFriendlyLocations list
+      _circles = createPwdfriendlyRouteCircles(pwdFriendlyLocations);
+    });
+  }
+
   // inside _GpsScreenState
 
-  /// Convert a base meter radius into a zoom-adaptive radius so the circle stays visible
   double _radiusForZoom(double zoom, double baseMeters) {
     // Heuristic: when zoomed out, make radius bigger so it remains visible.
-    // You can tweak the constants 14.0 and 1.8 to taste.
-    final num factor = pow(2, 14.0 - zoom).clamp(0.25, 6.0);
+    // Increased the clamp upper bound so extreme zoom-outs scale more.
+    final num factor =
+        pow(2, 13.0 - zoom).clamp(0.25, 12.0); // <-- 12.0 (was 6.0)
     return max(8.0, baseMeters * factor);
   }
 
@@ -208,30 +218,61 @@ class _GpsScreenState extends State<GpsScreen> {
   Set<Circle> createPwdfriendlyRouteCircles(List<dynamic> pwdLocations) {
     final Set<Circle> circles = {};
 
+    // helper to keep stroke width reasonable across zoom levels
+    int _strokeWidthForZoom(double zoom) {
+      final int w = ((zoom - 12) * 0.5).round();
+      return w.clamp(1, 6);
+    }
+
+    // Minimum radius on screen (in pixels) we want the circle to appear as.
+    const double minPixelRadius = 15.0; // tune this (24..40 looks good )
+
     for (final loc in pwdLocations) {
-      // adapt to your data structure; here I assume `loc.latitude` and `loc.longitude`.
       final lat = loc.latitude as double;
       final lng = loc.longitude as double;
       final baseRadius = (loc.radiusMeters != null)
           ? loc.radiusMeters as double
           : _pwdBaseRadiusMeters;
 
-      final double radiusMeters = _radiusForZoom(_currentZoom, baseRadius);
+      // meters-per-pixel approximation at this latitude (web mercator)
+      final double latRad = lat * (pi / 180.0);
+      final double metersPerPixel =
+          156543.03392 * cos(latRad) / pow(2.0, _currentZoom);
+
+      // zoom-adaptive meters (your existing heuristic)
+      final double zoomAdaptiveMeters =
+          _radiusForZoom(_currentZoom, baseRadius) * _pwdRadiusMultiplier;
+
+      // guarantee a minimum on-screen size by converting minPixelRadius -> meters
+      final double minMetersFloor = minPixelRadius * metersPerPixel;
+
+      // choose the larger of the two so circles stay visible when zoomed out
+      final double radiusMeters = max(zoomAdaptiveMeters, minMetersFloor);
+
+      final int strokeWidth = _strokeWidthForZoom(_currentZoom);
 
       final circle = Circle(
         circleId: CircleId('pwd_circle_${lat}_${lng}'),
         center: LatLng(lat, lng),
-        radius: radiusMeters, // in meters
-        fillColor: _pwdCircleColor.withOpacity(0.14),
+        radius: radiusMeters,
+        fillColor: _pwdCircleColor.withOpacity(0.16),
         strokeColor: _pwdCircleColor.withOpacity(0.95),
-        strokeWidth: 3,
-        zIndex: 20,
+        strokeWidth: strokeWidth,
+        zIndex: 30,
         visible: true,
+        consumeTapEvents: true,
+        onTap: () {
+          if (_locationHandler.mapController != null) {
+            final targetZoom = max(15.0, min(18.0, _currentZoom + 1.6));
+            _locationHandler.mapController!.animateCamera(
+              CameraUpdate.newLatLngZoom(LatLng(lat, lng), targetZoom),
+            );
+          }
+        },
       );
 
       circles.add(circle);
     }
-
     return circles;
   }
 
@@ -429,19 +470,79 @@ class _GpsScreenState extends State<GpsScreen> {
                   print("Error fetching place details: $e");
                 }
               },
-              anchor: const Offset(0.5, 0.9),
+              anchor: const Offset(0.5, 0.7),
             );
 
             newMarkers.add(newMarker);
           }
         }
 
-        // Circles (if any)
+// Circles (if any) — rescale each incoming circle to remain visible across zooms
         Set<Circle> newCircles = {};
         if (result['circles'] != null) {
-          newCircles = result['circles'] is Set<Circle>
+          final raw = result['circles'] is Set<Circle>
               ? result['circles'] as Set<Circle>
               : Set<Circle>.from(result['circles']);
+
+          int _strokeWidthForZoom(double zoom) {
+            final int w = ((zoom - 12) * 0.5).round();
+            return w.clamp(1, 5);
+          }
+
+          newCircles = raw.map((c) {
+            // use the circle's radius as "base" if provided, otherwise fallback to _pwdBaseRadiusMeters
+            double baseRadius = (c.radius != null && c.radius > 0)
+                ? c.radius
+                : _pwdBaseRadiusMeters;
+
+            // clamp any extremely large base radii coming from the provider
+            const double maxIncomingBaseMeters =
+                80.0; // tweak: 50..120 to taste
+            baseRadius = baseRadius.clamp(8.0, maxIncomingBaseMeters);
+
+            // compute an adjusted radius in meters that compensates for zoom level
+            // meters-per-pixel at circle latitude:
+            final double latRad = c.center.latitude * (pi / 180.0);
+            final double metersPerPixel =
+                156543.03392 * cos(latRad) / pow(2.0, _currentZoom);
+
+            // minimum on-screen radius in pixels (smaller so circle appears smaller)
+            const double minPixelRadius =
+                12.0; // was 24.0 — lower to make visual smaller
+
+            final double zoomAdaptiveMeters =
+                _radiusForZoom(_currentZoom, baseRadius) * _pwdRadiusMultiplier;
+
+            final double minMetersFloor = minPixelRadius * metersPerPixel;
+
+            // final shrink to control overall visual size
+            const double shrinkFactor =
+                0.55; // 0.3..1.0 -> smaller values = smaller circles
+
+            final double adjustedRadius =
+                max(zoomAdaptiveMeters, minMetersFloor) * shrinkFactor;
+
+            final int strokeW = _strokeWidthForZoom(_currentZoom);
+
+            return Circle(
+              circleId: c.circleId,
+              center: c.center,
+              radius: adjustedRadius,
+              fillColor: _pwdCircleColor.withOpacity(0.16),
+              strokeColor: _pwdCircleColor.withOpacity(0.95),
+              strokeWidth: strokeW,
+              zIndex: c.zIndex ?? 30,
+              visible: c.visible,
+              consumeTapEvents: true,
+              onTap: () {
+                if (_locationHandler.mapController != null) {
+                  final targetZoom = max(15.0, min(18.0, _currentZoom + 1.6));
+                  _locationHandler.mapController!.animateCamera(
+                      CameraUpdate.newLatLngZoom(c.center, targetZoom));
+                }
+              },
+            );
+          }).toSet();
         }
 
         setState(() {

@@ -51,6 +51,7 @@ dependencies:
   speech_to_text: ^7.0.0
   google_fonts: ^6.2.1
   flutter_polyline_points: 2.1.0
+  font_awesome_flutter: ^10.4.0
 
   #ForVoiceCommandDependencies
   http: ^1.2.1

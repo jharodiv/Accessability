@@ -1183,6 +1183,7 @@ class _GpsScreenState extends State<GpsScreen> {
                         },
                         onMapViewPressed: _openMapSettings,
                         onMemberPressed: _onMemberPressed,
+                        locationHandler: _locationHandler,
                         selectedPlace: _selectedPlace,
                         onCloseSelectedPlace: () {
                           setState(() {

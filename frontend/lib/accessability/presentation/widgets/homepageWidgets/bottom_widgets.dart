@@ -35,6 +35,7 @@ class BottomWidgets extends StatefulWidget {
   final ValueChanged<bool>? onSheetExpanded;
   final bool isJoining; // new
   final ValueChanged<bool> onJoinStateChanged; // new
+  final LocationHandler locationHandler;
 
   const BottomWidgets({
     super.key,
@@ -42,6 +43,7 @@ class BottomWidgets extends StatefulWidget {
     required this.onCategorySelected,
     required this.onMemberPressed,
     required this.fetchNearbyPlaces,
+    required this.locationHandler,
     this.selectedPlace,
     this.onCloseSelectedPlace,
     this.onMapViewPressed, // Add it here
@@ -56,11 +58,6 @@ class BottomWidgets extends StatefulWidget {
 }
 
 class _BottomWidgetsState extends State<BottomWidgets> {
-  final LocationHandler _locationHandler = LocationHandler(
-    onMarkersUpdated: (markers) {
-      // Handle marker updates if needed
-    },
-  );
   int _activeIndex = 0; // 0: People, 1: Buildings, 2: Map
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -104,11 +101,11 @@ class _BottomWidgetsState extends State<BottomWidgets> {
 
   Future<void> _initializeLocation() async {
     try {
-      await _locationHandler.getUserLocation();
+      await widget.locationHandler.getUserLocation();
       // get the human readable address for current location (if available)
-      if (_locationHandler.currentLocation != null) {
-        final addr =
-            await _getAddressFromLatLng(_locationHandler.currentLocation!);
+      if (widget.locationHandler.currentLocation != null) {
+        final addr = await _getAddressFromLatLng(
+            widget.locationHandler.currentLocation!);
         setState(() {
           _yourAddress = addr;
         });
@@ -323,9 +320,9 @@ class _BottomWidgetsState extends State<BottomWidgets> {
           firstResult.geometry.location.lat,
           firstResult.geometry.location.lng,
         );
-        _locationHandler.panCameraToLocation(location);
+        await widget.locationHandler.panCameraToLocation(location);
 
-        // Update the map to show the location
+        // Update the map to show the location (if parent wants it)
         widget.onCategorySelected(location);
       } else {
         await _speak(
@@ -496,6 +493,13 @@ class _BottomWidgetsState extends State<BottomWidgets> {
     }
   }
 
+  void _resetCameraToNormal() {
+    final loc = widget.locationHandler.currentLocation;
+    if (loc != null) {
+      widget.locationHandler.panCameraToLocation(loc);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final bool isDarkMode = Provider.of<ThemeProvider>(context).isDarkMode;
@@ -525,8 +529,26 @@ class _BottomWidgetsState extends State<BottomWidgets> {
                 opacity: (_isExpanded || widget.isJoining) ? 0.0 : 1.0,
                 child: ServiceButtons(
                   onButtonPressed: (label) {/* … */},
-                  currentLocation: _locationHandler.currentLocation,
+                  currentLocation: widget.locationHandler.currentLocation,
                   onMapViewPressed: widget.onMapViewPressed,
+                  onCenterPressed: () {
+                    debugPrint('GPS button pressed');
+                    debugPrint(
+                        'locationHandler.currentLocation: ${widget.locationHandler.currentLocation}');
+                    if (widget.locationHandler.currentLocation == null) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('locationNotAvailable'.tr())),
+                      );
+                      return;
+                    }
+                    try {
+                      widget.locationHandler.panCameraToLocation(
+                          widget.locationHandler.currentLocation!);
+                      debugPrint('Called panCameraToLocation()');
+                    } catch (e, st) {
+                      debugPrint('panCameraToLocation threw: $e\n$st');
+                    }
+                  },
                 ),
               ),
             ),
@@ -668,10 +690,12 @@ class _BottomWidgetsState extends State<BottomWidgets> {
                                       ],
                                     ),
                                     onTap: () {
-                                      if (_locationHandler.currentLocation !=
+                                      if (widget.locationHandler
+                                              .currentLocation !=
                                           null) {
                                         widget.onMemberPressed(
-                                            _locationHandler.currentLocation!,
+                                            widget.locationHandler
+                                                .currentLocation!,
                                             _auth.currentUser!.uid);
                                       }
                                     },
@@ -728,7 +752,8 @@ class _BottomWidgetsState extends State<BottomWidgets> {
                                 activeSpaceId: widget.activeSpaceId,
                                 members: _members,
                                 selectedMemberId: _selectedMemberId,
-                                yourLocation: _locationHandler.currentLocation,
+                                yourLocation:
+                                    widget.locationHandler.currentLocation,
                                 yourAddressLabel:
                                     _yourAddress ?? 'Current Location',
                                 yourLastUpdate: _yourLastUpdate,

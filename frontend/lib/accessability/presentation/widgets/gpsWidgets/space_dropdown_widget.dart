@@ -3,6 +3,7 @@
 import 'dart:async';
 
 import 'package:AccessAbility/accessability/presentation/widgets/shimmer/shimmer_space_selection.dart';
+import 'package:AccessAbility/accessability/presentation/widgets/homepageWidgets/bottomWidgetFiles/verification_code_widget.dart'; // <-- added
 import 'package:AccessAbility/accessability/themes/theme_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -258,8 +259,25 @@ class _SpaceSelectionSheetState extends State<SpaceSelectionSheet> {
       ),
     );
 
+    // Modified addBtn: open VerificationCodeScreen for the currently selected space.
     final addBtn = GestureDetector(
-      onTap: () => Navigator.pushNamed(context, '/createSpace'),
+      onTap: () {
+        if (_activeId.isEmpty) {
+          // no space selected — fallback to create flow
+          Navigator.pushNamed(context, '/createSpace').then((success) {
+            if (success == true) _listenToSpaces();
+          });
+          return;
+        }
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => VerificationCodeScreen(
+              spaceId: _activeId,
+              spaceName: _activeName,
+            ),
+          ),
+        );
+      },
       child: Icon(Icons.person_add_outlined, color: _purple, size: 24),
     );
 

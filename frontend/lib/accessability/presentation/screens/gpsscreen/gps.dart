@@ -71,6 +71,8 @@ class _GpsScreenState extends State<GpsScreen> {
   Timer? _routeUpdateTimer;
   LatLng? _routeDestination;
   List<LatLng> _routePoints = [];
+  double _navigationPanelOffset = 0.0;
+  final double _initialNavigationPanelBottom = 0.20;
 
   MapType _currentMapType = MapType.normal;
   MapPerspective? _pendingPerspective; // New field
@@ -464,6 +466,10 @@ class _GpsScreenState extends State<GpsScreen> {
         await _locationHandler.mapController!.animateCamera(
           CameraUpdate.newLatLngBounds(bounds, 100),
         );
+
+        // After showing overview, zoom in to start navigation
+        await Future.delayed(Duration(seconds: 1));
+        _startFollowingUser();
       }
 
       final url = Uri.parse('https://router.project-osrm.org/route/v1/driving/'
@@ -496,9 +502,6 @@ class _GpsScreenState extends State<GpsScreen> {
             ),
           };
         });
-
-        // Start following user's location
-        _startFollowingUser();
 
         _updateMarkerWithRouteInfo(destination, distance, duration);
       }
@@ -541,61 +544,71 @@ class _GpsScreenState extends State<GpsScreen> {
   void _updateCameraForNavigation() {
     if (_locationHandler.currentLocation == null ||
         _routeDestination == null ||
-        _locationHandler.mapController == null) {
+        _locationHandler.mapController == null ||
+        _routePoints.isEmpty) {
       return;
     }
 
     final currentLocation = _locationHandler.currentLocation!;
 
-    // Calculate bearing to destination
+    // 1. Calculate bearing to destination
     _routeBearing = _calculateBearing(currentLocation, _routeDestination!);
 
-    // Find the closest point on the route ahead of user
-    LatLng? targetPoint;
+    // 2. Find the closest point on the route to the user
+    int closestIndex = 0;
     double minDistance = double.infinity;
-    bool foundCurrent = false;
-
-    for (int i = 0; i < _routePoints.length - 1; i++) {
+    for (int i = 0; i < _routePoints.length; i++) {
       final distance = _calculateDistance(currentLocation, _routePoints[i]);
-
-      if (distance < 50) {
-        // Within 50 meters is considered "on route"
-        foundCurrent = true;
-        // Look ahead to next points
-        for (int j = i + 1; j < min(i + 20, _routePoints.length); j++) {
-          final lookAheadDistance =
-              _calculateDistance(currentLocation, _routePoints[j]);
-          if (lookAheadDistance < minDistance) {
-            minDistance = lookAheadDistance;
-            targetPoint = _routePoints[j];
-          }
-        }
-        break;
+      if (distance < minDistance) {
+        minDistance = distance;
+        closestIndex = i;
       }
     }
 
-    // If we didn't find a point ahead, use the destination
-    targetPoint ??= _routeDestination;
+    // 3. Look ahead on the route (about 50 meters ahead of the closest point)
+    int lookAheadIndex = min(closestIndex + 20, _routePoints.length - 1);
+    LatLng lookAheadPoint = _routePoints[lookAheadIndex];
 
-    // Smooth transition factor (0.1 to 1.0)
-    final smoothFactor = 0.3;
+    // 4. Calculate the bearing from user's current position to the look-ahead point
+    double cameraBearing = _calculateBearing(currentLocation, lookAheadPoint);
 
-    // Update camera position
+    // 5. Calculate the tilt based on distance to destination
+    double distanceToDestination =
+        _calculateDistance(currentLocation, _routeDestination!);
+    double dynamicTilt =
+        min(60.0, max(30.0, 60.0 - (distanceToDestination * 0.5)));
+
+    // 6. Calculate zoom level based on speed (if available) or distance
+    double dynamicZoom =
+        min(18.0, max(16.0, 18.0 - (distanceToDestination * 0.02)));
+
+    // 7. Calculate target point (slightly ahead of user)
+    double interpolationFactor = 0.3; // How much to look ahead (0.0 to 1.0)
+    LatLng targetPoint = LatLng(
+      currentLocation.latitude * (1 - interpolationFactor) +
+          lookAheadPoint.latitude * interpolationFactor,
+      currentLocation.longitude * (1 - interpolationFactor) +
+          lookAheadPoint.longitude * interpolationFactor,
+    );
+
+    // 8. Update camera position smoothly
     _locationHandler.mapController!.animateCamera(
       CameraUpdate.newCameraPosition(
         CameraPosition(
-          target: LatLng(
-            currentLocation.latitude * (1 - smoothFactor) +
-                targetPoint!.latitude * smoothFactor,
-            currentLocation.longitude * (1 - smoothFactor) +
-                targetPoint.longitude * smoothFactor,
-          ),
-          zoom: _routeZoom,
-          tilt: _routeTilt,
-          bearing: _routeBearing,
+          target: targetPoint,
+          zoom: dynamicZoom,
+          tilt: dynamicTilt,
+          bearing: cameraBearing,
         ),
       ),
     );
+
+    // Update class variables for external access
+    setState(() {
+      _routeTilt = dynamicTilt;
+      _routeZoom = dynamicZoom;
+      _routeBearing = cameraBearing;
+    });
   }
 
   void _stopFollowingUser() {
@@ -905,55 +918,88 @@ class _GpsScreenState extends State<GpsScreen> {
                     // Navigation Info Panel - Positioned above bottom widgets
                     if (_isRouteActive && _routeDestination != null)
                       Positioned(
-                        bottom: screenHeight * 0.20, // 18% from bottom
+                        bottom: screenHeight * _initialNavigationPanelBottom +
+                            _navigationPanelOffset,
                         left: 20,
                         right: 20,
-                        child: Container(
-                          padding: EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.9),
-                            borderRadius: BorderRadius.circular(12),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black26,
-                                blurRadius: 6,
-                                offset: Offset(0, 2),
-                              ),
-                            ],
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Navigating to destination',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 16,
+                        child: GestureDetector(
+                          onVerticalDragUpdate: (details) {
+                            setState(() {
+                              // Limit dragging range to prevent going off screen
+                              _navigationPanelOffset = (_navigationPanelOffset -
+                                      details.delta.dy)
+                                  .clamp(
+                                      -screenHeight * 0.3, screenHeight * 0.3);
+                            });
+                          },
+                          onVerticalDragEnd: (details) {
+                            // Snap back to original position if released near it
+                            if (_navigationPanelOffset.abs() < 20) {
+                              setState(() {
+                                _navigationPanelOffset = 0.0;
+                              });
+                            }
+                          },
+                          child: Container(
+                            padding: EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.9),
+                              borderRadius: BorderRadius.circular(12),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black26,
+                                  blurRadius: 6,
+                                  offset: Offset(0, 2),
                                 ),
-                              ),
-                              SizedBox(height: 8),
-                              if (_locationHandler.currentLocation != null)
-                                FutureBuilder<String>(
-                                  future: _getLocationName(_routeDestination!),
-                                  builder: (context, snapshot) {
-                                    return Text(
-                                      snapshot.data ?? 'Calculating...',
-                                      style: TextStyle(fontSize: 14),
-                                    );
-                                  },
+                              ],
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                // Add a handle bar to indicate draggability
+                                Center(
+                                  child: Container(
+                                    width: 40,
+                                    height: 4,
+                                    margin: EdgeInsets.only(bottom: 8),
+                                    decoration: BoxDecoration(
+                                      color: Colors.grey[400],
+                                      borderRadius: BorderRadius.circular(2),
+                                    ),
+                                  ),
                                 ),
-                              SizedBox(height: 8),
-                              if (_polylines.isNotEmpty)
-                                FutureBuilder<double>(
-                                  future: _calculateRouteDistance(),
-                                  builder: (context, snapshot) {
-                                    return Text(
-                                      'Distance remaining: ${snapshot.hasData ? '${snapshot.data!.toStringAsFixed(1)} km' : 'Calculating...'}',
-                                      style: TextStyle(fontSize: 14),
-                                    );
-                                  },
+                                Text(
+                                  'Navigating to destination',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 16,
+                                  ),
                                 ),
-                            ],
+                                SizedBox(height: 8),
+                                if (_locationHandler.currentLocation != null)
+                                  FutureBuilder<String>(
+                                    future:
+                                        _getLocationName(_routeDestination!),
+                                    builder: (context, snapshot) {
+                                      return Text(
+                                        snapshot.data ?? 'Calculating...',
+                                        style: TextStyle(fontSize: 14),
+                                      );
+                                    },
+                                  ),
+                                SizedBox(height: 8),
+                                if (_polylines.isNotEmpty)
+                                  FutureBuilder<double>(
+                                    future: _calculateRouteDistance(),
+                                    builder: (context, snapshot) {
+                                      return Text(
+                                        'Distance remaining: ${snapshot.hasData ? '${snapshot.data!.toStringAsFixed(1)} km' : 'Calculating...'}',
+                                        style: TextStyle(fontSize: 14),
+                                      );
+                                    },
+                                  ),
+                              ],
+                            ),
                           ),
                         ),
                       ),

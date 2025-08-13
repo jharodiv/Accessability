@@ -12,6 +12,7 @@ import 'package:AccessAbility/accessability/presentation/widgets/gpsWidgets/esta
 import 'package:AccessAbility/accessability/presentation/widgets/homepageWidgets/bottomWidgetFiles/member_list_widget.dart';
 import 'package:AccessAbility/accessability/presentation/widgets/homepageWidgets/bottomWidgetFiles/searchBar/search_bar.dart';
 import 'package:AccessAbility/accessability/presentation/widgets/homepageWidgets/bottomWidgetFiles/service_buttons.dart';
+import 'package:AccessAbility/accessability/presentation/widgets/homepageWidgets/bottomWidgetFiles/verification_code_widget.dart';
 import 'package:AccessAbility/accessability/themes/theme_provider.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
@@ -732,7 +733,16 @@ class _BottomWidgetsState extends State<BottomWidgets> {
                                     _yourAddress ?? 'Current Location',
                                 yourLastUpdate: _yourLastUpdate,
                                 onMemberPressed: widget.onMemberPressed,
-                                onAddPerson: _addPerson,
+                                onAddPerson: () {
+                                  Navigator.of(context).push(
+                                    MaterialPageRoute(
+                                      builder: (_) => VerificationCodeScreen(
+                                        spaceId: widget.activeSpaceId,
+                                        spaceName: _spaceName,
+                                      ),
+                                    ),
+                                  );
+                                },
                                 isLoading: _isLoading,
                               ),
                             ],

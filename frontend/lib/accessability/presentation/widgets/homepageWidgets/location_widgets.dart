@@ -23,7 +23,7 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter/scheduler.dart';
 
-class BottomWidgets extends StatefulWidget {
+class LocationWidgets extends StatefulWidget {
   final String activeSpaceId;
   final Function(LatLng) onCategorySelected;
   final Function(LatLng, String) onMemberPressed;
@@ -37,7 +37,7 @@ class BottomWidgets extends StatefulWidget {
   final ValueChanged<bool> onJoinStateChanged; // new
   final LocationHandler locationHandler;
 
-  const BottomWidgets({
+  const LocationWidgets({
     super.key,
     required this.activeSpaceId,
     required this.onCategorySelected,
@@ -54,10 +54,10 @@ class BottomWidgets extends StatefulWidget {
   });
 
   @override
-  _BottomWidgetsState createState() => _BottomWidgetsState();
+  _LocationWidgetsState createState() => _LocationWidgetsState();
 }
 
-class _BottomWidgetsState extends State<BottomWidgets> {
+class _LocationWidgetsState extends State<LocationWidgets> {
   int _activeIndex = 0; // 0: People, 1: Buildings, 2: Map
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -117,7 +117,7 @@ class _BottomWidgetsState extends State<BottomWidgets> {
   }
 
   @override
-  void didUpdateWidget(BottomWidgets oldWidget) {
+  void didUpdateWidget(LocationWidgets oldWidget) {
     super.didUpdateWidget(oldWidget);
   }
 
@@ -503,8 +503,6 @@ class _BottomWidgetsState extends State<BottomWidgets> {
   @override
   Widget build(BuildContext context) {
     final bool isDarkMode = Provider.of<ThemeProvider>(context).isDarkMode;
-    debugPrint(
-        'ServiceButtons ignoring? ${_isExpanded || widget.isJoining} (isJoining=${widget.isJoining}, _isExpanded=$_isExpanded)');
 
     return DraggableScrollableSheet(
       // controller: _draggableController,

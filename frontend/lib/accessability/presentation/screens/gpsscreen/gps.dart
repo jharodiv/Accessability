@@ -32,7 +32,7 @@ import 'package:AccessAbility/accessability/logic/bloc/user/user_state.dart'
 import 'package:AccessAbility/accessability/presentation/screens/gpsscreen/marker_handler.dart';
 import 'package:AccessAbility/accessability/presentation/screens/gpsscreen/nearby_places_handler.dart';
 import 'package:AccessAbility/accessability/presentation/screens/gpsscreen/tutorial_widget.dart';
-import 'package:AccessAbility/accessability/presentation/widgets/homepageWidgets/bottom_widgets.dart';
+import 'package:AccessAbility/accessability/presentation/widgets/homepageWidgets/location_widgets.dart';
 import 'package:AccessAbility/accessability/presentation/widgets/bottomSheetWidgets/favorite_widget.dart';
 import 'package:AccessAbility/accessability/presentation/widgets/bottomSheetWidgets/safety_assist_widget.dart';
 import 'package:AccessAbility/accessability/logic/bloc/auth/auth_bloc.dart';
@@ -1248,7 +1248,7 @@ class _GpsScreenState extends State<GpsScreen> {
                       onSpaceIdChanged: _handleSpaceIdChanged,
                     ),
                     if (_locationHandler.currentIndex == 0)
-                      BottomWidgets(
+                      LocationWidgets(
                         key: ValueKey(_locationHandler.activeSpaceId),
                         activeSpaceId: _locationHandler.activeSpaceId,
                         onCategorySelected: (LatLng location) {

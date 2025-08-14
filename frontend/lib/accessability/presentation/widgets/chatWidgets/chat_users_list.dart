@@ -1,3 +1,4 @@
+import 'package:AccessAbility/accessability/presentation/widgets/shimmer/shimmer_chat_user_list.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:AccessAbility/accessability/firebaseServices/auth/auth_service.dart';
@@ -17,11 +18,11 @@ class ChatUsersList extends StatelessWidget {
     final bool isDarkMode = Provider.of<ThemeProvider>(context).isDarkMode;
 
     return Scaffold(
-      body: _buildUserList(isDarkMode),
+      body: _buildUserList(context, isDarkMode),
     );
   }
 
-  Widget _buildUserList(bool isDarkMode) {
+  Widget _buildUserList(BuildContext context, bool isDarkMode) {
     return StreamBuilder(
       stream: CombineLatestStream.list([
         chatService.getUsersInSameSpaces(),
@@ -39,11 +40,12 @@ class ChatUsersList extends StatelessWidget {
         }
 
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
+          return ShimmerChatUserList(isDarkMode: isDarkMode);
         }
 
         final List<Map<String, dynamic>> usersInSameSpaces = snapshot.data![0];
-        final List<Map<String, dynamic>> usersWithAcceptedRequests = snapshot.data![1];
+        final List<Map<String, dynamic>> usersWithAcceptedRequests =
+            snapshot.data![1];
         final List<Map<String, dynamic>> spaceChatRooms = snapshot.data![2];
 
         final Map<String, Map<String, dynamic>> uniqueUsers = {};
@@ -74,12 +76,14 @@ class ChatUsersList extends StatelessWidget {
               children: [
                 Text(
                   'No chats available.',
-                  style: TextStyle(color: isDarkMode ? Colors.white : Colors.black),
+                  style: TextStyle(
+                      color: isDarkMode ? Colors.white : Colors.black),
                 ),
                 const SizedBox(height: 16),
                 Text(
                   'Create or join a space to start chatting.',
-                  style: TextStyle(color: isDarkMode ? Colors.white : Colors.black),
+                  style: TextStyle(
+                      color: isDarkMode ? Colors.white : Colors.black),
                 ),
               ],
             ),
@@ -100,7 +104,8 @@ class ChatUsersList extends StatelessWidget {
           children: [
             if (spaceChats.isNotEmpty) ...[
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 child: Text(
                   'Space Chats',
                   style: TextStyle(
@@ -113,14 +118,17 @@ class ChatUsersList extends StatelessWidget {
               ...spaceChats.map((userData) {
                 final String profilePicture = userData['isSpaceChat'] == true
                     ? 'https://firebasestorage.googleapis.com/v0/b/accessability-71ef7.firebasestorage.app/o/profile_pictures%2Fgroup_chat_icon.jpg?alt=media&token=7604bd51-2edf-4514-b979-e3fa84dce389'
-                    : userData['profilePicture'] ?? 'https://via.placeholder.com/150';
-                return _buildSpaceChatItem(userData, profilePicture, context, isDarkMode);
+                    : userData['profilePicture'] ??
+                        'https://via.placeholder.com/150';
+                return _buildSpaceChatItem(
+                    userData, profilePicture, context, isDarkMode);
               }),
               const Divider(thickness: 1, height: 20),
             ],
             if (individualUsers.isNotEmpty) ...[
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 child: Text(
                   'People',
                   style: TextStyle(
@@ -131,8 +139,10 @@ class ChatUsersList extends StatelessWidget {
                 ),
               ),
               ...individualUsers.map((userData) {
-                final String profilePicture = userData['profilePicture'] ?? 'https://via.placeholder.com/150';
-                return _buildIndividualChatItem(userData, profilePicture, context, isDarkMode);
+                final String profilePicture = userData['profilePicture'] ??
+                    'https://via.placeholder.com/150';
+                return _buildIndividualChatItem(
+                    userData, profilePicture, context, isDarkMode);
               }),
             ],
           ],
@@ -141,7 +151,8 @@ class ChatUsersList extends StatelessWidget {
     );
   }
 
-  Widget _buildSpaceChatItem(Map<String, dynamic> userData, String profilePicture, BuildContext context, bool isDarkMode) {
+  Widget _buildSpaceChatItem(Map<String, dynamic> userData,
+      String profilePicture, BuildContext context, bool isDarkMode) {
     final String spaceId = userData['uid'];
 
     return StreamBuilder<QuerySnapshot>(
@@ -196,7 +207,8 @@ class ChatUsersList extends StatelessWidget {
         Timestamp lastMessageTimestamp = Timestamp(0, 0);
 
         if (snapshot.hasData && snapshot.data!.docs.isNotEmpty) {
-          final messageData = snapshot.data!.docs.first.data() as Map<String, dynamic>;
+          final messageData =
+              snapshot.data!.docs.first.data() as Map<String, dynamic>;
           lastMessage = messageData['message'];
           lastMessageSender = messageData['senderID'];
           lastMessageTimestamp = messageData['timestamp'];
@@ -224,7 +236,8 @@ class ChatUsersList extends StatelessWidget {
                 ),
                 subtitle: Text(
                   'Error loading sender info',
-                  style: TextStyle(color: isDarkMode ? Colors.white : Colors.black),
+                  style: TextStyle(
+                      color: isDarkMode ? Colors.white : Colors.black),
                 ),
               );
             }
@@ -243,7 +256,8 @@ class ChatUsersList extends StatelessWidget {
                 ),
                 subtitle: Text(
                   'Loading sender info...',
-                  style: TextStyle(color: isDarkMode ? Colors.white : Colors.black),
+                  style: TextStyle(
+                      color: isDarkMode ? Colors.white : Colors.black),
                 ),
               );
             }
@@ -272,11 +286,14 @@ class ChatUsersList extends StatelessWidget {
                     : 'No messages yet',
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: TextStyle(color: isDarkMode ? Colors.white : Colors.grey[600]),
+                style: TextStyle(
+                    color: isDarkMode ? Colors.white : Colors.grey[600]),
               ),
               trailing: Text(
                 _formatTimestamp(lastMessageTimestamp),
-                style: TextStyle(color: isDarkMode ? Colors.white : Colors.grey[600], fontSize: 12),
+                style: TextStyle(
+                    color: isDarkMode ? Colors.white : Colors.grey[600],
+                    fontSize: 12),
               ),
               onTap: () {
                 Navigator.pushNamed(
@@ -297,7 +314,8 @@ class ChatUsersList extends StatelessWidget {
     );
   }
 
-  Widget _buildIndividualChatItem(Map<String, dynamic> userData, String profilePicture, BuildContext context, bool isDarkMode) {
+  Widget _buildIndividualChatItem(Map<String, dynamic> userData,
+      String profilePicture, BuildContext context, bool isDarkMode) {
     final String? currentUserUID = authService.getCurrentUser()?.uid;
     if (currentUserUID == null || userData['uid'] == null) {
       return ListTile(
@@ -338,14 +356,16 @@ class ChatUsersList extends StatelessWidget {
               ),
               subtitle: Text(
                 'Loading...',
-                style: TextStyle(color: isDarkMode ? Colors.white : Colors.black),
+                style:
+                    TextStyle(color: isDarkMode ? Colors.white : Colors.black),
               ),
             );
           }
 
           if (chatRoomSnapshot.hasError || !chatRoomSnapshot.data!) {
             // If the chat room doesn't exist, create it
-            chatService.createChatRoomForMembers(currentUserUID, userData['uid'], 'Unnamed Space');
+            chatService.createChatRoomForMembers(
+                currentUserUID, userData['uid'], 'Unnamed Space');
             return ListTile(
               leading: CircleAvatar(
                 backgroundImage: NetworkImage(profilePicture),
@@ -359,7 +379,8 @@ class ChatUsersList extends StatelessWidget {
               ),
               subtitle: Text(
                 'Creating chat room...',
-                style: TextStyle(color: isDarkMode ? Colors.white : Colors.black),
+                style:
+                    TextStyle(color: isDarkMode ? Colors.white : Colors.black),
               ),
             );
           }
@@ -388,7 +409,8 @@ class ChatUsersList extends StatelessWidget {
                   ),
                   subtitle: Text(
                     'Error loading messages',
-                    style: TextStyle(color: isDarkMode ? Colors.white : Colors.black),
+                    style: TextStyle(
+                        color: isDarkMode ? Colors.white : Colors.black),
                   ),
                 );
               }
@@ -407,7 +429,8 @@ class ChatUsersList extends StatelessWidget {
                   ),
                   subtitle: Text(
                     'Loading...',
-                    style: TextStyle(color: isDarkMode ? Colors.white : Colors.black),
+                    style: TextStyle(
+                        color: isDarkMode ? Colors.white : Colors.black),
                   ),
                 );
               }
@@ -417,7 +440,8 @@ class ChatUsersList extends StatelessWidget {
               Timestamp lastMessageTimestamp = Timestamp(0, 0);
 
               if (snapshot.hasData && snapshot.data!.docs.isNotEmpty) {
-                final messageData = snapshot.data!.docs.first.data() as Map<String, dynamic>;
+                final messageData =
+                    snapshot.data!.docs.first.data() as Map<String, dynamic>;
                 lastMessage = messageData['message'];
                 lastMessageSender = messageData['senderID'];
                 lastMessageTimestamp = messageData['timestamp'];
@@ -445,7 +469,8 @@ class ChatUsersList extends StatelessWidget {
                       ),
                       subtitle: Text(
                         'Error loading sender info',
-                        style: TextStyle(color: isDarkMode ? Colors.white : Colors.black),
+                        style: TextStyle(
+                            color: isDarkMode ? Colors.white : Colors.black),
                       ),
                     );
                   }
@@ -464,7 +489,8 @@ class ChatUsersList extends StatelessWidget {
                       ),
                       subtitle: Text(
                         'Loading sender info...',
-                        style: TextStyle(color: isDarkMode ? Colors.white : Colors.black),
+                        style: TextStyle(
+                            color: isDarkMode ? Colors.white : Colors.black),
                       ),
                     );
                   }
@@ -472,7 +498,8 @@ class ChatUsersList extends StatelessWidget {
                   String senderUsername = 'Unknown';
 
                   if (userSnapshot.hasData && userSnapshot.data!.exists) {
-                    final user = userSnapshot.data!.data() as Map<String, dynamic>;
+                    final user =
+                        userSnapshot.data!.data() as Map<String, dynamic>;
                     senderUsername = user['username'] ?? 'Unknown';
                   }
 
@@ -493,11 +520,14 @@ class ChatUsersList extends StatelessWidget {
                           : 'No messages yet',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: TextStyle(color: isDarkMode ? Colors.white : Colors.grey[600]),
+                      style: TextStyle(
+                          color: isDarkMode ? Colors.white : Colors.grey[600]),
                     ),
                     trailing: Text(
                       _formatTimestamp(lastMessageTimestamp),
-                      style: TextStyle(color: isDarkMode ? Colors.white : Colors.grey[600], fontSize: 12),
+                      style: TextStyle(
+                          color: isDarkMode ? Colors.white : Colors.grey[600],
+                          fontSize: 12),
                     ),
                     onTap: () {
                       Navigator.pushNamed(context, '/chatconvo', arguments: {

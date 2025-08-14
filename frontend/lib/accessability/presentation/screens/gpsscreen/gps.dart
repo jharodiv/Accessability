@@ -91,6 +91,9 @@ class _GpsScreenState extends State<GpsScreen> {
   final double _initialNavigationPanelBottom = 0.20;
   double _pwdRadiusMultiplier = 1.0;
   double _currentZoomPrev = 14.0;
+  late final ValueNotifier<double> _mapZoomNotifier =
+      ValueNotifier<double>(_currentZoom);
+  Timer? _zoomDebounceTimer;
 
   @override
   void initState() {
@@ -326,6 +329,10 @@ class _GpsScreenState extends State<GpsScreen> {
   @override
   void dispose() {
     _locationHandler.disposeHandler();
+    _zoomDebounceTimer?.cancel();
+    _mapZoomNotifier.dispose();
+    _locationHandler.disposeHandler();
+    super.dispose();
     super.dispose();
   }
 
@@ -1000,17 +1007,32 @@ class _GpsScreenState extends State<GpsScreen> {
                       ),
                       onCameraMove: (CameraPosition pos) {
                         final newZoom = pos.zoom;
-                        // keep the latest zoom value for the overlay
+
+                        // Always keep a cheap local copy for other logic
                         _currentZoom = newZoom;
 
-                        // Only call setState for heavy UI updates when zoom changed enough:
-                        if ((newZoom - _currentZoomPrev).abs() > 0.08) {
+                        // Update the notifier (cheap, no widget rebuild)
+                        _mapZoomNotifier.value = newZoom;
+
+                        // Only recompute circles (heavy) when zoom changed sufficiently,
+                        // and debounce so we don't recompute mid-gesture on every frame.
+                        const double zoomThreshold =
+                            0.16; // increased threshold to avoid tiny updates
+                        if ((newZoom - _currentZoomPrev).abs() >
+                            zoomThreshold) {
                           _currentZoomPrev = newZoom;
-                          setState(() {
-                            // recompute circles only when necessary
-                            _currentZoom = newZoom;
-                            _circles = createPwdfriendlyRouteCircles(
-                                pwdFriendlyLocations);
+
+                          // debounce the heavy circle recompute by 180-250ms (tunable)
+                          _zoomDebounceTimer?.cancel();
+                          _zoomDebounceTimer =
+                              Timer(const Duration(milliseconds: 200), () {
+                            if (mounted) {
+                              setState(() {
+                                // recompute circles only after pinch stops / slows down
+                                _circles = createPwdfriendlyRouteCircles(
+                                    pwdFriendlyLocations);
+                              });
+                            }
                           });
                         }
                       },
@@ -1050,15 +1072,12 @@ class _GpsScreenState extends State<GpsScreen> {
                       getCurrentLocation: () =>
                           _locationHandler.currentLocation,
                       locationStream: _locationHandler.locationStream,
-                      getMapZoom: () =>
-                          _currentZoom, // required for zoom-based scaling
-                      // minZoomToShow: -1.0, // default = always show and scale
+                      getMapZoom: () => _mapZoomNotifier.value,
                       onPolygonsChanged: (polys) {
                         if (!_polygonsGeometryEqual(_fovPolygons, polys)) {
                           setState(() => _fovPolygons = polys);
                         }
                       },
-
                       fovAngle: 40.0,
                       steps: 14,
                     ),

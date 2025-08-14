@@ -5,11 +5,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_compass/flutter_compass.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 
-/// FOV overlay that animates radius when zoom changes for smooth shrink/grow.
-/// Behavior:
-///  - zoom <= zoomCutLarge -> largeBeamPx (big)
-///  - zoom between zoomCutLarge..zoomCutSmall -> smoothly interpolate px
-///  - zoom >= zoomCutSmall -> smallBeamPx (small)
+/// Simplified FOV overlay with static zoom buckets to avoid heavy work while
+/// pinch-zooming. Polygons are rebuilt only when heading/location change
+/// significantly or when the zoom *bucket* changes (large / medium / small).
 class FovOverlay extends StatefulWidget {
   final LatLng? Function() getCurrentLocation;
   final Stream<LatLng>? locationStream;
@@ -21,13 +19,13 @@ class FovOverlay extends StatefulWidget {
   final Color color;
   final int pollIntervalMs;
 
-  // visual tuning
+  // visual tuning (pixel radii used for buckets; converted to meters at bucket-change time)
   final double largeBeamPx;
+  final double mediumBeamPx;
   final double smallBeamPx;
   final int steps; // max steps
   final double zoomCutLarge;
   final double zoomCutSmall;
-  final Duration animationDuration;
 
   const FovOverlay({
     Key? key,
@@ -40,19 +38,18 @@ class FovOverlay extends StatefulWidget {
     this.color = const Color(0xFF7C4DFF),
     this.pollIntervalMs = 500,
     this.largeBeamPx = 220.0,
+    this.mediumBeamPx = 140.0,
     this.smallBeamPx = 80.0,
     this.steps = 18,
     this.zoomCutLarge = 12.0,
     this.zoomCutSmall = 16.0,
-    this.animationDuration = const Duration(milliseconds: 250),
   }) : super(key: key);
 
   @override
   _FovOverlayState createState() => _FovOverlayState();
 }
 
-class _FovOverlayState extends State<FovOverlay>
-    with SingleTickerProviderStateMixin {
+class _FovOverlayState extends State<FovOverlay> {
   StreamSubscription<CompassEvent?>? _compassSub;
   StreamSubscription<LatLng>? _locSub;
   Timer? _pollTimer;
@@ -68,17 +65,15 @@ class _FovOverlayState extends State<FovOverlay>
   // throttles
   final double _headingThresholdDeg = 3.0;
   final double _locationThresholdMeters = 3.0;
-  final int _minIntervalMs = 60; // allow more frequent frames for animation
+  final int _minIntervalMs = 60; // allow modest rate
   int _lastUpdateMs = 0;
 
   bool _zoomVisible = true;
   double? _lastSeenZoom;
+  int? _lastZoomBucket; // 0=large,1=mid,2=small
 
-  // animation controller
-  late final AnimationController _animController;
-  Animation<double>? _radiusAnim;
-  double _currentRadiusMeters = 0.0; // current animated radius
-  double _targetRadiusMeters = 0.0; // latest target radius
+  // current radius in meters (static per bucket until bucket changes)
+  double _currentRadiusMeters = 0.0;
 
   // debug prints toggle
   final bool _debug = false;
@@ -86,13 +81,6 @@ class _FovOverlayState extends State<FovOverlay>
   @override
   void initState() {
     super.initState();
-
-    _animController =
-        AnimationController(vsync: this, duration: widget.animationDuration)
-          ..addListener(() {
-            // update polygons for current animated radius
-            _buildPolygonsForRadius(_radiusAnim?.value ?? _currentRadiusMeters);
-          });
 
     // Compass events
     try {
@@ -115,14 +103,14 @@ class _FovOverlayState extends State<FovOverlay>
       });
     }
 
-    // Watch zoom if getter provided
+    // Watch zoom if getter provided (infrequent check)
     if (widget.getMapZoom != null) {
-      _zoomWatchTimer = Timer.periodic(Duration(milliseconds: 120), (_) {
-        _checkZoomAndMaybeToggle();
-      });
-      _checkZoomAndMaybeToggle();
+      _zoomWatchTimer =
+          Timer.periodic(Duration(milliseconds: 250), (_) => _checkZoom());
+      _checkZoom();
     }
 
+    // initial build
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _maybeRecompute(force: true);
     });
@@ -134,39 +122,85 @@ class _FovOverlayState extends State<FovOverlay>
     _locSub?.cancel();
     _pollTimer?.cancel();
     _zoomWatchTimer?.cancel();
-    _animController.dispose();
     super.dispose();
   }
 
-  void _checkZoomAndMaybeToggle() {
+  // ---- simplified zoom handling: only react when zoom bucket changes ----
+  void _checkZoom() {
     if (widget.getMapZoom == null) return;
     try {
       final z = widget.getMapZoom!();
-      // trigger when zoom changed
-      if (_lastSeenZoom == null || (_lastSeenZoom! != z)) {
-        if (_debug) debugPrint('FOV: zoom ${_lastSeenZoom ?? -999} -> $z');
-        _lastSeenZoom = z;
 
-        // visibility
-        if (widget.minZoomToShow > 0) {
-          final shouldBeVisible = z >= widget.minZoomToShow;
-          if (shouldBeVisible != _zoomVisible) {
-            _zoomVisible = shouldBeVisible;
-            if (!_zoomVisible) {
-              _updatePolygons({});
-            } else {
-              _maybeRecompute(force: true);
-            }
+      // visibility toggle
+      if (widget.minZoomToShow > 0) {
+        final shouldBeVisible = z >= widget.minZoomToShow;
+        if (shouldBeVisible != _zoomVisible) {
+          _zoomVisible = shouldBeVisible;
+          if (!_zoomVisible) {
+            _updatePolygons({});
+            return;
+          } else {
+            _maybeRecompute(force: true);
             return;
           }
         }
+      }
 
-        // start animated radius change
-        _startRadiusAnimationForZoom(z);
+      // small jitter guard
+      if (_lastSeenZoom != null && (z - _lastSeenZoom!).abs() < 0.02) {
+        _lastSeenZoom = z; // update but don't trigger bucket change
+        return;
+      }
+
+      _lastSeenZoom = z;
+
+      final int bucket = _bucketForZoom(z);
+      if (_lastZoomBucket == null || _lastZoomBucket != bucket) {
+        if (_debug)
+          debugPrint('FOV: bucket change ${_lastZoomBucket} -> $bucket');
+        _lastZoomBucket = bucket;
+        _updateRadiusForBucket(bucket);
+        // rebuild polygons with the new static radius
+        _buildPolygonsForRadius(_currentRadiusMeters);
       }
     } catch (e) {
       if (_debug) debugPrint('FOV zoom check error: $e');
     }
+  }
+
+  int _bucketForZoom(double zoom) {
+    if (zoom <= widget.zoomCutLarge) return 0;
+    if (zoom >= widget.zoomCutSmall) return 2;
+    return 1;
+  }
+
+  /// Convert pixels -> meters using web mercator approximation.
+  double _metersPerPixel(double lat, double zoom) {
+    final double latRad = (lat * math.pi) / 180.0;
+    return 156543.03392 * math.cos(latRad) / math.pow(2.0, zoom);
+  }
+
+  /// Pick a static radius (meters) for a chosen bucket and center location.
+  /// This is done only when bucket changes so we avoid per-frame work.
+  void _updateRadiusForBucket(int bucket) {
+    final LatLng? center = _lastLocation ?? widget.getCurrentLocation();
+    if (center == null) return;
+    final double zoom =
+        _lastSeenZoom ?? (widget.zoomCutLarge + widget.zoomCutSmall) / 2.0;
+    double px;
+    if (bucket == 0) {
+      px = widget.largeBeamPx;
+    } else if (bucket == 1) {
+      px = widget.mediumBeamPx;
+    } else {
+      px = widget.smallBeamPx;
+    }
+    final double mpp = _metersPerPixel(center.latitude, zoom);
+    final double meters = (px * mpp).clamp(10.0, 350000.0);
+    _currentRadiusMeters = meters;
+    if (_debug)
+      debugPrint(
+          'FOV bucket $bucket -> px:$px mpp:${mpp.toStringAsFixed(2)} m:$meters');
   }
 
   void _maybeRecompute(
@@ -189,6 +223,7 @@ class _FovOverlayState extends State<FovOverlay>
 
     final double useHeading = heading ?? _heading;
     final double headingDelta = (useHeading - _heading).abs();
+
     double locationDeltaMeters = double.infinity;
     if (_lastLocation != null) {
       locationDeltaMeters = _haversineDistanceMeters(_lastLocation!, curLoc);
@@ -205,103 +240,16 @@ class _FovOverlayState extends State<FovOverlay>
     _lastLocation = curLoc;
     _lastUpdateMs = now;
 
-    // If animation is running we won't start a new one here; polygons will be
-    // updated by the animation listener using the animated radius value.
-    if (_radiusAnim == null || !_animController.isAnimating) {
-      // ensure radius matches current zoom (start static build)
-      _startRadiusAnimationForZoom(
-          widget.getMapZoom?.call() ??
-              (widget.zoomCutLarge + widget.zoomCutSmall) / 2.0,
-          immediate: true);
-    } else {
-      // force rebuild using current animated radius
-      _buildPolygonsForRadius(_radiusAnim?.value ?? _currentRadiusMeters);
-    }
-  }
-
-  /// Convert pixels -> meters using web mercator approximation.
-  double _metersPerPixel(double lat, double zoom) {
-    final double latRad = (lat * math.pi) / 180.0;
-    return 156543.03392 * math.cos(latRad) / math.pow(2.0, zoom);
-  }
-
-  /// Compute the target meters for given zoom & location (pixel-target approach).
-  double _computeTargetMetersForZoom(double zoom, LatLng center) {
-    final double zL = widget.zoomCutLarge;
-    final double zS = widget.zoomCutSmall;
-    final double largePx = widget.largeBeamPx;
-    final double smallPx = widget.smallBeamPx;
-
-    double targetPx;
-    if (zoom <= zL) {
-      targetPx = largePx;
-    } else if (zoom >= zS) {
-      targetPx = smallPx;
-    } else {
-      final double t = ((zoom - zL) / (zS - zL)).clamp(0.0, 1.0);
-      final double smoothT = t * t * (3.0 - 2.0 * t);
-      targetPx = largePx * (1.0 - smoothT) + smallPx * smoothT;
-    }
-
-    final double mpp = _metersPerPixel(center.latitude, zoom);
-    final double meters = targetPx * mpp;
-    return meters.clamp(10.0, 350000.0);
-  }
-
-  /// Start (or update) the animated radius to match the supplied zoom.
-  /// If [immediate] is true, we set radius instantly (no animation).
-  void _startRadiusAnimationForZoom(double zoom, {bool immediate = false}) {
-    final LatLng? center = _lastLocation ?? widget.getCurrentLocation();
-    if (center == null) return;
-    final double targetMeters = _computeTargetMetersForZoom(zoom, center);
-
-    if (_debug) {
-      debugPrint(
-          'FOV start anim -> zoom:${zoom.toStringAsFixed(2)} targetMeters:${targetMeters.toStringAsFixed(1)}');
-    }
-
-    _targetRadiusMeters = targetMeters;
-    if (immediate) {
-      _animController.stop();
-      _radiusAnim = null;
-      _currentRadiusMeters = targetMeters;
-      _buildPolygonsForRadius(_currentRadiusMeters);
-      return;
-    }
-
-    // If current radius is zero (first run) set instantly and animate from it
+    // ensure we have a radius for the current bucket; if not, compute it
     if (_currentRadiusMeters <= 0.0) {
-      _currentRadiusMeters = targetMeters;
-      _buildPolygonsForRadius(_currentRadiusMeters);
-      return;
+      final int bucket = _bucketForZoom(
+          _lastSeenZoom ?? (widget.zoomCutLarge + widget.zoomCutSmall) / 2.0);
+      _lastZoomBucket = bucket;
+      _updateRadiusForBucket(bucket);
     }
 
-    // If the difference is tiny, jump to target (avoid small wasteful anims)
-    if ((targetMeters - _currentRadiusMeters).abs() /
-            (_currentRadiusMeters + 1) <
-        0.02) {
-      // small delta <2% => update instantly
-      _animController.stop();
-      _radiusAnim = null;
-      _currentRadiusMeters = targetMeters;
-      _buildPolygonsForRadius(_currentRadiusMeters);
-      return;
-    }
-
-    // create tween and run
-    _animController.duration = widget.animationDuration;
-    _radiusAnim = Tween<double>(begin: _currentRadiusMeters, end: targetMeters)
-        .animate(
-            CurvedAnimation(parent: _animController, curve: Curves.easeOut));
-    _animController
-      ..reset()
-      ..forward().whenComplete(() {
-        // finalize
-        _currentRadiusMeters = targetMeters;
-        _radiusAnim = null;
-        if (_debug)
-          debugPrint('FOV anim complete -> radius:${_currentRadiusMeters}');
-      });
+    // Build polygons immediately with the (static) current radius.
+    _buildPolygonsForRadius(_currentRadiusMeters);
   }
 
   /// Build polygons for a given radius (meters) and push them to map via callback.
@@ -315,13 +263,14 @@ class _FovOverlayState extends State<FovOverlay>
     // compute half angle
     final double halfAngle = (widget.fovAngle / 2.0).clamp(1.0, 170.0);
 
-    // shadow
+    // shadow (simple offset)
     final double shadowShift = radiusMeters * 0.12;
     final LatLng shadowCenter =
         _computeOffset(userLoc, shadowShift, _heading + 180.0 + 8.0);
 
     final Set<Polygon> next = {};
 
+    // create shadow polygon (fewer steps)
     final shadowPts = _createSectorPoints(
       shadowCenter,
       _heading,
@@ -340,7 +289,7 @@ class _FovOverlayState extends State<FovOverlay>
       geodesic: true,
     ));
 
-    // cone layers
+    // cone layers: 3 layers using same base radius but smaller multipliers
     final radii = <double>[
       radiusMeters * 0.92,
       radiusMeters * 0.60,
@@ -369,7 +318,7 @@ class _FovOverlayState extends State<FovOverlay>
       ));
     }
 
-    // highlight
+    // highlight (thin)
     final highlightPts = _createSectorPoints(
       userLoc,
       _heading + (widget.fovAngle * 0.04),
@@ -392,16 +341,18 @@ class _FovOverlayState extends State<FovOverlay>
   }
 
   /// Choose number of polygon steps based on on-screen px radius.
-  /// Aim for ~1 vertex every ~18..30 px, bounded by [6..widget.steps].
+  /// Coarser than before to reduce trig cost.
   int _adaptiveSteps(double radiusMeters, LatLng userLoc) {
-    // Need zoom to compute meters-per-pixel. Use lastSeenZoom if available.
+    // Use lastSeenZoom if available.
     final double zoom =
         _lastSeenZoom ?? (widget.zoomCutLarge + widget.zoomCutSmall) / 2.0;
     final double mpp = _metersPerPixel(userLoc.latitude, zoom);
     final double px = (radiusMeters / (mpp == 0 ? 1.0 : mpp)).abs();
 
-    final int raw = (px / 22.0).round(); // ~1 vertex per 22px
-    return raw.clamp(6, widget.steps);
+    // Coarser: ~1 vertex per ~32 px (lighter CPU)
+    final int raw = (px / 32.0).round();
+    // cap to 6..min(widget.steps,12)
+    return raw.clamp(6, widget.steps < 12 ? widget.steps : 12);
   }
 
   /// Replace previous _updatePolygons with geometry-aware comparison to ensure map gets updates.

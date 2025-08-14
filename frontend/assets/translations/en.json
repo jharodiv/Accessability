@@ -79,6 +79,7 @@
   "mapView": "Map View",
   "locationFetchError": "Unable to fetch current location.",
   "location": "Location",
+  "centerOnMe": "Map View",
   "favorite": "Favorite",
   "safety": "Safety",
   "createOrJoinSpace": "Create a new space or join an existing one today",

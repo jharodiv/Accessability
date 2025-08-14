@@ -503,6 +503,8 @@ class _BottomWidgetsState extends State<BottomWidgets> {
   @override
   Widget build(BuildContext context) {
     final bool isDarkMode = Provider.of<ThemeProvider>(context).isDarkMode;
+    debugPrint(
+        'ServiceButtons ignoring? ${_isExpanded || widget.isJoining} (isJoining=${widget.isJoining}, _isExpanded=$_isExpanded)');
 
     return DraggableScrollableSheet(
       // controller: _draggableController,
@@ -564,7 +566,7 @@ class _BottomWidgetsState extends State<BottomWidgets> {
                   boxShadow: const [
                     BoxShadow(
                       color: Colors.black26,
-                      blurRadius: 10,
+                      blurRadius: 5,
                       offset: Offset(0, -5),
                     ),
                   ],

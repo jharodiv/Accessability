@@ -5,9 +5,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_compass/flutter_compass.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 
-/// Simplified FOV overlay with static zoom buckets to avoid heavy work while
-/// pinch-zooming. Polygons are rebuilt only when heading/location change
-/// significantly or when the zoom *bucket* changes (large / medium / small).
+/// FOV overlay that simulates a radial gradient cone using stacked concentric
+/// sector polygons (inner = bold purple, outer = light). Uses static zoom
+/// buckets to avoid heavy work while pinch-zooming.
 class FovOverlay extends StatefulWidget {
   final LatLng? Function() getCurrentLocation;
   final Stream<LatLng>? locationStream;
@@ -23,9 +23,15 @@ class FovOverlay extends StatefulWidget {
   final double largeBeamPx;
   final double mediumBeamPx;
   final double smallBeamPx;
-  final int steps; // max steps
+  final int steps; // max steps (per polygon around arc)
   final double zoomCutLarge;
   final double zoomCutSmall;
+
+  // Gradient tuning: number of concentric layers used to simulate gradient
+  final int gradientLayers;
+  // start (inner) opacity and end (outer) opacity
+  final double startOpacity;
+  final double endOpacity;
 
   const FovOverlay({
     Key? key,
@@ -43,6 +49,10 @@ class FovOverlay extends StatefulWidget {
     this.steps = 18,
     this.zoomCutLarge = 12.0,
     this.zoomCutSmall = 16.0,
+    this.gradientLayers = 12,
+    // LIGHTER DEFAULTS
+    this.startOpacity = 0.36, // inner (was 0.92)
+    this.endOpacity = 0.02, // outer (was 0.06)
   }) : super(key: key);
 
   @override
@@ -161,7 +171,7 @@ class _FovOverlayState extends State<FovOverlay> {
         _lastZoomBucket = bucket;
         _updateRadiusForBucket(bucket);
         // rebuild polygons with the new static radius
-        _buildPolygonsForRadius(_currentRadiusMeters);
+        _buildGradientCone(_currentRadiusMeters);
       }
     } catch (e) {
       if (_debug) debugPrint('FOV zoom check error: $e');
@@ -249,11 +259,12 @@ class _FovOverlayState extends State<FovOverlay> {
     }
 
     // Build polygons immediately with the (static) current radius.
-    _buildPolygonsForRadius(_currentRadiusMeters);
+    _buildGradientCone(_currentRadiusMeters);
   }
 
-  /// Build polygons for a given radius (meters) and push them to map via callback.
-  void _buildPolygonsForRadius(double radiusMeters) {
+  /// Build a gradient cone by stacking [widget.gradientLayers] concentric
+  /// sector polygons from inner (bold) to outer (faint). No outlines/strokes.
+  void _buildGradientCone(double radiusMeters) {
     final LatLng? userLoc = _lastLocation ?? widget.getCurrentLocation();
     if (userLoc == null) {
       _updatePolygons({});
@@ -263,79 +274,49 @@ class _FovOverlayState extends State<FovOverlay> {
     // compute half angle
     final double halfAngle = (widget.fovAngle / 2.0).clamp(1.0, 170.0);
 
-    // shadow (simple offset)
-    final double shadowShift = radiusMeters * 0.12;
-    final LatLng shadowCenter =
-        _computeOffset(userLoc, shadowShift, _heading + 180.0 + 8.0);
-
     final Set<Polygon> next = {};
 
-    // create shadow polygon (fewer steps)
-    final shadowPts = _createSectorPoints(
-      shadowCenter,
-      _heading,
-      halfAngle,
-      radiusMeters * 0.95,
-      steps: _adaptiveSteps(radiusMeters, userLoc),
-    );
-    next.add(Polygon(
-      polygonId: const PolygonId('fov_shadow'),
-      points: shadowPts,
-      fillColor: Colors.black.withOpacity(0.14),
-      strokeColor: Colors.black.withOpacity(0.06),
-      strokeWidth: 0,
-      zIndex: 9,
-      consumeTapEvents: false,
-      geodesic: true,
-    ));
+    final int layers = widget.gradientLayers.clamp(1, 48); // limit size
+    // We'll create layers from innerIndex = 0 (small radius, high opacity)
+    // to outerIndex = layers-1 (full radius, low opacity).
+    for (int layerIndex = 0; layerIndex < layers; layerIndex++) {
+      // t runs 0..1 from inner -> outer
+      final double t = layerIndex / (layers - 1).clamp(1, double.infinity);
 
-    // cone layers: 3 layers using same base radius but smaller multipliers
-    final radii = <double>[
-      radiusMeters * 0.92,
-      radiusMeters * 0.60,
-      radiusMeters * 0.30
-    ];
-    final opacities = <double>[0.36, 0.20, 0.12];
-    final zIndices = <int>[13, 12, 11];
+      // radius for this layer: small inner -> full outer
+      final double layerRadius = radiusMeters * ((layerIndex + 1) / layers);
 
-    for (int i = 0; i < radii.length; i++) {
+      // To avoid tiny inner polygons being effectively invisible, ensure minimum fraction:
+      final double minFrac = 0.05;
+      final double safeRadius = radiusMeters *
+          (minFrac + (1 - minFrac) * ((layerIndex + 1) / layers));
+
+      final double usedRadius = safeRadius.clamp(2.0, radiusMeters);
+
+      // opacity interpolation: startOpacity (inner) -> endOpacity (outer)
+      final double opacity =
+          widget.startOpacity * (1 - t) + widget.endOpacity * t;
+
+      // Build points for this sector
       final pts = _createSectorPoints(
         userLoc,
         _heading,
         halfAngle,
-        radii[i],
-        steps: _adaptiveSteps(radii[i], userLoc),
+        usedRadius,
+        steps: _adaptiveSteps(usedRadius, userLoc),
       );
+
       next.add(Polygon(
-        polygonId: PolygonId('fov_cone_layer_$i'),
+        polygonId: PolygonId('fov_gradient_layer_$layerIndex'),
         points: pts,
-        fillColor: widget.color.withOpacity(opacities[i]),
-        strokeColor: widget.color.withOpacity(opacities[i] * 1.2),
-        strokeWidth: (i == 0) ? 2 : 1,
-        zIndex: zIndices[i],
+        fillColor: widget.color.withOpacity(opacity),
+        strokeColor: Colors.transparent,
+        strokeWidth: 0,
+        zIndex: 100 + layerIndex, // ensure layers draw in order
         consumeTapEvents: false,
         geodesic: true,
       ));
     }
-
-    // highlight (thin)
-    final highlightPts = _createSectorPoints(
-      userLoc,
-      _heading + (widget.fovAngle * 0.04),
-      math.max(2.0, widget.fovAngle * 0.06),
-      radiusMeters * 0.85,
-      steps: _adaptiveSteps(radiusMeters * 0.85, userLoc),
-    );
-    next.add(Polygon(
-      polygonId: const PolygonId('fov_highlight'),
-      points: highlightPts,
-      fillColor: Colors.white.withOpacity(0.06),
-      strokeColor: Colors.white.withOpacity(0.0),
-      strokeWidth: 0,
-      zIndex: 14,
-      consumeTapEvents: false,
-      geodesic: true,
-    ));
 
     _updatePolygons(next);
   }
@@ -351,8 +332,9 @@ class _FovOverlayState extends State<FovOverlay> {
 
     // Coarser: ~1 vertex per ~32 px (lighter CPU)
     final int raw = (px / 32.0).round();
-    // cap to 6..min(widget.steps,12)
-    return raw.clamp(6, widget.steps < 12 ? widget.steps : 12);
+    // cap to 6..min(widget.steps, 20)
+    final int maxSteps = widget.steps < 20 ? widget.steps : 20;
+    return raw.clamp(6, maxSteps);
   }
 
   /// Replace previous _updatePolygons with geometry-aware comparison to ensure map gets updates.

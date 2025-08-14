@@ -37,6 +37,12 @@ class LocationHandler {
   // Subscription for Firestore updates
   StreamSubscription? _firestoreSubscription;
 
+  final StreamController<LatLng> _locationStreamController =
+      StreamController<LatLng>.broadcast();
+
+  /// A broadcast stream that emits the current location whenever it changes.
+  Stream<LatLng> get locationStream => _locationStreamController.stream;
+
   location_package.LocationData? _lastLocation;
   int currentIndex = 0;
   Set<Marker> _markers = {};
@@ -99,6 +105,11 @@ class LocationHandler {
           _lastLocation = locationData;
           _lastUpdatedLocation = newLocation;
           _lastLocationUpdateTime = DateTime.now();
+          try {
+            _locationStreamController.add(currentLocation!);
+          } catch (_) {
+            // ignore if controller closed
+          }
 
           await _updateUserLocation(newLocation);
 
@@ -148,6 +159,12 @@ class LocationHandler {
 
       final latLng = LatLng(locationData.latitude!, locationData.longitude!);
       currentLocation = latLng;
+
+// emit the one-off location as well
+      try {
+        _locationStreamController.add(latLng);
+      } catch (_) {}
+
       _updateUserLocation(latLng);
       return latLng;
     } catch (e) {
@@ -677,5 +694,8 @@ class LocationHandler {
   void disposeHandler() {
     _locationStreamSubscription?.cancel();
     _firestoreSubscription?.cancel();
+    try {
+      _locationStreamController.close();
+    } catch (_) {}
   }
 }

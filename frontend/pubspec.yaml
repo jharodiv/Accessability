@@ -52,6 +52,7 @@ dependencies:
   google_fonts: ^6.2.1
   flutter_polyline_points: 2.1.0
   font_awesome_flutter: ^10.4.0
+  flutter_compass: ^0.8.0
 
   #ForVoiceCommandDependencies
   http: ^1.2.1

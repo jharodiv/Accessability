@@ -77,6 +77,7 @@
   "checkIn": "Mag-check-in",
   "sos": "SOS",
   "mapView": "Tanaw ng Mapa",
+  "centerOnMe": "Tanaw ng Mapa",
   "locationFetchError": "Hindi makuha ang kasalukuyang lokasyon.",
   "location": "Lokasyon",
   "favorite": "Paborito",

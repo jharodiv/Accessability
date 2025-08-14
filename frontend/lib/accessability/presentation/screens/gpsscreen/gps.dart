@@ -5,6 +5,7 @@ import 'package:AccessAbility/accessability/data/model/place.dart';
 import 'package:AccessAbility/accessability/firebaseServices/place/geocoding_service.dart';
 import 'package:AccessAbility/accessability/logic/bloc/place/bloc/place_state.dart'
     as place_state;
+import 'package:AccessAbility/accessability/presentation/widgets/gpsWidgets/fov_overlay_widget.dart';
 import 'package:AccessAbility/accessability/utils/badge_icon.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:http/http.dart' as http;
@@ -38,6 +39,7 @@ import 'package:AccessAbility/accessability/logic/bloc/auth/auth_bloc.dart';
 import 'package:AccessAbility/accessability/logic/bloc/auth/auth_state.dart';
 import 'package:AccessAbility/accessability/logic/bloc/place/bloc/place_bloc.dart';
 import 'package:AccessAbility/accessability/data/model/place.dart';
+import 'package:flutter_compass/flutter_compass.dart';
 
 class GpsScreen extends StatefulWidget {
   const GpsScreen({super.key});
@@ -77,16 +79,21 @@ class _GpsScreenState extends State<GpsScreen> {
       30.0; // base radius for pwd locations — tweak as needed
   final Color _pwdCircleColor = const Color(0xFF7C4DFF);
   double _navigationPanelOffset = 0.0;
+  Set<Polygon> _fovPolygons = {};
 
   MapType _currentMapType = MapType.normal;
   MapPerspective? _pendingPerspective; // New field
 
   // Variables for polylines.a
   Set<Polyline> _polylines = {};
-  final PolylinePoints _polylinePoints = PolylinePoints();
+
   final String _googleAPIKey = dotenv.env['GOOGLE_API_KEY'] ?? '';
   final double _initialNavigationPanelBottom = 0.20;
   double _pwdRadiusMultiplier = 1.0;
+  double _currentZoomPrev = 14.0;
+  late final ValueNotifier<double> _mapZoomNotifier =
+      ValueNotifier<double>(_currentZoom);
+  Timer? _zoomDebounceTimer;
 
   @override
   void initState() {
@@ -194,6 +201,35 @@ class _GpsScreenState extends State<GpsScreen> {
     });
   }
 
+  bool _latLngEqual(LatLng a, LatLng b, {double eps = 1e-6}) {
+    return (a.latitude - b.latitude).abs() <= eps &&
+        (a.longitude - b.longitude).abs() <= eps;
+  }
+
+  bool _pointsEqual(List<LatLng> a, List<LatLng> b, {double eps = 1e-6}) {
+    if (a.length != b.length) return false;
+    for (int i = 0; i < a.length; i++) {
+      if (!_latLngEqual(a[i], b[i], eps: eps)) return false;
+    }
+    return true;
+  }
+
+  bool _polygonsGeometryEqual(Set<Polygon> a, Set<Polygon> b) {
+    if (a.length != b.length) return false;
+    final Map<String, Polygon> ma = {for (var p in a) p.polygonId.value: p};
+    final Map<String, Polygon> mb = {for (var p in b) p.polygonId.value: p};
+    if (!ma.keys.toSet().containsAll(mb.keys.toSet())) return false;
+    for (final id in ma.keys) {
+      final pa = ma[id]!;
+      final pb = mb[id]!;
+      if (!_pointsEqual(pa.points, pb.points)) return false;
+      // optionally compare style if you care about it:
+      if (pa.fillColor != pb.fillColor || pa.strokeWidth != pb.strokeWidth)
+        return false;
+    }
+    return true;
+  }
+
   /// Call this to change PWD circle size and immediately rebuild circles
   void setPwdRadiusMultiplier(double multiplier) {
     setState(() {
@@ -293,6 +329,10 @@ class _GpsScreenState extends State<GpsScreen> {
   @override
   void dispose() {
     _locationHandler.disposeHandler();
+    _zoomDebounceTimer?.cancel();
+    _mapZoomNotifier.dispose();
+    _locationHandler.disposeHandler();
+    super.dispose();
     super.dispose();
   }
 
@@ -879,6 +919,8 @@ class _GpsScreenState extends State<GpsScreen> {
     final bool isDarkMode = Provider.of<ThemeProvider>(context).isDarkMode;
     _mapKey = ValueKey(isDarkMode);
     final screenHeight = MediaQuery.of(context).size.height;
+    final Set<Polygon> basePolys =
+        _markerHandler.createPolygons(pwdFriendlyLocations);
 
     return BlocListener<PlaceBloc, place_state.PlaceState>(
       listener: (context, state) {
@@ -964,14 +1006,33 @@ class _GpsScreenState extends State<GpsScreen> {
                         zoom: 14,
                       ),
                       onCameraMove: (CameraPosition pos) {
-                        // update current zoom and recompute circles only when zoom changed enough
                         final newZoom = pos.zoom;
-                        if ((newZoom - _currentZoom).abs() > 0.01) {
-                          setState(() {
-                            _currentZoom = newZoom;
-                            // recompute circles using the existing pwdFriendlyLocations list
-                            _circles = createPwdfriendlyRouteCircles(
-                                pwdFriendlyLocations);
+
+                        // Always keep a cheap local copy for other logic
+                        _currentZoom = newZoom;
+
+                        // Update the notifier (cheap, no widget rebuild)
+                        _mapZoomNotifier.value = newZoom;
+
+                        // Only recompute circles (heavy) when zoom changed sufficiently,
+                        // and debounce so we don't recompute mid-gesture on every frame.
+                        const double zoomThreshold =
+                            0.16; // increased threshold to avoid tiny updates
+                        if ((newZoom - _currentZoomPrev).abs() >
+                            zoomThreshold) {
+                          _currentZoomPrev = newZoom;
+
+                          // debounce the heavy circle recompute by 180-250ms (tunable)
+                          _zoomDebounceTimer?.cancel();
+                          _zoomDebounceTimer =
+                              Timer(const Duration(milliseconds: 200), () {
+                            if (mounted) {
+                              setState(() {
+                                // recompute circles only after pinch stops / slows down
+                                _circles = createPwdfriendlyRouteCircles(
+                                    pwdFriendlyLocations);
+                              });
+                            }
                           });
                         }
                       },
@@ -1000,13 +1061,25 @@ class _GpsScreenState extends State<GpsScreen> {
                           _pendingPerspective = null;
                         }
                       },
-                      polygons:
-                          _markerHandler.createPolygons(pwdFriendlyLocations),
+                      polygons: basePolys.union(_fovPolygons),
                       onTap: (LatLng position) {
                         setState(() {
                           _selectedPlace = null;
                         });
                       },
+                    ),
+                    FovOverlay(
+                      getCurrentLocation: () =>
+                          _locationHandler.currentLocation,
+                      locationStream: _locationHandler.locationStream,
+                      getMapZoom: () => _mapZoomNotifier.value,
+                      onPolygonsChanged: (polys) {
+                        if (!_polygonsGeometryEqual(_fovPolygons, polys)) {
+                          setState(() => _fovPolygons = polys);
+                        }
+                      },
+                      fovAngle: 40.0,
+                      steps: 14,
                     ),
 
                     // Navigation Controls

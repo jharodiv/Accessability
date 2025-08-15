@@ -42,11 +42,13 @@ class UserRepository {
   void cacheUserData(UserModel user) {
     _sharedPrefs?.setString('user_userId', user.uid);
     _sharedPrefs?.setString('user_userName', user.username);
+    _sharedPrefs?.setString('user_firstName', user.firstName);
+    _sharedPrefs?.setString('user_lastName', user.lastName);
     _sharedPrefs?.setString('user_userEmail', user.email);
     _sharedPrefs?.setString('user_profilePicture', user.profilePicture);
     _sharedPrefs?.setString('user_contactNumber', user.contactNumber);
-    _sharedPrefs?.setBool('user_biometricEnabled', user.biometricEnabled); 
-    _sharedPrefs?.setString('user_deviceId', user.deviceId ?? ''); 
+    _sharedPrefs?.setBool('user_biometricEnabled', user.biometricEnabled);
+    _sharedPrefs?.setString('user_deviceId', user.deviceId ?? '');
 
     _sharedPrefs?.setBool(
         'user_hasCompletedOnboarding', user.hasCompletedOnboarding);
@@ -57,25 +59,30 @@ class UserRepository {
   Future<UserModel?> getCachedUser() async {
     final userId = _sharedPrefs?.getString('user_userId');
     final userName = _sharedPrefs?.getString('user_userName');
+    final firstName = _sharedPrefs?.getString('user_firstName') ?? '';
+    final lastName = _sharedPrefs?.getString('user_lastName') ?? '';
     final userEmail = _sharedPrefs?.getString('user_userEmail');
     final profilePicture = _sharedPrefs?.getString('user_profilePicture') ?? '';
     final contactNumber = _sharedPrefs?.getString('user_contactNumber') ?? '';
     final hasCompletedOnboarding =
         _sharedPrefs?.getBool('user_hasCompletedOnboarding') ?? false;
-    final biometricEnabled = _sharedPrefs?.getBool('user_biometricEnabled') ?? false;
-    final deviceId = _sharedPrefs?.getString('user_deviceId'); 
+    final biometricEnabled =
+        _sharedPrefs?.getBool('user_biometricEnabled') ?? false;
+    final deviceId = _sharedPrefs?.getString('user_deviceId');
     final isDarkMode = _sharedPrefs?.getBool('isDarkMode') ?? false;
 
     if (userId != null && userName != null && userEmail != null) {
       return UserModel(
         uid: userId,
         username: userName,
+        firstName: firstName,
+        lastName: lastName,
         email: userEmail,
         contactNumber: contactNumber,
         profilePicture: profilePicture,
         hasCompletedOnboarding: hasCompletedOnboarding,
-        biometricEnabled: biometricEnabled, 
-        deviceId: deviceId, 
+        biometricEnabled: biometricEnabled,
+        deviceId: deviceId,
         details: UserDetails(
           address: _sharedPrefs?.getString('user_address') ?? '',
           phoneNumber: _sharedPrefs?.getString('user_phoneNumber') ?? '',
@@ -106,13 +113,15 @@ class UserRepository {
   void clearUserCache() {
     _sharedPrefs?.remove('user_userId');
     _sharedPrefs?.remove('user_userName');
+    _sharedPrefs?.remove('user_firstName');
+    _sharedPrefs?.remove('user_lastName');
     _sharedPrefs?.remove('user_userEmail');
     _sharedPrefs?.remove('user_profilePicture');
     _sharedPrefs?.remove('user_contactNumber');
     _sharedPrefs?.remove('user_hasCompletedOnboarding');
-    _sharedPrefs?.remove('user_biometricEnabled'); 
-    _sharedPrefs?.remove('user_deviceId'); 
-    _sharedPrefs?.remove('backup_email'); 
+    _sharedPrefs?.remove('user_biometricEnabled');
+    _sharedPrefs?.remove('user_deviceId');
+    _sharedPrefs?.remove('backup_email');
     _sharedPrefs?.remove('backup_password');
     print('User cache cleared');
   }

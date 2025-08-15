@@ -13,6 +13,8 @@ class SignupForm extends StatefulWidget {
 
 class _SignupFormState extends State<SignupForm> {
   final TextEditingController usernameController = TextEditingController();
+  final TextEditingController firstNameController = TextEditingController();
+  final TextEditingController lastNameController = TextEditingController();
   final TextEditingController emailController = TextEditingController();
   final TextEditingController contactNumberController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
@@ -27,6 +29,8 @@ class _SignupFormState extends State<SignupForm> {
   @override
   void dispose() {
     usernameController.dispose();
+    firstNameController.dispose();
+    lastNameController.dispose();
     emailController.dispose();
     contactNumberController.dispose();
     passwordController.dispose();
@@ -36,6 +40,8 @@ class _SignupFormState extends State<SignupForm> {
 
   void signup() {
     String username = usernameController.text.trim();
+    String firstName = firstNameController.text.trim();
+    String lastName = lastNameController.text.trim();
     String email = emailController.text.trim();
     String contact = contactNumberController.text.trim();
     String password = passwordController.text.trim();
@@ -43,6 +49,8 @@ class _SignupFormState extends State<SignupForm> {
 
     // Check for empty fields
     if (username.isEmpty ||
+        firstName.isEmpty ||
+        lastName.isEmpty ||
         email.isEmpty ||
         contact.isEmpty ||
         password.isEmpty ||
@@ -64,6 +72,30 @@ class _SignupFormState extends State<SignupForm> {
         builder: (context) => ErrorDisplayWidget(
           title: "Invalid Username",
           message: "Username must be at least 6 characters long.",
+        ),
+      );
+      return;
+    }
+
+    // First name must be at least 2 characters
+    if (firstName.length < 2) {
+      showDialog(
+        context: context,
+        builder: (context) => ErrorDisplayWidget(
+          title: "Invalid First Name",
+          message: "First names must be at least 2 characters long.",
+        ),
+      );
+      return;
+    }
+
+    // Last name must be at least 2 characters
+    if (lastName.length < 2) {
+      showDialog(
+        context: context,
+        builder: (context) => ErrorDisplayWidget(
+          title: "Invalid Last Name",
+          message: "Last names must be at least 2 characters long.",
         ),
       );
       return;
@@ -123,6 +155,8 @@ class _SignupFormState extends State<SignupForm> {
     // If all validations pass, navigate to the next screen
     final signUpModel = SignUpModel(
       username: username,
+      firstName: firstName,
+      lastName: lastName,
       email: email,
       password: password,
       contactNumber: contact,
@@ -162,6 +196,26 @@ class _SignupFormState extends State<SignupForm> {
                   controller: usernameController,
                   decoration: const InputDecoration(
                     labelText: 'Username',
+                    border: OutlineInputBorder(
+                      borderSide: BorderSide(color: Colors.black, width: 3.0),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                TextField(
+                  controller: firstNameController,
+                  decoration: const InputDecoration(
+                    labelText: 'First Name',
+                    border: OutlineInputBorder(
+                      borderSide: BorderSide(color: Colors.black, width: 3.0),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                TextField(
+                  controller: lastNameController,
+                  decoration: const InputDecoration(
+                    labelText: 'Last Name',
                     border: OutlineInputBorder(
                       borderSide: BorderSide(color: Colors.black, width: 3.0),
                     ),

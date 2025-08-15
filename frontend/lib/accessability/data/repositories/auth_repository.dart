@@ -23,6 +23,8 @@ class AuthRepository {
         signUpModel.email,
         signUpModel.password,
         signUpModel.username,
+        signUpModel.firstName,
+        signUpModel.lastName,
         signUpModel.contactNumber,
         profilePicture,
       );

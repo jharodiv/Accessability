@@ -203,6 +203,37 @@ class _AccountScreenState extends State<AccountScreen> {
                         ),
                       ),
                     ),
+                    // First Name
+                    ListTile(
+                      leading: const Icon(Icons.person_outline,
+                          color: Color(0xFF6750A4)),
+                      title: Text(
+                        'firstName'.tr(),
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      subtitle: Text(
+                        user.firstName.isNotEmpty
+                            ? user.firstName
+                            : 'notProvided'.tr(),
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                    const Divider(),
+                    // Last Name
+                    ListTile(
+                      leading: const Icon(Icons.person_outline,
+                          color: Color(0xFF6750A4)),
+                      title: Text(
+                        'lastName'.tr(),
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      subtitle: Text(
+                        user.lastName.isNotEmpty
+                            ? user.lastName
+                            : 'notProvided'.tr(),
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                    ),
                     // Phone Number
                     ListTile(
                       leading: const Icon(Icons.phone_outlined,

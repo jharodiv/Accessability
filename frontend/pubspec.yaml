@@ -58,14 +58,16 @@ dependencies:
   http: ^1.2.1
   tflite_flutter: ^0.11.0
   permission_handler: ^12.0.1
-  record: ^5.2.1
-  # Removed tflite_flutter_helper to fix version conflict
+  audio_streamer: ^4.0.1
 
 dev_dependencies:
   flutter_launcher_icons: ^0.14.3
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
+
+dependency_overrides:
+  permission_handler: ^12.0.1
 
 flutter:
   uses-material-design: true

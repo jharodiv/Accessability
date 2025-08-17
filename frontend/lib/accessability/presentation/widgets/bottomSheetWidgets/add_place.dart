@@ -2,7 +2,7 @@ import 'package:AccessAbility/accessability/logic/bloc/place/bloc/place_bloc.dar
 import 'package:AccessAbility/accessability/logic/bloc/place/bloc/place_event.dart';
 import 'package:AccessAbility/accessability/logic/bloc/place/bloc/place_state.dart';
 import 'package:AccessAbility/accessability/presentation/widgets/shimmer/shimmer_place.dart';
-import 'package:AccessAbility/accessability/firebaseServices/models/place.dart';
+import 'package:AccessAbility/accessability/data/model/place.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:easy_localization/easy_localization.dart';

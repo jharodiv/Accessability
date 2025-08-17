@@ -1,6 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import '../models/place.dart'; // Ensure the correct import path for the Place model
+import '../../data/model/place.dart'; // Ensure the correct import path for the Place model
 
 class PlaceService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;

@@ -1,4 +1,4 @@
-import 'package:AccessAbility/accessability/firebaseServices/models/place.dart';
+import 'package:AccessAbility/accessability/data/model/place.dart';
 import 'package:equatable/equatable.dart';
 
 abstract class PlaceState extends Equatable {

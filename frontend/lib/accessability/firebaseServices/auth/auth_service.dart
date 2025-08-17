@@ -13,7 +13,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  late FCMService _fcmService;
   final FirebaseStorage _firebaseStorage = FirebaseStorage.instance;
 
   User? getCurrentUser() {
@@ -25,6 +24,8 @@ class AuthService {
     String email,
     String password,
     String username,
+    String firstName,
+    String lastName,
     String contactNumber,
     XFile? profilePicture,
   ) async {
@@ -56,6 +57,8 @@ class AuthService {
         'uid': user.uid,
         'email': email,
         'username': username,
+        'firstName': firstName,
+        'lastName': lastName,
         'contactNumber': contactNumber,
         'profilePicture': profilePictureUrl ??
             'https://firebasestorage.googleapis.com/v0/b/accessability-71ef7.firebasestorage.app/o/profile_pictures%2Fdefault_profile.png?alt=media&token=bc7a75a7-a78e-4460-b816-026a8fc341ba',

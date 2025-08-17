@@ -1,7 +1,7 @@
 import 'package:AccessAbility/accessability/presentation/widgets/bottomSheetWidgets/safety_assist_helper_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:AccessAbility/accessability/firebaseServices/models/emergency_contact.dart';
+import 'package:AccessAbility/accessability/data/model/emergency_contact.dart';
 import 'package:AccessAbility/accessability/logic/bloc/emergency/bloc/emergency_bloc.dart';
 import 'package:AccessAbility/accessability/logic/bloc/emergency/bloc/emergency_event.dart';
 import 'package:AccessAbility/accessability/logic/bloc/emergency/bloc/emergency_state.dart';

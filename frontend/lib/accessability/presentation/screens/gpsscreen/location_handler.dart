@@ -10,7 +10,6 @@ import 'package:flutter/services.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:http/http.dart' as http;
 import 'package:location/location.dart' as location_package;
-import 'package:AccessAbility/accessability/presentation/widgets/google_helper/openstreetmap_helper.dart';
 
 class LocationHandler {
   final location_package.Location _location = location_package.Location();
@@ -37,6 +36,12 @@ class LocationHandler {
 
   // Subscription for Firestore updates
   StreamSubscription? _firestoreSubscription;
+
+  final StreamController<LatLng> _locationStreamController =
+      StreamController<LatLng>.broadcast();
+
+  /// A broadcast stream that emits the current location whenever it changes.
+  Stream<LatLng> get locationStream => _locationStreamController.stream;
 
   location_package.LocationData? _lastLocation;
   int currentIndex = 0;
@@ -100,6 +105,11 @@ class LocationHandler {
           _lastLocation = locationData;
           _lastUpdatedLocation = newLocation;
           _lastLocationUpdateTime = DateTime.now();
+          try {
+            _locationStreamController.add(currentLocation!);
+          } catch (_) {
+            // ignore if controller closed
+          }
 
           await _updateUserLocation(newLocation);
 
@@ -149,6 +159,12 @@ class LocationHandler {
 
       final latLng = LatLng(locationData.latitude!, locationData.longitude!);
       currentLocation = latLng;
+
+// emit the one-off location as well
+      try {
+        _locationStreamController.add(latLng);
+      } catch (_) {}
+
       _updateUserLocation(latLng);
       return latLng;
     } catch (e) {
@@ -603,11 +619,64 @@ class LocationHandler {
     setMapStyle(controller, isDarkMode);
   }
 
-  Future<void> panCameraToLocation(LatLng location) async {
-    if (mapController != null) {
+  Future<void> panCameraToLocation(LatLng location,
+      {double zoom = 17.0}) async {
+    debugPrint('LocationHandler.panCameraToLocation -> $location (zoom=$zoom)');
+
+    if (mapController == null) {
+      debugPrint(
+          'LocationHandler.panCameraToLocation: mapController == null — cannot animate');
+      return;
+    }
+
+    try {
+      // Try animated camera first
       await mapController!.animateCamera(
-        CameraUpdate.newLatLngZoom(location, 14.0),
+        CameraUpdate.newCameraPosition(
+          CameraPosition(target: location, zoom: zoom),
+        ),
       );
+      debugPrint(
+          'LocationHandler.panCameraToLocation: animateCamera completed');
+    } catch (e, st) {
+      debugPrint(
+          'LocationHandler.panCameraToLocation: animateCamera threw: $e\n$st');
+    }
+
+    // Small delay to allow camera to settle, then verify visible region center
+    await Future.delayed(const Duration(milliseconds: 250));
+    try {
+      final bounds = await mapController!.getVisibleRegion();
+      final centerLat =
+          (bounds.northeast.latitude + bounds.southwest.latitude) / 2;
+      final centerLng =
+          (bounds.northeast.longitude + bounds.southwest.longitude) / 2;
+      final center = LatLng(centerLat, centerLng);
+
+      // distance in meters between requested location and actual center
+      final distMeters = _calculateDistance(
+        center.latitude,
+        center.longitude,
+        location.latitude,
+        location.longitude,
+      );
+
+      debugPrint(
+          'LocationHandler.panCameraToLocation: center=$center distMeters=$distMeters');
+
+      // If still far (> ~80 meters) force-move camera
+      if (distMeters > 80) {
+        debugPrint(
+            'LocationHandler.panCameraToLocation: forcing moveCamera due to distance');
+        await mapController!.moveCamera(
+          CameraUpdate.newCameraPosition(
+            CameraPosition(target: location, zoom: zoom),
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint(
+          'LocationHandler.panCameraToLocation: getVisibleRegion / verify failed: $e');
     }
   }
 
@@ -625,5 +694,8 @@ class LocationHandler {
   void disposeHandler() {
     _locationStreamSubscription?.cancel();
     _firestoreSubscription?.cancel();
+    try {
+      _locationStreamController.close();
+    } catch (_) {}
   }
 }

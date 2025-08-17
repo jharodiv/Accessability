@@ -1,6 +1,8 @@
 class UserModel {
   final String uid; // Use `uid` instead of `id` to match Firestore
   final String username;
+  final String firstName;
+  final String lastName;
   final String email;
   final String contactNumber;
   final String profilePicture;
@@ -8,13 +10,15 @@ class UserModel {
   final UserSettings settings;
   final DateTime createdAt;
   final DateTime updatedAt;
-  final bool hasCompletedOnboarding; 
+  final bool hasCompletedOnboarding;
   final bool biometricEnabled; // Add this field
   final String? deviceId; // Add this field
 
   UserModel({
     required this.uid,
     required this.username,
+    required this.firstName,
+    required this.lastName,
     required this.email,
     required this.contactNumber,
     required this.profilePicture,
@@ -31,6 +35,8 @@ class UserModel {
   UserModel copyWith({
     String? uid,
     String? username,
+    String? firstName,
+    String? lastName,
     String? email,
     String? contactNumber,
     String? profilePicture,
@@ -45,6 +51,8 @@ class UserModel {
     return UserModel(
       uid: uid ?? this.uid,
       username: username ?? this.username,
+      firstName: firstName ?? this.firstName,
+      lastName: lastName ?? this.lastName,
       email: email ?? this.email,
       contactNumber: contactNumber ?? this.contactNumber,
       profilePicture: profilePicture ?? this.profilePicture,
@@ -63,6 +71,8 @@ class UserModel {
     return UserModel(
       uid: json['uid'] ?? '', // Fallback to empty string if null
       username: json['username'] ?? 'Unknown', // Fallback to 'Unknown' if null
+      firstName: json['firstName'] ?? '', // Fallback to empty string if null
+      lastName: json['lastName'] ?? '', // Fallback to empty string if null
       email: json['email'] ?? '', // Fallback to empty string if null
       contactNumber: json['contactNumber'] ?? '',
       profilePicture: json['profilePicture'] ?? '',
@@ -77,7 +87,7 @@ class UserModel {
       hasCompletedOnboarding:
           json['hasCompletedOnboarding'] ?? false, // Fallback to false if null
       biometricEnabled: json['biometricEnabled'] ?? false,
-      deviceId: json['deviceId'], 
+      deviceId: json['deviceId'],
     );
   }
 
@@ -85,6 +95,8 @@ class UserModel {
     return {
       'uid': uid,
       'username': username,
+      'firstName': firstName,
+      'lastName': lastName,
       'email': email,
       'contactNumber': contactNumber,
       'details': details.toJson(),
@@ -92,7 +104,7 @@ class UserModel {
       'createdAt': createdAt.toIso8601String(),
       'updatedAt': updatedAt.toIso8601String(),
       'hasCompletedOnboarding': hasCompletedOnboarding,
-      'biometricEnabled': biometricEnabled, 
+      'biometricEnabled': biometricEnabled,
       'deviceId': deviceId,
     };
   }

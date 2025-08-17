@@ -3,15 +3,18 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 import 'package:http/http.dart' as http;
-import 'package:record/record.dart';
 import 'package:speech_to_text/speech_to_text.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:AccessAbility/accessability/presentation/widgets/homepageWidgets/bottomWidgetFiles/searchBar/Dory/DoryModelService.dart';
+import 'package:audio_streamer/audio_streamer.dart';
 
 class VoiceCommandService {
   final Dorymodelservice _doryService = Dorymodelservice();
   final SpeechToText _speechToText = SpeechToText();
-  final AudioRecorder _audioRecorder = AudioRecorder();
+
+  // AudioStreamer related variables
+  AudioStreamer? _audioStreamer;
+  StreamSubscription<List<double>>? _audioSubscription;
 
   bool _isListening = false;
   bool _isDoryActive = false;
@@ -86,7 +89,7 @@ class VoiceCommandService {
     }
   }
 
-  /// Start continuous listening for Dory wake word using audio processing
+  /// Start continuous listening for Dory wake word using AudioStreamer
   Future<void> startListening() async {
     if (_isListening) return;
 
@@ -96,15 +99,17 @@ class VoiceCommandService {
     _emitState(VoiceCommandState.listeningForDory());
 
     try {
-      // Start audio stream for wake word detection
-      final stream = await _audioRecorder.startStream(const RecordConfig(
-        encoder: AudioEncoder.pcm16bits,
-        sampleRate: SAMPLE_RATE,
-        numChannels: 1,
-      ));
+      // Request microphone permission first
+      if (!await requestMicrophonePermission()) {
+        throw Exception('Microphone permission not granted');
+      }
 
-      // Process audio stream continuously for wake word detection
-      stream.listen(
+      // Initialize AudioStreamer
+      _audioStreamer = AudioStreamer();
+
+      // Listen to audio stream for wake word detection
+      // AudioStreamer starts automatically when you subscribe to the stream
+      _audioSubscription = _audioStreamer!.audioStream.listen(
         (audioData) => _processAudioForWakeWord(audioData),
         onError: (error) {
           print('❌ Audio stream error: $error');
@@ -118,6 +123,7 @@ class VoiceCommandService {
         },
       );
 
+      // No need to call start() - streaming begins automatically when you listen to audioStream
       print('✅ Wake word detection started');
     } catch (e) {
       print('❌ Failed to start wake word detection: $e');
@@ -127,14 +133,13 @@ class VoiceCommandService {
   }
 
   /// Process audio chunks for wake word detection
-  void _processAudioForWakeWord(Uint8List audioData) {
+  void _processAudioForWakeWord(List<double> audioData) {
     if (_isDoryActive) return; // Skip if Dory already detected
 
-    // Convert audio bytes to doubles
-    List<double> audioSamples = _bytesToDoubles(audioData);
+    // AudioStreamer already provides List<double>, so use directly
+    _audioBuffer.addAll(audioData);
 
     // Maintain rolling buffer
-    _audioBuffer.addAll(audioSamples);
     if (_audioBuffer.length > BUFFER_SIZE) {
       _audioBuffer.removeRange(0, _audioBuffer.length - BUFFER_SIZE);
     }
@@ -185,14 +190,23 @@ class VoiceCommandService {
     _isDoryActive = true;
     _emitState(VoiceCommandState.doryDetected(prediction.confidence));
 
-    // Stop audio recording for wake word detection
-    await _audioRecorder.stop();
+    // Stop audio stream for wake word detection
+    await _stopAudioStream();
 
     // Short delay for better UX
     await Future.delayed(const Duration(milliseconds: 300));
 
     // Start command listening using STT
     await _startCommandListening();
+  }
+
+  /// Stop the current audio stream
+  Future<void> _stopAudioStream() async {
+    await _audioSubscription?.cancel();
+    _audioSubscription = null;
+
+    // AudioStreamer doesn't have a stop() method - it stops when you cancel the subscription
+    _audioStreamer = null;
   }
 
   /// Start speech-to-text for command recognition after Dory detected
@@ -332,7 +346,7 @@ class VoiceCommandService {
     }
   }
 
-  /// Stop listening (same interface as before)
+  /// Stop listening (updated for AudioStreamer)
   Future<void> stopListening() async {
     print('🛑 Stopping voice command service...');
 
@@ -340,7 +354,10 @@ class VoiceCommandService {
     _isDoryActive = false;
     _isProcessingCommand = false;
 
-    await _audioRecorder.stop();
+    // Stop audio stream
+    await _stopAudioStream();
+
+    // Stop speech recognition
     await _speechToText.stop();
 
     _audioBuffer.clear();
@@ -371,22 +388,12 @@ class VoiceCommandService {
     return features;
   }
 
-  /// Convert audio bytes to doubles
-  List<double> _bytesToDoubles(Uint8List bytes) {
-    List<double> doubles = [];
-    for (int i = 0; i < bytes.length - 1; i += 2) {
-      int sample = (bytes[i + 1] << 8) | bytes[i];
-      doubles.add(sample / 32768.0); // Normalize to -1.0 to 1.0
-    }
-    return doubles;
-  }
-
   /// Emit state to listeners (same interface as before)
   void _emitState(VoiceCommandState state) {
     _stateController?.add(state);
   }
 
-  /// Dispose resources (same as before)
+  /// Dispose resources (updated for AudioStreamer)
   void dispose() {
     stopListening();
     _doryService.dispose();

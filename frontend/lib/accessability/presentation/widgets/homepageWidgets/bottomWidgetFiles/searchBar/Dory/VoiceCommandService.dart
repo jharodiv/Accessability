@@ -1,33 +1,36 @@
 // lib/services/voice_command_service.dart
 import 'dart:async';
 import 'dart:convert';
-import 'package:AccessAbility/accessability/presentation/widgets/homepageWidgets/bottomWidgetFiles/searchBar/Dory/DoryModelService.dart';
+import 'dart:typed_data';
 import 'package:http/http.dart' as http;
+import 'package:record/record.dart';
 import 'package:speech_to_text/speech_to_text.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:AccessAbility/accessability/presentation/widgets/homepageWidgets/bottomWidgetFiles/searchBar/Dory/DoryModelService.dart';
 
 class VoiceCommandService {
   final Dorymodelservice _doryService = Dorymodelservice();
   final SpeechToText _speechToText = SpeechToText();
+  final AudioRecorder _audioRecorder = AudioRecorder();
 
   bool _isListening = false;
   bool _isDoryActive = false;
   bool _isProcessingCommand = false;
   StreamController<VoiceCommandState>? _stateController;
 
-  // Configuration
-  static const double DORY_CONFIDENCE_THRESHOLD =
-      0.7; // 70% confidence for Dory detection
-  static const double COMMAND_CONFIDENCE_THRESHOLD =
-      50.0; // 50% for command execution
-  static const int COMMAND_TIMEOUT_SECONDS =
-      10; // Wait 10 seconds for command after Dory
+  // Audio processing for wake word detection
+  List<double> _audioBuffer = [];
+  static const int SAMPLE_RATE = 16000;
+  static const int BUFFER_SIZE = SAMPLE_RATE * 2; // 2 seconds of audio
+  static const double DORY_CONFIDENCE_THRESHOLD = 0.6;
+  static const double COMMAND_CONFIDENCE_THRESHOLD = 50.0;
+  static const int COMMAND_TIMEOUT_SECONDS = 10;
 
   VoiceCommandService() {
     _stateController = StreamController<VoiceCommandState>.broadcast();
   }
 
-  /// Stream of voice command states
+  /// Stream of voice command states (keeping same interface as before)
   Stream<VoiceCommandState> get stateStream => _stateController!.stream;
 
   Future<bool> requestMicrophonePermission() async {
@@ -38,16 +41,14 @@ class VoiceCommandService {
     }
 
     if (status.isDenied) {
-      // This will show the permission dialog
       status = await Permission.microphone.request();
       return status.isGranted;
     }
 
     if (status.isPermanentlyDenied) {
-      // User denied permanently → open settings
       print(
           '❌ Microphone permission permanently denied. Please enable it from settings.');
-      openAppSettings(); // From permission_handler
+      openAppSettings();
       return false;
     }
 
@@ -57,7 +58,7 @@ class VoiceCommandService {
   /// Initialize both Dory model and speech recognition
   Future<bool> initialize() async {
     try {
-      // Initialize Dory model
+      // Initialize Dory wake word model
       final doryLoaded =
           await _doryService.loadModel('assets/model/best_dory_model.tflite');
       if (!doryLoaded) {
@@ -65,7 +66,7 @@ class VoiceCommandService {
         return false;
       }
 
-      // Initialize speech recognition
+      // Initialize speech recognition (only for commands after Dory detection)
       final speechAvailable = await _speechToText.initialize(
         onError: (error) => print('Speech recognition error: $error'),
         onStatus: (status) => print('Speech status: $status'),
@@ -76,12 +77,7 @@ class VoiceCommandService {
         return false;
       }
 
-      if (!speechAvailable) {
-        print('❌ Speech recognition not available');
-        return false;
-      }
-
-      print('✅ Voice Command Service initialized');
+      print('✅ Voice Command Service initialized with wake word detection');
       _emitState(VoiceCommandState.ready());
       return true;
     } catch (e) {
@@ -90,77 +86,151 @@ class VoiceCommandService {
     }
   }
 
-  /// Start continuous listening for Dory wake word
+  /// Start continuous listening for Dory wake word using audio processing
   Future<void> startListening() async {
     if (_isListening) return;
 
+    print('🎙️ Starting continuous wake word detection...');
     _isListening = true;
+    _isDoryActive = false;
     _emitState(VoiceCommandState.listeningForDory());
 
-    await _speechToText.listen(
-      onResult: _handleSpeechResult,
-      listenFor: const Duration(seconds: 30),
-      pauseFor: const Duration(milliseconds: 500),
-      partialResults: true,
-    );
-  }
+    try {
+      // Start audio stream for wake word detection
+      final stream = await _audioRecorder.startStream(const RecordConfig(
+        encoder: AudioEncoder.pcm16bits,
+        sampleRate: SAMPLE_RATE,
+        numChannels: 1,
+      ));
 
-  /// Stop listening
-  Future<void> stopListening() async {
-    _isListening = false;
-    _isDoryActive = false;
-    _isProcessingCommand = false;
+      // Process audio stream continuously for wake word detection
+      stream.listen(
+        (audioData) => _processAudioForWakeWord(audioData),
+        onError: (error) {
+          print('❌ Audio stream error: $error');
+          _handleAudioStreamError();
+        },
+        onDone: () {
+          print('🔚 Audio stream ended');
+          if (_isListening && !_isDoryActive) {
+            _restartWakeWordListening();
+          }
+        },
+      );
 
-    await _speechToText.stop();
-    _emitState(VoiceCommandState.idle());
-  }
-
-  /// Handle speech recognition results
-  void _handleSpeechResult(result) async {
-    final text = result.recognizedWords.toLowerCase();
-    print('🎙️ Heard: "$text"');
-
-    if (!_isDoryActive) {
-      // Phase 1: Check for Dory wake word
-      await _checkForDory(text);
-    } else {
-      // Phase 2: Process command after Dory detected
-      if (result.finalResult) {
-        await _processCommand(text);
-      }
+      print('✅ Wake word detection started');
+    } catch (e) {
+      print('❌ Failed to start wake word detection: $e');
+      _isListening = false;
+      _emitState(VoiceCommandState.error('Failed to start listening: $e'));
     }
   }
 
-  /// Check if speech contains Dory wake word
-  Future<void> _checkForDory(String text) async {
+  /// Process audio chunks for wake word detection
+  void _processAudioForWakeWord(Uint8List audioData) {
+    if (_isDoryActive) return; // Skip if Dory already detected
+
+    // Convert audio bytes to doubles
+    List<double> audioSamples = _bytesToDoubles(audioData);
+
+    // Maintain rolling buffer
+    _audioBuffer.addAll(audioSamples);
+    if (_audioBuffer.length > BUFFER_SIZE) {
+      _audioBuffer.removeRange(0, _audioBuffer.length - BUFFER_SIZE);
+    }
+
+    // Process when we have enough data
+    if (_audioBuffer.length >= BUFFER_SIZE) {
+      _detectDoryWakeWord();
+    }
+  }
+
+  /// Detect Dory wake word using your trained model
+  void _detectDoryWakeWord() async {
     try {
-      // Extract audio features (placeholder - you'd implement actual feature extraction)
-      List<double> audioFeatures = await _extractAudioFeatures(text);
+      // Extract features from audio buffer
+      List<double> features = _extractAudioFeatures(_audioBuffer);
 
-      // Run Dory detection
-      final prediction = _doryService.predict(audioFeatures);
+      // Run Dory wake word detection
+      final prediction = _doryService.predict(features);
 
-      if (prediction != null &&
-          prediction.predictedClass.toLowerCase().contains('dory') &&
-          prediction.confidence >= DORY_CONFIDENCE_THRESHOLD) {
+      if (prediction != null) {
         print(
-            '🐠 Dory detected! Confidence: ${(prediction.confidence * 100).toStringAsFixed(1)}%');
+            '🔮 Wake Word Prediction: ${prediction.predictedClass} (${(prediction.confidence * 100).toStringAsFixed(2)}%)');
 
-        _isDoryActive = true;
-        _emitState(VoiceCommandState.doryDetected(prediction.confidence));
-
-        // Start command listening timeout
-        _startCommandTimeout();
-
-        // Continue listening for actual command
-        _emitState(VoiceCommandState.listeningForCommand());
+        // Check if Dory wake word is detected
+        if (_isDoryWakeWordDetected(prediction)) {
+          await _handleDoryDetected(prediction);
+        }
       }
     } catch (e) {
-      print('❌ Dory detection error: $e');
+      print('❌ Wake word detection error: $e');
     }
   }
 
-  /// Process voice command using HuggingFace API
+  /// Check if prediction indicates Dory wake word
+  bool _isDoryWakeWordDetected(DoryPrediction prediction) {
+    return (prediction.predictedClass.toLowerCase().contains('dory') ||
+            prediction.predictedClass
+                .toLowerCase()
+                .contains('dory_speaking')) &&
+        prediction.confidence >= DORY_CONFIDENCE_THRESHOLD;
+  }
+
+  /// Handle Dory wake word detection
+  Future<void> _handleDoryDetected(DoryPrediction prediction) async {
+    print(
+        '🐠 DORY WAKE WORD DETECTED! Confidence: ${(prediction.confidence * 100).toStringAsFixed(1)}%');
+
+    _isDoryActive = true;
+    _emitState(VoiceCommandState.doryDetected(prediction.confidence));
+
+    // Stop audio recording for wake word detection
+    await _audioRecorder.stop();
+
+    // Short delay for better UX
+    await Future.delayed(const Duration(milliseconds: 300));
+
+    // Start command listening using STT
+    await _startCommandListening();
+  }
+
+  /// Start speech-to-text for command recognition after Dory detected
+  Future<void> _startCommandListening() async {
+    print('🎯 Dory activated! Starting command listening...');
+    _emitState(VoiceCommandState.listeningForCommand());
+
+    try {
+      await _speechToText.listen(
+        onResult: _handleCommandResult,
+        listenFor: Duration(seconds: COMMAND_TIMEOUT_SECONDS),
+        pauseFor: const Duration(seconds: 2),
+        partialResults: false, // Only final results for commands
+        cancelOnError: false,
+        localeId: 'auto', // Auto-detect language
+      );
+
+      // Start timeout timer
+      _startCommandTimeout();
+    } catch (e) {
+      print('❌ Command listening error: $e');
+      await _returnToWakeWordMode();
+    }
+  }
+
+  /// Handle speech recognition results for commands
+  void _handleCommandResult(result) async {
+    if (!_isDoryActive || _isProcessingCommand) return;
+
+    final command = result.recognizedWords.trim();
+    print('📝 Command received: "$command" (final: ${result.finalResult})');
+
+    if (result.finalResult && command.isNotEmpty) {
+      await _processCommand(command);
+    }
+  }
+
+  /// Process voice command using HuggingFace API (same as before)
   Future<void> _processCommand(String command) async {
     if (_isProcessingCommand) return;
 
@@ -170,7 +240,7 @@ class VoiceCommandService {
     try {
       print('🤖 Processing command: "$command"');
 
-      // Call your existing HuggingFace API
+      // Call your existing HuggingFace multilingual API
       final result = await predictCommand(command);
       final label = result['label'];
       final confidence = result['confidence'];
@@ -180,9 +250,7 @@ class VoiceCommandService {
       if (confidence >= COMMAND_CONFIDENCE_THRESHOLD) {
         _emitState(
             VoiceCommandState.commandExecuted(label, confidence.toDouble()));
-
-        // Execute the command (you can move this logic here or emit event)
-        await _executeCommand(label);
+        _emitState(VoiceCommandState.executeNavigation(label));
       } else {
         print('⚠️ Low confidence ($confidence%). Command not executed.');
         _emitState(VoiceCommandState.lowConfidence(confidence.toDouble()));
@@ -191,18 +259,11 @@ class VoiceCommandService {
       print('❌ Command processing error: $e');
       _emitState(VoiceCommandState.error('Failed to process command: $e'));
     } finally {
-      // Reset states
-      _isDoryActive = false;
-      _isProcessingCommand = false;
-
-      // Return to listening for Dory
-      if (_isListening) {
-        _emitState(VoiceCommandState.listeningForDory());
-      }
+      await _returnToWakeWordMode();
     }
   }
 
-  /// Your existing command prediction function
+  /// Your existing command prediction function (unchanged)
   Future<Map<String, dynamic>> predictCommand(String text) async {
     final url =
         Uri.parse("https://jharodiv-accessability.hf.space/api/predict");
@@ -220,65 +281,120 @@ class VoiceCommandService {
     }
   }
 
-  /// Execute command based on label
-  Future<void> _executeCommand(String label) async {
-    // You can either emit an event or execute directly
-    // For now, we'll emit an event that your UI can listen to
-    _emitState(VoiceCommandState.executeNavigation(label));
+  /// Return to wake word detection mode after command processing
+  Future<void> _returnToWakeWordMode() async {
+    print('🔄 Returning to wake word detection mode...');
+
+    _isDoryActive = false;
+    _isProcessingCommand = false;
+
+    // Stop speech-to-text
+    await _speechToText.stop();
+
+    // Clear audio buffer
+    _audioBuffer.clear();
+
+    // Short delay before restarting
+    await Future.delayed(const Duration(milliseconds: 500));
+
+    // Restart wake word listening if still enabled
+    if (_isListening) {
+      _emitState(VoiceCommandState.listeningForDory());
+      await startListening();
+    }
   }
 
-  /// Extract audio features for Dory (placeholder implementation)
-  Future<List<double>> _extractAudioFeatures(String text) async {
-    // This is a placeholder. In a real implementation, you would:
-    // 1. Get raw audio data
-    // 2. Extract MFCC/spectral features
-    // 3. Return the same features used during Dory training
+  /// Handle command timeout
+  void _startCommandTimeout() {
+    Timer(Duration(seconds: COMMAND_TIMEOUT_SECONDS), () {
+      if (_isDoryActive && !_isProcessingCommand) {
+        print('⏰ Command timeout - returning to wake word mode');
+        _returnToWakeWordMode();
+      }
+    });
+  }
 
-    // For now, return dummy features based on text characteristics
-    List<double> features = [];
+  /// Handle audio stream errors
+  void _handleAudioStreamError() async {
+    print('🔧 Audio stream error - restarting wake word detection...');
+    await Future.delayed(const Duration(seconds: 2));
+    if (_isListening && !_isDoryActive) {
+      await _restartWakeWordListening();
+    }
+  }
+
+  /// Restart wake word listening after error
+  Future<void> _restartWakeWordListening() async {
+    print('🔄 Restarting wake word detection...');
+    await Future.delayed(const Duration(seconds: 1));
+    if (_isListening && !_isDoryActive) {
+      await startListening();
+    }
+  }
+
+  /// Stop listening (same interface as before)
+  Future<void> stopListening() async {
+    print('🛑 Stopping voice command service...');
+
+    _isListening = false;
+    _isDoryActive = false;
+    _isProcessingCommand = false;
+
+    await _audioRecorder.stop();
+    await _speechToText.stop();
+
+    _audioBuffer.clear();
+    _emitState(VoiceCommandState.idle());
+  }
+
+  /// Extract audio features for wake word detection
+  List<double> _extractAudioFeatures(List<double> audioData) {
+    // Get expected input size from your Dory model
     final modelInfo = _doryService.getModelInfo();
     final inputSize = modelInfo?['inputShape'][1] ?? 128;
 
-    // Generate features based on text (this is just for demo)
+    // TODO: Implement proper MFCC feature extraction here
+    // For now, using simplified feature extraction that should work with your model
+    List<double> features = [];
+
+    // Simple windowing and feature extraction
     for (int i = 0; i < inputSize; i++) {
-      double feature = 0.0;
-      if (text.contains('dory')) {
-        feature = (i % 10) * 0.1 - 0.5; // Pattern that might indicate Dory
+      if (i < audioData.length) {
+        // Apply simple preprocessing (you may need to adjust this based on your model's training)
+        double feature = audioData[i % audioData.length];
+        features.add(feature);
       } else {
-        feature = (i % 5) * 0.05 - 0.25; // Different pattern
+        features.add(0.0);
       }
-      features.add(feature);
     }
 
     return features;
   }
 
-  /// Start timeout for command listening
-  void _startCommandTimeout() {
-    Timer(const Duration(seconds: COMMAND_TIMEOUT_SECONDS), () {
-      if (_isDoryActive && !_isProcessingCommand) {
-        print('⏰ Command timeout - returning to Dory listening');
-        _isDoryActive = false;
-        if (_isListening) {
-          _emitState(VoiceCommandState.listeningForDory());
-        }
-      }
-    });
+  /// Convert audio bytes to doubles
+  List<double> _bytesToDoubles(Uint8List bytes) {
+    List<double> doubles = [];
+    for (int i = 0; i < bytes.length - 1; i += 2) {
+      int sample = (bytes[i + 1] << 8) | bytes[i];
+      doubles.add(sample / 32768.0); // Normalize to -1.0 to 1.0
+    }
+    return doubles;
   }
 
-  /// Emit state to listeners
+  /// Emit state to listeners (same interface as before)
   void _emitState(VoiceCommandState state) {
     _stateController?.add(state);
   }
 
-  /// Dispose resources
+  /// Dispose resources (same as before)
   void dispose() {
+    stopListening();
     _doryService.dispose();
     _stateController?.close();
   }
 }
 
-/// Voice command states
+/// Keep all your existing VoiceCommandState classes exactly the same
 class VoiceCommandState {
   final VoiceCommandStatus status;
   final String? message;

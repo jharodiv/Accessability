@@ -58,7 +58,7 @@ class _SearchBarWithAutocompleteState extends State<SearchBarWithAutocomplete> {
     });
 
     final success = await _voiceService.initialize();
-    print('Voice service initialized: $success');
+    print('Voice service initialized: $success'); 
     setState(() {
       _isVoiceServiceInitialized = success;
     });

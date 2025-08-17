@@ -17,12 +17,14 @@ class Dorymodelservice {
   Future<bool> loadModel(String modelName) async {
     try {
       _interpreter?.close();
-      final modelPath = 'assets/model/$modelName.tflite';
+      _interpreter = await Interpreter.fromAsset(modelName);
+      if (_interpreter == null) {
+        print('Failed to create interpreter from assets: $modelName');
+        return false;
+      }
       _currentModel = modelName;
       _isModelLoaded = true;
-      _classLabels = _defaultLabels;
-
-      print('$modelName loaded successfully!');
+      //_classLabels = _defaultLabels;
       try {
         final inputTensor = _interpreter?.getInputTensor(0);
         final outputTensor = _interpreter?.getOutputTensor(0);
@@ -60,9 +62,11 @@ class Dorymodelservice {
       print('Features provided: ${audioFeatures.length}');
 
       // Ensure input matches expected shape
-      if (audioFeatures.length != inputShape[1]) {
+      int expectedInputSize =
+          inputShape.length > 1 ? inputShape[1] : inputShape[0];
+      if (audioFeatures.length != expectedInputSize) {
         print(
-            '❌ Input size mismatch. Expected: ${inputShape[1]}, Got: ${audioFeatures.length}');
+            '❌ Input sized mismatch. Expected: $expectedInputSize, Got:${audioFeatures.length}');
         return null;
       }
 

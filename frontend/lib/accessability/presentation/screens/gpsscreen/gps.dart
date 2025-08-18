@@ -189,16 +189,16 @@ class _GpsScreenState extends State<GpsScreen> {
       });
     });
 
-    // Show the tutorial if onboarding has not been completed.
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      final authBloc = context.read<AuthBloc>();
-      final hasCompletedOnboarding = authBloc.state is AuthenticatedLogin
-          ? (authBloc.state as AuthenticatedLogin).hasCompletedOnboarding
-          : false;
-      if (!hasCompletedOnboarding) {
-        _tutorialWidget.showTutorial(context);
-      }
-    });
+    // // Show the tutorial if onboarding has not been completed.
+    // WidgetsBinding.instance.addPostFrameCallback((_) {
+    //   final authBloc = context.read<AuthBloc>();
+    //   final hasCompletedOnboarding = authBloc.state is AuthenticatedLogin
+    //       ? (authBloc.state as AuthenticatedLogin).hasCompletedOnboarding
+    //       : false;
+    //   if (!hasCompletedOnboarding) {
+    //     _tutorialWidget.showTutorial(context);
+    //   }
+    // });
   }
 
   bool _latLngEqual(LatLng a, LatLng b, {double eps = 1e-6}) {
@@ -316,8 +316,16 @@ class _GpsScreenState extends State<GpsScreen> {
   void didChangeDependencies() {
     super.didChangeDependencies();
     final args = ModalRoute.of(context)?.settings.arguments;
-    if (args != null && args is MapPerspective) {
-      // Save the perspective for later.
+
+    // Case 1: tutorial flag passed as Map
+    if (args is Map && args['showTutorial'] == true) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _tutorialWidget.showTutorial(context);
+      });
+    }
+
+    // Case 2: map perspective passed
+    if (args is MapPerspective) {
       _pendingPerspective = args;
       if (_isLocationFetched && _locationHandler.mapController != null) {
         applyMapPerspective(_pendingPerspective!);

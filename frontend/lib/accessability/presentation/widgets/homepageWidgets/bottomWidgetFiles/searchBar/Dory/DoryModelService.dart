@@ -24,7 +24,7 @@ class Dorymodelservice {
       }
       _currentModel = modelName;
       _isModelLoaded = true;
-      //_classLabels = _defaultLabels;
+      _classLabels = _defaultLabels;
       try {
         final inputTensor = _interpreter?.getInputTensor(0);
         final outputTensor = _interpreter?.getOutputTensor(0);
@@ -46,54 +46,42 @@ class Dorymodelservice {
     }
   }
 
-  // Predict from audio features
-  DoryPrediction? predict(List<double> audioFeatures) {
+  DoryPrediction? predict(List<List<double>> audioFeatures2D) {
     if (!_isModelLoaded || _interpreter == null) {
-      print('❌ Model not loaded');
+      print('❌ Model is not loaded');
       return null;
     }
-
     try {
-      // Get model input shape
-      var inputShape = _interpreter!.getInputTensor(0).shape;
+      // Convert 2D -> 4D for Conv2D input: [1, height, width, 1]
+      var input4D = List.generate(
+        1, // batch size
+        (_) => List.generate(
+          audioFeatures2D.length, // height
+          (i) => List.generate(
+            audioFeatures2D[i].length, // width
+            (j) => [audioFeatures2D[i][j]], // channel dimension
+          ),
+        ),
+      );
+
       var outputShape = _interpreter!.getOutputTensor(0).shape;
-
-      print('Input shape expected: $inputShape');
-      print('Features provided: ${audioFeatures.length}');
-
-      // Ensure input matches expected shape
-      int expectedInputSize =
-          inputShape.length > 1 ? inputShape[1] : inputShape[0];
-      if (audioFeatures.length != expectedInputSize) {
-        print(
-            '❌ Input sized mismatch. Expected: $expectedInputSize, Got:${audioFeatures.length}');
-        return null;
-      }
-
-      // Prepare input tensor
-      var input = [audioFeatures]; // Add batch dimension
-
-      // Prepare output tensor
       var output = List.generate(
           outputShape[0], (i) => List.filled(outputShape[1], 0.0));
 
-      // Run inference
-      _interpreter!.run(input, output);
+      //Run inference
+      _interpreter!.run(input4D, output);
 
-      // Process results
+      //Process results
       List<double> probabilities = output[0];
 
-      // Find predicted class
       int predictedIndex = 0;
       double maxProbability = probabilities[0];
-
       for (int i = 1; i < probabilities.length; i++) {
         if (probabilities[i] > maxProbability) {
           maxProbability = probabilities[i];
           predictedIndex = i;
         }
       }
-
       String predictedClass =
           _classLabels != null && predictedIndex < _classLabels!.length
               ? _classLabels![predictedIndex]
@@ -106,7 +94,7 @@ class Dorymodelservice {
         classLabels: _classLabels ?? [],
       );
     } catch (e) {
-      print('❌ Prediction error: $e');
+      print('Prediction error: $e');
       return null;
     }
   }

@@ -154,7 +154,7 @@ class VoiceCommandService {
   void _detectDoryWakeWord() async {
     try {
       // Extract features from audio buffer
-      List<double> features = _extractAudioFeatures(_audioBuffer);
+      List<List<double>> features = _extractAudioFeatures(_audioBuffer);
 
       // Run Dory wake word detection
       final prediction = _doryService.predict(features);
@@ -365,23 +365,20 @@ class VoiceCommandService {
   }
 
   /// Extract audio features for wake word detection
-  List<double> _extractAudioFeatures(List<double> audioData) {
+  List<List<double>> _extractAudioFeatures(List<double> audioData) {
     // Get expected input size from your Dory model
     final modelInfo = _doryService.getModelInfo();
-    final inputSize = modelInfo?['inputShape'][1] ?? 128;
+    if (modelInfo == null) return [[]];
 
-    // TODO: Implement proper MFCC feature extraction here
-    // For now, using simplified feature extraction that should work with your model
-    List<double> features = [];
+    int height = modelInfo['inputShape'][1];
+    int width = modelInfo['inputShape'][2];
 
-    // Simple windowing and feature extraction
-    for (int i = 0; i < inputSize; i++) {
-      if (i < audioData.length) {
-        // Apply simple preprocessing (you may need to adjust this based on your model's training)
-        double feature = audioData[i % audioData.length];
-        features.add(feature);
-      } else {
-        features.add(0.0);
+    List<List<double>> features =
+        List.generate(height, (i) => List.filled(width, 0.0));
+
+    for (int i = 0; i < height; i++) {
+      for (int j = 0; j < width; j++) {
+        features[i][j] = audioData[(i * width + j) % audioData.length];
       }
     }
 

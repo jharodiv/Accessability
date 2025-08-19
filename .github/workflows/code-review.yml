@@ -1,4 +1,4 @@
-name: AI Code Review (Hugging Face)
+name: AI Code Review (GitHub AI API)
 
 on:
   pull_request_target:
@@ -30,19 +30,13 @@ jobs:
           # Generate diff between base and PR head
           git diff origin/${{ github.event.pull_request.base.ref }}...pr-${{ github.event.pull_request.number }} > changes.diff
 
-      - name: Run AI Review with HuggingFace
+      - name: Run AI Review using your API
         run: |
-          pip install requests jq
-          DIFF=$(cat changes.diff | head -c 4000)
-
-          # Build JSON safely
-          PAYLOAD=$(jq -n --arg prompt "You are a code reviewer. Review this code diff for bugs, readability, and improvements. Be concise and helpful:\n$DIFF" '{inputs: $prompt}')
-
+          DIFF=$(cat changes.diff | head -c 4000 | jq -sR .)  # encode as JSON string
           RESPONSE=$(curl -s -X POST \
-            -H "Authorization: Bearer ${{ secrets.HF_TOKEN }}" \
             -H "Content-Type: application/json" \
-            -d "$PAYLOAD" \
-            https://api-inference.huggingface.co/models/TechxGenus/starcoder2-3b-instruct)
+            -d "{\"prompt\": $DIFF}" \
+            https://ai-server-gray.vercel.app/api/review)
 
           echo "Raw response: $RESPONSE"
 
@@ -50,16 +44,11 @@ jobs:
           echo "### 🤖 AI Code Review" > review.txt
           echo "" >> review.txt
 
-          # Parse safely: JSON or fallback
+          # Parse JSON safely
           if echo "$RESPONSE" | jq empty 2>/dev/null; then
-            echo "$RESPONSE" | jq -r '
-              if type=="array" and .[0].generated_text then .[0].generated_text
-              elif .error then "⚠️ Hugging Face Error: " + .error
-              else "🤖 AI Review could not generate feedback, but your code was processed."
-              end
-            ' >> review.txt
+            echo "$RESPONSE" | jq -r '.review // "⚠️ AI Review returned no result."' >> review.txt
           else
-            echo "⚠️ Hugging Face returned non-JSON response: $RESPONSE" >> review.txt
+            echo "⚠️ API returned non-JSON response: $RESPONSE" >> review.txt
           fi
 
           # Ensure not empty

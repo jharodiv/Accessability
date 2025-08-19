@@ -7,6 +7,7 @@ on:
 permissions:
   contents: read
   pull-requests: write
+  issues: write   # needed so action can comment on PRs
 
 jobs:
   ai-review:
@@ -32,23 +33,33 @@ jobs:
       - name: Run AI Review with HuggingFace
         run: |
           pip install requests jq
-          DIFF=$(cat changes.diff | head -c 4000)  # trim to 4000 chars
+          DIFF=$(cat changes.diff | head -c 4000)
+
+          # Build JSON safely to avoid "Invalid JSON" errors
+          PAYLOAD=$(jq -n --arg prompt "You are a code reviewer. Review this code diff for bugs, readability, and improvements. Be concise and helpful:\n$DIFF" '{inputs: $prompt}')
 
           RESPONSE=$(curl -s -X POST \
             -H "Authorization: Bearer ${{ secrets.HF_TOKEN }}" \
             -H "Content-Type: application/json" \
-            -d "{\"inputs\":\"You are a code reviewer. Review this code diff for bugs, readability, and improvements. Be concise and helpful:\\n$DIFF\"}" \
+            -d "$PAYLOAD" \
             https://api-inference.huggingface.co/models/bigcode/starcoder2-3b)
 
           echo "Raw response: $RESPONSE"
 
-          # Extract AI output safely: handle generated_text OR error OR fallback
+          # Always ensure review.txt has some content
+          echo "### 🤖 AI Code Review" > review.txt
+          echo "" >> review.txt
           echo "$RESPONSE" | jq -r '
             if type=="array" and .[0].generated_text then .[0].generated_text
             elif .error then "⚠️ Hugging Face Error: " + .error
-            else "AI review failed or returned empty response."
+            else "🤖 AI Review could not generate feedback, but your code was processed."
             end
-          ' > review.txt
+          ' >> review.txt
+
+          # If empty, write fallback text
+          if [ ! -s review.txt ]; then
+            echo "🤖 AI Review did not return any result, but the workflow ran successfully." >> review.txt
+          fi
 
       - name: Comment on PR
         uses: marocchino/sticky-pull-request-comment@v2

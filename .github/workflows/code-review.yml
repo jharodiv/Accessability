@@ -1,4 +1,4 @@
-name: AI Code Review (Free Hugging Face)
+name: AI Code Review (Hugging Face)
 
 on:
   pull_request_target:
@@ -20,19 +20,27 @@ jobs:
 
       - name: Get PR diff
         run: |
-          git fetch origin ${{ github.event.pull_request.head.ref }}:${{ github.event.pull_request.head.ref }}
-          git diff origin/${{ github.event.pull_request.base.ref }}...${{ github.event.pull_request.head.ref }} > changes.diff
+          # Fetch the base branch (the branch PR is targeting)
+          git fetch origin ${{ github.event.pull_request.base.ref }}
+
+          # Fetch the PR head safely using pull request number
+          git fetch origin pull/${{ github.event.pull_request.number }}/head:pr-${{ github.event.pull_request.number }}
+
+          # Generate diff between base and PR head
+          git diff origin/${{ github.event.pull_request.base.ref }}...pr-${{ github.event.pull_request.number }} > changes.diff
 
       - name: Run AI Review with HuggingFace
         run: |
           pip install requests
-          DIFF=$(cat changes.diff | head -c 4000)
+          DIFF=$(cat changes.diff | head -c 4000)  # trim to 4000 chars
           RESPONSE=$(curl -s -X POST \
             -H "Authorization: Bearer ${{ secrets.HF_TOKEN }}" \
             -H "Content-Type: application/json" \
-            -d "{\"inputs\":\"Review this code diff for bugs, readability, and improvements:\\n$DIFF\"}" \
+            -d "{\"inputs\":\"You are a code reviewer. Review this code diff for bugs, readability, and improvements. Be concise and helpful:\\n$DIFF\"}" \
             https://api-inference.huggingface.co/models/bigcode/starcoder2-3b)
-          echo "$RESPONSE" > review.txt
+
+          # Extract text or fallback
+          echo "$RESPONSE" | jq -r '.[0].generated_text // "AI review failed or returned empty response."' > review.txt
 
       - name: Comment on PR
         uses: marocchino/sticky-pull-request-comment@v2

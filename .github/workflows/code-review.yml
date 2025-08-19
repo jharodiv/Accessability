@@ -1,0 +1,31 @@
+name: AI Code Review (Free)
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  ai-review:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v3
+
+      - name: Get PR diff
+        run: git fetch origin ${{ github.base_ref }} && git diff origin/${{ github.base_ref }} > changes.diff
+
+      - name: Run AI Review (HuggingFace Inference)
+        run: |
+          pip install requests
+          DIFF=$(cat changes.diff | head -c 4000) # limit length
+          RESPONSE=$(curl -s -X POST \
+            -H "Authorization: Bearer ${{ secrets.HF_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            -d "{\"inputs\":\"Review this code diff for bugs, style, and improvements:\\n$DIFF\"}" \
+            https://api-inference.huggingface.co/models/bigcode/starcoder2-3b)
+          echo "$RESPONSE" > review.txt
+
+      - name: Comment on PR
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          path: review.txt

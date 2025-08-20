@@ -52,21 +52,7 @@ class EstablishmentDetailsCard extends StatelessWidget {
 
           // Rating display for PWD locations
           if (isPwdLocation && place.averageRating != null)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: Row(
-                children: [
-                  Icon(Icons.star, color: Colors.amber, size: 16),
-                  SizedBox(width: 4),
-                  Text(
-                    '${place.averageRating!.toStringAsFixed(1)} (${place.totalRatings} reviews)',
-                    style: TextStyle(fontSize: 14),
-                  ),
-                ],
-              ),
-            ),
-
-          SizedBox(height: 12),
+            SizedBox(height: 12),
           // Street View Image
           ClipRRect(
             borderRadius: BorderRadius.circular(8),

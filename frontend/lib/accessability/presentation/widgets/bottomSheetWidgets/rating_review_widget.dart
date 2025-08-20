@@ -1,3 +1,4 @@
+import 'package:AccessAbility/accessability/presentation/widgets/shimmer/shimmer_review.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -5,6 +6,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:AccessAbility/accessability/data/model/review.dart';
 import 'package:AccessAbility/accessability/logic/bloc/user/user_bloc.dart';
 import 'package:AccessAbility/accessability/logic/bloc/user/user_state.dart';
+import 'package:shimmer/shimmer.dart';
 
 class RatingReviewWidget extends StatefulWidget {
   final String locationId;
@@ -28,6 +30,7 @@ class _RatingReviewWidgetState extends State<RatingReviewWidget> {
   List<Review> _reviews = [];
   double _averageRating = 0;
   int _totalRatings = 0;
+  bool _isLoading = true; // Add loading state
 
   @override
   void initState() {
@@ -36,16 +39,33 @@ class _RatingReviewWidgetState extends State<RatingReviewWidget> {
   }
 
   Future<void> _loadReviews() async {
-    final doc = await _firestore
-        .collection('pwd_locations')
-        .doc(widget.locationId)
-        .get();
-    if (doc.exists) {
-      final data = doc.data();
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      final doc = await _firestore
+          .collection('pwd_locations')
+          .doc(widget.locationId)
+          .get();
+
+      if (doc.exists) {
+        final data = doc.data();
+        setState(() {
+          _averageRating = _parseDouble(data?['averageRating'] ?? 0);
+          _totalRatings = _parseInt(data?['totalRatings'] ?? 0);
+          _reviews = _parseReviewsSafely(data?['reviews']);
+          _isLoading = false;
+        });
+      } else {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      print('Error loading reviews: $e');
       setState(() {
-        _averageRating = _parseDouble(data?['averageRating'] ?? 0);
-        _totalRatings = _parseInt(data?['totalRatings'] ?? 0);
-        _reviews = _parseReviewsSafely(data?['reviews']);
+        _isLoading = false;
       });
     }
   }
@@ -94,6 +114,11 @@ class _RatingReviewWidgetState extends State<RatingReviewWidget> {
 
     final user = _auth.currentUser;
     if (user == null) return;
+
+    // Show loading when submitting
+    setState(() {
+      _isLoading = true;
+    });
 
     // Get user data from UserBloc
     final userState = context.read<UserBloc>().state;
@@ -157,12 +182,15 @@ class _RatingReviewWidgetState extends State<RatingReviewWidget> {
 
       _reviewController.clear();
       _currentRating = 0;
-      await _loadReviews();
+      await _loadReviews(); // This will set _isLoading to false when done
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Review submitted successfully')),
       );
     } catch (e) {
+      setState(() {
+        _isLoading = false;
+      });
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error submitting review: ${e.toString()}')),
       );
@@ -181,89 +209,125 @@ class _RatingReviewWidgetState extends State<RatingReviewWidget> {
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return BlocListener<UserBloc, UserState>(
-      listener: (context, state) {
-        // Reload reviews when user data changes
-        if (state is UserLoaded) {
-          _loadReviews();
-        }
-      },
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+  Widget _buildRatingSectionShimmer() {
+    return Shimmer.fromColors(
+      baseColor: Colors.grey[300]!,
+      highlightColor: Colors.grey[100]!,
+      child: Row(
         children: [
-          // Overall Rating
+          // Shimmer stars
           Row(
-            children: [
-              _buildRatingStars(_averageRating, size: 32),
-              SizedBox(width: 8),
-              Text(
-                '${_averageRating.toStringAsFixed(1)} ($_totalRatings reviews)',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              ),
-            ],
+            children: List.generate(
+                5,
+                (index) => Icon(
+                      Icons.star,
+                      color: Colors.white,
+                      size: 32,
+                    )),
           ),
-          SizedBox(height: 16),
-
-          // Add Review Section
-          Text('Add your review:',
-              style: TextStyle(fontWeight: FontWeight.bold)),
-          SizedBox(height: 8),
-
-          // Star Rating
-          Row(
-            children: List.generate(5, (index) {
-              return IconButton(
-                icon: Icon(
-                  index < _currentRating ? Icons.star : Icons.star_border,
-                  color: Colors.amber,
-                  size: 30,
-                ),
-                onPressed: () {
-                  setState(() {
-                    _currentRating = index + 1.0;
-                  });
-                },
-              );
-            }),
+          SizedBox(width: 8),
+          // Shimmer rating text
+          Container(
+            width: 100,
+            height: 18,
+            color: Colors.white,
           ),
-
-          // Review Text Field
-          TextField(
-            controller: _reviewController,
-            decoration: InputDecoration(
-              hintText: 'Write your feedback...',
-              border: OutlineInputBorder(),
-            ),
-            maxLines: 3,
-          ),
-          SizedBox(height: 8),
-
-          // Submit Button
-          ElevatedButton(
-            onPressed: _submitReview,
-            child: Text('Submit Review'),
-          ),
-          SizedBox(height: 16),
-
-          // Reviews List
-          Text('Reviews:', style: TextStyle(fontWeight: FontWeight.bold)),
-          SizedBox(height: 8),
-
-          _reviews.isEmpty
-              ? Text('No reviews yet. Be the first to review!')
-              : ListView.builder(
-                  shrinkWrap: true,
-                  physics: NeverScrollableScrollPhysics(),
-                  itemCount: _reviews.length,
-                  itemBuilder: (context, index) {
-                    final review = _reviews[index];
-                    return _buildReviewItem(review);
-                  },
-                ),
         ],
       ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Overall Rating
+        _isLoading
+            ? _buildRatingSectionShimmer()
+            : Row(
+                children: [
+                  _buildRatingStars(_averageRating, size: 32),
+                  SizedBox(width: 8),
+                  Text(
+                    '${_averageRating.toStringAsFixed(1)} ($_totalRatings reviews)',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                ],
+              ),
+        SizedBox(height: 16),
+
+        // Add Review Section
+        Text('Add your review:', style: TextStyle(fontWeight: FontWeight.bold)),
+        SizedBox(height: 8),
+
+        // Star Rating
+        Row(
+          children: List.generate(5, (index) {
+            return IconButton(
+              icon: Icon(
+                index < _currentRating ? Icons.star : Icons.star_border,
+                color: Colors.amber,
+                size: 30,
+              ),
+              onPressed: _isLoading
+                  ? null
+                  : () {
+                      setState(() {
+                        _currentRating = index + 1.0;
+                      });
+                    },
+            );
+          }),
+        ),
+
+        // Review Text Field
+        TextField(
+          controller: _reviewController,
+          decoration: InputDecoration(
+            hintText: 'Write your feedback...',
+            border: OutlineInputBorder(),
+          ),
+          maxLines: 3,
+          enabled: !_isLoading,
+        ),
+        SizedBox(height: 8),
+
+        // Submit Button
+        ElevatedButton(
+          style: ElevatedButton.styleFrom(backgroundColor: Color(0xFF6750A4)),
+          onPressed: _isLoading ? null : _submitReview,
+          child: _isLoading
+              ? SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                  ),
+                )
+              : Text('Submit Review'),
+        ),
+        SizedBox(height: 16),
+
+        // Reviews List
+        Text('Reviews:', style: TextStyle(fontWeight: FontWeight.bold)),
+        SizedBox(height: 8),
+
+        _isLoading
+            ? ReviewShimmer() // Show shimmer while loading
+            : _reviews.isEmpty
+                ? Text('No reviews yet. Be the first to review!')
+                : ListView.builder(
+                    shrinkWrap: true,
+                    physics: NeverScrollableScrollPhysics(),
+                    itemCount: _reviews.length,
+                    itemBuilder: (context, index) {
+                      final review = _reviews[index];
+                      return _buildReviewItem(review);
+                    },
+                  ),
+      ],
     );
   }
 

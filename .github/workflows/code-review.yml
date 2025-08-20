@@ -1,0 +1,62 @@
+name: AI Code Review (GitHub AI API)
+
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write   # required to comment on PRs
+
+jobs:
+  ai-review:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout base repo
+        uses: actions/checkout@v3
+        with:
+          ref: ${{ github.event.pull_request.base.ref }}
+          repository: ${{ github.repository }}
+
+      - name: Get PR diff
+        run: |
+          # Fetch the base branch (the branch PR is targeting)
+          git fetch origin ${{ github.event.pull_request.base.ref }}
+
+          # Fetch the PR head safely using pull request number
+          git fetch origin pull/${{ github.event.pull_request.number }}/head:pr-${{ github.event.pull_request.number }}
+
+          # Generate diff between base and PR head
+          git diff origin/${{ github.event.pull_request.base.ref }}...pr-${{ github.event.pull_request.number }} > changes.diff
+
+      - name: Run AI Review using your API
+        run: |
+          DIFF=$(cat changes.diff | head -c 4000 | jq -sR .)  # encode as JSON string
+          RESPONSE=$(curl -s -X POST \
+            -H "Content-Type: application/json" \
+            -d "{\"prompt\": $DIFF}" \
+            https://ai-server-gray.vercel.app/api/review)
+
+          echo "Raw response: $RESPONSE"
+
+          # Always create review.txt with header
+          echo "### 🤖 AI Code Review" > review.txt
+          echo "" >> review.txt
+
+          # Parse JSON safely
+          if echo "$RESPONSE" | jq empty 2>/dev/null; then
+            echo "$RESPONSE" | jq -r '.review // "⚠️ AI Review returned no result."' >> review.txt
+          else
+            echo "⚠️ API returned non-JSON response: $RESPONSE" >> review.txt
+          fi
+
+          # Ensure not empty
+          if [ ! -s review.txt ]; then
+            echo "🤖 AI Review did not return any result, but the workflow ran successfully." >> review.txt
+          fi
+
+      - name: Comment on PR
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          path: review.txt

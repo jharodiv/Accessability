@@ -2,11 +2,14 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
+import 'package:flutter_google_maps_webservices/places.dart';
 import 'package:http/http.dart' as http;
 import 'package:speech_to_text/speech_to_text.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:AccessAbility/accessability/presentation/widgets/homepageWidgets/bottomWidgetFiles/searchBar/Dory/DoryModelService.dart';
 import 'package:audio_streamer/audio_streamer.dart';
+import 'dart:math' as math;
+import 'dart:typed_data';
 
 class VoiceCommandService {
   final Dorymodelservice _doryService = Dorymodelservice();
@@ -25,7 +28,7 @@ class VoiceCommandService {
   List<double> _audioBuffer = [];
   static const int SAMPLE_RATE = 16000;
   static const int BUFFER_SIZE = SAMPLE_RATE * 2; // 2 seconds of audio
-  static const double DORY_CONFIDENCE_THRESHOLD = 0.6;
+  static const double DORY_CONFIDENCE_THRESHOLD = 0.85;
   static const double COMMAND_CONFIDENCE_THRESHOLD = 50.0;
   static const int COMMAND_TIMEOUT_SECONDS = 10;
 
@@ -153,24 +156,226 @@ class VoiceCommandService {
   /// Detect Dory wake word using your trained model
   void _detectDoryWakeWord() async {
     try {
-      // Extract features from audio buffer
-      List<List<double>> features = _extractAudioFeatures(_audioBuffer);
-
-      // Run Dory wake word detection
+      List<List<double>> features = _extractMelSpectogramFeatures(_audioBuffer);
       final prediction = _doryService.predict(features);
 
       if (prediction != null) {
-        print(
-            '🔮 Wake Word Prediction: ${prediction.predictedClass} (${(prediction.confidence * 100).toStringAsFixed(2)}%)');
-
-        // Check if Dory wake word is detected
-        if (_isDoryWakeWordDetected(prediction)) {
-          await _handleDoryDetected(prediction);
+        // Debug ALL predictions
+        print('🔍 All predictions:');
+        for (var pred in prediction.getAllPredictions()) {
+          print(
+              '   ${pred.className}: ${(pred.confidence * 100).toStringAsFixed(2)}%');
         }
+
+        // Log audio statistics
+        final maxAudio = _audioBuffer.reduce((a, b) => a > b ? a : b);
+        final minAudio = _audioBuffer.reduce((a, b) => a < b ? a : b);
+        print('🎵 Audio range: $minAudio to $maxAudio');
       }
     } catch (e) {
       print('❌ Wake word detection error: $e');
     }
+  }
+
+  List<List<double>> _extractMelSpectogramFeatures(List<double> audioData) {
+    final modelInfo = _doryService.getModelInfo();
+    if (modelInfo == null) return [[]];
+
+    const int SAMPLE_RATE = 16000;
+    const int DURATION = 2;
+    const int N_MELS = 40;
+    const int N_FFT = 2048;
+    const int HOP_LENGTH = 512;
+
+    // Ensure audio is exactly 2 seconds
+    List<double> processedAudio =
+        _prepareAudio(audioData, SAMPLE_RATE * DURATION);
+
+    //Compute STFT (short-time fourier transform)
+    List<List<double>> stftMagnitude =
+        _computeSTFT(processedAudio, N_FFT, HOP_LENGTH);
+
+    //Apply mel filter bank to convert to mel-spectogram
+    List<List<double>> melSpectogram =
+        _applyMelFilterBank(stftMagnitude, SAMPLE_RATE, N_MELS, N_FFT);
+
+    //Convert to dB scale (log scale) (crucial)
+    List<List<double>> melSpectogramDB = _powerToDB(melSpectogram);
+
+    print(
+        '‼️ Mel-spectogram shape: ${melSpectogramDB.length}x${melSpectogramDB.isNotEmpty ? melSpectogramDB[0].length : 0}');
+
+    return melSpectogramDB;
+  }
+
+  List<double> _prepareAudio(List<double> audio, int targetLength) {
+    List<double> result = List.from(audio);
+
+    if (result.length < targetLength) {
+      int padLength = targetLength - result.length;
+      result.addAll(List.filled(padLength, 0.0));
+    } else if (result.length > targetLength) {
+      result = result.sublist(0, targetLength);
+    }
+
+    print('🎶Audio Prepraed: ${result.length} samples');
+    return result;
+  }
+
+  List<List<double>> _computeSTFT(List<double> audio, int nFft, int hopLength) {
+    int numFrames = ((audio.length - nFft) / hopLength).floor() + 1;
+    int numFreqBins = (nFft / 2).floor() + 1;
+
+    List<List<double>> spectrogram = [];
+
+    for (int frame = 0; frame < numFrames; frame++) {
+      int startSample = frame * hopLength;
+
+      // Extract window
+      List<double> window = [];
+      for (int i = 0; i < nFft; i++) {
+        int sampleIndex = startSample + i;
+        if (sampleIndex < audio.length) {
+          // Apply Hann window
+          double hannValue = 0.5 - 0.5 * math.cos(2 * math.pi * i / (nFft - 1));
+          window.add(audio[sampleIndex] * hannValue);
+        } else {
+          window.add(0.0);
+        }
+      }
+
+      // Compute magnitude spectrum (simplified - normally would use FFT)
+      List<double> magnitudes = [];
+      for (int freq = 0; freq < numFreqBins; freq++) {
+        double real = 0.0;
+        double imag = 0.0;
+
+        for (int i = 0; i < window.length; i++) {
+          double angle = -2 * math.pi * freq * i / nFft;
+          real += window[i] * math.cos(angle);
+          imag += window[i] * math.sin(angle);
+        }
+
+        double magnitude = math.sqrt(real * real + imag * imag);
+        magnitudes.add(magnitude * magnitude); // Power spectrum
+      }
+
+      spectrogram.add(magnitudes);
+    }
+
+    // Transpose to match librosa format: [freq_bins, time_frames]
+    List<List<double>> transposed = [];
+    for (int freq = 0; freq < numFreqBins; freq++) {
+      List<double> freqBin = [];
+      for (int time = 0; time < spectrogram.length; time++) {
+        freqBin.add(spectrogram[time][freq]);
+      }
+      transposed.add(freqBin);
+    }
+
+    return transposed;
+  }
+
+  List<List<double>> _applyMelFilterBank(
+      List<List<double>> spectogram, int sampleRate, int nMels, int nFft) {
+    int numFreqBins = spectogram.length;
+    int numTimeFrames = spectogram.isNotEmpty ? spectogram[0].length : 0;
+
+    List<List<double>> melFilters =
+        _createMelFilterBanks(nMels, numFreqBins, sampleRate, nFft);
+
+    List<List<double>> melSpectogram = [];
+
+    for (int mel = 0; mel < nMels; mel++) {
+      List<double> melBin = [];
+
+      for (int time = 0; time < numTimeFrames; time++) {
+        double melValue = 0.0;
+
+        for (int freq = 0; freq < numFreqBins; freq++) {
+          melValue += spectogram[freq][time] * melFilters[mel][freq];
+        }
+
+        melBin.add(melValue);
+      }
+
+      melSpectogram.add(melBin);
+    }
+
+    return melSpectogram;
+  }
+
+  List<List<double>> _createMelFilterBanks(
+      int nMels, int numFreqBins, int sampleRate, int nFft) {
+    double hzToMel(double hz) => 2595.0 * math.log(1 + hz / 700.0) / math.ln10;
+    double melToHz(double mel) => 700.0 * (math.pow(10, mel / 2595.0) - 1);
+
+    double minMel = hzToMel(0);
+    double maxMel = hzToMel(sampleRate / 2);
+
+    List<double> melPoints = [];
+
+    for (int i = 0; i <= nMels + 1; i++) {
+      double mel = minMel + (maxMel - minMel) * i / (nMels + 1);
+      melPoints.add(melToHz(mel));
+    }
+
+    List<int> binIndices = melPoints
+        .map((hz) => ((numFreqBins - 1) * 2 * hz / sampleRate).floor())
+        .toList();
+
+    List<List<double>> filters = [];
+    for (int mel = 0; mel < nMels; mel++) {
+      List<double> filter = List.filled(numFreqBins, 0.0);
+
+      int leftBin = binIndices[mel];
+      int centerBin = binIndices[mel + 1];
+      int rightBin = binIndices[mel + 2];
+
+      //LeftSlope
+
+      for (int bin = leftBin; bin <= centerBin; bin++) {
+        if (bin < numFreqBins && centerBin != leftBin) {
+          filter[bin] = (bin - leftBin) / (centerBin - leftBin);
+        }
+      }
+
+      //RightSlope
+      for (int bin = centerBin; bin <= rightBin; bin++) {
+        if (bin < numFreqBins && rightBin != centerBin) {
+          filter[bin] = (rightBin - bin) / (rightBin - centerBin);
+        }
+      }
+
+      filters.add(filter);
+    }
+
+    return filters;
+  }
+
+  List<List<double>> _powerToDB(List<List<double>> powerSpec) {
+    double maxPower = 0.0;
+
+    for (var row in powerSpec) {
+      for (var value in row) {
+        if (value > maxPower) maxPower = value;
+      }
+    }
+
+    if (maxPower == 0.0) maxPower = 1e-10;
+
+    List<List<double>> dbSpec = [];
+    for (var row in powerSpec) {
+      List<double> dbRow = [];
+      for (var power in row) {
+        double db =
+            10.0 * math.log(math.max(power, 1e-10) / maxPower) / math.ln10;
+        dbRow.add(db);
+      }
+      dbSpec.add(dbRow);
+    }
+
+    return dbSpec;
   }
 
   /// Check if prediction indicates Dory wake word
@@ -189,9 +394,6 @@ class VoiceCommandService {
 
     _isDoryActive = true;
     _emitState(VoiceCommandState.doryDetected(prediction.confidence));
-
-    // Stop audio stream for wake word detection
-    await _stopAudioStream();
 
     // Short delay for better UX
     await Future.delayed(const Duration(milliseconds: 300));
@@ -364,25 +566,47 @@ class VoiceCommandService {
     _emitState(VoiceCommandState.idle());
   }
 
-  /// Extract audio features for wake word detection
-  List<List<double>> _extractAudioFeatures(List<double> audioData) {
-    // Get expected input size from your Dory model
-    final modelInfo = _doryService.getModelInfo();
-    if (modelInfo == null) return [[]];
+  List<double> _normalizedAudio(List<double> audio) {
+    if (audio.isEmpty) return [];
 
-    int height = modelInfo['inputShape'][1];
-    int width = modelInfo['inputShape'][2];
-
-    List<List<double>> features =
-        List.generate(height, (i) => List.filled(width, 0.0));
-
-    for (int i = 0; i < height; i++) {
-      for (int j = 0; j < width; j++) {
-        features[i][j] = audioData[(i * width + j) % audioData.length];
+    double maxAbs = 0.0;
+    for (double sample in audio) {
+      double absSample = sample.abs();
+      if (absSample > maxAbs) {
+        maxAbs = absSample;
       }
     }
 
-    return features;
+    if (maxAbs == 0.0) return audio;
+
+    return audio.map((sample) => sample / maxAbs).toList();
+  }
+
+  List<double> _resizeAudioLinear(List<double> audio, int targetLength) {
+    if (audio.isEmpty) return List.filled(targetLength, 0.0);
+    if (audio.length == targetLength) return audio;
+
+    List<double> result = [];
+
+    double ratio = (audio.length - 1) / (targetLength - 1);
+
+    for (int i = 0; i < targetLength; i++) {
+      double sourceIndex = i * ratio;
+      int lowIndex = sourceIndex.floor();
+      int highIndex = math.min(lowIndex + 1, audio.length - 1);
+
+      if (lowIndex == highIndex) {
+        result.add(audio[lowIndex]);
+      } else {
+        double fraction = sourceIndex - lowIndex;
+        double interpolated =
+            audio[lowIndex] * (1 - fraction) + audio[highIndex] * fraction;
+
+        result.add(interpolated);
+      }
+    }
+
+    return result;
   }
 
   /// Emit state to listeners (same interface as before)

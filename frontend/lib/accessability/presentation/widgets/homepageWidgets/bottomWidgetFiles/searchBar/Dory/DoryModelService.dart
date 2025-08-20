@@ -7,12 +7,7 @@ class Dorymodelservice {
   bool _isModelLoaded = false;
   List<String>? _classLabels;
 
-  final List<String> _defaultLabels = [
-    'dory_speaking',
-    'background_noise',
-    'other_voice',
-    'silence'
-  ];
+  final List<String> _defaultLabels = ['wake', 'not_wake', 'noise'];
 
   Future<bool> loadModel(String modelName) async {
     try {

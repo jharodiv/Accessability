@@ -16,6 +16,9 @@ class Place {
   final double longitude;
   final DateTime? timestamp;
   final bool? isFromOSM; // Flag to indicate OpenStreetMap source
+  final double? averageRating;
+  final int? totalRatings;
+  final List<Map<String, dynamic>>? reviews;
 
   Place({
     required this.id,
@@ -31,6 +34,9 @@ class Place {
     required this.latitude,
     required this.longitude,
     required this.timestamp,
+    this.averageRating,
+    this.totalRatings,
+    this.reviews,
     this.isFromOSM = false,
   });
 
@@ -52,6 +58,14 @@ class Place {
       longitude: (data['longitude'] as num).toDouble(),
       timestamp: (data['timestamp'] as Timestamp).toDate(),
       isFromOSM: data['isFromOSM'] ?? false,
+      averageRating: data['averageRating'] != null
+          ? (data['averageRating'] as num).toDouble()
+          : null,
+      totalRatings:
+          data['totalRatings'] != null ? data['totalRatings'] as int : null,
+      reviews: data['reviews'] != null
+          ? List<Map<String, dynamic>>.from(data['reviews'])
+          : null,
     );
   }
 
@@ -70,6 +84,9 @@ class Place {
       'longitude': longitude,
       'timestamp': timestamp,
       'isFromOSM': isFromOSM,
+      'averageRating': averageRating,
+      'totalRatings': totalRatings,
+      'reviews': reviews,
     };
   }
 

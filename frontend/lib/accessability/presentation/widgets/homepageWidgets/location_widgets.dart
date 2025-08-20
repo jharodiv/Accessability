@@ -4,6 +4,8 @@ import 'dart:math';
 import 'package:AccessAbility/accessability/firebaseServices/chat/chat_service.dart';
 import 'package:AccessAbility/accessability/data/model/place.dart';
 import 'package:AccessAbility/accessability/firebaseServices/place/geocoding_service.dart';
+import 'package:AccessAbility/accessability/logic/bloc/user/user_bloc.dart';
+import 'package:AccessAbility/accessability/logic/bloc/user/user_state.dart';
 import 'package:AccessAbility/accessability/presentation/screens/gpsscreen/location_handler.dart';
 import 'package:AccessAbility/accessability/presentation/widgets/bottomSheetWidgets/add_place.dart';
 import 'package:AccessAbility/accessability/presentation/widgets/bottomSheetWidgets/custom_button.dart';
@@ -18,6 +20,7 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:provider/provider.dart';
@@ -513,285 +516,317 @@ class _LocationWidgetsState extends State<LocationWidgets> {
       minChildSize: 0.20,
       maxChildSize: 1,
       builder: (context, scrollController) {
-        final currentUser = _auth.currentUser;
-// prefer displayName; fallback to email local-part; final fallback 'User'
-        final userName = (currentUser?.displayName?.trim().isNotEmpty ?? false)
-            ? currentUser!.displayName!.trim()
-            : (currentUser?.email?.split('@').first ?? 'User');
-        final avatarLetter =
-            (userName.isNotEmpty) ? userName[0].toUpperCase() : 'U';
-        return Column(
-          children: [
-            IgnorePointer(
-              ignoring: _isExpanded || widget.isJoining,
-              child: AnimatedOpacity(
-                duration: const Duration(milliseconds: 300),
-                opacity: (_isExpanded || widget.isJoining) ? 0.0 : 1.0,
-                child: ServiceButtons(
-                  onButtonPressed: (label) {/* … */},
-                  currentLocation: widget.locationHandler.currentLocation,
-                  onMapViewPressed: widget.onMapViewPressed,
-                  onCenterPressed: () {
-                    debugPrint('GPS button pressed');
-                    debugPrint(
-                        'locationHandler.currentLocation: ${widget.locationHandler.currentLocation}');
-                    if (widget.locationHandler.currentLocation == null) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('locationNotAvailable'.tr())),
-                      );
-                      return;
-                    }
-                    try {
-                      widget.locationHandler.panCameraToLocation(
-                          widget.locationHandler.currentLocation!);
-                      debugPrint('Called panCameraToLocation()');
-                    } catch (e, st) {
-                      debugPrint('panCameraToLocation threw: $e\n$st');
-                    }
-                  },
-                ),
-              ),
-            ),
-            const SizedBox(height: 10),
-            Expanded(
-              child: Container(
-                decoration: BoxDecoration(
-                  color: isDarkMode ? Colors.grey[900] : Colors.white,
-                  borderRadius: const BorderRadius.only(
-                    topLeft: Radius.circular(20),
-                    topRight: Radius.circular(20),
-                  ),
-                  boxShadow: const [
-                    BoxShadow(
-                      color: Colors.black26,
-                      blurRadius: 5,
-                      offset: Offset(0, -5),
+        return BlocBuilder<UserBloc, UserState>(
+          builder: (context, userState) {
+            final currentUser = _auth.currentUser;
+
+            // Get username from UserBloc instead of Firebase Auth directly
+            String userName;
+            String? profilePicture;
+            String avatarLetter;
+
+            if (userState is UserLoaded) {
+              userName = userState.user.username;
+              profilePicture = userState.user.profilePicture;
+              avatarLetter =
+                  userName.isNotEmpty ? userName[0].toUpperCase() : 'U';
+            } else {
+              // Fallback to Firebase Auth data
+              userName = (currentUser?.displayName?.trim().isNotEmpty ?? false)
+                  ? currentUser!.displayName!.trim()
+                  : (currentUser?.email?.split('@').first ?? 'User');
+              profilePicture = currentUser?.photoURL;
+              avatarLetter =
+                  userName.isNotEmpty ? userName[0].toUpperCase() : 'U';
+            }
+
+            return Column(
+              children: [
+                IgnorePointer(
+                  ignoring: _isExpanded || widget.isJoining,
+                  child: AnimatedOpacity(
+                    duration: const Duration(milliseconds: 300),
+                    opacity: (_isExpanded || widget.isJoining) ? 0.0 : 1.0,
+                    child: ServiceButtons(
+                      onButtonPressed: (label) {/* … */},
+                      currentLocation: widget.locationHandler.currentLocation,
+                      onMapViewPressed: widget.onMapViewPressed,
+                      onCenterPressed: () {
+                        debugPrint('GPS button pressed');
+                        debugPrint(
+                            'locationHandler.currentLocation: ${widget.locationHandler.currentLocation}');
+                        if (widget.locationHandler.currentLocation == null) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                                content: Text('locationNotAvailable'.tr())),
+                          );
+                          return;
+                        }
+                        try {
+                          widget.locationHandler.panCameraToLocation(
+                              widget.locationHandler.currentLocation!);
+                          debugPrint('Called panCameraToLocation()');
+                        } catch (e, st) {
+                          debugPrint('panCameraToLocation threw: $e\n$st');
+                        }
+                      },
                     ),
-                  ],
+                  ),
                 ),
-                child: SingleChildScrollView(
-                  controller: scrollController,
-                  child: Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Column(
-                      children: [
-                        // --- Default Layout: Always show these ---
-                        Container(
-                          width: 100,
-                          height: 2,
-                          color: isDarkMode
-                              ? Colors.grey[700]
-                              : Colors.grey.shade700,
-                          margin: const EdgeInsets.only(bottom: 8),
+                const SizedBox(height: 10),
+                Expanded(
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: isDarkMode ? Colors.grey[900] : Colors.white,
+                      borderRadius: const BorderRadius.only(
+                        topLeft: Radius.circular(20),
+                        topRight: Radius.circular(20),
+                      ),
+                      boxShadow: const [
+                        BoxShadow(
+                          color: Colors.black26,
+                          blurRadius: 5,
+                          offset: Offset(0, -5),
                         ),
-                        const SizedBox(height: 5),
-                        SearchBarWithAutocomplete(
-                          onSearch: _searchLocation,
-                        ),
-                        const SizedBox(height: 10),
-                        // --- If a place is selected, show only the EstablishmentDetailsCard ---
-                        if (widget.selectedPlace != null)
-                          EstablishmentDetailsCard(
-                            place: widget.selectedPlace!,
-                            onClose: widget.onCloseSelectedPlace,
-                          )
-                        else ...[
-                          // Otherwise, show the rest of the UI.
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                            children: [
-                              CustomButton(
-                                icon: Icons.people,
-                                index: 0,
-                                activeIndex: _activeIndex,
-                                onPressed: (newIndex) {
-                                  // leave join flow
-                                  if (widget.isJoining) {
-                                    widget.onJoinStateChanged(false);
-                                  }
-                                  setState(() => _activeIndex = newIndex);
-                                },
-                              ),
-                              CustomButton(
-                                icon: Icons.business,
-                                index: 1,
-                                activeIndex: _activeIndex,
-                                onPressed: (int newIndex) {
-                                  setState(() {
-                                    _activeIndex = newIndex;
-                                  });
-                                },
-                              ),
-                              CustomButton(
-                                icon: Icons.map,
-                                index: 2,
-                                activeIndex: _activeIndex,
-                                onPressed: (int newIndex) {
-                                  setState(() {
-                                    _activeIndex = newIndex;
-                                  });
-                                },
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 20),
-                          if (_activeIndex == 0) ...[
-                            if (widget.activeSpaceId.isEmpty)
-                              // No space selected: user-card + button
-                              Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  // 1) Current user row (same as MemberListWidget)
-                                  ListTile(
-                                    leading: CircleAvatar(
-                                      backgroundImage:
-                                          _auth.currentUser?.photoURL != null
-                                              ? NetworkImage(
-                                                  _auth.currentUser!.photoURL!)
-                                              : null,
-                                      child: _auth.currentUser?.photoURL == null
-                                          ? Text(avatarLetter,
-                                              style: const TextStyle(
-                                                  color: Colors.white))
-                                          : null,
-                                    ),
-                                    title: Text(
-                                      userName,
-                                      style: TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        color: isDarkMode
-                                            ? Colors.white
-                                            : Colors.black,
-                                      ),
-                                    ),
-                                    subtitle: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          _yourAddress ?? 'Current Location',
-                                          style: TextStyle(
-                                            fontSize: 12,
-                                            color: isDarkMode
-                                                ? Colors.white70
-                                                : Colors.black54,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 2),
-                                        Text(
-                                          'Updated: ${_yourLastUpdate != null ? _timeDiff(_yourLastUpdate!) : 'just now'}',
-                                          style: TextStyle(
-                                            fontSize: 12,
-                                            color: isDarkMode
-                                                ? Colors.white70
-                                                : Colors.black54,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                    onTap: () {
-                                      if (widget.locationHandler
-                                              .currentLocation !=
-                                          null) {
-                                        widget.onMemberPressed(
-                                            widget.locationHandler
-                                                .currentLocation!,
-                                            _auth.currentUser!.uid);
-                                      }
-                                    },
-                                  ),
-
-                                  // small spacing + divider (same visual separation used in MemberListWidget)
-                                  const SizedBox(height: 8),
-                                  Divider(
-                                      color: isDarkMode
-                                          ? Colors.grey[700]
-                                          : Colors.grey[300]),
-
-                                  // 2) Create-circle CTA aligned with avatar (left)
-                                  Padding(
-                                    padding: const EdgeInsets.symmetric(
-                                        vertical: 12.0, horizontal: 16.0),
-                                    child: InkWell(
-                                      // onTap:
-                                      //     _createCircleAuto, // creates a circle immediately (no dialog)
-                                      child: Row(
-                                        children: [
-                                          // left: circular button (aligned like avatar)
-                                          CircleAvatar(
-                                            radius: 24,
-                                            backgroundColor: const Color(
-                                                    0xFF6750A4)
-                                                // ignore: deprecated_member_use
-                                                .withOpacity(0.2),
-                                            child: Icon(Icons.add,
-                                                size: 26,
-                                                color: const Color(0xFF6750A4)),
-                                          ),
-
-                                          const SizedBox(width: 12),
-
-                                          // right: CTA text
-                                          const Text(
-                                            'Create a circle',
-                                            style: TextStyle(
-                                              color: Color(0xFF6750A4),
-                                              fontWeight: FontWeight.bold,
-                                              fontSize: 18,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              )
-                            else ...[
-                              // Space selected: show members
-                              MemberListWidget(
-                                activeSpaceId: widget.activeSpaceId,
-                                members: _members,
-                                selectedMemberId: _selectedMemberId,
-                                yourLocation:
-                                    widget.locationHandler.currentLocation,
-                                yourAddressLabel:
-                                    _yourAddress ?? 'Current Location',
-                                yourLastUpdate: _yourLastUpdate,
-                                onMemberPressed: widget.onMemberPressed,
-                                onAddPerson: () {
-                                  Navigator.of(context).push(
-                                    MaterialPageRoute(
-                                      builder: (_) => VerificationCodeScreen(
-                                        spaceId: widget.activeSpaceId,
-                                        spaceName: _spaceName,
-                                      ),
-                                    ),
-                                  );
-                                },
-                                isLoading: _isLoading,
-                              ),
-                            ],
-                          ] else if (_activeIndex == 1) ...[
-                            AddPlaceWidget(
-                              onShowPlace: (Place place) {
-                                widget.onPlaceSelected?.call(place);
-                              },
-                            ),
-                            // Map Tab: Show MapContent.
-                          ] else if (_activeIndex == 2)
-                            MapContent(
-                              onCategorySelected: (category) {
-                                widget.fetchNearbyPlaces(category);
-                              },
-                            ),
-                        ],
                       ],
                     ),
+                    child: SingleChildScrollView(
+                      controller: scrollController,
+                      child: Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: Column(
+                          children: [
+                            // --- Default Layout: Always show these ---
+                            Container(
+                              width: 100,
+                              height: 2,
+                              color: isDarkMode
+                                  ? Colors.grey[700]
+                                  : Colors.grey.shade700,
+                              margin: const EdgeInsets.only(bottom: 8),
+                            ),
+                            const SizedBox(height: 5),
+                            SearchBarWithAutocomplete(
+                              onSearch: _searchLocation,
+                            ),
+                            const SizedBox(height: 10),
+                            // --- If a place is selected, show only the EstablishmentDetailsCard ---
+                            if (widget.selectedPlace != null)
+                              BlocProvider.value(
+                                value: BlocProvider.of<UserBloc>(context),
+                                child: EstablishmentDetailsCard(
+                                  place: widget.selectedPlace!,
+                                  onClose: widget.onCloseSelectedPlace,
+                                  isPwdLocation:
+                                      widget.selectedPlace!.category ==
+                                          'PWD Friendly',
+                                ),
+                              )
+                            else ...[
+                              // Otherwise, show the rest of the UI.
+                              Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceEvenly,
+                                children: [
+                                  CustomButton(
+                                    icon: Icons.people,
+                                    index: 0,
+                                    activeIndex: _activeIndex,
+                                    onPressed: (newIndex) {
+                                      // leave join flow
+                                      if (widget.isJoining) {
+                                        widget.onJoinStateChanged(false);
+                                      }
+                                      setState(() => _activeIndex = newIndex);
+                                    },
+                                  ),
+                                  CustomButton(
+                                    icon: Icons.business,
+                                    index: 1,
+                                    activeIndex: _activeIndex,
+                                    onPressed: (int newIndex) {
+                                      setState(() {
+                                        _activeIndex = newIndex;
+                                      });
+                                    },
+                                  ),
+                                  CustomButton(
+                                    icon: Icons.map,
+                                    index: 2,
+                                    activeIndex: _activeIndex,
+                                    onPressed: (int newIndex) {
+                                      setState(() {
+                                        _activeIndex = newIndex;
+                                      });
+                                    },
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 20),
+                              if (_activeIndex == 0) ...[
+                                if (widget.activeSpaceId.isEmpty)
+                                  // No space selected: user-card + button
+                                  Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      // 1) Current user row (same as MemberListWidget)
+                                      ListTile(
+                                        leading: CircleAvatar(
+                                          backgroundImage:
+                                              profilePicture != null &&
+                                                      profilePicture.isNotEmpty
+                                                  ? NetworkImage(profilePicture)
+                                                  : null,
+                                          child: profilePicture == null ||
+                                                  profilePicture.isEmpty
+                                              ? Text(avatarLetter,
+                                                  style: const TextStyle(
+                                                      color: Colors.white))
+                                              : null,
+                                        ),
+                                        title: Text(
+                                          userName,
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            color: isDarkMode
+                                                ? Colors.white
+                                                : Colors.black,
+                                          ),
+                                        ),
+                                        subtitle: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              _yourAddress ??
+                                                  'Current Location',
+                                              style: TextStyle(
+                                                fontSize: 12,
+                                                color: isDarkMode
+                                                    ? Colors.white70
+                                                    : Colors.black54,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 2),
+                                            Text(
+                                              'Updated: ${_yourLastUpdate != null ? _timeDiff(_yourLastUpdate!) : 'just now'}',
+                                              style: TextStyle(
+                                                fontSize: 12,
+                                                color: isDarkMode
+                                                    ? Colors.white70
+                                                    : Colors.black54,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                        onTap: () {
+                                          if (widget.locationHandler
+                                                  .currentLocation !=
+                                              null) {
+                                            widget.onMemberPressed(
+                                                widget.locationHandler
+                                                    .currentLocation!,
+                                                _auth.currentUser!.uid);
+                                          }
+                                        },
+                                      ),
+
+                                      // small spacing + divider (same visual separation used in MemberListWidget)
+                                      const SizedBox(height: 8),
+                                      Divider(
+                                          color: isDarkMode
+                                              ? Colors.grey[700]
+                                              : Colors.grey[300]),
+
+                                      // 2) Create-circle CTA aligned with avatar (left)
+                                      Padding(
+                                        padding: const EdgeInsets.symmetric(
+                                            vertical: 12.0, horizontal: 16.0),
+                                        child: InkWell(
+                                          // onTap:
+                                          //     _createCircleAuto, // creates a circle immediately (no dialog)
+                                          child: Row(
+                                            children: [
+                                              // left: circular button (aligned like avatar)
+                                              CircleAvatar(
+                                                radius: 24,
+                                                backgroundColor: const Color(
+                                                        0xFF6750A4)
+                                                    // ignore: deprecated_member_use
+                                                    .withOpacity(0.2),
+                                                child: Icon(Icons.add,
+                                                    size: 26,
+                                                    color: const Color(
+                                                        0xFF6750A4)),
+                                              ),
+
+                                              const SizedBox(width: 12),
+
+                                              // right: CTA text
+                                              const Text(
+                                                'Create a circle',
+                                                style: TextStyle(
+                                                  color: Color(0xFF6750A4),
+                                                  fontWeight: FontWeight.bold,
+                                                  fontSize: 18,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  )
+                                else ...[
+                                  // Space selected: show members
+                                  MemberListWidget(
+                                    activeSpaceId: widget.activeSpaceId,
+                                    members: _members,
+                                    selectedMemberId: _selectedMemberId,
+                                    yourLocation:
+                                        widget.locationHandler.currentLocation,
+                                    yourAddressLabel:
+                                        _yourAddress ?? 'Current Location',
+                                    yourLastUpdate: _yourLastUpdate,
+                                    onMemberPressed: widget.onMemberPressed,
+                                    onAddPerson: () {
+                                      Navigator.of(context).push(
+                                        MaterialPageRoute(
+                                          builder: (_) =>
+                                              VerificationCodeScreen(
+                                            spaceId: widget.activeSpaceId,
+                                            spaceName: _spaceName,
+                                          ),
+                                        ),
+                                      );
+                                    },
+                                    isLoading: _isLoading,
+                                  ),
+                                ],
+                              ] else if (_activeIndex == 1) ...[
+                                AddPlaceWidget(
+                                  onShowPlace: (Place place) {
+                                    widget.onPlaceSelected?.call(place);
+                                  },
+                                ),
+                                // Map Tab: Show MapContent.
+                              ] else if (_activeIndex == 2)
+                                MapContent(
+                                  onCategorySelected: (category) {
+                                    widget.fetchNearbyPlaces(category);
+                                  },
+                                ),
+                            ],
+                          ],
+                        ),
+                      ),
+                    ),
                   ),
                 ),
-              ),
-            ),
-          ],
+              ],
+            );
+          },
         );
       },
     );

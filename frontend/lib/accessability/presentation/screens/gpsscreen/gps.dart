@@ -40,6 +40,7 @@ import 'package:AccessAbility/accessability/logic/bloc/auth/auth_state.dart';
 import 'package:AccessAbility/accessability/logic/bloc/place/bloc/place_bloc.dart';
 import 'package:AccessAbility/accessability/data/model/place.dart';
 import 'package:flutter_compass/flutter_compass.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class GpsScreen extends StatefulWidget {
   const GpsScreen({super.key});
@@ -94,6 +95,7 @@ class _GpsScreenState extends State<GpsScreen> {
   late final ValueNotifier<double> _mapZoomNotifier =
       ValueNotifier<double>(_currentZoom);
   Timer? _zoomDebounceTimer;
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   @override
   void initState() {
@@ -149,45 +151,7 @@ class _GpsScreenState extends State<GpsScreen> {
       }
     });
 
-    // Create markers for PWD-friendly locations.
-    // Modify each marker so that tapping it creates a route.
-    _markerHandler
-        .createMarkers(pwdFriendlyLocations, _locationHandler.currentLocation)
-        .then((markers) {
-      final pwdMarkers = markers.map((marker) {
-        if (marker.markerId.value.startsWith('pwd_')) {
-          // Calculate distance
-          double distance = 0;
-          if (_locationHandler.currentLocation != null) {
-            distance = _calculateDistance(
-              _locationHandler.currentLocation!,
-              marker.position,
-            );
-          }
-
-          return Marker(
-            markerId: marker.markerId,
-            position: marker.position,
-            icon: marker.icon,
-            infoWindow: InfoWindow(
-              title: marker.infoWindow.title,
-              snippet: 'Tap to show route',
-              onTap: () {
-                if (_locationHandler.currentLocation != null) {
-                  _createRoute(
-                      _locationHandler.currentLocation!, marker.position);
-                }
-              },
-            ),
-          );
-        }
-        return marker;
-      }).toSet();
-
-      setState(() {
-        _markers.addAll(pwdMarkers);
-      });
-    });
+    _getPwdLocationsAndCreateMarkers();
 
     // Show the tutorial if onboarding has not been completed.
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -231,15 +195,25 @@ class _GpsScreenState extends State<GpsScreen> {
   }
 
   /// Call this to change PWD circle size and immediately rebuild circles
-  void setPwdRadiusMultiplier(double multiplier) {
-    setState(() {
-      _pwdRadiusMultiplier = multiplier.clamp(0.2, 3.0);
-      // recompute circles using the existing pwdFriendlyLocations list
-      _circles = createPwdfriendlyRouteCircles(pwdFriendlyLocations);
-    });
+  void setPwdRadiusMultiplier(double multiplier) async {
+    try {
+      final locations = await getPwdFriendlyLocations();
+      setState(() {
+        _pwdRadiusMultiplier = multiplier.clamp(0.2, 3.0);
+        _circles = createPwdfriendlyRouteCircles(locations);
+      });
+    } catch (e) {
+      print('Error updating circles: $e');
+    }
   }
 
-  // inside _GpsScreenState
+  double _parseDouble(dynamic value) {
+    if (value == null) return 0.0;
+    if (value is double) return value;
+    if (value is int) return value.toDouble();
+    if (value is String) return double.tryParse(value) ?? 0.0;
+    return 0.0;
+  }
 
   double _radiusForZoom(double zoom, double baseMeters) {
     // Heuristic: when zoomed out, make radius bigger so it remains visible.
@@ -261,14 +235,13 @@ class _GpsScreenState extends State<GpsScreen> {
     }
 
     // Minimum radius on screen (in pixels) we want the circle to appear as.
-    const double minPixelRadius = 15.0; // tune this (24..40 looks good )
+    const double minPixelRadius = 15.0;
 
     for (final loc in pwdLocations) {
-      final lat = loc.latitude as double;
-      final lng = loc.longitude as double;
-      final baseRadius = (loc.radiusMeters != null)
-          ? loc.radiusMeters as double
-          : _pwdBaseRadiusMeters;
+      // Convert string values to double
+      final double lat = _parseDouble(loc['latitude']);
+      final double lng = _parseDouble(loc['longitude']);
+      final baseRadius = _pwdBaseRadiusMeters;
 
       // meters-per-pixel approximation at this latitude (web mercator)
       final double latRad = lat * (pi / 180.0);
@@ -351,6 +324,83 @@ class _GpsScreenState extends State<GpsScreen> {
     }
   }
 
+  Future<void> _getPwdLocationsAndCreateMarkers() async {
+    try {
+      final locations = await getPwdFriendlyLocations();
+
+      _markerHandler
+          .createMarkers(locations, _locationHandler.currentLocation)
+          .then((markers) {
+        final pwdMarkers = markers.map((marker) {
+          if (marker.markerId.value.startsWith('pwd_')) {
+            // Find the corresponding location data
+            final location = locations.firstWhere(
+              (loc) => marker.markerId.value == 'pwd_${loc["name"]}',
+              orElse: () => {},
+            );
+
+            return Marker(
+              markerId: marker.markerId,
+              position: marker.position,
+              icon: marker.icon,
+              infoWindow: InfoWindow(
+                title: marker.infoWindow.title,
+                snippet: 'Tap to show details and rate',
+              ),
+              onTap: () async {
+                // Fetch the complete place data from Firebase including ratings
+                try {
+                  final doc = await _firestore
+                      .collection('pwd_locations')
+                      .doc(location["id"])
+                      .get();
+                  if (doc.exists) {
+                    // Convert string values to double
+                    final double latitude = _parseDouble(doc['latitude']);
+                    final double longitude = _parseDouble(doc['longitude']);
+
+                    final pwdPlace = Place(
+                      id: doc.id,
+                      userId: '',
+                      name: doc['name'],
+                      category: 'PWD Friendly',
+                      latitude: latitude,
+                      longitude: longitude,
+                      timestamp: DateTime.now(),
+                      address: doc['details'],
+                      averageRating: _parseDouble(doc['averageRating']),
+                      totalRatings: doc['totalRatings'] is int
+                          ? doc['totalRatings'] as int
+                          : int.tryParse(
+                                  doc['totalRatings']?.toString() ?? '0') ??
+                              0,
+                      reviews: doc['reviews'] != null
+                          ? List<Map<String, dynamic>>.from(doc['reviews'])
+                          : null,
+                    );
+
+                    setState(() {
+                      _selectedPlace = pwdPlace;
+                    });
+                  }
+                } catch (e) {
+                  print('Error fetching place details: $e');
+                }
+              },
+            );
+          }
+          return marker;
+        }).toSet();
+
+        setState(() {
+          _markers.addAll(pwdMarkers);
+        });
+      });
+    } catch (e) {
+      print('Error fetching PWD locations: $e');
+    }
+  }
+
   // Callback when the tutorial is completed.
   void _onTutorialComplete() {
     _locationHandler.getUserLocation().then((_) {
@@ -365,13 +415,9 @@ class _GpsScreenState extends State<GpsScreen> {
       }
       _locationHandler.initializeUserMarker();
     });
-    _markerHandler
-        .createMarkers(pwdFriendlyLocations, _locationHandler.currentLocation)
-        .then((markers) {
-      setState(() {
-        _markers.addAll(markers);
-      });
-    });
+
+    // Use Firebase data instead of static list
+    _getPwdLocationsAndCreateMarkers();
   }
 
   void _handleSpaceIdChanged(String spaceId) {
@@ -914,13 +960,25 @@ class _GpsScreenState extends State<GpsScreen> {
     }
   }
 
+  Future<void> _getPwdLocationsAndUpdateCircles() async {
+    try {
+      final locations = await getPwdFriendlyLocations();
+      if (mounted) {
+        setState(() {
+          _circles = createPwdfriendlyRouteCircles(locations);
+        });
+      }
+    } catch (e) {
+      print('Error updating circles with Firebase data: $e');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final bool isDarkMode = Provider.of<ThemeProvider>(context).isDarkMode;
     _mapKey = ValueKey(isDarkMode);
     final screenHeight = MediaQuery.of(context).size.height;
-    final Set<Polygon> basePolys =
-        _markerHandler.createPolygons(pwdFriendlyLocations);
+    final Set<Polygon> basePolys = {};
 
     return BlocListener<PlaceBloc, place_state.PlaceState>(
       listener: (context, state) {
@@ -1029,8 +1087,7 @@ class _GpsScreenState extends State<GpsScreen> {
                             if (mounted) {
                               setState(() {
                                 // recompute circles only after pinch stops / slows down
-                                _circles = createPwdfriendlyRouteCircles(
-                                    pwdFriendlyLocations);
+                                _getPwdLocationsAndUpdateCircles();
                               });
                             }
                           });

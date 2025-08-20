@@ -6,25 +6,29 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 class MarkerHandler {
   Future<Set<Marker>> createMarkers(
     List<Map<String, dynamic>> locations,
-    LatLng? userLocation, // Make parameter nullable
+    LatLng? userLocation,
   ) async {
     final customIcon = await getCustomIcon();
     return locations.map((location) {
+      // Convert string values to double
+      final double latitude = _parseDouble(location["latitude"]);
+      final double longitude = _parseDouble(location["longitude"]);
+
       // Calculate distance if user location is available
       String distanceText = '';
       if (userLocation != null) {
         final distance = _calculateDistance(
           userLocation.latitude,
           userLocation.longitude,
-          location["latitude"],
-          location["longitude"],
+          latitude,
+          longitude,
         );
         distanceText = '${distance.toStringAsFixed(1)} km';
       }
 
       return Marker(
         markerId: MarkerId("pwd_${location["name"]}"),
-        position: LatLng(location["latitude"], location["longitude"]),
+        position: LatLng(latitude, longitude),
         infoWindow: InfoWindow(
           title: location["name"],
           snippet: distanceText.isNotEmpty ? distanceText : location["details"],
@@ -32,6 +36,15 @@ class MarkerHandler {
         icon: customIcon,
       );
     }).toSet();
+  }
+
+// Add this helper method to safely parse doubles
+  double _parseDouble(dynamic value) {
+    if (value == null) return 0.0;
+    if (value is double) return value;
+    if (value is int) return value.toDouble();
+    if (value is String) return double.tryParse(value) ?? 0.0;
+    return 0.0;
   }
 
   double _calculateDistance(
@@ -62,7 +75,11 @@ class MarkerHandler {
   Set<Polygon> createPolygons(List<Map<String, dynamic>> pwdFriendlyLocations) {
     final Set<Polygon> polygons = {};
     for (var location in pwdFriendlyLocations) {
-      final LatLng center = LatLng(location["latitude"], location["longitude"]);
+      // Convert string values to double
+      final double latitude = _parseDouble(location["latitude"]);
+      final double longitude = _parseDouble(location["longitude"]);
+
+      final LatLng center = LatLng(latitude, longitude);
       final List<LatLng> points = [];
       for (double angle = 0; angle <= 360; angle += 10) {
         final double radians = angle * (3.141592653589793 / 180);

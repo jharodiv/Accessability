@@ -230,20 +230,24 @@ class _GpsScreenState extends State<GpsScreen> {
 
     // helper to keep stroke width reasonable across zoom levels
     int _strokeWidthForZoom(double zoom) {
-      final int w = ((zoom - 12) * 0.5).round();
-      return w.clamp(1, 6);
+      // a bit bolder at high zoom so the circle is visible
+      final int w = ((zoom - 12) * 0.6).round();
+      return w.clamp(1, 8);
     }
 
     // Minimum radius on screen (in pixels) we want the circle to appear as.
-    const double minPixelRadius = 15.0;
+    // Increase this to make circles larger when zoomed in.
+    const double minPixelRadius = 16.0;
+
+    // Preferred pixel radius — attempt to keep circles approximately this size when possible
+    const double preferredPixelRadius = 28.0;
 
     for (final loc in pwdLocations) {
-      // Convert string values to double
       final double lat = _parseDouble(loc['latitude']);
       final double lng = _parseDouble(loc['longitude']);
-      final baseRadius = _pwdBaseRadiusMeters;
+      final double baseRadius = _pwdBaseRadiusMeters; // keep your base
 
-      // meters-per-pixel approximation at this latitude (web mercator)
+      // meters-per-pixel at this latitude (web mercator)
       final double latRad = lat * (pi / 180.0);
       final double metersPerPixel =
           156543.03392 * cos(latRad) / pow(2.0, _currentZoom);
@@ -252,22 +256,32 @@ class _GpsScreenState extends State<GpsScreen> {
       final double zoomAdaptiveMeters =
           _radiusForZoom(_currentZoom, baseRadius) * _pwdRadiusMultiplier;
 
-      // guarantee a minimum on-screen size by converting minPixelRadius -> meters
+      // Convert desired on-screen sizes into meters (so we can take the max)
+      final double preferredMeters = preferredPixelRadius * metersPerPixel;
       final double minMetersFloor = minPixelRadius * metersPerPixel;
 
-      // choose the larger of the two so circles stay visible when zoomed out
-      final double radiusMeters = max(zoomAdaptiveMeters, minMetersFloor);
+      // Final radius: keep the larger of (zoom heuristic) or preferred on-screen meters
+      double finalRadiusMeters = max(zoomAdaptiveMeters, preferredMeters);
+
+      // Always ensure a conservative absolute floor (avoid too tiny radii)
+      const double absoluteMinMeters = 4.0; // tiny absolute floor to avoid zero
+      finalRadiusMeters =
+          max(finalRadiusMeters, max(minMetersFloor, absoluteMinMeters));
 
       final int strokeWidth = _strokeWidthForZoom(_currentZoom);
+
+      // Optional debug — uncomment if you want runtime logs of sizes:
+      // print('PWD circle @($lat,$lng) zoom=$_currentZoom metersPerPx=${metersPerPixel.toStringAsFixed(4)} finalRadius=${finalRadiusMeters.toStringAsFixed(2)} stroke=$strokeWidth');
 
       final circle = Circle(
         circleId: CircleId('pwd_circle_${lat}_${lng}'),
         center: LatLng(lat, lng),
-        radius: radiusMeters,
+        radius: finalRadiusMeters,
         fillColor: _pwdCircleColor.withOpacity(0.16),
         strokeColor: _pwdCircleColor.withOpacity(0.95),
         strokeWidth: strokeWidth,
-        zIndex: 30,
+        // Increase zIndex so circle renders above lower-z-index things (markers may still appear above in some implementations).
+        zIndex: 200,
         visible: true,
         consumeTapEvents: true,
         onTap: () {
@@ -343,6 +357,7 @@ class _GpsScreenState extends State<GpsScreen> {
               markerId: marker.markerId,
               position: marker.position,
               icon: marker.icon,
+              zIndex: 100, // lower than the circle's 200
               infoWindow: InfoWindow(
                 title: marker.infoWindow.title,
                 snippet: 'Tap to show details and rate',
@@ -564,6 +579,7 @@ class _GpsScreenState extends State<GpsScreen> {
         }
 
 // Circles (if any) — rescale each incoming circle to remain visible across zooms
+        // Circles (if any) — rescale each incoming circle to remain visible across zooms
         Set<Circle> newCircles = {};
         if (result['circles'] != null) {
           final raw = result['circles'] is Set<Circle>

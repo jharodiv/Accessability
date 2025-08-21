@@ -79,6 +79,7 @@ flutter:
     - assets/images/others/
     - assets/images/onboarding/
     - assets/images/settings/
+    - assets/images/others/nomessage.png
     - assets/images/others/biometricslogo.png
     - assets/images/others/accessabilitylogo.png
     - assets/images/others/hotel.png

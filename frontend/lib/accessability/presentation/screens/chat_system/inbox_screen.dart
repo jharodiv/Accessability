@@ -35,10 +35,36 @@ class _InboxScreenState extends State<InboxScreen> {
     final bool isDarkMode = Provider.of<ThemeProvider>(context).isDarkMode;
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text('inbox'.tr()),
-        backgroundColor: isDarkMode ? Colors.grey[900] : Colors.white,
-        elevation: 0,
+      appBar: PreferredSize(
+        preferredSize: const Size.fromHeight(65),
+        child: Container(
+          decoration: BoxDecoration(
+            color: isDarkMode ? Colors.grey[900] : Colors.white,
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.1),
+                offset: const Offset(0, 1),
+                blurRadius: 2,
+              ),
+            ],
+          ),
+          child: AppBar(
+            elevation: 0,
+            leading: IconButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              icon: const Icon(Icons.arrow_back),
+              color: const Color(0xFF6750A4),
+            ),
+            title: Text(
+              'inbox'.tr(),
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
+            centerTitle: true,
+            backgroundColor: Colors.transparent,
+          ),
+        ),
       ),
       body: Container(
         color: isDarkMode ? Colors.grey[900] : Colors.white,
@@ -48,19 +74,45 @@ class _InboxScreenState extends State<InboxScreen> {
             Expanded(
               child: ChatUsersList(),
             ),
+
             // Chat Requests Section (Only shown if there are requests)
-            StreamBuilder(
+            StreamBuilder<QuerySnapshot>(
               stream: chatService.getPendingChatRequests(),
               builder: (context, snapshot) {
+                // If there was an error loading requests, show the "no messages" asset
                 if (snapshot.hasError) {
-                  return Text('error_loading_chat_requests'.tr());
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(
+                        vertical: 24.0, horizontal: 16.0),
+                    child: Column(
+                      children: [
+                        SizedBox(
+                          height: 220,
+                          child: Image.asset(
+                            'assets/images/others/nomessage.png',
+                            fit: BoxFit.contain,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          'Your Inbox is Empty',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                            color: isDarkMode ? Colors.white : Colors.black,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                      ],
+                    ),
+                  );
                 }
 
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return const SizedBox.shrink(); // Hide while loading
                 }
 
-                final requests = snapshot.data!.docs;
+                final requests = snapshot.data?.docs ?? [];
 
                 if (requests.isEmpty) {
                   return const SizedBox.shrink(); // Hide if no requests
@@ -69,14 +121,16 @@ class _InboxScreenState extends State<InboxScreen> {
                 return FutureBuilder<List<Map<String, dynamic>>>(
                   future: _filterRequestsFromSpaceMembers(requests),
                   builder: (context, filteredSnapshot) {
-                    if (filteredSnapshot.connectionState == ConnectionState.waiting) {
+                    if (filteredSnapshot.connectionState ==
+                        ConnectionState.waiting) {
                       return const SizedBox.shrink(); // Hide while loading
                     }
 
                     final filteredRequests = filteredSnapshot.data ?? [];
 
                     if (filteredRequests.isEmpty) {
-                      return const SizedBox.shrink(); // Hide if no filtered requests
+                      return const SizedBox
+                          .shrink(); // Hide if no filtered requests
                     }
 
                     return Column(
@@ -117,30 +171,43 @@ class _InboxScreenState extends State<InboxScreen> {
                             final senderID = data['senderID'];
                             final message = data['message'];
 
-                            return FutureBuilder(
+                            return FutureBuilder<DocumentSnapshot>(
                               future: FirebaseFirestore.instance
                                   .collection('Users')
                                   .doc(senderID)
                                   .get(),
                               builder: (context, userSnapshot) {
-                                if (userSnapshot.connectionState == ConnectionState.waiting) {
+                                if (userSnapshot.connectionState ==
+                                    ConnectionState.waiting) {
                                   return ListTile(
                                     title: Text('loading'.tr()),
                                   );
                                 }
 
+                                if (!userSnapshot.hasData ||
+                                    !userSnapshot.data!.exists) {
+                                  return ListTile(
+                                    title: Text('unknown_user'.tr()),
+                                    subtitle: Text(message ?? ''),
+                                  );
+                                }
+
                                 final userData = userSnapshot.data!.data()
                                     as Map<String, dynamic>;
-                                final senderUsername = userData['username'];
-                                final profilePicture = userData['profilePicture'] ??
-                                    'https://via.placeholder.com/150';
+                                final senderUsername = userData['username'] ??
+                                    userData['firstName'] ??
+                                    'User';
+                                final profilePicture =
+                                    userData['profilePicture'] ??
+                                        'https://via.placeholder.com/150';
 
                                 return ListTile(
                                   leading: CircleAvatar(
-                                    backgroundImage: NetworkImage(profilePicture),
+                                    backgroundImage:
+                                        NetworkImage(profilePicture),
                                   ),
                                   title: Text(senderUsername),
-                                  subtitle: Text(message),
+                                  subtitle: Text(message ?? ''),
                                   trailing: Row(
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
@@ -150,6 +217,8 @@ class _InboxScreenState extends State<InboxScreen> {
                                         onPressed: () async {
                                           await chatService
                                               .acceptChatRequest(doc['id']);
+                                          setState(
+                                              () {}); // refresh after accept
                                         },
                                       ),
                                       IconButton(
@@ -158,6 +227,8 @@ class _InboxScreenState extends State<InboxScreen> {
                                         onPressed: () async {
                                           await chatService
                                               .rejectChatRequest(doc['id']);
+                                          setState(
+                                              () {}); // refresh after reject
                                         },
                                       ),
                                     ],
@@ -180,7 +251,8 @@ class _InboxScreenState extends State<InboxScreen> {
   }
 
   // Filter out chat requests from users in the same space
-  Future<List<Map<String, dynamic>>> _filterRequestsFromSpaceMembers(List<QueryDocumentSnapshot> requests) async {
+  Future<List<Map<String, dynamic>>> _filterRequestsFromSpaceMembers(
+      List<QueryDocumentSnapshot> requests) async {
     final currentUserID = FirebaseAuth.instance.currentUser!.uid;
 
     // Fetch all spaces the current user is in
@@ -198,13 +270,16 @@ class _InboxScreenState extends State<InboxScreen> {
     }
 
     // Filter out requests from users in the same space
-    return requests.where((doc) {
-      final data = doc.data() as Map<String, dynamic>;
-      final senderID = data['senderID'];
-      return !spaceMemberIds.contains(senderID);
-    }).map((doc) => {
-      'id': doc.id,
-      'data': doc.data(),
-    }).toList();
+    return requests
+        .where((doc) {
+          final data = doc.data() as Map<String, dynamic>;
+          final senderID = data['senderID'];
+          return !spaceMemberIds.contains(senderID);
+        })
+        .map((doc) => {
+              'id': doc.id,
+              'data': doc.data(),
+            })
+        .toList();
   }
 }

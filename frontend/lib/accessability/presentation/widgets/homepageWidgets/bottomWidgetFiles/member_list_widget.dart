@@ -45,6 +45,48 @@ class _MemberListWidgetState extends State<MemberListWidget> {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   String? _selectedId;
 
+  // Helper: build full name from a member map with fallbacks
+  String _fullNameFromMap(Map<String, dynamic>? m) {
+    if (m == null) return 'Unknown';
+    final fn = (m['firstName'] as String?)?.trim();
+    final ln = (m['lastName'] as String?)?.trim();
+    if ((fn?.isNotEmpty ?? false) && (ln?.isNotEmpty ?? false)) {
+      return '$fn $ln';
+    } else if (fn?.isNotEmpty ?? false) {
+      return fn!;
+    } else if (ln?.isNotEmpty ?? false) {
+      return ln!;
+    } else {
+      final uname = (m['username'] as String?)?.trim();
+      if (uname?.isNotEmpty ?? false) return uname!;
+      return 'Unknown';
+    }
+  }
+
+  // Helper to get first and last name strings separately (may be null/empty)
+  Map<String, String?> _splitFirstLast(Map<String, dynamic>? m) {
+    if (m == null) return {'firstName': null, 'lastName': null};
+    final fn = (m['firstName'] as String?)?.trim();
+    final ln = (m['lastName'] as String?)?.trim();
+    return {'firstName': fn, 'lastName': ln};
+  }
+
+  // Helper to get a single-char avatar initial from available name sources
+  String _initialFromName(
+      String? name, Map<String, dynamic>? m, User? authUser) {
+    if (name != null && name.trim().isNotEmpty)
+      return name.trim()[0].toUpperCase();
+    final fn = (m?['firstName'] as String?)?.trim();
+    if (fn?.isNotEmpty ?? false) return fn![0].toUpperCase();
+    final display = authUser?.displayName;
+    if (display != null && display.trim().isNotEmpty)
+      return display.trim()[0].toUpperCase();
+    final emailPart = authUser?.email?.split('@').first;
+    if (emailPart != null && emailPart.isNotEmpty)
+      return emailPart[0].toUpperCase();
+    return 'U';
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = Provider.of<ThemeProvider>(context).isDarkMode;
@@ -55,11 +97,30 @@ class _MemberListWidgetState extends State<MemberListWidget> {
     }
 
     final currentUser = _auth.currentUser;
-    // prefer displayName; fallback to email local-part; final fallback 'User'
-    final userName = (currentUser?.displayName?.trim().isNotEmpty ?? false)
-        ? currentUser!.displayName!.trim()
-        : (currentUser?.email?.split('@').first ?? 'User');
-    final avatarChar = (userName.isNotEmpty) ? userName[0].toUpperCase() : 'U';
+
+    // Try to find current user's member map (if present in widget.members)
+    Map<String, dynamic>? currentMemberMap;
+    for (final m in widget.members) {
+      try {
+        if ((m['uid'] as String?) == currentUser?.uid) {
+          currentMemberMap = m;
+          break;
+        }
+      } catch (_) {
+        // ignore malformed map entries
+      }
+    }
+
+    // Build a display name for the current user: prefer first+last from members map,
+    // then displayName, then email local-part, finally 'User'
+    final userName = currentMemberMap != null
+        ? _fullNameFromMap(currentMemberMap)
+        : ((currentUser?.displayName?.trim().isNotEmpty ?? false)
+            ? currentUser!.displayName!.trim()
+            : (currentUser?.email?.split('@').first ?? 'User'));
+
+    final avatarChar =
+        _initialFromName(userName, currentMemberMap, currentUser);
 
     // Nothing to show?
     if (widget.activeSpaceId.isEmpty) return const SizedBox();
@@ -231,7 +292,7 @@ class _MemberListWidgetState extends State<MemberListWidget> {
                             as ImageProvider,
               ),
               title: Text(
-                m['username'] ?? 'Unknown',
+                _fullNameFromMap(m),
                 style: TextStyle(
                     fontWeight: FontWeight.bold,
                     color: isDark ? Colors.white : Colors.black),
@@ -256,15 +317,22 @@ class _MemberListWidgetState extends State<MemberListWidget> {
               ),
               trailing: IconButton(
                 icon: Icon(Icons.chat, color: isDark ? Colors.white : purple),
-                onPressed: () => Navigator.pushNamed(
-                  context,
-                  '/chatconvo',
-                  arguments: {
-                    'receiverUsername': m['username'],
-                    'receiverID': m['uid'],
-                    'receiverProfilePicture': m['profilePicture'],
-                  },
-                ),
+                onPressed: () {
+                  // Build full name and separate first/last for chat arguments
+                  final fullName = _fullNameFromMap(m);
+                  final names = _splitFirstLast(m);
+                  Navigator.pushNamed(
+                    context,
+                    '/chatconvo',
+                    arguments: {
+                      'receiverUsername': fullName,
+                      'receiverFirstName': names['firstName'] ?? '',
+                      'receiverLastName': names['lastName'] ?? '',
+                      'receiverID': m['uid'],
+                      'receiverProfilePicture': m['profilePicture'],
+                    },
+                  );
+                },
               ),
             ),
           ),

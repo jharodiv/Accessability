@@ -251,7 +251,18 @@ class _LocationWidgetsState extends State<LocationWidgets> {
         }
         return {
           'uid': doc['uid'],
-          'username': doc['username'] ?? 'Unknown',
+          // prefer separate fields, but keep 'username' for compatibility:
+          'firstName': (doc['firstName'] ?? '').toString(),
+          'lastName': (doc['lastName'] ?? '').toString(),
+          // create a combined full name and also put it into 'username' to avoid breaking callers
+          'username': ('${doc['firstName'] ?? ''} ${doc['lastName'] ?? ''}')
+                  .toString()
+                  .trim()
+                  .isNotEmpty
+              ? ('${doc['firstName'] ?? ''} ${doc['lastName'] ?? ''}')
+                  .toString()
+                  .trim()
+              : (doc['username'] ?? 'Unknown'),
           'profilePicture': doc['profilePicture'] ??
               'https://firebasestorage.googleapis.com/v0/b/accessability-71ef7.appspot.com/o/profile_pictures%2Fdefault_profile.png?alt=media&token=bc7a75a7-a78e-4460-b816-026a8fc341ba',
           'address': address,
@@ -526,20 +537,46 @@ class _LocationWidgetsState extends State<LocationWidgets> {
             String avatarLetter;
 
             if (userState is UserLoaded) {
-              userName = userState.user.username;
+              final firstName = (userState.user.firstName ?? '').trim();
+              final lastName = (userState.user.lastName ?? '').trim();
+              if (firstName.isNotEmpty || lastName.isNotEmpty) {
+                userName =
+                    '${firstName}${firstName.isNotEmpty && lastName.isNotEmpty ? ' ' : ''}$lastName'
+                        .trim();
+              } else {
+                // fallback to existing username field if no first/last provided
+                userName = (userState.user.username ?? 'User').trim();
+              }
               profilePicture = userState.user.profilePicture;
+              // avatar letter use first name if available, else fallback to first char of userName
+              final avatarSource =
+                  (userState.user.firstName ?? '').trim().isNotEmpty
+                      ? userState.user.firstName!.trim()
+                      : userName;
               avatarLetter =
-                  userName.isNotEmpty ? userName[0].toUpperCase() : 'U';
+                  avatarSource.isNotEmpty ? avatarSource[0].toUpperCase() : 'U';
             } else {
               // Fallback to Firebase Auth data
-              userName = (currentUser?.displayName?.trim().isNotEmpty ?? false)
-                  ? currentUser!.displayName!.trim()
-                  : (currentUser?.email?.split('@').first ?? 'User');
+              String display = (currentUser?.displayName?.trim() ?? '');
+              if (display.isNotEmpty) {
+                // try to split displayName into first + last
+                final parts = display.split(RegExp(r'\s+'));
+                final first = parts.isNotEmpty ? parts.first : '';
+                final last = parts.length > 1 ? parts.sublist(1).join(' ') : '';
+                userName =
+                    '${first}${first.isNotEmpty && last.isNotEmpty ? ' ' : ''}$last'
+                        .trim();
+                avatarLetter = first.isNotEmpty
+                    ? first[0].toUpperCase()
+                    : (userName.isNotEmpty ? userName[0].toUpperCase() : 'U');
+              } else {
+                // finally fallback to email prefix
+                userName = (currentUser?.email?.split('@').first ?? 'User');
+                avatarLetter =
+                    userName.isNotEmpty ? userName[0].toUpperCase() : 'U';
+              }
               profilePicture = currentUser?.photoURL;
-              avatarLetter =
-                  userName.isNotEmpty ? userName[0].toUpperCase() : 'U';
             }
-
             return Column(
               children: [
                 IgnorePointer(

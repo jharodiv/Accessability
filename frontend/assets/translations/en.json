@@ -12,6 +12,8 @@
   "unknownPlace": "Unknown Place",
   "settings": "Settings",
   "account": "Account",
+  "firstName": "First Name",
+  "lastName": "Last Name",
   "notification": "Notification",
   "privacySecurity": "Privacy & Security",
   "biometricLogin": "Biometric Login",

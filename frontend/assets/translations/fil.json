@@ -78,6 +78,8 @@
   "sos": "SOS",
   "mapView": "Tanaw ng Mapa",
   "centerOnMe": "Tanaw ng Mapa",
+  "firstName": "Unang Pangalan",
+  "lastName": "Apelyido",
   "locationFetchError": "Hindi makuha ang kasalukuyang lokasyon.",
   "location": "Lokasyon",
   "favorite": "Paborito",

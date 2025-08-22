@@ -843,7 +843,6 @@ class _LocationWidgetsState extends State<LocationWidgets> {
                                     yourAddressLabel:
                                         _yourAddress ?? 'Current Location',
                                     yourLastUpdate: _yourLastUpdate,
-                                    onMemberPressed: widget.onMemberPressed,
                                     onAddPerson: () {
                                       Navigator.of(context).push(
                                         MaterialPageRoute(
@@ -856,6 +855,13 @@ class _LocationWidgetsState extends State<LocationWidgets> {
                                       );
                                     },
                                     isLoading: _isLoading,
+                                    onMemberPressed: (LatLng loc, String uid) {
+                                      setState(() {
+                                        _selectedMemberId = uid;
+                                      }); // update parent UI state
+                                      widget.onMemberPressed(
+                                          loc, uid); // forward to GpsScreen
+                                    },
                                   ),
                                 ],
                               ] else if (_activeIndex == 1) ...[

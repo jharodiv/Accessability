@@ -48,7 +48,29 @@ class _MemberListWidgetState extends State<MemberListWidget> {
   /// Tracks currently "blinking" ids for the brief purple flash feedback.
   final Set<String> _blinkIds = {};
 
-  /// Trigger a brief purple "blink" for the row with given id.
+  @override
+  void initState() {
+    super.initState();
+    // Initialize local selection from parent (if parent already selected someone).
+    _selectedId = widget.selectedMemberId;
+  }
+
+  @override
+  void didUpdateWidget(covariant MemberListWidget oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // If parent changed selectedMemberId, sync local _selectedId so visuals match
+    if (widget.selectedMemberId != oldWidget.selectedMemberId) {
+      // optional: blink to indicate parent-initiated selection
+      if (widget.selectedMemberId != null &&
+          widget.selectedMemberId!.isNotEmpty) {
+        _blink(widget.selectedMemberId!);
+      }
+      setState(() {
+        _selectedId = widget.selectedMemberId;
+      });
+    }
+  }
+
   void _blink(String id,
       {Duration duration = const Duration(milliseconds: 260)}) {
     if (id.isEmpty) return;
@@ -290,7 +312,6 @@ class _MemberListWidgetState extends State<MemberListWidget> {
     }
 
     // 2) Other members
-    // 2) Other members
     for (final m
         in widget.members.where((m) => m['uid'] != _auth.currentUser?.uid)) {
       final memberId = (m['uid'] as String?) ?? '';
@@ -300,7 +321,7 @@ class _MemberListWidgetState extends State<MemberListWidget> {
           curve: Curves.easeOut,
           color: _blinkIds.contains(memberId)
               ? purple.withOpacity(0.28)
-              : (_selectedId == memberId
+              : (widget.selectedMemberId == memberId || _selectedId == memberId
                   ? purple.withOpacity(0.12)
                   : (isDark ? Colors.grey[900] : Colors.white)),
           child: Material(
@@ -310,6 +331,7 @@ class _MemberListWidgetState extends State<MemberListWidget> {
               highlightColor: purple.withOpacity(0.12),
               onTap: () async {
                 if (memberId.isNotEmpty) _blink(memberId);
+                // locally mark selected for immediate visual feedback
                 setState(() => _selectedId = memberId);
 
                 final snap = await _firestore
@@ -370,7 +392,8 @@ class _MemberListWidgetState extends State<MemberListWidget> {
                     });
                   },
                 ),
-                selected: _selectedId == memberId,
+                selected: widget.selectedMemberId == memberId ||
+                    _selectedId == memberId,
                 selectedTileColor: purple.withOpacity(0.12),
               ),
             ),

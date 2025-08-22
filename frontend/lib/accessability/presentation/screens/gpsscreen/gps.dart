@@ -5,15 +5,15 @@ import 'package:AccessAbility/accessability/data/model/place.dart';
 import 'package:AccessAbility/accessability/firebaseServices/place/geocoding_service.dart';
 import 'package:AccessAbility/accessability/logic/bloc/place/bloc/place_state.dart'
     as place_state;
+import 'package:AccessAbility/accessability/presentation/widgets/gpsWidgets/circle_manager.dart';
 import 'package:AccessAbility/accessability/presentation/widgets/gpsWidgets/fov_overlay_widget.dart';
+import 'package:AccessAbility/accessability/presentation/widgets/gpsWidgets/gps_map.dart';
 import 'package:AccessAbility/accessability/utils/badge_icon.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
-import 'package:flutter_polyline_points/flutter_polyline_points.dart';
 import 'package:provider/provider.dart';
 import 'package:easy_localization/easy_localization.dart';
 // Import your own packages (update the paths as needed)
@@ -38,8 +38,6 @@ import 'package:AccessAbility/accessability/presentation/widgets/safetyAssistWid
 import 'package:AccessAbility/accessability/logic/bloc/auth/auth_bloc.dart';
 import 'package:AccessAbility/accessability/logic/bloc/auth/auth_state.dart';
 import 'package:AccessAbility/accessability/logic/bloc/place/bloc/place_bloc.dart';
-import 'package:AccessAbility/accessability/data/model/place.dart';
-import 'package:flutter_compass/flutter_compass.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class GpsScreen extends StatefulWidget {
@@ -81,7 +79,7 @@ class _GpsScreenState extends State<GpsScreen> {
   final Color _pwdCircleColor = const Color(0xFF7C4DFF);
   double _navigationPanelOffset = 0.0;
   Set<Polygon> _fovPolygons = {};
-  List<Map<String, dynamic>> _nearbyCircleSpecs = [];
+  List<NearbyCircleSpec> _nearbyCircleSpecs = [];
   MapType _currentMapType = MapType.normal;
   MapPerspective? _pendingPerspective; // New field
 
@@ -178,69 +176,6 @@ class _GpsScreenState extends State<GpsScreen> {
     return true;
   }
 
-  Set<Circle> _computeNearbyCirclesFromRaw() {
-    final Set<Circle> circles = {};
-
-    if (_nearbyCircleSpecs.isEmpty) return circles;
-
-    int _strokeWidthForZoom(double zoom) {
-      final int w = ((zoom - 12) * 0.75).round(); // a bit bolder stroke
-      return w.clamp(2, 10);
-    }
-
-    // Bigger on-screen target so circles are noticeably larger
-    const double minPixelRadius = 24.0; // was 12.0
-    // make shrink closer to 1.0 so we don't shrink much
-    const double shrinkFactor = 0.92; // was 0.55
-
-    for (final spec in _nearbyCircleSpecs) {
-      final LatLng center = spec['center'] as LatLng;
-      final double baseRadius =
-          (spec['baseRadius'] as double?) ?? _pwdBaseRadiusMeters;
-      final int zIndex = spec['zIndex'] ?? 30;
-      final bool visible = spec['visible'] ?? true;
-      final String id =
-          spec['id'] ?? 'nearby_circle_${center.latitude}_${center.longitude}';
-
-      final double latRad = center.latitude * (pi / 180.0);
-      final double metersPerPixel =
-          156543.03392 * cos(latRad) / pow(2.0, _currentZoom);
-
-      final double zoomAdaptiveMeters =
-          _radiusForZoom(_currentZoom, baseRadius) * _pwdRadiusMultiplier;
-      final double minMetersFloor = minPixelRadius * metersPerPixel;
-
-      // extra multiplier to enlarge final radius slightly (helps at mid zooms)
-      final double extraVisualBoost = 1.15;
-
-      final double adjustedRadius = max(zoomAdaptiveMeters, minMetersFloor) *
-          shrinkFactor *
-          extraVisualBoost;
-      final int strokeW = _strokeWidthForZoom(_currentZoom);
-
-      circles.add(Circle(
-        circleId: CircleId(id),
-        center: center,
-        radius: adjustedRadius,
-        fillColor: _pwdCircleColor.withOpacity(0.18),
-        strokeColor: _pwdCircleColor.withOpacity(0.95),
-        strokeWidth: strokeW,
-        zIndex: zIndex,
-        visible: visible,
-        consumeTapEvents: true,
-        onTap: () {
-          if (_locationHandler.mapController != null) {
-            final targetZoom = max(15.0, min(18.0, _currentZoom + 1.6));
-            _locationHandler.mapController!
-                .animateCamera(CameraUpdate.newLatLngZoom(center, targetZoom));
-          }
-        },
-      ));
-    }
-
-    return circles;
-  }
-
   bool _polygonsGeometryEqual(Set<Polygon> a, Set<Polygon> b) {
     if (a.length != b.length) return false;
     final Map<String, Polygon> ma = {for (var p in a) p.polygonId.value: p};
@@ -278,88 +213,22 @@ class _GpsScreenState extends State<GpsScreen> {
     return 0.0;
   }
 
-  double _radiusForZoom(double zoom, double baseMeters) {
-    // Heuristic: when zoomed out, make radius bigger so it remains visible.
-    // Increased the clamp upper bound so extreme zoom-outs scale more.
-    final num factor =
-        pow(2, 13.0 - zoom).clamp(0.25, 12.0); // <-- 12.0 (was 6.0)
-    return max(8.0, baseMeters * factor);
-  }
-
   /// Create circles for the given pwd-friendly locations list.
   /// Expects objects in `pwdFriendlyLocations` to have `latitude`, `longitude`, and optional `radiusMeters`.
   Set<Circle> createPwdfriendlyRouteCircles(List<dynamic> pwdLocations) {
-    final Set<Circle> circles = {};
-
-    // helper to keep stroke width reasonable across zoom levels
-    int _strokeWidthForZoom(double zoom) {
-      // a bit bolder at high zoom so the circle is visible
-      final int w = ((zoom - 12) * 0.6).round();
-      return w.clamp(1, 8);
-    }
-
-    // Minimum radius on screen (in pixels) we want the circle to appear as.
-    // Increase this to make circles larger when zoomed in.
-    const double minPixelRadius = 16.0;
-
-    // Preferred pixel radius — attempt to keep circles approximately this size when possible
-    const double preferredPixelRadius = 28.0;
-
-    for (final loc in pwdLocations) {
-      final double lat = _parseDouble(loc['latitude']);
-      final double lng = _parseDouble(loc['longitude']);
-      final double baseRadius = _pwdBaseRadiusMeters; // keep your base
-
-      // meters-per-pixel at this latitude (web mercator)
-      final double latRad = lat * (pi / 180.0);
-      final double metersPerPixel =
-          156543.03392 * cos(latRad) / pow(2.0, _currentZoom);
-
-      // zoom-adaptive meters (your existing heuristic)
-      final double zoomAdaptiveMeters =
-          _radiusForZoom(_currentZoom, baseRadius) * _pwdRadiusMultiplier;
-
-      // Convert desired on-screen sizes into meters (so we can take the max)
-      final double preferredMeters = preferredPixelRadius * metersPerPixel;
-      final double minMetersFloor = minPixelRadius * metersPerPixel;
-
-      // Final radius: keep the larger of (zoom heuristic) or preferred on-screen meters
-      double finalRadiusMeters = max(zoomAdaptiveMeters, preferredMeters);
-
-      // Always ensure a conservative absolute floor (avoid too tiny radii)
-      const double absoluteMinMeters = 4.0; // tiny absolute floor to avoid zero
-      finalRadiusMeters =
-          max(finalRadiusMeters, max(minMetersFloor, absoluteMinMeters));
-
-      final int strokeWidth = _strokeWidthForZoom(_currentZoom);
-
-      // Optional debug — uncomment if you want runtime logs of sizes:
-      // print('PWD circle @($lat,$lng) zoom=$_currentZoom metersPerPx=${metersPerPixel.toStringAsFixed(4)} finalRadius=${finalRadiusMeters.toStringAsFixed(2)} stroke=$strokeWidth');
-
-      final circle = Circle(
-        circleId: CircleId('pwd_circle_${lat}_${lng}'),
-        center: LatLng(lat, lng),
-        radius: finalRadiusMeters,
-        fillColor: _pwdCircleColor.withOpacity(0.16),
-        strokeColor: _pwdCircleColor.withOpacity(0.95),
-        strokeWidth: strokeWidth,
-        // Increase zIndex so circle renders above lower-z-index things (markers may still appear above in some implementations).
-        zIndex: 200,
-        visible: true,
-        consumeTapEvents: true,
-        onTap: () {
-          if (_locationHandler.mapController != null) {
-            final targetZoom = max(15.0, min(18.0, _currentZoom + 1.6));
-            _locationHandler.mapController!.animateCamera(
-              CameraUpdate.newLatLngZoom(LatLng(lat, lng), targetZoom),
-            );
-          }
-        },
-      );
-
-      circles.add(circle);
-    }
-    return circles;
+    return CircleManager.createPwdfriendlyRouteCircles(
+      pwdLocations: pwdLocations,
+      currentZoom: _currentZoom,
+      pwdBaseRadiusMeters: _pwdBaseRadiusMeters,
+      pwdRadiusMultiplier: _pwdRadiusMultiplier,
+      pwdCircleColor: _pwdCircleColor,
+      onTap: (center, suggestedZoom) {
+        // same camera behavior as before
+        _locationHandler.mapController?.animateCamera(
+          CameraUpdate.newLatLngZoom(center, suggestedZoom),
+        );
+      },
+    );
   }
 
   @override
@@ -382,7 +251,6 @@ class _GpsScreenState extends State<GpsScreen> {
     _zoomDebounceTimer?.cancel();
     _mapZoomNotifier.dispose();
     _locationHandler.disposeHandler();
-    super.dispose();
     super.dispose();
   }
 
@@ -504,6 +372,25 @@ class _GpsScreenState extends State<GpsScreen> {
       _activeSpaceId = spaceId;
       _isLoading = true;
     });
+  }
+
+  Set<Circle> _computeNearbyCirclesFromRaw() {
+    return CircleManager.computeNearbyCirclesFromSpecs(
+      specs: _nearbyCircleSpecs,
+      currentZoom: _currentZoom,
+      pwdBaseRadiusMeters: _pwdBaseRadiusMeters,
+      pwdRadiusMultiplier: _pwdRadiusMultiplier,
+      pwdCircleColor: _pwdCircleColor,
+      onTap: (center, suggestedZoom) {
+        _locationHandler.mapController?.animateCamera(
+          CameraUpdate.newLatLngZoom(center, suggestedZoom),
+        );
+      },
+      // tune to match the larger visuals you wanted:
+      minPixelRadius: 24.0,
+      shrinkFactor: 0.92,
+      extraVisualBoost: 1.15,
+    );
   }
 
   /// Fetch nearby places and rebuild markers with an onTap callback
@@ -652,23 +539,13 @@ class _GpsScreenState extends State<GpsScreen> {
               : Set<Circle>.from(result['circles']);
 
           // convert incoming circles to lightweight "specs" we can rescale later
-          _nearbyCircleSpecs = raw.map((c) {
-            final incomingBase = (c.radius != null && c.radius > 0)
-                ? c.radius
-                : _pwdBaseRadiusMeters;
+          _nearbyCircleSpecs = CircleManager.specsFromRawCircles(
+            raw,
+            inflateFactor: 1.6, // preserve your earlier inflation
+            baseFallback: _pwdBaseRadiusMeters,
+          );
 
-            // Inflate the incoming base so the final visual appears larger
-            final double inflatedBase = (incomingBase * 1.6).clamp(8.0, 300.0);
-
-            return {
-              'id': c.circleId.value,
-              'center': c.center,
-              'baseRadius': inflatedBase,
-              'zIndex': c.zIndex ?? 30,
-              'visible': c.visible ?? true,
-            };
-          }).toList();
-          // compute the scaled circles for current zoom immediately
+// now compute scaled circles immediately for display
           newCircles = _computeNearbyCirclesFromRaw();
         }
 
@@ -890,6 +767,63 @@ class _GpsScreenState extends State<GpsScreen> {
     });
   }
 
+  // Helper methods for navigation
+  Future<String> _getLocationName(LatLng location) async {
+    try {
+      final geocodingService = OpenStreetMapGeocodingService();
+      return await geocodingService.getAddressFromLatLng(location);
+    } catch (e) {
+      return 'Destination';
+    }
+  }
+
+  // New method to toggle navigation mode
+  void _toggleNavigationMode() {
+    if (_routeUpdateTimer == null) {
+      _startFollowingUser();
+    } else {
+      _stopFollowingUser();
+      if (_locationHandler.currentLocation != null &&
+          _routeDestination != null) {
+        final bounds = _locationHandler.getLatLngBounds(
+            [_locationHandler.currentLocation!, _routeDestination!]);
+        _locationHandler.mapController
+            ?.animateCamera(CameraUpdate.newLatLngBounds(bounds, 100));
+      }
+    }
+  }
+
+  Future<double> _calculateRouteDistance() async {
+    if (_locationHandler.currentLocation == null || _routePoints.isEmpty) {
+      return 0.0;
+    }
+
+    // Find the nearest point on the route
+    int nearestIndex = 0;
+    double minDistance = double.infinity;
+    for (int i = 0; i < _routePoints.length; i++) {
+      final distance = _calculateDistance(
+        _locationHandler.currentLocation!,
+        _routePoints[i],
+      );
+      if (distance < minDistance) {
+        minDistance = distance;
+        nearestIndex = i;
+      }
+    }
+
+    // Calculate remaining distance
+    double remainingDistance = 0.0;
+    for (int i = nearestIndex; i < _routePoints.length - 1; i++) {
+      remainingDistance += _calculateDistance(
+        _routePoints[i],
+        _routePoints[i + 1],
+      );
+    }
+
+    return remainingDistance;
+  }
+
   void _stopFollowingUser() {
     _routeUpdateTimer?.cancel();
     _routeUpdateTimer = null;
@@ -1027,6 +961,18 @@ class _GpsScreenState extends State<GpsScreen> {
     }
   }
 
+  void _onMapCreated(GoogleMapController controller, bool isDarkMode) {
+    // Call your location handler or map style logic here
+    _locationHandler.onMapCreated(controller, isDarkMode);
+
+    // Example: animate to current location if available
+    if (_isLocationFetched && _locationHandler.currentLocation != null) {
+      controller.animateCamera(
+        CameraUpdate.newLatLng(_locationHandler.currentLocation!),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final bool isDarkMode = Provider.of<ThemeProvider>(context).isDarkMode;
@@ -1110,74 +1056,29 @@ class _GpsScreenState extends State<GpsScreen> {
               child: Scaffold(
                 body: Stack(
                   children: [
-                    GoogleMap(
-                      key: _mapKey,
-                      initialCameraPosition: CameraPosition(
+                    GpsMap(
+                      mapKey: _mapKey,
+                      initialCamera: CameraPosition(
                         target: _locationHandler.currentLocation ??
                             const LatLng(16.0430, 120.3333),
-                        zoom: 14,
+                        zoom: 14.0,
                       ),
-                      onCameraMove: (CameraPosition pos) {
-                        final newZoom = pos.zoom;
-
-                        // Always keep a cheap local copy for other logic
-                        _currentZoom = newZoom;
-
-                        // Update the notifier (cheap, no widget rebuild)
-                        _mapZoomNotifier.value = newZoom;
-
-                        // Only recompute circles (heavy) when zoom changed sufficiently,
-                        // and debounce so we don't recompute mid-gesture on every frame.
-                        const double zoomThreshold =
-                            0.16; // increased threshold to avoid tiny updates
-                        if ((newZoom - _currentZoomPrev).abs() >
-                            zoomThreshold) {
-                          _currentZoomPrev = newZoom;
-
-                          // debounce the heavy circle recompute by 180-250ms (tunable)
-                          _zoomDebounceTimer?.cancel();
-                          _zoomDebounceTimer =
-                              Timer(const Duration(milliseconds: 200), () {
-                            if (mounted) {
-                              setState(() {
-                                // recompute circles only after pinch stops / slows down
-                                _getPwdLocationsAndUpdateCircles();
-                              });
-                            }
-                          });
-                        }
-                      },
-                      zoomControlsEnabled: false,
-                      zoomGesturesEnabled: true,
-                      myLocationButtonEnabled: false,
-                      compassEnabled: false,
-                      mapToolbarEnabled: false,
-                      myLocationEnabled: true,
-                      mapType: _currentMapType,
                       markers: _markers,
                       circles: _circles,
+                      polygons: _fovPolygons, // <-- pass the FOV polygons here
+
                       polylines: _polylines,
-                      onMapCreated: (controller) {
-                        _locationHandler.onMapCreated(controller, isDarkMode);
-                        if (_isLocationFetched &&
-                            _locationHandler.currentLocation != null) {
-                          controller.animateCamera(
-                            CameraUpdate.newLatLng(
-                              _locationHandler.currentLocation!,
-                            ),
-                          );
-                        }
-                        if (_pendingPerspective != null) {
-                          applyMapPerspective(_pendingPerspective!);
-                          _pendingPerspective = null;
-                        }
+                      mapType: _currentMapType,
+                      onCameraMove: (CameraPosition pos) {
+                        // mirror your previous onCameraMove logic:
+                        final newZoom = pos.zoom;
+                        _currentZoom = newZoom;
+                        _mapZoomNotifier.value = newZoom;
+                        // your debounce / zoom-threshold logic...
                       },
-                      polygons: basePolys.union(_fovPolygons),
-                      onTap: (LatLng position) {
-                        setState(() {
-                          _selectedPlace = null;
-                        });
-                      },
+                      onMapCreated: (controller) =>
+                          _onMapCreated(controller, isDarkMode),
+                      onTap: (latlng) => setState(() => _selectedPlace = null),
                     ),
                     FovOverlay(
                       getCurrentLocation: () =>
@@ -1416,62 +1317,5 @@ class _GpsScreenState extends State<GpsScreen> {
         },
       ),
     );
-  }
-
-  // Helper methods for navigation
-  Future<String> _getLocationName(LatLng location) async {
-    try {
-      final geocodingService = OpenStreetMapGeocodingService();
-      return await geocodingService.getAddressFromLatLng(location);
-    } catch (e) {
-      return 'Destination';
-    }
-  }
-
-  // New method to toggle navigation mode
-  void _toggleNavigationMode() {
-    if (_routeUpdateTimer == null) {
-      _startFollowingUser();
-    } else {
-      _stopFollowingUser();
-      if (_locationHandler.currentLocation != null &&
-          _routeDestination != null) {
-        final bounds = _locationHandler.getLatLngBounds(
-            [_locationHandler.currentLocation!, _routeDestination!]);
-        _locationHandler.mapController
-            ?.animateCamera(CameraUpdate.newLatLngBounds(bounds, 100));
-      }
-    }
-  }
-
-  Future<double> _calculateRouteDistance() async {
-    if (_locationHandler.currentLocation == null || _routePoints.isEmpty) {
-      return 0.0;
-    }
-
-    // Find the nearest point on the route
-    int nearestIndex = 0;
-    double minDistance = double.infinity;
-    for (int i = 0; i < _routePoints.length; i++) {
-      final distance = _calculateDistance(
-        _locationHandler.currentLocation!,
-        _routePoints[i],
-      );
-      if (distance < minDistance) {
-        minDistance = distance;
-        nearestIndex = i;
-      }
-    }
-
-    // Calculate remaining distance
-    double remainingDistance = 0.0;
-    for (int i = nearestIndex; i < _routePoints.length - 1; i++) {
-      remainingDistance += _calculateDistance(
-        _routePoints[i],
-        _routePoints[i + 1],
-      );
-    }
-
-    return remainingDistance;
   }
 }

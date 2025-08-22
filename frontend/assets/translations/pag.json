@@ -184,5 +184,12 @@
   "enter_contact_address": "Ilagay so address na contact",
   "enter_arrival_info": "Ilagay so impormasyon na pagdating",
   "contact_picker_not_implemented": "Agay la naisakatuparan so panagpili ed contact",
-  "required": "Kailangan"
+  "required": "Kailangan",
+  "enrollFingerprintTitle": "Magparehistro na biometriko",
+  "fingerprintInstruction": "Pinduton so button ed ibaba tan sundan so ya-sunod para magparehistro na fingerprint o muka ed say device.",
+  "enrollFingerprintButton": "Magparehistro ngeni",
+  "fingerprintLocalizedReason": "Pakipakilala ya mag-authenticate tan magparehistro na biometriko.",
+  "noBiometricsTitle": "Awan lay naka-rehistro a biometriko",
+  "noBiometricsMessage": "Awan lay naka-rehistro a fingerprint o face data ed say device. Buksen so Settings tan magparehistro.",
+  "openSettings": "Buksen so Settings"
 }

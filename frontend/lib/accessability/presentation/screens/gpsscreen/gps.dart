@@ -95,6 +95,8 @@ class _GpsScreenState extends State<GpsScreen> {
       ValueNotifier<double>(_currentZoom);
   Timer? _zoomDebounceTimer;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  bool _isWheelchairFriendlyRoute = false;
+  Color _routeColor = const Color(0xFF6750A4); // Default purple
 
   @override
   void initState() {
@@ -644,7 +646,10 @@ class _GpsScreenState extends State<GpsScreen> {
         _startFollowingUser();
       }
 
-      final url = Uri.parse('https://router.project-osrm.org/route/v1/driving/'
+      // Use wheelchair profile if enabled, otherwise use driving profile
+      final profile = _isWheelchairFriendlyRoute ? 'wheelchair' : 'driving';
+
+      final url = Uri.parse('https://router.project-osrm.org/route/v1/$profile/'
           '${origin.longitude},${origin.latitude};'
           '${destination.longitude},${destination.latitude}?overview=full&geometries=geojson');
 
@@ -664,15 +669,20 @@ class _GpsScreenState extends State<GpsScreen> {
         final duration =
             (data['routes'][0]['duration'] / 60).toStringAsFixed(0);
 
+        // Set route color based on wheelchair-friendly setting
+        final routeColor =
+            _isWheelchairFriendlyRoute ? Colors.green : const Color(0xFF6750A4);
+
         setState(() {
           _polylines = {
             Polyline(
               polylineId: const PolylineId('route'),
               points: _routePoints,
-              color: const Color(0xFF6750A4),
+              color: routeColor,
               width: 6,
             ),
           };
+          _routeColor = routeColor; // Store the current route color
         });
 
         _updateMarkerWithRouteInfo(destination, distance, duration);
@@ -683,6 +693,19 @@ class _GpsScreenState extends State<GpsScreen> {
       setState(() {
         _isRouteActive = false;
       });
+    }
+  }
+
+  void _toggleWheelchairFriendlyRoute() {
+    setState(() {
+      _isWheelchairFriendlyRoute = !_isWheelchairFriendlyRoute;
+    });
+
+    // If a route is already active, recreate it with the new setting
+    if (_isRouteActive &&
+        _routeDestination != null &&
+        _locationHandler.currentLocation != null) {
+      _createRoute(_locationHandler.currentLocation!, _routeDestination!);
     }
   }
 
@@ -865,6 +888,8 @@ class _GpsScreenState extends State<GpsScreen> {
         _polylines.clear();
         _routeDestination = null;
         _routePoints.clear();
+        _isWheelchairFriendlyRoute = false; // Reset to default
+        _routeColor = const Color(0xFF6750A4); // Reset to purple
       });
     }
   }
@@ -876,12 +901,14 @@ class _GpsScreenState extends State<GpsScreen> {
       orElse: () => throw Exception('Marker not found'),
     );
 
+    final routeType = _isWheelchairFriendlyRoute ? 'Wheelchair' : 'Car';
+
     setState(() {
       _markers.remove(marker);
       _markers.add(marker.copyWith(
         infoWindowParam: InfoWindow(
           title: marker.infoWindow.title,
-          snippet: '$distance km • $duration mins',
+          snippet: '$distance km • $duration mins • $routeType route',
         ),
       ));
     });
@@ -1213,6 +1240,35 @@ class _GpsScreenState extends State<GpsScreen> {
                                       : 'Show overview',
                                 ),
                               ),
+                              SizedBox(height: 10),
+                              // Wheelchair Friendly Route Toggle
+                              Container(
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withOpacity(0.9),
+                                  shape: BoxShape.circle,
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black26,
+                                      blurRadius: 4,
+                                      offset: Offset(0, 2),
+                                    ),
+                                  ],
+                                ),
+                                child: IconButton(
+                                  icon: Icon(
+                                    _isWheelchairFriendlyRoute
+                                        ? Icons.accessible
+                                        : Icons.accessible_forward,
+                                    color: _isWheelchairFriendlyRoute
+                                        ? Colors.green
+                                        : Colors.black,
+                                  ),
+                                  onPressed: _toggleWheelchairFriendlyRoute,
+                                  tooltip: _isWheelchairFriendlyRoute
+                                      ? 'Using wheelchair-friendly route'
+                                      : 'Switch to wheelchair-friendly route',
+                                ),
+                              ),
                             ],
                           ),
                         ),
@@ -1271,12 +1327,32 @@ class _GpsScreenState extends State<GpsScreen> {
                                     ),
                                   ),
                                 ),
-                                Text(
-                                  'Navigating to destination',
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 16,
-                                  ),
+                                // Route type indicator
+                                Row(
+                                  children: [
+                                    Icon(
+                                      _isWheelchairFriendlyRoute
+                                          ? Icons.accessible
+                                          : Icons.directions_car,
+                                      color: _isWheelchairFriendlyRoute
+                                          ? Colors.green
+                                          : const Color(0xFF6750A4),
+                                      size: 20,
+                                    ),
+                                    SizedBox(width: 8),
+                                    Text(
+                                      _isWheelchairFriendlyRoute
+                                          ? 'Wheelchair-friendly route'
+                                          : 'Standard route',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 16,
+                                        color: _isWheelchairFriendlyRoute
+                                            ? Colors.green
+                                            : const Color(0xFF6750A4),
+                                      ),
+                                    ),
+                                  ],
                                 ),
                                 SizedBox(height: 8),
                                 if (_locationHandler.currentLocation != null)

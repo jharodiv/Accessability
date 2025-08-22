@@ -184,5 +184,12 @@
   "enter_contact_address": "Enter contact address",
   "enter_arrival_info": "Enter arrival info",
   "contact_picker_not_implemented": "Contact picker not implemented",
-  "required": "Required"
+  "required": "Required",
+  "enrollFingerprintTitle": "Enroll Fingerprint",
+  "fingerprintInstruction": "Place your finger on the sensor to enroll",
+  "enrollFingerprintButton": "Enroll Fingerprint",
+  "fingerprintLocalizedReason": "Please authenticate to enroll biometrics.",
+  "noBiometricsTitle": "No biometrics found",
+  "noBiometricsMessage": "There are no fingerprints or face data enrolled on this device. Open Settings to enroll them now.",
+  "openSettings": "Open settings"
 }

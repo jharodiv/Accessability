@@ -184,5 +184,12 @@
   "enter_contact_address": "Ilagay ang address ng contact",
   "enter_arrival_info": "Ilagay ang impormasyon ng pagdating",
   "contact_picker_not_implemented": "Hindi pa naisakatuparan ang pagpili ng contact",
-  "required": "Kailangan"
+  "required": "Kailangan",
+  "enrollFingerprintTitle": "Magrehistro ng biometriko",
+  "fingerprintInstruction": "Pindutin ang button sa ibaba at sundin ang mga hakbang upang magrehistro ng fingerprint o mukha sa device na ito.",
+  "enrollFingerprintButton": "Magrehistro ngayon",
+  "fingerprintLocalizedReason": "Mangyaring mag-authenticate upang magrehistro ng biometriko.",
+  "noBiometricsTitle": "Walang nakarehistrong biometriko",
+  "noBiometricsMessage": "Walang naka-rehistrong fingerprint o face data sa device na ito. Buksan ang Settings upang magrehistro ngayon.",
+  "openSettings": "Buksan ang Settings"
 }

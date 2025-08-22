@@ -34,7 +34,7 @@ import 'package:AccessAbility/accessability/presentation/screens/gpsscreen/nearb
 import 'package:AccessAbility/accessability/presentation/screens/gpsscreen/tutorial_widget.dart';
 import 'package:AccessAbility/accessability/presentation/widgets/homepageWidgets/location_widgets.dart';
 import 'package:AccessAbility/accessability/presentation/widgets/bottomSheetWidgets/favorite_widget.dart';
-import 'package:AccessAbility/accessability/presentation/widgets/bottomSheetWidgets/safety_assist_widget.dart';
+import 'package:AccessAbility/accessability/presentation/widgets/safetyAssistWidgets/safety_assist_widget.dart';
 import 'package:AccessAbility/accessability/logic/bloc/auth/auth_bloc.dart';
 import 'package:AccessAbility/accessability/logic/bloc/auth/auth_state.dart';
 import 'package:AccessAbility/accessability/logic/bloc/place/bloc/place_bloc.dart';

@@ -1,7 +1,8 @@
 // lib/presentation/widgets/bottomSheetWidgets/safety_assist_widget.dart
 
-import 'package:AccessAbility/accessability/presentation/widgets/bottomSheetWidgets/safety_assist_emergency_services.dart';
-import 'package:AccessAbility/accessability/presentation/widgets/bottomSheetWidgets/safety_assist_helper_widget.dart';
+import 'package:AccessAbility/accessability/presentation/widgets/safetyAssistWidgets/add_emergency_contact.dart';
+import 'package:AccessAbility/accessability/presentation/widgets/safetyAssistWidgets/safety_assist_emergency_services.dart';
+import 'package:AccessAbility/accessability/presentation/widgets/safetyAssistWidgets/safety_assist_helper_widget.dart';
 import 'package:AccessAbility/accessability/presentation/widgets/homepageWidgets/bottomWidgetFiles/service_buttons.dart';
 import 'package:AccessAbility/accessability/presentation/screens/gpsscreen/location_handler.dart';
 import 'package:AccessAbility/accessability/data/model/emergency_contact.dart';
@@ -118,64 +119,26 @@ class _SafetyAssistWidgetState extends State<SafetyAssistWidget> {
   }
 
   void _showAddEmergencyContactDialog() {
-    final nameController = TextEditingController();
-    final locationController = TextEditingController();
-    final arrivalController = TextEditingController();
-    final updateController = TextEditingController();
-
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: Text("add_emergency_contact".tr()),
-          content: SingleChildScrollView(
-            child: Column(
-              children: [
-                TextField(
-                  controller: nameController,
-                  decoration: InputDecoration(labelText: "name".tr()),
-                ),
-                TextField(
-                  controller: locationController,
-                  decoration: InputDecoration(labelText: "location".tr()),
-                ),
-                TextField(
-                  controller: arrivalController,
-                  decoration: InputDecoration(labelText: "arrival".tr()),
-                ),
-                TextField(
-                  controller: updateController,
-                  decoration: InputDecoration(labelText: "update".tr()),
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
-              child: Text("cancel".tr()),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                final contact = EmergencyContact(
-                  name: nameController.text,
-                  location: locationController.text,
-                  arrival: arrivalController.text,
-                  update: updateController.text,
-                );
-                BlocProvider.of<EmergencyBloc>(context).add(
-                  AddEmergencyContactEvent(uid: widget.uid, contact: contact),
-                );
-                Navigator.of(context).pop();
-              },
-              child: Text("add".tr()),
-            ),
-          ],
+    Navigator.of(context)
+        .push(
+      MaterialPageRoute(
+        builder: (_) => AddEmergencyContactScreen(uid: widget.uid),
+        fullscreenDialog: true, // optional: shows iOS-style modal animation
+      ),
+    )
+        .then((result) {
+      if (result is Map<String, String?>) {
+        final contact = EmergencyContact(
+          name: result['name'] ?? '',
+          location: result['location'] ?? '',
+          arrival: result['arrival'] ?? '',
+          update: result['phone'] ?? '',
         );
-      },
-    );
+        BlocProvider.of<EmergencyBloc>(context).add(
+          AddEmergencyContactEvent(uid: widget.uid, contact: contact),
+        );
+      }
+    });
   }
 
   // default center action: prefer explicit callback, then LocationHandler, else snackbar

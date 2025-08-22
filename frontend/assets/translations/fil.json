@@ -175,5 +175,14 @@
   "inbox": "Inbox",
   "error_loading_chat_requests": "Nabigong i-load ang mga chat request",
   "message_requests": "Mga Kahilingan sa Mensahe",
-  "loading": "Naglo-load..."
+  "loading": "Naglo-load...",
+  "add_emergency_number": "Magdagdag ng Emergency Number",
+  "contact_name": "Pangalan ng Contact",
+  "enter_contact_name": "Ilagay ang pangalan ng contact",
+  "enter_phone_number": "Ilagay ang numero ng telepono",
+  "pick_from_contacts": "Pumili mula sa mga contact",
+  "enter_contact_address": "Ilagay ang address ng contact",
+  "enter_arrival_info": "Ilagay ang impormasyon ng pagdating",
+  "contact_picker_not_implemented": "Hindi pa naisakatuparan ang pagpili ng contact",
+  "required": "Kailangan"
 }

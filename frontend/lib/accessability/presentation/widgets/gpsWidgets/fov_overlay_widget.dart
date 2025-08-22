@@ -1,6 +1,7 @@
 // fov_overlay_widget.dart
 import 'dart:async';
 import 'dart:math' as math;
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_compass/flutter_compass.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
@@ -12,6 +13,12 @@ class FovOverlay extends StatefulWidget {
   final LatLng? Function() getCurrentLocation;
   final Stream<LatLng>? locationStream;
   final void Function(Set<Polygon>) onPolygonsChanged;
+
+  /// New: optional listenable (fast, immediate) for map zoom changes.
+  /// If provided, it will be used instead of polling getMapZoom().
+  final ValueListenable<double>? mapZoomListenable;
+
+  /// Backwards-compatible getter. Kept for callers that prefer a simple getter.
   final double Function()? getMapZoom;
 
   final double minZoomToShow;
@@ -39,6 +46,7 @@ class FovOverlay extends StatefulWidget {
     required this.onPolygonsChanged,
     this.locationStream,
     this.getMapZoom,
+    this.mapZoomListenable,
     this.minZoomToShow = -1.0,
     this.fovAngle = 40.0,
     this.color = const Color(0xFF7C4DFF),
@@ -64,6 +72,7 @@ class _FovOverlayState extends State<FovOverlay> {
   StreamSubscription<LatLng>? _locSub;
   Timer? _pollTimer;
   Timer? _zoomWatchTimer;
+  VoidCallback? _zoomListener; // listener for ValueListenable
 
   // heading / location
   double _heading = 0.0;
@@ -87,6 +96,10 @@ class _FovOverlayState extends State<FovOverlay> {
 
   // debug prints toggle
   final bool _debug = false;
+
+  // Throttle zoom-triggered recomputes so super-fast pinch updates don't blow CPU.
+  final int _zoomRecomputeThrottleMs = 50;
+  int _lastZoomRecomputeMs = 0;
 
   @override
   void initState() {
@@ -113,11 +126,22 @@ class _FovOverlayState extends State<FovOverlay> {
       });
     }
 
-    // Watch zoom if getter provided (infrequent check)
-    if (widget.getMapZoom != null) {
-      _zoomWatchTimer =
-          Timer.periodic(Duration(milliseconds: 250), (_) => _checkZoom());
-      _checkZoom();
+    // If a listenable zoom is provided, attach a listener for immediate updates.
+    if (widget.mapZoomListenable != null) {
+      _zoomListener = () {
+        final double z = widget.mapZoomListenable!.value;
+        _onExternalZoom(z);
+      };
+      widget.mapZoomListenable!.addListener(_zoomListener!);
+      // seed lastSeen zoom immediately
+      _lastSeenZoom = widget.mapZoomListenable!.value;
+    } else {
+      // Watch zoom if getter provided (infrequent check) - fallback
+      if (widget.getMapZoom != null) {
+        _zoomWatchTimer =
+            Timer.periodic(Duration(milliseconds: 250), (_) => _checkZoom());
+        _checkZoom();
+      }
     }
 
     // initial build
@@ -132,7 +156,86 @@ class _FovOverlayState extends State<FovOverlay> {
     _locSub?.cancel();
     _pollTimer?.cancel();
     _zoomWatchTimer?.cancel();
+    if (widget.mapZoomListenable != null && _zoomListener != null) {
+      try {
+        widget.mapZoomListenable!.removeListener(_zoomListener!);
+      } catch (_) {}
+    }
     super.dispose();
+  }
+
+  // Called when external listenable provides an immediate zoom change.
+  void _onExternalZoom(double z) {
+    try {
+      // small jitter guard
+      if (_lastSeenZoom != null && (z - _lastSeenZoom!).abs() < 0.01) {
+        _lastSeenZoom = z;
+        return;
+      }
+
+      // visibility toggle handling
+      if (widget.minZoomToShow > 0) {
+        final shouldBeVisible = z >= widget.minZoomToShow;
+        if (shouldBeVisible != _zoomVisible) {
+          _zoomVisible = shouldBeVisible;
+          if (!_zoomVisible) {
+            _updatePolygons({});
+            return;
+          } else {
+            _maybeRecompute(force: true);
+            _lastSeenZoom = z;
+            return;
+          }
+        }
+      }
+
+      final int bucket = _bucketForZoom(z);
+
+      // recompute radius per-bucket but also allow smooth updates within bucket.
+      // bucket change triggers a heavy "updateRadiusForBucket" + rebuild.
+      if (_lastZoomBucket == null || _lastZoomBucket != bucket) {
+        if (_debug)
+          debugPrint('FOV: bucket change ${_lastZoomBucket} -> $bucket');
+        _lastZoomBucket = bucket;
+        _lastSeenZoom = z;
+        _updateRadiusForBucket(
+            bucket); // sets _currentRadiusMeters using px constant
+        _buildGradientCone(_currentRadiusMeters);
+        return;
+      }
+
+      // Otherwise bucket didn't change: recompute dynamic radius that follows zoom.
+      final int now = DateTime.now().millisecondsSinceEpoch;
+      if (now - _lastZoomRecomputeMs < _zoomRecomputeThrottleMs) {
+        _lastSeenZoom = z;
+        return;
+      }
+      _lastZoomRecomputeMs = now;
+      _lastSeenZoom = z;
+
+      // Recompute radius by converting px->meters using current zoom (so it scales smoothly)
+      final LatLng? center = _lastLocation ?? widget.getCurrentLocation();
+      if (center != null) {
+        // choose px from the current bucket for visual consistency
+        double px;
+        if (bucket == 0)
+          px = widget.largeBeamPx;
+        else if (bucket == 1)
+          px = widget.mediumBeamPx;
+        else
+          px = widget.smallBeamPx;
+
+        final double mpp = _metersPerPixel(center.latitude, z);
+        final double meters = (px * mpp).clamp(10.0, 350000.0);
+        _currentRadiusMeters = meters;
+        _buildGradientCone(_currentRadiusMeters);
+      } else {
+        // if no center yet, force a recompute via maybeRecompute
+        _maybeRecompute(force: true);
+      }
+    } catch (e) {
+      if (_debug) debugPrint('FOV external zoom error: $e');
+    }
   }
 
   // ---- simplified zoom handling: only react when zoom bucket changes ----

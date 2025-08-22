@@ -45,6 +45,24 @@ class _MemberListWidgetState extends State<MemberListWidget> {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   String? _selectedId;
 
+  /// Tracks currently "blinking" ids for the brief purple flash feedback.
+  final Set<String> _blinkIds = {};
+
+  /// Trigger a brief purple "blink" for the row with given id.
+  void _blink(String id,
+      {Duration duration = const Duration(milliseconds: 260)}) {
+    if (id.isEmpty) return;
+    setState(() {
+      _blinkIds.add(id);
+    });
+    Future.delayed(duration, () {
+      if (!mounted) return;
+      setState(() {
+        _blinkIds.remove(id);
+      });
+    });
+  }
+
   // Helper: build full name from a member map with fallbacks
   String _fullNameFromMap(Map<String, dynamic>? m) {
     if (m == null) return 'Unknown';
@@ -208,131 +226,152 @@ class _MemberListWidgetState extends State<MemberListWidget> {
 
     // 1) Current user row (if we have location/address)
     if (widget.yourLocation != null && widget.yourAddressLabel != null) {
+      final currentId = _auth.currentUser?.uid ?? '';
+      // Current user row (replace your existing block)
       rows.add(
-        ListTile(
-          leading: CircleAvatar(
-            backgroundImage: currentUser?.photoURL != null
-                ? NetworkImage(currentUser!.photoURL!)
-                : null,
-            child: currentUser?.photoURL == null
-                ? Text(avatarChar, style: const TextStyle(color: Colors.white))
-                : null,
-          ),
-          title: Text(
-            userName,
-            style: TextStyle(
-                fontWeight: FontWeight.bold,
-                color: isDark ? Colors.white : Colors.black),
-          ),
-          subtitle: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                widget.yourAddressLabel!,
-                style: TextStyle(
-                    fontSize: 12,
-                    color: isDark ? Colors.white70 : Colors.black54),
-              ),
-              if (widget.yourLastUpdate != null)
-                Text(
-                  'Updated: ${_timeDiff(widget.yourLastUpdate!)}',
-                  style: TextStyle(
-                      fontSize: 12,
-                      color: isDark ? Colors.white70 : Colors.black54),
+        AnimatedContainer(
+          duration: const Duration(milliseconds: 140),
+          color: _blinkIds.contains(currentId)
+              ? purple.withOpacity(0.28)
+              : (widget.selectedMemberId == currentId ||
+                      _selectedId == currentId
+                  ? purple.withOpacity(0.12)
+                  : (isDark ? Colors.grey[900] : Colors.white)),
+          child: Material(
+            color: Colors
+                .transparent, // keep AnimatedContainer visual, but give Ink something to draw on
+            child: InkWell(
+              // visible ripple + pressed highlight
+              splashColor: purple.withOpacity(0.28),
+              highlightColor: purple.withOpacity(0.12),
+              onTap: () {
+                if (currentId.isNotEmpty) _blink(currentId);
+                setState(() => _selectedId = currentId);
+                widget.onMemberPressed(widget.yourLocation!, currentId);
+              },
+              child: ListTile(
+                leading: CircleAvatar(
+                  backgroundImage: currentUser?.photoURL != null
+                      ? NetworkImage(currentUser!.photoURL!)
+                      : null,
+                  child: currentUser?.photoURL == null
+                      ? Text(avatarChar,
+                          style: const TextStyle(color: Colors.white))
+                      : null,
                 ),
-            ],
+                title: Text(
+                  userName,
+                  style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: isDark ? Colors.white : Colors.black),
+                ),
+                subtitle: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(widget.yourAddressLabel!,
+                        style: TextStyle(
+                            fontSize: 12,
+                            color: isDark ? Colors.white70 : Colors.black54)),
+                    if (widget.yourLastUpdate != null)
+                      Text('Updated: ${_timeDiff(widget.yourLastUpdate!)}',
+                          style: TextStyle(
+                              fontSize: 12,
+                              color: isDark ? Colors.white70 : Colors.black54)),
+                  ],
+                ),
+                selected: widget.selectedMemberId == _auth.currentUser?.uid ||
+                    _selectedId == currentUser?.uid,
+              ),
+            ),
           ),
-          selected: widget.selectedMemberId == _auth.currentUser?.uid ||
-              _selectedId == currentUser?.uid,
-          onTap: () {
-            setState(() => _selectedId = currentUser!.uid);
-            widget.onMemberPressed(widget.yourLocation!, currentUser!.uid);
-          },
         ),
       );
       rows.add(const Divider());
     }
 
     // 2) Other members
+    // 2) Other members
     for (final m
         in widget.members.where((m) => m['uid'] != _auth.currentUser?.uid)) {
+      final memberId = (m['uid'] as String?) ?? '';
       rows.add(
-        GestureDetector(
-          onTap: () async {
-            setState(() => _selectedId = m['uid']);
-            final snap = await _firestore
-                .collection('UserLocations')
-                .doc(m['uid'])
-                .get();
-            final data = snap.data();
-            if (data != null) {
-              final lat = data['latitude'], lng = data['longitude'];
-              final addr = await _getAddressFromLatLng(LatLng(lat, lng));
-              // update local model so UI shows address immediately
-              setState(() {
-                m['address'] = addr;
-                m['lastUpdate'] = data['timestamp'];
-              });
-              widget.onMemberPressed(LatLng(lat, lng), m['uid']);
-            }
-          },
-          child: Container(
-            color: _selectedId == m['uid']
-                ? purple.withOpacity(0.2)
-                : isDark
-                    ? Colors.grey[900]
-                    : Colors.white,
-            child: ListTile(
-              leading: CircleAvatar(
-                backgroundImage:
-                    (m['profilePicture'] as String).startsWith('http')
-                        ? NetworkImage(m['profilePicture'])
-                        : const AssetImage(
-                                'assets/images/others/default_profile.png')
-                            as ImageProvider,
-              ),
-              title: Text(
-                _fullNameFromMap(m),
-                style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: isDark ? Colors.white : Colors.black),
-              ),
-              subtitle: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Current: ${m['address'] ?? '…'}',
-                    style: TextStyle(
-                        fontSize: 12,
-                        color: isDark ? Colors.white70 : Colors.black54),
-                  ),
-                  if (m['lastUpdate'] != null)
-                    Text(
-                      'Updated: ${_formatLastUpdate(m['lastUpdate'])}',
-                      style: TextStyle(
-                          fontSize: 12,
-                          color: isDark ? Colors.white70 : Colors.black54),
-                    ),
-                ],
-              ),
-              trailing: IconButton(
-                icon: Icon(Icons.chat, color: isDark ? Colors.white : purple),
-                onPressed: () {
-                  // Build full name and separate first/last for chat arguments
-                  final fullName = _fullNameFromMap(m);
-                  final names = _splitFirstLast(m);
-                  Navigator.pushNamed(
-                    context,
-                    '/chatconvo',
-                    arguments: {
+        AnimatedContainer(
+          duration: const Duration(milliseconds: 140),
+          curve: Curves.easeOut,
+          color: _blinkIds.contains(memberId)
+              ? purple.withOpacity(0.28)
+              : (_selectedId == memberId
+                  ? purple.withOpacity(0.12)
+                  : (isDark ? Colors.grey[900] : Colors.white)),
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              splashColor: purple.withOpacity(0.28),
+              highlightColor: purple.withOpacity(0.12),
+              onTap: () async {
+                if (memberId.isNotEmpty) _blink(memberId);
+                setState(() => _selectedId = memberId);
+
+                final snap = await _firestore
+                    .collection('UserLocations')
+                    .doc(memberId)
+                    .get();
+                final data = snap.data();
+                if (data != null) {
+                  final lat = data['latitude'], lng = data['longitude'];
+                  final addr = await _getAddressFromLatLng(LatLng(lat, lng));
+                  setState(() {
+                    m['address'] = addr;
+                    m['lastUpdate'] = data['timestamp'];
+                  });
+                  widget.onMemberPressed(LatLng(lat, lng), memberId);
+                }
+              },
+              child: ListTile(
+                leading: CircleAvatar(
+                  backgroundImage:
+                      (m['profilePicture'] as String).startsWith('http')
+                          ? NetworkImage(m['profilePicture'])
+                          : const AssetImage(
+                                  'assets/images/others/default_profile.png')
+                              as ImageProvider,
+                ),
+                title: Text(
+                  _fullNameFromMap(m),
+                  style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: isDark ? Colors.white : Colors.black),
+                ),
+                subtitle: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Current: ${m['address'] ?? '…'}',
+                        style: TextStyle(
+                            fontSize: 12,
+                            color: isDark ? Colors.white70 : Colors.black54)),
+                    if (m['lastUpdate'] != null)
+                      Text('Updated: ${_formatLastUpdate(m['lastUpdate'])}',
+                          style: TextStyle(
+                              fontSize: 12,
+                              color: isDark ? Colors.white70 : Colors.black54)),
+                  ],
+                ),
+                trailing: IconButton(
+                  icon: Icon(Icons.chat, color: isDark ? Colors.white : purple),
+                  onPressed: () {
+                    final fullName = _fullNameFromMap(m);
+                    final names = _splitFirstLast(m);
+                    Navigator.pushNamed(context, '/chatconvo', arguments: {
                       'receiverUsername': fullName,
                       'receiverFirstName': names['firstName'] ?? '',
                       'receiverLastName': names['lastName'] ?? '',
                       'receiverID': m['uid'],
                       'receiverProfilePicture': m['profilePicture'],
-                    },
-                  );
-                },
+                    });
+                  },
+                ),
+                selected: _selectedId == memberId,
+                selectedTileColor: purple.withOpacity(0.12),
               ),
             ),
           ),

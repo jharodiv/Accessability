@@ -12,8 +12,10 @@ class GpsMap extends StatelessWidget {
   final Set<Circle> circles;
   final Set<Polyline> polylines;
   final MapType mapType;
-  final CameraMoveCallback? onCameraMove;
-  final MapCreatedCallback? onMapCreated;
+  final ValueChanged<CameraPosition>? onCameraMove; // <-- add this
+  final VoidCallback? onCameraIdle; // <-- optional
+  final ValueChanged<GoogleMapController>? onMapCreated; // keep as ValueChanged
+
   final void Function(LatLng)? onTap;
   final bool myLocationEnabled;
   final Set<Polygon> polygons;
@@ -23,15 +25,15 @@ class GpsMap extends StatelessWidget {
     required this.initialCamera,
     required this.markers,
     required this.polygons, // <--- new
-
+    this.onCameraMove,
+    required this.onMapCreated,
     required this.circles,
     required this.polylines,
     required this.mapType,
-    this.onCameraMove,
-    this.onMapCreated,
     this.onTap,
     this.myLocationEnabled = true,
     super.key,
+    this.onCameraIdle,
   });
 
   @override
@@ -39,11 +41,18 @@ class GpsMap extends StatelessWidget {
     return GoogleMap(
       key: mapKey,
       initialCameraPosition: initialCamera,
-      onCameraMove: onCameraMove,
-      onMapCreated: onMapCreated,
       onTap: onTap,
       polygons: polygons, // <--- pass polygons
+      onCameraMove: (pos) {
+        if (onCameraMove != null) onCameraMove!(pos);
+      },
+      onCameraIdle: () {
+        if (onCameraIdle != null) onCameraIdle!();
+      },
       markers: markers,
+      onMapCreated: (controller) {
+        if (onMapCreated != null) onMapCreated!(controller);
+      },
       circles: circles,
       polylines: polylines,
       mapType: mapType,

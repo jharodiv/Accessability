@@ -49,7 +49,6 @@ class Dorymodelservice {
   // Predict from audio features
   DoryPrediction? predict(List<double> audioFeatures) {
     if (!_isModelLoaded || _interpreter == null) {
-      print('❌ Model not loaded');
       return null;
     }
 
@@ -58,8 +57,8 @@ class Dorymodelservice {
       var inputShape = _interpreter!.getInputTensor(0).shape;
       var outputShape = _interpreter!.getOutputTensor(0).shape;
 
-      print('Input shape expected: $inputShape');
-      print('Features provided: ${audioFeatures.length}');
+      // print('Input shape expected: $inputShape');
+      // print('Features provided: ${audioFeatures.length}');
 
       // Ensure input matches expected shape
       int expectedInputSize =
@@ -106,7 +105,6 @@ class Dorymodelservice {
         classLabels: _classLabels ?? [],
       );
     } catch (e) {
-      print('❌ Prediction error: $e');
       return null;
     }
   }

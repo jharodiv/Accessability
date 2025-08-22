@@ -82,6 +82,7 @@ class _GpsScreenState extends State<GpsScreen> {
   List<NearbyCircleSpec> _nearbyCircleSpecs = [];
   MapType _currentMapType = MapType.normal;
   MapPerspective? _pendingPerspective; // New field
+  List<dynamic> _cachedPwdLocations = [];
 
   // Variables for polylines.a
   Set<Polyline> _polylines = {};
@@ -215,19 +216,33 @@ class _GpsScreenState extends State<GpsScreen> {
 
   /// Create circles for the given pwd-friendly locations list.
   /// Expects objects in `pwdFriendlyLocations` to have `latitude`, `longitude`, and optional `radiusMeters`.
-  Set<Circle> createPwdfriendlyRouteCircles(List<dynamic> pwdLocations) {
+  Set<Circle> createPwdfriendlyRouteCircles(
+    List<dynamic> pwdLocations, {
+    double? currentZoom,
+    double? pwdBaseRadiusMeters,
+    double? pwdRadiusMultiplier,
+    Color? pwdCircleColor,
+    void Function(LatLng center, double suggestedZoom)? onTap,
+  }) {
+    final double cz = currentZoom ?? _currentZoom;
+    final double baseMeters = pwdBaseRadiusMeters ?? _pwdBaseRadiusMeters;
+    final double multiplier = pwdRadiusMultiplier ?? _pwdRadiusMultiplier;
+    final Color color = pwdCircleColor ?? _pwdCircleColor;
+
+    // Provide a sensible default onTap (same behavior you used previously).
+    final void Function(LatLng, double) effectiveOnTap = onTap ??
+        ((center, suggestedZoom) {
+          _locationHandler.mapController?.animateCamera(
+              CameraUpdate.newLatLngZoom(center, suggestedZoom));
+        });
+
     return CircleManager.createPwdfriendlyRouteCircles(
       pwdLocations: pwdLocations,
-      currentZoom: _currentZoom,
-      pwdBaseRadiusMeters: _pwdBaseRadiusMeters,
-      pwdRadiusMultiplier: _pwdRadiusMultiplier,
-      pwdCircleColor: _pwdCircleColor,
-      onTap: (center, suggestedZoom) {
-        // same camera behavior as before
-        _locationHandler.mapController?.animateCamera(
-          CameraUpdate.newLatLngZoom(center, suggestedZoom),
-        );
-      },
+      currentZoom: cz,
+      pwdBaseRadiusMeters: baseMeters,
+      pwdRadiusMultiplier: multiplier,
+      pwdCircleColor: color,
+      onTap: effectiveOnTap,
     );
   }
 
@@ -272,6 +287,7 @@ class _GpsScreenState extends State<GpsScreen> {
   Future<void> _getPwdLocationsAndCreateMarkers() async {
     try {
       final locations = await getPwdFriendlyLocations();
+      _cachedPwdLocations = locations; // CACHE THEM
 
       _markerHandler
           .createMarkers(locations, _locationHandler.currentLocation)
@@ -1070,11 +1086,56 @@ class _GpsScreenState extends State<GpsScreen> {
                       polylines: _polylines,
                       mapType: _currentMapType,
                       onCameraMove: (CameraPosition pos) {
-                        // mirror your previous onCameraMove logic:
                         final newZoom = pos.zoom;
-                        _currentZoom = newZoom;
-                        _mapZoomNotifier.value = newZoom;
-                        // your debounce / zoom-threshold logic...
+                        // cheap updates
+                        // only react when zoom changed noticeably
+                        const zoomThreshold = 0.01;
+                        if ((newZoom - _currentZoom).abs() > zoomThreshold) {
+                          _currentZoom = newZoom;
+                          _mapZoomNotifier.value = newZoom;
+
+                          // trigger FOV recompute / camera logic immediately (cheap)
+                          // Option 1: force FOVOverlay to recompute by calling setState on polygons,
+                          // if you have a function to compute polygons you can call it here:
+                          // final polys = FovOverlay.computePolygons(..., newZoom);
+                          // if (!_polygonsGeometryEqual(_fovPolygons, polys)) setState(() => _fovPolygons = polys);
+
+                          // Option 2: if FovOverlay calls back via onPolygonsChanged based on getMapZoom,
+                          // just force a rebuild so it re-queries the getter:
+                          setState(() {});
+                        } else {
+                          // small movement but still update notifier so other logic can use it
+                          _mapZoomNotifier.value = newZoom;
+                        }
+                      },
+
+                      // heavy work deferred to onCameraIdle (fires after gestures finish)
+                      onCameraIdle: () {
+                        // Debounce to avoid double-firing if there are quick idles
+                        _zoomDebounceTimer?.cancel();
+                        _zoomDebounceTimer =
+                            Timer(const Duration(milliseconds: 120), () {
+                          if (!mounted) return;
+                          // Recompute circles (PWD + nearby) using current zoom
+                          // Use cached pwd locations and nearby specs (fast)
+                          final pwdSet = createPwdfriendlyRouteCircles(
+                            _cachedPwdLocations,
+                            currentZoom: _currentZoom,
+                            pwdBaseRadiusMeters: _pwdBaseRadiusMeters,
+                            pwdRadiusMultiplier: _pwdRadiusMultiplier,
+                            pwdCircleColor: _pwdCircleColor,
+                            onTap: (center, suggestedZoom) {
+                              _locationHandler.mapController?.animateCamera(
+                                CameraUpdate.newLatLngZoom(
+                                    center, suggestedZoom),
+                              );
+                            },
+                          );
+                          final nearbySet = _computeNearbyCirclesFromRaw();
+                          setState(() {
+                            _circles = pwdSet.union(nearbySet);
+                          });
+                        });
                       },
                       onMapCreated: (controller) =>
                           _onMapCreated(controller, isDarkMode),
@@ -1084,6 +1145,8 @@ class _GpsScreenState extends State<GpsScreen> {
                       getCurrentLocation: () =>
                           _locationHandler.currentLocation,
                       locationStream: _locationHandler.locationStream,
+                      mapZoomListenable: _mapZoomNotifier, // <--- pass this
+
                       getMapZoom: () => _mapZoomNotifier.value,
                       onPolygonsChanged: (polys) {
                         if (!_polygonsGeometryEqual(_fovPolygons, polys)) {

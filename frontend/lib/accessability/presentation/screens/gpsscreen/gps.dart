@@ -184,12 +184,14 @@ class _GpsScreenState extends State<GpsScreen> {
     if (_nearbyCircleSpecs.isEmpty) return circles;
 
     int _strokeWidthForZoom(double zoom) {
-      final int w = ((zoom - 12) * 0.5).round();
-      return w.clamp(1, 5);
+      final int w = ((zoom - 12) * 0.75).round(); // a bit bolder stroke
+      return w.clamp(2, 10);
     }
 
-    const double minPixelRadius = 12.0;
-    const double shrinkFactor = 0.55;
+    // Bigger on-screen target so circles are noticeably larger
+    const double minPixelRadius = 24.0; // was 12.0
+    // make shrink closer to 1.0 so we don't shrink much
+    const double shrinkFactor = 0.92; // was 0.55
 
     for (final spec in _nearbyCircleSpecs) {
       final LatLng center = spec['center'] as LatLng;
@@ -208,15 +210,19 @@ class _GpsScreenState extends State<GpsScreen> {
           _radiusForZoom(_currentZoom, baseRadius) * _pwdRadiusMultiplier;
       final double minMetersFloor = minPixelRadius * metersPerPixel;
 
-      final double adjustedRadius =
-          max(zoomAdaptiveMeters, minMetersFloor) * shrinkFactor;
+      // extra multiplier to enlarge final radius slightly (helps at mid zooms)
+      final double extraVisualBoost = 1.15;
+
+      final double adjustedRadius = max(zoomAdaptiveMeters, minMetersFloor) *
+          shrinkFactor *
+          extraVisualBoost;
       final int strokeW = _strokeWidthForZoom(_currentZoom);
 
       circles.add(Circle(
         circleId: CircleId(id),
         center: center,
         radius: adjustedRadius,
-        fillColor: _pwdCircleColor.withOpacity(0.16),
+        fillColor: _pwdCircleColor.withOpacity(0.18),
         strokeColor: _pwdCircleColor.withOpacity(0.95),
         strokeWidth: strokeW,
         zIndex: zIndex,
@@ -577,13 +583,14 @@ class _GpsScreenState extends State<GpsScreen> {
           final accentColor = _colorForPlaceType(placeType);
           badgeIcon = await BadgeIcon.createBadgeWithIcon(
             ctx: context,
-            size: 50,
+            size: 64,
             outerRingColor: Colors.white,
             innerBgColor: Colors.transparent,
             iconBgColor: accentColor, // your purple
             innerRatio: 0.86,
-            iconBgRatio: 0.34,
-            iconRatio: 0.95,
+            iconBgRatio: 0.42, // slightly bigger inner background for icon
+            iconRatio:
+                0.90, // leaves a little padding so circle stroke is visible
             icon: iconData,
           );
           _badgeIconCache[cacheKey] = badgeIcon;
@@ -629,7 +636,7 @@ class _GpsScreenState extends State<GpsScreen> {
                   print("Error fetching place details: $e");
                 }
               },
-              anchor: const Offset(0.5, 0.7),
+              anchor: const Offset(0.5, 0.72),
             );
 
             newMarkers.add(newMarker);
@@ -646,17 +653,21 @@ class _GpsScreenState extends State<GpsScreen> {
 
           // convert incoming circles to lightweight "specs" we can rescale later
           _nearbyCircleSpecs = raw.map((c) {
+            final incomingBase = (c.radius != null && c.radius > 0)
+                ? c.radius
+                : _pwdBaseRadiusMeters;
+
+            // Inflate the incoming base so the final visual appears larger
+            final double inflatedBase = (incomingBase * 1.6).clamp(8.0, 300.0);
+
             return {
               'id': c.circleId.value,
               'center': c.center,
-              'baseRadius': (c.radius != null && c.radius > 0)
-                  ? c.radius
-                  : _pwdBaseRadiusMeters,
+              'baseRadius': inflatedBase,
               'zIndex': c.zIndex ?? 30,
               'visible': c.visible ?? true,
             };
           }).toList();
-
           // compute the scaled circles for current zoom immediately
           newCircles = _computeNearbyCirclesFromRaw();
         }

@@ -1,92 +1,23 @@
-final List<Map<String, dynamic>> pwdFriendlyLocations = [
-  {
-    "name": "Dagupan City Hall",
-    "latitude": 16.04361106008402,
-    "longitude": 120.33531522527143,
-    "details": "Wheelchair ramps, accessible restrooms, and reserved parking.",
-  },
-  {
-    "name": "Nepo Mall Dagupan",
-    "latitude": 16.051224004022384,
-    "longitude": 120.34170650545146,
-    "details": "Elevators, ramps, and PWD-friendly restrooms.",
-  },
-  {
-    "name": "Dagupan Public Market",
-    "latitude": 16.043166316470707,
-    "longitude": 120.33608116388851,
-    "details": "Wheelchair-friendly pathways and accessible stalls.",
-  },
-  {
-    "name": "PHINMA University of Pangasinan",
-    "latitude": 16.047254394614715,
-    "longitude": 120.34250043932526,
-    "details": "Wheelchair accessible entrances and parking lots.",
-  },
-  {
-    "name": "Star Plaza Hotel",
-    "latitude": 16.044444,
-    "longitude": 120.338889,
-    "details": "Accessible entrances, elevators, and PWD-friendly rooms.",
-  },
-  {
-    "name": "Dagupan City Museum",
-    "latitude": 16.042222,
-    "longitude": 120.334722,
-    "details": "Wheelchair ramps and accessible pathways.",
-  },
-  {
-    "name": "CSI Stadia Dagupan",
-    "latitude": 16.050000,
-    "longitude": 120.340000,
-    "details": "Elevators, ramps, and accessible restrooms.",
-  },
-  {
-    "name": "Dagupan City Plaza",
-    "latitude": 16.043889,
-    "longitude": 120.335556,
-    "details": "Wheelchair-friendly pathways and open spaces.",
-  },
-  {
-    "name": "Region 1 Medical Center",
-    "latitude": 16.046111,
-    "longitude": 120.337778,
-    "details": "Accessible entrances, ramps, and reserved parking.",
-  },
-  {
-    "name": "Dagupan City Library",
-    "latitude": 16.044722,
-    "longitude": 120.336389,
-    "details": "Wheelchair ramps and accessible reading areas.",
-  },
-  {
-    "name": "Tondaligan Blue Beach",
-    "latitude": 16.060000,
-    "longitude": 120.350000,
-    "details": "Wheelchair-friendly pathways and accessible picnic areas.",
-  },
-  {
-    "name": "Dagupan City Astrodome",
-    "latitude": 16.045000,
-    "longitude": 120.338000,
-    "details": "Ramps and accessible seating areas.",
-  },
-  {
-    "name": "Robinsons Place Dagupan",
-    "latitude": 16.052500,
-    "longitude": 120.343056,
-    "details": "Elevators, ramps, and PWD-friendly restrooms.",
-  },
-  {
-    "name": "Dagupan City Health Office",
-    "latitude": 16.044167,
-    "longitude": 120.336111,
-    "details": "Wheelchair ramps and accessible facilities.",
-  },
-  {
-    "name": "Dagupan City Police Station",
-    "latitude": 16.043889,
-    "longitude": 120.335833,
-    "details": "Accessible entrances and ramps.",
-  },
-];
+import 'package:cloud_firestore/cloud_firestore.dart';
+
+final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+
+Future<List<Map<String, dynamic>>> getPwdFriendlyLocations() async {
+  try {
+    final querySnapshot = await _firestore.collection('pwd_locations').get();
+    return querySnapshot.docs.map((doc) {
+      return {
+        "id": doc.id,
+        "name": doc['name'],
+        "latitude": doc['latitude'],
+        "longitude": doc['longitude'],
+        "details": doc['details'],
+        "averageRating": doc['averageRating'] ?? 0,
+        "totalRatings": doc['totalRatings'] ?? 0,
+      };
+    }).toList();
+  } catch (e) {
+    print('Error fetching PWD locations: $e');
+    return [];
+  }
+}

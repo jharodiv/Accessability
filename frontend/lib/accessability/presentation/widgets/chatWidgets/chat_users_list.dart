@@ -31,10 +31,40 @@ class ChatUsersList extends StatelessWidget {
       ]),
       builder: (context, snapshot) {
         if (snapshot.hasError) {
+          // SHOW IMAGE INSTEAD OF THE "Error loading chats." TEXT
           return Center(
-            child: Text(
-              'Error loading chats.',
-              style: TextStyle(color: isDarkMode ? Colors.white : Colors.black),
+            child: Padding(
+              padding:
+                  const EdgeInsets.symmetric(vertical: 0.0, horizontal: 20),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  SizedBox(
+                    height: 220,
+                    child: Image.asset(
+                      'assets/images/others/nomessage.png',
+                      fit: BoxFit.contain,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Your Inbox is Empty',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                      color: isDarkMode ? Colors.white : Colors.black,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Create or join a space to start chatting.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: isDarkMode ? Colors.white70 : Colors.black54,
+                    ),
+                  ),
+                ],
+              ),
             ),
           );
         }

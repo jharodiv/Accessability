@@ -38,6 +38,29 @@ class _SignupFormState extends State<SignupForm> {
     super.dispose();
   }
 
+  /// Unicode-aware validator: requires at least 2 letters and only allows
+  /// letters, spaces, apostrophes and hyphens. Returns `null` if valid,
+  /// otherwise returns the error message.
+  String? improvedUnicodeNameValidator(String? value) {
+    final v = (value ?? '').trim();
+    if (v.isEmpty) return 'Please enter your name';
+
+    // Count actual letters (Unicode-aware)
+    final letterMatches = RegExp(r'\p{L}', unicode: true).allMatches(v);
+    if (letterMatches.length < 2) {
+      return 'Please enter at least 2 letters';
+    }
+
+    // Ensure the whole string contains only allowed characters:
+    // letters, spaces, apostrophes and hyphens
+    final allowed = RegExp(r"^[\p{L}\s'-]+$", unicode: true);
+    if (!allowed.hasMatch(v)) {
+      return 'Only letters, spaces, apostrophes and hyphens allowed';
+    }
+
+    return null; // valid
+  }
+
   void signup() {
     String username = usernameController.text.trim();
     String firstName = firstNameController.text.trim();
@@ -77,25 +100,27 @@ class _SignupFormState extends State<SignupForm> {
       return;
     }
 
-    // First name must be at least 2 characters
-    if (firstName.length < 2) {
+    // First name: use improved Unicode-aware validator
+    final firstNameError = improvedUnicodeNameValidator(firstName);
+    if (firstNameError != null) {
       showDialog(
         context: context,
         builder: (context) => ErrorDisplayWidget(
           title: "Invalid First Name",
-          message: "First names must be at least 2 characters long.",
+          message: firstNameError,
         ),
       );
       return;
     }
 
-    // Last name must be at least 2 characters
-    if (lastName.length < 2) {
+    // Last name: use improved Unicode-aware validator
+    final lastNameError = improvedUnicodeNameValidator(lastName);
+    if (lastNameError != null) {
       showDialog(
         context: context,
         builder: (context) => ErrorDisplayWidget(
           title: "Invalid Last Name",
-          message: "Last names must be at least 2 characters long.",
+          message: lastNameError,
         ),
       );
       return;

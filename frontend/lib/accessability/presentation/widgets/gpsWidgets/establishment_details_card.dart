@@ -1,5 +1,7 @@
 import 'package:AccessAbility/accessability/logic/bloc/place/bloc/place_bloc.dart';
 import 'package:AccessAbility/accessability/logic/bloc/place/bloc/place_event.dart';
+import 'package:AccessAbility/accessability/logic/bloc/user/user_bloc.dart';
+import 'package:AccessAbility/accessability/presentation/widgets/bottomSheetWidgets/rating_review_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:AccessAbility/accessability/data/model/place.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -7,14 +9,17 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'dart:math' show pi, sin, cos, sqrt, atan2;
 
+// establishment_details_card.dart
 class EstablishmentDetailsCard extends StatelessWidget {
   final Place place;
   final VoidCallback? onClose;
+  final bool isPwdLocation; // Add this flag
 
   const EstablishmentDetailsCard({
     Key? key,
     required this.place,
     this.onClose,
+    this.isPwdLocation = false, // Default to false
   }) : super(key: key);
 
   @override
@@ -44,7 +49,10 @@ class EstablishmentDetailsCard extends StatelessWidget {
                 ),
             ],
           ),
-          SizedBox(height: 12),
+
+          // Rating display for PWD locations
+          if (isPwdLocation && place.averageRating != null)
+            SizedBox(height: 12),
           // Street View Image
           ClipRRect(
             borderRadius: BorderRadius.circular(8),
@@ -62,6 +70,16 @@ class EstablishmentDetailsCard extends StatelessWidget {
               ),
             ),
           ),
+
+          // Rating and Reviews for PWD locations
+          if (isPwdLocation)
+            BlocProvider.value(
+              value: BlocProvider.of<UserBloc>(context),
+              child: RatingReviewWidget(
+                locationId: place.id,
+                locationName: place.name,
+              ),
+            )
         ],
       ),
     );

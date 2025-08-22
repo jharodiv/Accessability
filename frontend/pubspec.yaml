@@ -1,5 +1,5 @@
 name: AccessAbility
-description: "A new Flutter project."
+description: "A pwd friendly gps app"
 publish_to: "none"
 
 version: 1.0.0+1
@@ -15,6 +15,8 @@ dependencies:
 
   easy_localization: ^3.0.0
   cupertino_icons: ^1.0.8
+  app_settings: any
+  android_intent_plus: any
   lottie: ^3.3.1
   animated_splash_screen: ^1.3.0
   audioplayers: ^6.1.0
@@ -79,6 +81,7 @@ flutter:
     - assets/images/others/
     - assets/images/onboarding/
     - assets/images/settings/
+    - assets/images/others/nomessage.png
     - assets/images/others/biometricslogo.png
     - assets/images/others/accessabilitylogo.png
     - assets/images/others/hotel.png

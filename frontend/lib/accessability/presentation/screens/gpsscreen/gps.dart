@@ -711,10 +711,8 @@ class _GpsScreenState extends State<GpsScreen> {
             ctx: context,
             size: 64,
             outerRingColor: Colors.white,
-            innerBgColor: Colors.transparent,
             iconBgColor: accentColor, // your purple
             innerRatio: 0.86,
-            iconBgRatio: 0.42, // slightly bigger inner background for icon
             iconRatio:
                 0.90, // leaves a little padding so circle stroke is visible
             icon: iconData,

@@ -175,5 +175,14 @@
   "inbox": "Inbox",
   "error_loading_chat_requests": "Sayali ed panang-load ya mensahe",
   "message_requests": "Mensahe ya Request",
-  "loading": "Panag-load..."
+  "loading": "Panag-load...",
+  "add_emergency_number": "Agdagdag ed Emergency Number",
+  "contact_name": "Ngaran na Contact",
+  "enter_contact_name": "Ilagay so ngaran na contact",
+  "enter_phone_number": "Ilagay so numero na telepono",
+  "pick_from_contacts": "Pumili ed saray contact",
+  "enter_contact_address": "Ilagay so address na contact",
+  "enter_arrival_info": "Ilagay so impormasyon na pagdating",
+  "contact_picker_not_implemented": "Agay la naisakatuparan so panagpili ed contact",
+  "required": "Kailangan"
 }

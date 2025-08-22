@@ -39,6 +39,7 @@ import 'package:AccessAbility/accessability/logic/bloc/auth/auth_bloc.dart';
 import 'package:AccessAbility/accessability/logic/bloc/auth/auth_state.dart';
 import 'package:AccessAbility/accessability/logic/bloc/place/bloc/place_bloc.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:AccessAbility/accessability/presentation/widgets/reusableWidgets/favorite_map_marker.dart';
 
 class GpsScreen extends StatefulWidget {
   const GpsScreen({super.key});
@@ -83,6 +84,7 @@ class _GpsScreenState extends State<GpsScreen> {
   MapType _currentMapType = MapType.normal;
   MapPerspective? _pendingPerspective; // New field
   List<dynamic> _cachedPwdLocations = [];
+  final Map<String, BitmapDescriptor> _favMarkerCache = {};
 
   // Variables for polylines.a
   Set<Polyline> _polylines = {};
@@ -177,6 +179,126 @@ class _GpsScreenState extends State<GpsScreen> {
       if (!_latLngEqual(a[i], b[i], eps: eps)) return false;
     }
     return true;
+  }
+
+  Color _colorForPlaceType(String? type) {
+    final t = (type ?? '').toLowerCase();
+    if (t.contains('bus')) return Colors.blue;
+    if (t.contains('restaurant') || t.contains('restawran')) return Colors.red;
+    if (t.contains('grocery') || t.contains('grocer')) return Colors.green;
+    if (t.contains('hotel')) return Colors.teal;
+    // fallback to your preferred purple
+    return const Color(0xFF6750A4);
+  }
+
+  Future<BitmapDescriptor> _ensureFavoriteBitmap(
+    BuildContext ctx,
+    Place place, {
+    double outerSize = 88,
+    double innerSize = 45,
+    double pixelRatio = 0,
+  }) async {
+    final Color placeColor = _colorForPlaceType(place.category);
+    final cacheKey =
+        'place_${place.id}_v2_c${placeColor.value}_s${outerSize.toInt()}_is${innerSize.toInt()}';
+
+    // quick cache hit
+    if (_favMarkerCache.containsKey(cacheKey)) {
+      debugPrint('FavMarker cache hit for ${place.id} key=$cacheKey');
+      return _favMarkerCache[cacheKey]!;
+    }
+
+    debugPrint(
+        'Generating fav bitmap for place ${place.id} using color: $placeColor (key=$cacheKey)');
+
+    try {
+      final desc = await FavoriteMapMarker.toBitmapDescriptor(
+        ctx,
+        cacheKey: cacheKey,
+        pixelRatio: (pixelRatio <= 0) ? 0 : pixelRatio,
+        size: outerSize,
+        outerColor: placeColor, // your same purple (unchanged)
+        outerStrokeColor: placeColor, // same purple (unchanged)
+        outerOpacity: 0.45, // try 0.45 or 0.35 to make it even more subtle
+        innerBgColor: Colors.white,
+        iconColor: placeColor,
+        icon: Icons.place,
+        iconSize: innerSize * 0.60,
+      );
+
+      // sanity-check descriptor (some plugins may return default marker)
+      if (desc == null) throw Exception('Descriptor is null');
+
+      _favMarkerCache[cacheKey] = desc;
+      debugPrint('Generated fav bitmap for ${place.id}');
+      return desc;
+    } catch (e, st) {
+      debugPrint('Error generating fav bitmap for ${place.id}: $e\n$st');
+      // fallback: return default violet marker as last resort (visible)
+      final fallback =
+          BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueViolet);
+      _favMarkerCache[cacheKey] = fallback;
+      return fallback;
+    }
+  }
+
+  // REPLACE THIS METHOD
+  Future<Marker> _createPlaceMarker(Place place) async {
+    final Color placeColor = _colorForPlaceType(place.category);
+    debugPrint('Creating marker for place ${place.id} color=$placeColor');
+
+    BitmapDescriptor icon;
+    try {
+      icon = await _ensureFavoriteBitmap(
+        context,
+        place,
+        outerSize: 88,
+        innerSize: 40,
+        pixelRatio: MediaQuery.of(context).devicePixelRatio,
+      );
+      debugPrint('Got BitmapDescriptor for place ${place.id}');
+    } catch (e, st) {
+      debugPrint('Error creating custom icon for place ${place.id}: $e\n$st');
+      icon = BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueViolet);
+    }
+
+    // Defensive: if icon is null (shouldn't happen), use default marker
+    final usedIcon = icon;
+
+    final marker = Marker(
+      markerId: MarkerId('place_${place.id}'),
+      position: LatLng(place.latitude, place.longitude),
+      icon: usedIcon,
+      anchor: const Offset(0.5, 0.5),
+      zIndex: 300,
+      infoWindow: InfoWindow(
+        title: place.name,
+        snippet:
+            '${'category'.tr()}: ${place.category ?? ''}\nTap for 3D navigation',
+        onTap: () {
+          if (_locationHandler.currentLocation != null) {
+            _createRoute(_locationHandler.currentLocation!,
+                LatLng(place.latitude, place.longitude));
+          }
+        },
+      ),
+      onTap: () async {
+        try {
+          final openStreetMapHelper = OpenStreetMapHelper();
+          final detailedPlace = await openStreetMapHelper.fetchPlaceDetails(
+            place.latitude,
+            place.longitude,
+            place.name,
+          );
+          if (!mounted) return;
+          setState(() => _selectedPlace = detailedPlace);
+        } catch (e) {
+          debugPrint('Error fetching details: $e');
+        }
+      },
+    );
+
+    return marker;
   }
 
   bool _polygonsGeometryEqual(Set<Polygon> a, Set<Polygon> b) {
@@ -284,6 +406,105 @@ class _GpsScreenState extends State<GpsScreen> {
         ),
       );
     }
+  }
+
+  // Replace the existing _buildPlaceMarkersAsync with this version
+  Future<void> _buildPlaceMarkersAsync(List<Place> places) async {
+    debugPrint('buildPlaceMarkers called with ${places.length} places');
+
+    // Build icons in parallel to speed up marker rendering.
+    final futures = <Future<Marker>>[];
+    for (final place in places) {
+      futures.add(_createPlaceMarker(place));
+    }
+
+    // Wait for all markers to be created.
+    final createdMarkers = await Future.wait(futures);
+
+    if (!mounted) return;
+
+    // --- Build NearbyCircleSpec list for all places (lightweight specs) ---
+    final List<NearbyCircleSpec> placeSpecs = places.map((place) {
+      return NearbyCircleSpec(
+        id: 'place_circle_${place.id}',
+        center: LatLng(place.latitude, place.longitude),
+        // use base fallback (you can replace with per-place radius if you have one)
+        baseRadius: _pwdBaseRadiusMeters,
+        zIndex: 200,
+        visible: true,
+      );
+    }).toList();
+
+    // --- Compute scaled circles using CircleManager (same algorithm as _fetchNearbyPlaces) ---
+    final Set<Circle> computedPlaceCirclesRaw =
+        CircleManager.computeNearbyCirclesFromSpecs(
+      specs: placeSpecs,
+      currentZoom: _currentZoom,
+      pwdBaseRadiusMeters: _pwdBaseRadiusMeters,
+      pwdRadiusMultiplier: _pwdRadiusMultiplier,
+      pwdCircleColor:
+          _pwdCircleColor, // used as placeholder - we'll recolor per-place below
+      onTap: (center, suggestedZoom) {
+        _locationHandler.mapController?.animateCamera(
+          CameraUpdate.newLatLngZoom(center, suggestedZoom),
+        );
+      },
+      // match the tuning used for nearby places
+      minPixelRadius: 24.0,
+      shrinkFactor: 0.92,
+      extraVisualBoost: 1.15,
+    );
+
+    // --- Recolor each computed circle to match the corresponding place's color ---
+    // Build a map from place id -> color to apply
+    final Map<String, Color> placeColorById = {
+      for (final p in places) p.id: _colorForPlaceType(p.category)
+    };
+
+    final Set<Circle> computedPlaceCircles = computedPlaceCirclesRaw.map((c) {
+      final String circleIdValue = c.circleId.value;
+      final String placeId = _placeIdFromCircleId(circleIdValue);
+      final Color placeColor = placeColorById.containsKey(placeId)
+          ? placeColorById[placeId]!
+          : _pwdCircleColor;
+
+      // recreate the circle with the same geometry but recolored
+      return Circle(
+        circleId: c.circleId,
+        center: c.center,
+        radius: c.radius,
+        fillColor: placeColor.withOpacity(0.16),
+        strokeColor: placeColor.withOpacity(0.95),
+        strokeWidth: c.strokeWidth,
+        zIndex: c.zIndex,
+        visible: c.visible,
+        consumeTapEvents: true,
+        onTap: () {
+          // replicate the same onTap used by CircleManager (zoom in slightly)
+          _locationHandler.mapController?.animateCamera(
+            CameraUpdate.newLatLngZoom(
+              c.center,
+              max(15.0, min(18.0, _currentZoom + 1.6)),
+            ),
+          );
+        },
+      );
+    }).toSet();
+
+    // --- Update state atomically: replace place_ markers and place_circle_ circles ---
+    setState(() {
+      // Replace all markers with place_ prefix
+      _markers
+          .removeWhere((marker) => marker.markerId.value.startsWith('place_'));
+      _markers.addAll(createdMarkers.toSet());
+
+      // Remove existing place_circle_ circles, then add the newly computed recolored ones.
+      _circles.removeWhere((c) => c.circleId.value.startsWith('place_circle_'));
+      _circles = {..._circles, ...computedPlaceCircles};
+    });
+
+    debugPrint(
+        'Added ${createdMarkers.length} place markers and ${computedPlaceCircles.length} place circles');
   }
 
   Future<void> _getPwdLocationsAndCreateMarkers() async {
@@ -490,10 +711,8 @@ class _GpsScreenState extends State<GpsScreen> {
             ctx: context,
             size: 64,
             outerRingColor: Colors.white,
-            innerBgColor: Colors.transparent,
             iconBgColor: accentColor, // your purple
             innerRatio: 0.86,
-            iconBgRatio: 0.42, // slightly bigger inner background for icon
             iconRatio:
                 0.90, // leaves a little padding so circle stroke is visible
             icon: iconData,
@@ -548,7 +767,7 @@ class _GpsScreenState extends State<GpsScreen> {
           }
         }
 
-// Circles (if any) — rescale each incoming circle to remain visible across zooms
+        // Circles (if any) — rescale each incoming circle to remain visible across zooms
         // Circles (if any) — rescale each incoming circle to remain visible across zooms
         Set<Circle> newCircles = {};
         if (result['circles'] != null) {
@@ -563,11 +782,11 @@ class _GpsScreenState extends State<GpsScreen> {
             baseFallback: _pwdBaseRadiusMeters,
           );
 
-// now compute scaled circles immediately for display
+          // now compute scaled circles immediately for display
           newCircles = _computeNearbyCirclesFromRaw();
         }
 
-// preserve existing special markers (pwd/user/place) earlier computed
+        // preserve existing special markers (pwd/user/place) earlier computed
         setState(() {
           _markers = existingMarkers.union(newMarkers);
 
@@ -1016,6 +1235,12 @@ class _GpsScreenState extends State<GpsScreen> {
     }
   }
 
+  String _placeIdFromCircleId(String circleIdValue) {
+    // expecting "place_circle_<id>"
+    if (!circleIdValue.startsWith('place_circle_')) return '';
+    return circleIdValue.substring('place_circle_'.length);
+  }
+
   @override
   Widget build(BuildContext context) {
     final bool isDarkMode = Provider.of<ThemeProvider>(context).isDarkMode;
@@ -1026,49 +1251,7 @@ class _GpsScreenState extends State<GpsScreen> {
     return BlocListener<PlaceBloc, place_state.PlaceState>(
       listener: (context, state) {
         if (state is place_state.PlacesLoaded) {
-          Set<Marker> placeMarkers = {};
-          for (Place place in state.places) {
-            Marker marker = Marker(
-              markerId: MarkerId('place_${place.id}'),
-              position: LatLng(place.latitude, place.longitude),
-              icon: BitmapDescriptor.defaultMarkerWithHue(256.43),
-              infoWindow: InfoWindow(
-                title: place.name,
-                snippet:
-                    '${'category'.tr()}: ${place.category}\nTap for 3D navigation',
-                onTap: () {
-                  if (_locationHandler.currentLocation != null) {
-                    _createRoute(
-                      _locationHandler.currentLocation!,
-                      LatLng(place.latitude, place.longitude),
-                    );
-                  }
-                },
-              ),
-              onTap: () async {
-                try {
-                  final openStreetMapHelper = OpenStreetMapHelper();
-                  final detailedPlace =
-                      await openStreetMapHelper.fetchPlaceDetails(
-                    place.latitude,
-                    place.longitude,
-                    place.name,
-                  );
-                  setState(() {
-                    _selectedPlace = detailedPlace;
-                  });
-                } catch (e) {
-                  print('Error fetching place details: $e');
-                }
-              },
-            );
-            placeMarkers.add(marker);
-          }
-          setState(() {
-            _markers.removeWhere(
-                (marker) => marker.markerId.value.startsWith('place_'));
-            _markers.addAll(placeMarkers);
-          });
+          _buildPlaceMarkersAsync(state.places);
         } else if (state is place_state.PlaceOperationError) {
           print("Error loading places: ${state.message}");
         }

@@ -661,9 +661,9 @@ class _LocationWidgetsState extends State<LocationWidgets> {
                                 child: EstablishmentDetailsCard(
                                   place: widget.selectedPlace!,
                                   onClose: widget.onCloseSelectedPlace,
-                                  // isPwdLocation:
-                                  //     widget.selectedPlace!.category ==
-                                  //         'PWD Friendly',
+                                  isPwdLocation:
+                                      widget.selectedPlace!.category ==
+                                          'PWD Friendly',
                                 ),
                               )
                             else ...[

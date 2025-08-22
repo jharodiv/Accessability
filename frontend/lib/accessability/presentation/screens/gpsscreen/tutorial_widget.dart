@@ -1,4 +1,7 @@
+import 'package:AccessAbility/accessability/logic/bloc/auth/auth_bloc.dart';
+import 'package:AccessAbility/accessability/logic/bloc/auth/auth_event.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart'; // ✅ needed for context.read
 import 'package:tutorial_coach_mark/tutorial_coach_mark.dart';
 
 class TutorialWidget {
@@ -21,7 +24,8 @@ class TutorialWidget {
   void showTutorial(BuildContext context) {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       List<TargetFocus> targets = [];
-      // Add targets for the tutorial
+
+      // --- Inbox Target ---
       targets.add(TargetFocus(
         identify: "inboxTarget",
         keyTarget: inboxKey,
@@ -29,7 +33,7 @@ class TutorialWidget {
           TargetContent(
             align: ContentAlign.bottom,
             child: Container(
-              color: Colors.transparent, // Set a background color
+              color: Colors.transparent,
               child: const Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -55,6 +59,7 @@ class TutorialWidget {
         ],
       ));
 
+      // --- Settings Target ---
       targets.add(TargetFocus(
         identify: "settingsTarget",
         keyTarget: settingsKey,
@@ -62,7 +67,7 @@ class TutorialWidget {
           TargetContent(
             align: ContentAlign.bottom,
             child: Container(
-              color: Colors.transparent, // Set a background color
+              color: Colors.transparent,
               child: const Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -88,6 +93,7 @@ class TutorialWidget {
         ],
       ));
 
+      // --- Location Target ---
       targets.add(TargetFocus(
         identify: "locationTarget",
         keyTarget: locationKey,
@@ -121,6 +127,7 @@ class TutorialWidget {
         ],
       ));
 
+      // --- You Target ---
       targets.add(TargetFocus(
         identify: "youTarget",
         keyTarget: youKey,
@@ -154,7 +161,7 @@ class TutorialWidget {
         ],
       ));
 
-      // Security Target
+      // --- Security Target ---
       targets.add(TargetFocus(
         identify: "securityTarget",
         keyTarget: securityKey,
@@ -187,6 +194,8 @@ class TutorialWidget {
           ),
         ],
       ));
+
+      // --- Coach Mark ---
       TutorialCoachMark(
         targets: targets,
         colorShadow: Colors.black,
@@ -194,15 +203,16 @@ class TutorialWidget {
         paddingFocus: 10,
         opacityShadow: 0.8,
         onFinish: () {
+          debugPrint("Tutorial finished ✅ marking onboarding complete");
+          // 🔹 Dispatch onboarding complete here
+          context.read<AuthBloc>().add(CompleteOnboardingEvent());
           onTutorialComplete?.call();
-          print("Tutorial finished");
-        },
-        onClickTarget: (target) {
-          print('Clicked on target: $target');
         },
         onSkip: () {
+          debugPrint("Tutorial skipped ❌ marking onboarding complete anyway");
+          // 🔹 Even if skipped, still mark as complete
+          context.read<AuthBloc>().add(CompleteOnboardingEvent());
           onTutorialComplete?.call();
-          print("Tutorial skipped");
           return true;
         },
       ).show(context: context);

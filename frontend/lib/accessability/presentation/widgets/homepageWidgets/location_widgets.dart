@@ -138,6 +138,13 @@ class _LocationWidgetsState extends State<LocationWidgets> {
     super.dispose();
   }
 
+  void _handleMemberPressed(LatLng loc, String uid) {
+    setState(() {
+      _selectedMemberId = uid;
+    });
+    widget.onMemberPressed(loc, uid);
+  }
+
   void _listenToMembers() async {
     // cancel previous listeners
     setState(() => _isLoading = true);
@@ -758,6 +765,12 @@ class _LocationWidgetsState extends State<LocationWidgets> {
                                           ],
                                         ),
                                         onTap: () {
+                                          final id = _auth.currentUser?.uid;
+                                          if (id != null) {
+                                            setState(() {
+                                              _selectedMemberId = id;
+                                            });
+                                          }
                                           if (widget.locationHandler
                                                   .currentLocation !=
                                               null) {
@@ -781,26 +794,30 @@ class _LocationWidgetsState extends State<LocationWidgets> {
                                         padding: const EdgeInsets.symmetric(
                                             vertical: 12.0, horizontal: 16.0),
                                         child: InkWell(
-                                          // onTap:
-                                          //     _createCircleAuto, // creates a circle immediately (no dialog)
+                                          onTap: () {
+                                            // Open create-space flow (same as space sheet)
+                                            Navigator.pushNamed(
+                                                    context, '/createSpace')
+                                                .then((success) {
+                                              if (success == true) {
+                                                // If you have logic to refresh spaces or members, call it here.
+                                                // For example: _listenToMembers(); // optional
+                                              }
+                                            });
+                                          },
                                           child: Row(
                                             children: [
-                                              // left: circular button (aligned like avatar)
                                               CircleAvatar(
                                                 radius: 24,
-                                                backgroundColor: const Color(
-                                                        0xFF6750A4)
-                                                    // ignore: deprecated_member_use
-                                                    .withOpacity(0.2),
+                                                backgroundColor:
+                                                    const Color(0xFF6750A4)
+                                                        .withOpacity(0.2),
                                                 child: Icon(Icons.add,
                                                     size: 26,
                                                     color: const Color(
                                                         0xFF6750A4)),
                                               ),
-
                                               const SizedBox(width: 12),
-
-                                              // right: CTA text
                                               const Text(
                                                 'Create a circle',
                                                 style: TextStyle(

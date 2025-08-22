@@ -54,6 +54,7 @@ class _GpsScreenState extends State<GpsScreen> {
   final NearbyPlacesHandler _nearbyPlacesHandler = NearbyPlacesHandler();
   final Map<String, BitmapDescriptor> _badgeIconCache = {};
   late TutorialWidget _tutorialWidget;
+  bool _isTutorialShown = false;
   final GlobalKey inboxKey = GlobalKey();
   final GlobalKey settingsKey = GlobalKey();
   final GlobalKey youKey = GlobalKey();
@@ -196,7 +197,7 @@ class _GpsScreenState extends State<GpsScreen> {
     //       ? (authBloc.state as AuthenticatedLogin).hasCompletedOnboarding
     //       : false;
     //   if (!hasCompletedOnboarding) {
-    //     _tutorialWidget.showTutorial(context);
+    //     _tutorialWidget.showTutorial(context);q
     //   }
     // });
   }
@@ -315,22 +316,41 @@ class _GpsScreenState extends State<GpsScreen> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+
+    // --- Apply map perspective if provided ---
     final args = ModalRoute.of(context)?.settings.arguments;
+    debugPrint('[GpsScreen] didChangeDependencies: args = $args');
 
-    // Case 1: tutorial flag passed as Map
-    if (args is Map && args['showTutorial'] == true) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        _tutorialWidget.showTutorial(context);
-      });
-    }
-
-    // Case 2: map perspective passed
     if (args is MapPerspective) {
+      debugPrint('[GpsScreen] MapPerspective detected, applying...');
       _pendingPerspective = args;
       if (_isLocationFetched && _locationHandler.mapController != null) {
+        debugPrint('[GpsScreen] MapPerspective applied immediately');
         applyMapPerspective(_pendingPerspective!);
         _pendingPerspective = null;
+      } else {
+        debugPrint('[GpsScreen] MapPerspective pending until map ready');
       }
+    }
+
+    // --- Show tutorial if route requested it ---
+    final showTutorial =
+        args is Map<String, dynamic> && args['showTutorial'] == true;
+    debugPrint('[GpsScreen] showTutorial flag = $showTutorial');
+
+    final authState = context.read<AuthBloc>().state;
+    debugPrint('[GpsScreen] authState = $authState');
+    debugPrint('[GpsScreen] _isTutorialShown = $_isTutorialShown');
+
+    if (!_isTutorialShown && authState is AuthenticatedLogin && showTutorial) {
+      debugPrint('[GpsScreen] Triggering tutorial...');
+      _isTutorialShown = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _tutorialWidget.showTutorial(context);
+        debugPrint('[GpsScreen] Tutorial shown');
+      });
+    } else {
+      debugPrint('[GpsScreen] Tutorial not triggered');
     }
   }
 

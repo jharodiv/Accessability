@@ -1,0 +1,31 @@
+{
+  "name": "3y2aapwd",
+  "version": "1.0.0",
+  "description": "This project is built using **Flutter 3.27.1**.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "prepare": "husky",
+    "commitlint": "commitlint --edit $1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Montilla007/3Y2AAPWD.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Montilla007/3Y2AAPWD/issues"
+  },
+  "homepage": "https://github.com/Montilla007/3Y2AAPWD#readme",
+  "devDependencies": {
+    "@commitlint/cli": "^19.8.1",
+    "@commitlint/config-conventional": "^19.8.1",
+    "@semantic-release/changelog": "^6.0.3",
+    "@semantic-release/git": "^10.0.1",
+    "@semantic-release/github": "^11.0.4",
+    "husky": "^9.1.7",
+    "semantic-release": "^24.2.7"
+  }
+}

@@ -19,7 +19,7 @@ jobs:
           node-version: 20
 
       - name: Install dependencies
-        run: npm ci
+        run: npm install
 
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
@@ -34,7 +34,13 @@ jobs:
         working-directory: frontend
         run: flutter build apk --release
 
-      - name: Semantic Release
+      - name: Upload APK artifact (for workflow download)
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-release-apk
+          path: frontend/build/app/outputs/flutter-apk/app-release.apk
+
+      - name: Release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: npx semantic-release

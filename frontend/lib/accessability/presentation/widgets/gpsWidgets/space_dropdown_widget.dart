@@ -252,7 +252,7 @@ class _SpaceSelectionSheetState extends State<SpaceSelectionSheet> {
                     color: isDark ? Colors.white : _purple),
               ),
             ),
-            Icon(Icons.keyboard_arrow_down,
+            Icon(Icons.keyboard_arrow_up,
                 size: 20, color: isDark ? Colors.white : _purple),
           ],
         ),

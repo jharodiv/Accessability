@@ -104,6 +104,7 @@ class _GpsScreenState extends State<GpsScreen> {
   Timer? _rerouteCheckTimer;
   LatLng? _lastRerouteLocation;
   Duration _rerouteCheckInterval = Duration(seconds: 10);
+  bool _isRerouting = false;
 
   @override
   void initState() {
@@ -911,6 +912,10 @@ class _GpsScreenState extends State<GpsScreen> {
         _routeDestination = destination;
       });
 
+      setState(() {
+        _isRerouting = true;
+      });
+
       // First show overview of the entire route
       if (_locationHandler.mapController != null) {
         final bounds = _locationHandler.getLatLngBounds([origin, destination]);
@@ -969,6 +974,11 @@ class _GpsScreenState extends State<GpsScreen> {
       _stopFollowingUser();
       setState(() {
         _isRouteActive = false;
+        _isRerouting = false;
+      });
+    } finally {
+      setState(() {
+        _isRerouting = false;
       });
     }
   }
@@ -1576,6 +1586,52 @@ class _GpsScreenState extends State<GpsScreen> {
                                 ),
                               ),
                             ],
+                          ),
+                        ),
+                      ),
+
+                    if (_isRerouting)
+                      Positioned(
+                        top: screenHeight * 0.15,
+                        left: 0,
+                        right: 0,
+                        child: Center(
+                          child: Container(
+                            padding: EdgeInsets.symmetric(
+                                horizontal: 16, vertical: 8),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.9),
+                              borderRadius: BorderRadius.circular(20),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black26,
+                                  blurRadius: 6,
+                                  offset: Offset(0, 2),
+                                ),
+                              ],
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                SizedBox(
+                                  width: 16,
+                                  height: 16,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    valueColor: AlwaysStoppedAnimation<Color>(
+                                        Colors.green),
+                                  ),
+                                ),
+                                SizedBox(width: 8),
+                                Text(
+                                  'Re-routing...',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.green,
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                       ),

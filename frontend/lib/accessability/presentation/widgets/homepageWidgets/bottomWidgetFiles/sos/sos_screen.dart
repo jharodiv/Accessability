@@ -1,6 +1,7 @@
+// sos_screen.dart
 import 'dart:async';
+import 'package:AccessAbility/accessability/presentation/widgets/homepageWidgets/bottomWidgetFiles/sos/slide_to_cancel.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_slidable/flutter_slidable.dart';
 import 'package:AccessAbility/accessability/firebaseServices/chat/chat_service.dart';
 import 'package:AccessAbility/accessability/firebaseServices/place/geocoding_service.dart';
 import 'package:AccessAbility/accessability/presentation/screens/gpsscreen/location_handler.dart';
@@ -305,7 +306,14 @@ class _SOSScreenState extends State<SOSScreen> {
         ),
         Padding(
           padding: const EdgeInsets.only(bottom: 20),
-          child: _cancelButton(),
+          child: SlideToCancel(
+            width: 300,
+            height: 56,
+            onCancel: () {
+              // Call your cancel method
+              _cancelSOS();
+            },
+          ),
         ),
       ],
     );
@@ -355,66 +363,15 @@ class _SOSScreenState extends State<SOSScreen> {
         ),
         Padding(
           padding: const EdgeInsets.only(bottom: 20),
-          child: _cancelButton(),
+          child: SlideToCancel(
+            width: 300,
+            height: 56,
+            onCancel: () {
+              _cancelSOS();
+            },
+          ),
         ),
       ],
-    );
-  }
-
-  Widget _cancelButton() {
-    return SizedBox(
-      width: 300,
-      child: Slidable(
-        key: const ValueKey(0),
-        endActionPane: ActionPane(
-          motion: const DrawerMotion(),
-          dismissible: DismissiblePane(onDismissed: _cancelSOS),
-          children: [
-            SlidableAction(
-              onPressed: (context) => _cancelSOS(),
-              backgroundColor: Colors.red,
-              foregroundColor: Colors.white,
-              icon: Icons.cancel,
-              label: tr('cancel_sos'),
-            ),
-          ],
-        ),
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-          decoration: BoxDecoration(
-            color: Colors.black,
-            borderRadius: BorderRadius.circular(30),
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'slide_to_cancel'.tr(),
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              AnimatedContainer(
-                duration: const Duration(milliseconds: 300),
-                width: 32,
-                height: 32,
-                decoration: const BoxDecoration(
-                  color: Colors.red,
-                  shape: BoxShape.circle,
-                ),
-                child: const Center(
-                  child: Icon(
-                    Icons.arrow_back,
-                    color: Colors.white,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
     );
   }
 }

@@ -3,7 +3,7 @@
 import 'dart:async';
 
 import 'package:AccessAbility/accessability/presentation/widgets/shimmer/shimmer_space_selection.dart';
-import 'package:AccessAbility/accessability/presentation/widgets/homepageWidgets/bottomWidgetFiles/verification_code_widget.dart'; // <-- added
+import 'package:AccessAbility/accessability/presentation/widgets/homepageWidgets/bottomWidgetFiles/verification_code_widget.dart';
 import 'package:AccessAbility/accessability/themes/theme_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -252,7 +252,7 @@ class _SpaceSelectionSheetState extends State<SpaceSelectionSheet> {
                     color: isDark ? Colors.white : _purple),
               ),
             ),
-            Icon(Icons.keyboard_arrow_down,
+            Icon(Icons.keyboard_arrow_up,
                 size: 20, color: isDark ? Colors.white : _purple),
           ],
         ),
@@ -345,38 +345,31 @@ class _SpaceSelectionSheetState extends State<SpaceSelectionSheet> {
                 child: ShimmerSpaceSelection(
                   isDark: isDark,
                   itemCount: 4,
-                  // optional: pass how many avatars each shimmer tile should show
-                  // avatarCounts: [3, 1, 2, 4],
                 ),
               )
             else ...[
               if (_spaces.isEmpty) ...[
-                // show placeholder "My Space" if none
+                // show placeholder "My Space" if none — always include a divider after it
                 _buildSpaceTile(
                     {'id': '', 'name': 'mySpace'.tr(), 'avatars': []}),
-                if (_activeId.isNotEmpty)
-                  const Divider(height: 1, thickness: 0.5),
+                const Divider(height: 1, thickness: 0.5),
                 const SizedBox(height: 4),
               ],
               Expanded(
-                child: ListView.separated(
+                child: ListView.builder(
                   padding: EdgeInsets.zero,
                   itemCount: _spaces.length,
-                  separatorBuilder: (context, idx) {
-                    final nextId =
-                        _spaces.length > idx + 1 ? _spaces[idx + 1]['id']! : '';
-                    final isNextSelected = nextId == _activeId;
+                  itemBuilder: (_, idx) {
+                    final s = _spaces[idx];
+                    // Always render a divider after each item (including the last one)
                     return Column(
+                      mainAxisSize: MainAxisSize.min,
                       children: [
-                        if (!isNextSelected)
-                          const Divider(height: 1, thickness: 0.5),
+                        _buildSpaceTile(s),
+                        const Divider(height: 1, thickness: 0.5),
                         const SizedBox(height: 4),
                       ],
                     );
-                  },
-                  itemBuilder: (_, idx) {
-                    final s = _spaces[idx];
-                    return _buildSpaceTile(s);
                   },
                 ),
               ),

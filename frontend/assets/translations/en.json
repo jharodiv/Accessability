@@ -213,5 +213,12 @@
   "cleaningUpSpace": "Cleaning up space data...",
   "cleanupFailed": "Cleanup partially failed, but space was deleted",
   "memberRemovedBy": "{username} was removed from the space by {remover}",
-  "memberLeft": "{username} has left the space"
+  "memberLeft": "{username} has left the space",
+  "emergency_hotline_numbers": "Emergency Hotline Numbers",
+  "dagupan_city": "Dagupan City",
+  "call": "Call",
+  "message": "Message",
+  "cannot_launch_phone": "Cannot launch phone dialer.",
+  "cannot_launch_sms": "Cannot launch SMS app.",
+  "emergency_contacts": "Emergency Contacts"
 }

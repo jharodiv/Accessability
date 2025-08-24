@@ -95,28 +95,37 @@ class _SafetyAssistWidgetState extends State<SafetyAssistWidget> {
   }
 
   void _showEmergencyServicesWidget() {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        fullscreenDialog: true,
+        builder: (_) => const SafetyAssistEmergencyServices(),
       ),
-      builder: (context) {
-        return SafeArea(
-          child: Padding(
-            padding: EdgeInsets.only(
-              bottom: MediaQuery.of(context).viewInsets.bottom,
-            ),
-            // Wrap in SizedBox to control height inside your DraggableScrollableSheet
-            child: SizedBox(
-              height: MediaQuery.of(context).size.height * 0.85,
-              child: const SafetyAssistEmergencyServices(),
-            ),
-          ),
-        );
-      },
     );
   }
+
+  // void _showEmergencyServicesWidget() {
+  //   showModalBottomSheet(
+  //     context: context,
+  //     isScrollControlled: true,
+  //     shape: const RoundedRectangleBorder(
+  //       borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+  //     ),
+  //     builder: (context) {
+  //       return SafeArea(
+  //         child: Padding(
+  //           padding: EdgeInsets.only(
+  //             bottom: MediaQuery.of(context).viewInsets.bottom,
+  //           ),
+  //           // Wrap in SizedBox to control height inside your DraggableScrollableSheet
+  //           child: SizedBox(
+  //             height: MediaQuery.of(context).size.height * 0.85,
+  //             child: const SafetyAssistEmergencyServices(),
+  //           ),
+  //         ),
+  //       );
+  //     },
+  //   );
+  // }
 
   void _showAddEmergencyContactDialog() {
     Navigator.of(context)

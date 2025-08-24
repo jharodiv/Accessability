@@ -191,5 +191,12 @@
   "fingerprintLocalizedReason": "Mangyaring mag-authenticate upang magrehistro ng biometriko.",
   "noBiometricsTitle": "Walang nakarehistrong biometriko",
   "noBiometricsMessage": "Walang naka-rehistrong fingerprint o face data sa device na ito. Buksan ang Settings upang magrehistro ngayon.",
-  "openSettings": "Buksan ang Settings"
+  "openSettings": "Buksan ang Settings",
+  "emergency_hotline_numbers": "Mga Emergency Hotline",
+  "dagupan_city": "Lungsod ng Dagupan",
+  "call": "Tumawag",
+  "message": "Mensahe",
+  "cannot_launch_phone": "Hindi mabuksan ang tagapag-dial ng telepono.",
+  "cannot_launch_sms": "Hindi mabuksan ang SMS app.",
+  "emergency_contacts": "Mga Contact sa Emergency"
 }

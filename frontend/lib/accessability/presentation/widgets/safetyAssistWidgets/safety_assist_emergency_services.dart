@@ -1,12 +1,14 @@
+import 'package:AccessAbility/accessability/presentation/widgets/safetyAssistWidgets/design_service_row.dart';
+import 'package:AccessAbility/accessability/themes/theme_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:easy_localization/easy_localization.dart';
+import 'package:provider/provider.dart';
 
-/// Emergency hotline list widget — white background, all-black text/icons,
-/// slightly larger sizes for readability.
 class SafetyAssistEmergencyServices extends StatelessWidget {
   const SafetyAssistEmergencyServices({Key? key}) : super(key: key);
 
+  // Full services list
   static const List<Map<String, String>> _services = [
     {
       'title': 'DAGUPAN PNP',
@@ -100,200 +102,144 @@ class SafetyAssistEmergencyServices extends StatelessWidget {
     }
   }
 
+  /// Map a service title to an asset path.
+  /// Make sure these filenames match your assets exactly (case-sensitive on some platforms).
+  String _assetForTitle(String title) {
+    final t = title.toLowerCase();
+    if (t.contains('pnp') || t.contains('police'))
+      return 'assets/images/emergencyservices/police_station.png';
+    if (t.contains('bfp') || t.contains('fire'))
+      return 'assets/images/emergencyservices/bfp_dagupan.png';
+    if (t.contains('red') || t.contains('cross'))
+      return 'assets/images/emergencyservices/red_cross.png';
+    if (t.contains('health') || t.contains('city health'))
+      return 'assets/images/emergencyservices/city_health.png';
+    if (t.contains('disaster') || t.contains('cdrrmo'))
+      return 'assets/images/emergencyservices/cdrrmo.png';
+    if (t.contains('social') || t.contains('cswd'))
+      return 'assets/images/emergencyservices/cswd.png';
+    if (t.contains('poso'))
+      return 'assets/images/emergencyservices/poso_dagupan.png';
+    if (t.contains('panda'))
+      return 'assets/images/emergencyservices/panda_volunteer.png';
+    if (t.contains('ofw'))
+      return 'assets/images/emergencyservices/ofw_desk.png';
+    if (t.contains('anti') || t.contains('vawc'))
+      return 'assets/images/emergencyservices/anti_vawc.png';
+    // fallback
+    return 'assets/images/emergencyservices/support.png';
+  }
+
   @override
   Widget build(BuildContext context) {
-    // White background, black text/icons, larger sizes for readability
-    const bgColor = Colors.white;
+    final bool isDarkMode = Provider.of<ThemeProvider>(context).isDarkMode;
+
+    // header red for light mode, slightly darker red for dark mode
+    final Color headerRed =
+        isDarkMode ? const Color(0xFF8B0000) : const Color(0xFFD32F2F);
+    // scaffold background adapts to theme but keep light-ish for content in light mode
+    final Color scaffoldBg =
+        isDarkMode ? Colors.grey[900]! : const Color(0xFFF2F6FA);
+
     const titleColor = Colors.black;
-    const subtitleColor = Colors.black87;
-    const numberColor = Colors.black;
-    const iconColor = Colors.black;
-    const double titleSize = 18;
-    const double subtitleSize = 13;
-    const double numberSize = 15;
-    const double iconSize = 22;
+    const subtitleColor = Colors.black54;
+    const numberColor = Colors.black87;
 
-    return SafeArea(
-      bottom: true,
-      child: Container(
-        color: bgColor,
-        child: Column(
-          children: [
-            // Header row with back arrow and centered title
-            Padding(
-              padding: const EdgeInsets.fromLTRB(8, 14, 8, 6),
-              child: Row(
-                children: [
-                  IconButton(
-                    icon: Icon(Icons.arrow_back, size: iconSize),
-                    color: iconColor,
-                    onPressed: () => Navigator.of(context).pop(),
-                    tooltip: 'back'.tr(),
-                  ),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        Text(
-                          'EMERGENCY HOTLINE NUMBERS',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            color: titleColor,
-                            fontWeight: FontWeight.w900,
-                            fontSize: titleSize,
-                          ),
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          'Dagupan City',
-                          style: TextStyle(
-                            color: subtitleColor,
-                            fontSize: subtitleSize,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  // symmetry spacer
-                  const SizedBox(width: 48),
-                ],
+    return Scaffold(
+      backgroundColor: scaffoldBg,
+      appBar: PreferredSize(
+        preferredSize: const Size.fromHeight(72),
+        child: Container(
+          decoration: BoxDecoration(
+            color: headerRed,
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.12),
+                offset: const Offset(0, 2),
+                blurRadius: 6,
               ),
+            ],
+          ),
+          child: SafeArea(
+            child: Row(
+              children: [
+                IconButton(
+                  onPressed: () => Navigator.of(context).maybePop(),
+                  icon: const Icon(Icons.arrow_back),
+                  color: Colors.white, // white on red appbar
+                ),
+                Expanded(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        'emergency_contacts'.tr().toUpperCase(),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w900,
+                          fontSize: 14,
+                          letterSpacing: 0.6,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'dagupan_city'.tr(),
+                        style: const TextStyle(
+                          color: Color.fromARGB(200, 255, 255, 255),
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 48), // keep symmetric spacing
+              ],
             ),
-
-            const SizedBox(height: 6),
-
-            const Divider(color: Colors.black12, height: 1),
-
-            // Expanded list
-            Expanded(
-              child: ListView.separated(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                itemCount: _services.length,
-                separatorBuilder: (_, __) =>
-                    const Divider(color: Colors.black12, height: 12),
-                itemBuilder: (context, index) {
-                  final s = _services[index];
-                  return _ServiceRow(
-                    title: s['title']!,
-                    subtitle: s['subtitle']!,
-                    numbers: s['numbers']!,
-                    primary: s['primary']!,
-                    titleColor: titleColor,
-                    subtitleColor: subtitleColor,
-                    numberColor: numberColor,
-                    iconColor: iconColor,
-                    titleSize: titleSize,
-                    subtitleSize: subtitleSize,
-                    numberSize: numberSize,
-                    iconSize: iconSize,
-                    onCall: (num) => _callNumber(context, num),
-                    onSms: (num) => _sendSms(context, num),
-                  );
-                },
-              ),
-            ),
-          ],
+          ),
         ),
       ),
-    );
-  }
-}
-
-class _ServiceRow extends StatelessWidget {
-  final String title;
-  final String subtitle;
-  final String numbers;
-  final String primary;
-  final void Function(String) onCall;
-  final void Function(String) onSms;
-
-  final Color titleColor;
-  final Color subtitleColor;
-  final Color numberColor;
-  final Color iconColor;
-  final double titleSize;
-  final double subtitleSize;
-  final double numberSize;
-  final double iconSize;
-
-  const _ServiceRow({
-    Key? key,
-    required this.title,
-    required this.subtitle,
-    required this.numbers,
-    required this.primary,
-    required this.onCall,
-    required this.onSms,
-    required this.titleColor,
-    required this.subtitleColor,
-    required this.numberColor,
-    required this.iconColor,
-    required this.titleSize,
-    required this.subtitleSize,
-    required this.numberSize,
-    required this.iconSize,
-  }) : super(key: key);
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8.0),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Expanded(
-            flex: 3,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(title,
-                    style: TextStyle(
-                      color: titleColor,
-                      fontWeight: FontWeight.w900,
-                      fontSize: titleSize,
-                    )),
-                const SizedBox(height: 6),
-                Text(subtitle,
-                    style: TextStyle(
-                        color: subtitleColor, fontSize: subtitleSize)),
-              ],
+      body: Container(
+        color: scaffoldBg,
+        child: SafeArea(
+          bottom: true,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 12),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 520),
+              child: _services.isEmpty
+                  ? Center(
+                      child: Text(
+                        'no_contacts'.tr(),
+                        style: const TextStyle(color: Colors.black54),
+                      ),
+                    )
+                  : ListView.separated(
+                      physics: const BouncingScrollPhysics(),
+                      itemCount: _services.length,
+                      separatorBuilder: (_, __) =>
+                          const Divider(color: Color(0xFFF0F0F0), height: 20),
+                      itemBuilder: (context, index) {
+                        final s = _services[index];
+                        final asset = _assetForTitle(s['title'] ?? '');
+                        return DesignServiceRow(
+                          assetPath: asset,
+                          fallbackIcon: Icons.support_agent,
+                          title: s['title'] ?? '',
+                          subtitle: s['subtitle'] ?? '',
+                          numbers: s['numbers'] ?? '',
+                          primary: s['primary'] ?? '',
+                          onCall: (num) => _callNumber(context, num),
+                          onSms: (num) => _sendSms(context, num),
+                          titleColor: titleColor,
+                          subtitleColor: subtitleColor,
+                          numberColor: numberColor,
+                        );
+                      },
+                    ),
             ),
           ),
-          Expanded(
-            flex: 2,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Text(numbers,
-                    textAlign: TextAlign.right,
-                    style: TextStyle(
-                      color: numberColor,
-                      fontWeight: FontWeight.bold,
-                      fontSize: numberSize,
-                    )),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    IconButton(
-                      icon: Icon(Icons.call, size: iconSize),
-                      color: iconColor,
-                      onPressed: () => onCall(primary),
-                      tooltip: 'call'.tr(),
-                    ),
-                    IconButton(
-                      icon: Icon(Icons.message, size: iconSize),
-                      color: iconColor,
-                      onPressed: () => onSms(primary),
-                      tooltip: 'message'.tr(),
-                    ),
-                  ],
-                )
-              ],
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }

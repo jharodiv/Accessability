@@ -4,7 +4,6 @@ import 'package:AccessAbility/accessability/themes/theme_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import 'package:emoji_picker_flutter/emoji_picker_flutter.dart';
-
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 class ChatConvoBubble extends StatefulWidget {
@@ -15,6 +14,7 @@ class ChatConvoBubble extends StatefulWidget {
   final Function()? onEdit;
   final Function()? onDelete;
   final Function(String emoji)? onReact;
+  final bool isSystemMessage; // Add this property
 
   const ChatConvoBubble({
     super.key,
@@ -25,6 +25,7 @@ class ChatConvoBubble extends StatefulWidget {
     this.onEdit,
     this.onDelete,
     this.onReact,
+    this.isSystemMessage = false, // Default to false
   });
 
   @override
@@ -42,7 +43,8 @@ class _ChatConvoBubbleState extends State<ChatConvoBubble> {
   }
 
   LatLng? _extractLatLngFromMessage(String message) {
-    final regex = RegExp(r'https://www\.google\.com/maps\?q=([\d\.]+),([\d\.]+)');
+    final regex =
+        RegExp(r'https://www\.google\.com/maps\?q=([\d\.]+),([\d\.]+)');
     final match = regex.firstMatch(message);
     if (match != null) {
       final lat = double.tryParse(match.group(1)!);
@@ -54,7 +56,10 @@ class _ChatConvoBubbleState extends State<ChatConvoBubble> {
     return null;
   }
 
-   void _showOptionsMenu(BuildContext context) {
+  void _showOptionsMenu(BuildContext context) {
+    // Don't show options menu for system messages
+    if (widget.isSystemMessage) return;
+
     showModalBottomSheet(
       context: context,
       builder: (context) {
@@ -97,7 +102,7 @@ class _ChatConvoBubbleState extends State<ChatConvoBubble> {
       builder: (context) {
         return EmojiPicker(
           onEmojiSelected: (category, emoji) {
-            widget.onReact?.call(emoji.emoji); // Use `emoji.character`
+            widget.onReact?.call(emoji.emoji);
             Navigator.pop(context);
           },
         );
@@ -106,81 +111,137 @@ class _ChatConvoBubbleState extends State<ChatConvoBubble> {
   }
 
   @override
-Widget build(BuildContext context) {
-  bool isDarkMode = Provider.of<ThemeProvider>(context, listen: false).isDarkMode;
-  final DateTime messageDate = widget.timestamp.toDate();
-  final DateTime now = DateTime.now();
-  final bool isThisWeek = now.difference(messageDate).inDays <= 7;
+  Widget build(BuildContext context) {
+    bool isDarkMode =
+        Provider.of<ThemeProvider>(context, listen: false).isDarkMode;
 
-  String formattedTime = isThisWeek
-      ? DateFormat('E hh:mm a').format(messageDate)
-      : DateFormat('MMM d, yyyy hh:mm a').format(messageDate);
+    // Handle system messages differently
+    if (widget.isSystemMessage) {
+      return _buildSystemMessage(context, isDarkMode);
+    }
 
-  return Row(
-    mainAxisAlignment: widget.isCurrentUser ? MainAxisAlignment.end : MainAxisAlignment.start,
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      if (!widget.isCurrentUser)
-        CircleAvatar(
-          backgroundImage: NetworkImage(widget.profilePicture),
-        ),
-      const SizedBox(width: 8),
-      Flexible(
-        child: InkWell(
-          onTap: () {
-            setState(() {
-              _showTimestamp = !_showTimestamp;
-            });
-          },
-          onLongPress: () => _showOptionsMenu(context),
-          borderRadius: BorderRadius.circular(12),
-          child: Container(
-            constraints: BoxConstraints(
-              maxWidth: MediaQuery.of(context).size.width * 0.7,
-            ),
-            decoration: BoxDecoration(
-              color: widget.isCurrentUser
-                  ? const Color(0xFF6750A4)
-                  : (isDarkMode
-                      ? const Color.fromARGB(255, 65, 63, 71)
-                      : const Color.fromARGB(255, 145, 141, 141)),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            padding: const EdgeInsets.all(12),
-            margin: const EdgeInsets.symmetric(vertical: 5, horizontal: 8),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                if (_location != null)
-                  _buildMapPreview(_location!),
-                Text(
-                  widget.message,
-                  style: TextStyle(
-                    color: widget.isCurrentUser
-                        ? Colors.white
-                        : (isDarkMode ? Colors.white : Colors.black),
-                    fontSize: 14,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                if (_showTimestamp)
+    final DateTime messageDate = widget.timestamp.toDate();
+    final DateTime now = DateTime.now();
+    final bool isThisWeek = now.difference(messageDate).inDays <= 7;
+
+    String formattedTime = isThisWeek
+        ? DateFormat('E hh:mm a').format(messageDate)
+        : DateFormat('MMM d, yyyy hh:mm a').format(messageDate);
+
+    return Row(
+      mainAxisAlignment: widget.isCurrentUser
+          ? MainAxisAlignment.end
+          : MainAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (!widget.isCurrentUser)
+          CircleAvatar(
+            backgroundImage: NetworkImage(widget.profilePicture),
+          ),
+        const SizedBox(width: 8),
+        Flexible(
+          child: InkWell(
+            onTap: () {
+              setState(() {
+                _showTimestamp = !_showTimestamp;
+              });
+            },
+            onLongPress: () => _showOptionsMenu(context),
+            borderRadius: BorderRadius.circular(12),
+            child: Container(
+              constraints: BoxConstraints(
+                maxWidth: MediaQuery.of(context).size.width * 0.7,
+              ),
+              decoration: BoxDecoration(
+                color: widget.isCurrentUser
+                    ? const Color(0xFF6750A4)
+                    : (isDarkMode
+                        ? const Color.fromARGB(255, 65, 63, 71)
+                        : const Color.fromARGB(255, 145, 141, 141)),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              padding: const EdgeInsets.all(12),
+              margin: const EdgeInsets.symmetric(vertical: 5, horizontal: 8),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (_location != null) _buildMapPreview(_location!),
                   Text(
-                    formattedTime,
+                    widget.message,
                     style: TextStyle(
                       color: widget.isCurrentUser
-                          ? Colors.white70
-                          : Colors.black54,
-                      fontSize: 10,
+                          ? Colors.white
+                          : (isDarkMode ? Colors.white : Colors.black),
+                      fontSize: 14,
                     ),
                   ),
-              ],
+                  const SizedBox(height: 4),
+                  if (_showTimestamp)
+                    Text(
+                      formattedTime,
+                      style: TextStyle(
+                        color: widget.isCurrentUser
+                            ? Colors.white70
+                            : Colors.black54,
+                        fontSize: 10,
+                      ),
+                    ),
+                ],
+              ),
             ),
           ),
         ),
+      ],
+    );
+  }
+
+  // Build system message widget
+  Widget _buildSystemMessage(BuildContext context, bool isDarkMode) {
+    final DateTime messageDate = widget.timestamp.toDate();
+    final DateTime now = DateTime.now();
+    final bool isThisWeek = now.difference(messageDate).inDays <= 7;
+
+    String formattedTime = isThisWeek
+        ? DateFormat('E hh:mm a').format(messageDate)
+        : DateFormat('MMM d, yyyy hh:mm a').format(messageDate);
+
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: 8),
+      child: Center(
+        child: Column(
+          children: [
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              decoration: BoxDecoration(
+                color: isDarkMode ? Colors.grey[700] : Colors.grey[300],
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Text(
+                widget.message,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: isDarkMode ? Colors.white70 : Colors.grey[700],
+                  fontStyle: FontStyle.italic,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ),
+            if (_showTimestamp)
+              Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Text(
+                  formattedTime,
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: isDarkMode ? Colors.white54 : Colors.black54,
+                  ),
+                ),
+              ),
+          ],
+        ),
       ),
-    ],
-  );
-}
+    );
+  }
 
   Widget _buildMapPreview(LatLng location) {
     return Container(

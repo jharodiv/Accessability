@@ -19,8 +19,6 @@ class SettingsScreen extends StatefulWidget {
 
 class _SettingsScreenState extends State<SettingsScreen> {
   bool isNotificationEnabled = false;
-  // Removed local isBiometricEnabled variable.
-  // The biometric login boolean now comes from the biometric login via UserBloc.
 
   Future<void> logout(BuildContext context) async {
     final authService = AuthService();
@@ -127,6 +125,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ),
                   onTap: () {
                     Navigator.pushNamed(context, '/preferences');
+                  },
+                ),
+                const Divider(),
+                ListTile(
+                  leading: const Icon(Icons.space_dashboard,
+                      color: Color(0xFF6750A4)),
+                  title: Text(
+                    'spaceManagement'.tr(),
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  onTap: () {
+                    Navigator.pushNamed(context, '/spaceManagement');
                   },
                 ),
                 const Divider(),

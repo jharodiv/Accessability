@@ -28,6 +28,7 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:AccessAbility/accessability/presentation/screens/settings/settingsScreens/privacy_and_security/data_security.dart';
 import 'package:AccessAbility/accessability/presentation/screens/settings/settingsScreens/privacy_and_security/additional_data_rights.dart';
 import 'package:AccessAbility/accessability/presentation/screens/settings/settingsScreens/privacy_and_security/privacy_policy.dart';
+import 'package:AccessAbility/accessability/presentation/screens/settings/settingsScreens/space_management_screen.dart';
 
 class AppRouter {
   Route<dynamic>? onGenerateRoute(RouteSettings routeSettings) {
@@ -80,6 +81,9 @@ class AppRouter {
         return _buildRoute(const CreateSpaceScreen(), settings: routeSettings);
       case '/joinSpace':
         return _buildRoute(const JoinSpaceScreen(), settings: routeSettings);
+      case '/spaceManagement':
+        return _buildRoute(const SpaceManagementScreen(),
+            settings: routeSettings);
       case '/send-location':
         final args = routeSettings.arguments as Map<String, dynamic>?;
         if (args == null) {

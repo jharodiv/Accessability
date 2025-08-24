@@ -77,6 +77,7 @@ class _JoinSpaceScreenState extends State<JoinSpaceScreen> {
       }
 
       final spaceDoc = snapshot.docs.first;
+      final spaceId = spaceDoc.id;
       final codeTimestamp = spaceDoc['codeTimestamp']?.toDate();
 
       if (codeTimestamp != null &&
@@ -85,11 +86,18 @@ class _JoinSpaceScreenState extends State<JoinSpaceScreen> {
         return;
       }
 
-      await _firestore.collection('Spaces').doc(spaceDoc.id).update({
-        'members': FieldValue.arrayUnion([user.uid]),
-      });
+      // Check if user is already a member
+      final currentMembers = List<String>.from(spaceDoc['members'] ?? []);
 
-      await _chatService.addMemberToSpaceChatRoom(spaceDoc.id, user.uid);
+      if (!currentMembers.contains(user.uid)) {
+        // Add user to space
+        await _firestore.collection('Spaces').doc(spaceId).update({
+          'members': FieldValue.arrayUnion([user.uid]),
+        });
+      }
+
+      // Always add to space chat room (handles re-joining case)
+      await _chatService.addMemberToSpaceChatRoom(spaceId, user.uid);
 
       _showSnackBar('joined_space_successfully'.tr());
 
@@ -99,7 +107,7 @@ class _JoinSpaceScreenState extends State<JoinSpaceScreen> {
         if (!_isDisposed && Navigator.canPop(context)) {
           Navigator.of(context).pop({
             'success': true,
-            'spaceId': spaceDoc.id,
+            'spaceId': spaceId,
             'spaceName': spaceDoc['name']
           });
         }

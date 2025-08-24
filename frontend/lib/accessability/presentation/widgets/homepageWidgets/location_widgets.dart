@@ -384,12 +384,22 @@ class _LocationWidgetsState extends State<LocationWidgets> {
 
     final receiverID = receiverSnapshot.docs.first.id;
 
+    // Check if user is already a member of the space
     final spaceSnapshot =
         await _firestore.collection('Spaces').doc(widget.activeSpaceId).get();
 
     if (!spaceSnapshot.exists) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Space not found')),
+      );
+      return;
+    }
+
+    final currentMembers = List<String>.from(spaceSnapshot['members'] ?? []);
+
+    if (currentMembers.contains(receiverID)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('User is already a member of this space')),
       );
       return;
     }

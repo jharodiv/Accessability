@@ -220,40 +220,54 @@ class ChatService {
       'members': [creatorId], // Add the creator as the first member
     });
 
-    // Send a welcome message to the space chat room
-    await sendMessage(spaceId, 'Welcome to the $spaceName space!',
-        isSpaceChat: true);
+    // Send a system welcome message to the space chat room
+    await sendSystemMessage(spaceId, 'Welcome to the $spaceName space!');
   }
 
   // Add a member to the space chat room and create chat rooms with all members
   Future<void> addMemberToSpaceChatRoom(String spaceId, String userId) async {
-    // Fetch the user's data from Firestore
-    final userSnapshot =
-        await firebaseFirestore.collection('Users').doc(userId).get();
-    if (!userSnapshot.exists) return;
+    try {
+      // Check if space chat room exists
+      final spaceSnapshot = await firebaseFirestore
+          .collection('space_chat_rooms')
+          .doc(spaceId)
+          .get();
 
-    final username = userSnapshot.data()?['username'] ?? 'Unknown User';
+      if (!spaceSnapshot.exists) {
+        // Create space chat room if it doesn't exist
+        final spaceDoc =
+            await firebaseFirestore.collection('Spaces').doc(spaceId).get();
 
-    // Check if the space chat room exists
-    final spaceSnapshot = await firebaseFirestore
-        .collection('space_chat_rooms')
-        .doc(spaceId)
-        .get();
-    if (!spaceSnapshot.exists) return;
+        if (spaceDoc.exists) {
+          final spaceName = spaceDoc['name'] ?? 'Unnamed Space';
+          await createSpaceChatRoom(spaceId, spaceName);
+        }
+        return;
+      }
 
-    final spaceName = spaceSnapshot['name'] ?? 'Unnamed Space';
+      // Add user to space chat room
+      await firebaseFirestore
+          .collection('space_chat_rooms')
+          .doc(spaceId)
+          .update({
+        'members': FieldValue.arrayUnion([userId]),
+      });
 
-    // Add the user to the space chat room members list
-    await firebaseFirestore.collection('space_chat_rooms').doc(spaceId).update({
-      'members': FieldValue.arrayUnion([userId]),
-    });
+      // Send welcome message
+      final userSnapshot =
+          await firebaseFirestore.collection('Users').doc(userId).get();
 
-    // Send a message indicating the user has joined the space
-    await sendMessage(spaceId, '$username has joined the space!',
-        isSpaceChat: true);
+      if (userSnapshot.exists) {
+        final username = userSnapshot.data()?['username'] ?? 'Unknown User';
+        await sendSystemMessage(spaceId, '$username has joined the space!');
+      }
 
-    // Create chat rooms for the new member with all existing members
-    await createChatRoomsForNewMember(spaceId, userId, spaceName);
+      // Create individual chat rooms
+      await createChatRoomsForNewMember(
+          spaceId, userId, spaceSnapshot['name'] ?? 'Unnamed Space');
+    } catch (e) {
+      print('Error adding member to space chat room: $e');
+    }
   }
 
   Future<void> createChatRoomForMembers(
@@ -371,14 +385,87 @@ class ChatService {
         .collection('space_chat_rooms')
         .where('members', arrayContains: currentUserID)
         .snapshots()
-        .map((snapshot) {
-      return snapshot.docs.map((doc) {
-        return {
-          'id': doc.id,
-          'name': doc['name'],
-          'createdAt': doc['createdAt'],
-        };
-      }).toList();
+        .asyncMap((snapshot) async {
+      final List<Map<String, dynamic>> validSpaces = [];
+
+      for (final doc in snapshot.docs) {
+        final spaceId = doc.id;
+
+        // Check if user is still a member of the actual space
+        final spaceDoc =
+            await firebaseFirestore.collection('Spaces').doc(spaceId).get();
+
+        if (spaceDoc.exists) {
+          final spaceData = spaceDoc.data() as Map<String, dynamic>;
+          final members = List<String>.from(spaceData['members'] ?? []);
+
+          // Only include if user is still a member of the space
+          if (members.contains(currentUserID)) {
+            validSpaces.add({
+              'id': doc.id,
+              'name': doc['name'],
+              'createdAt': doc['createdAt'],
+            });
+          }
+        }
+      }
+
+      return validSpaces;
     });
+  }
+
+  Future<void> sendSystemMessage(String spaceId, String message) async {
+    final Timestamp timestamp = Timestamp.now();
+
+    await firebaseFirestore
+        .collection('space_chat_rooms')
+        .doc(spaceId)
+        .collection('messages')
+        .add({
+      'senderID': 'system', // Use 'system' as sender ID for system messages
+      'senderEmail': 'system@system.com',
+      'message': message,
+      'timestamp': timestamp,
+      'isSystemMessage': true, // Flag to identify system messages
+    });
+  }
+
+  Future<void> notifyMemberRemoved(
+      String spaceId, String username, String removerUsername) async {
+    final message = '$username was removed from the space by $removerUsername';
+    await sendSystemMessage(spaceId, message);
+  }
+
+// Notify when a member leaves voluntarily
+  Future<void> notifyMemberLeft(String spaceId, String username) async {
+    final message = '$username has left the space';
+    await sendSystemMessage(spaceId, message);
+  }
+
+// Notify when a space is deleted
+  Future<void> notifySpaceDeleted(String spaceId, String spaceName) async {
+    final message = 'The space "$spaceName" has been deleted';
+    await sendSystemMessage(spaceId, message);
+  }
+
+  Future<void> removeMemberFromSpaceChatRoom(
+      String spaceId, String userId) async {
+    try {
+      await firebaseFirestore
+          .collection('space_chat_rooms')
+          .doc(spaceId)
+          .update({
+        'members': FieldValue.arrayRemove([userId])
+      });
+
+      // Optional: Send a system message
+      final userDoc =
+          await firebaseFirestore.collection('Users').doc(userId).get();
+      final username = userDoc['username'] ?? 'Unknown User';
+
+      await sendSystemMessage(spaceId, '$username was removed from the space');
+    } catch (e) {
+      print('Error removing member from space chat room: $e');
+    }
   }
 }

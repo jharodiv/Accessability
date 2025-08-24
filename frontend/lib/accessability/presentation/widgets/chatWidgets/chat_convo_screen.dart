@@ -49,7 +49,8 @@ class _ChatConvoScreenState extends State<ChatConvoScreen> {
 
   Future<void> _checkChatRequest() async {
     final senderID = authService.getCurrentUser()!.uid;
-    final hasRequest = await chatService.hasChatRequest(senderID, widget.receiverID);
+    final hasRequest =
+        await chatService.hasChatRequest(senderID, widget.receiverID);
     setState(() {
       _isRequestPending = hasRequest;
     });
@@ -63,30 +64,30 @@ class _ChatConvoScreenState extends State<ChatConvoScreen> {
   }
 
   void sendMessage() async {
-  // Trim the message to remove leading and trailing spaces
-  final trimmedMessage = messageController.text.trim();
+    // Trim the message to remove leading and trailing spaces
+    final trimmedMessage = messageController.text.trim();
 
-  // Check if the trimmed message is not empty
-  if (trimmedMessage.isNotEmpty) {
-    await chatService.sendMessage(
-      widget.receiverID,
-      trimmedMessage,
-      isSpaceChat: widget.isSpaceChat,
-    );
-    messageController.clear();
+    // Check if the trimmed message is not empty
+    if (trimmedMessage.isNotEmpty) {
+      await chatService.sendMessage(
+        widget.receiverID,
+        trimmedMessage,
+        isSpaceChat: widget.isSpaceChat,
+      );
+      messageController.clear();
 
-    // Scroll to the bottom after sending a message
-    WidgetsBinding.instance.addPostFrameCallback((_) => scrollDown());
-  } else {
-    // Optionally, you can show a message to the user indicating that empty messages are not allowed
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Message cannot be empty'),
-        duration: Duration(seconds: 2),
-      ),
-    );
+      // Scroll to the bottom after sending a message
+      WidgetsBinding.instance.addPostFrameCallback((_) => scrollDown());
+    } else {
+      // Optionally, you can show a message to the user indicating that empty messages are not allowed
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Message cannot be empty'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+    }
   }
-}
 
   @override
   void dispose() {
@@ -106,112 +107,123 @@ class _ChatConvoScreenState extends State<ChatConvoScreen> {
     }
   }
 
- @override
-Widget build(BuildContext context) {
-  final Map<String, dynamic>? args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
-  final bool isDarkMode = Provider.of<ThemeProvider>(context, listen: false).isDarkMode;
+  @override
+  Widget build(BuildContext context) {
+    final Map<String, dynamic>? args =
+        ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
+    final bool isDarkMode =
+        Provider.of<ThemeProvider>(context, listen: false).isDarkMode;
 
-  if (args == null) {
-    return const Scaffold(
-      body: Center(
-        child: Text('Error: Missing arguments for ChatConvoScreen'),
+    if (args == null) {
+      return const Scaffold(
+        body: Center(
+          child: Text('Error: Missing arguments for ChatConvoScreen'),
+        ),
+      );
+    }
+
+    final String receiverUsername = args['receiverUsername'] as String;
+    final String receiverID = args['receiverID'] as String;
+    final String receiverProfilePicture = args['receiverProfilePicture']
+            as String? ??
+        (widget.isSpaceChat
+            ? 'https://firebasestorage.googleapis.com/v0/b/accessability-71ef7.firebasestorage.app/o/profile_pictures%2Fgroup_chat_icon.jpg?alt=media&token=7604bd51-2edf-4514-b979-e3fa84dce389'
+            : 'https://firebasestorage.googleapis.com/v0/b/accessability-71ef7.appspot.com/o/profile_pictures%2Fdefault_profile.png?alt=media&token=bc7a75a7-a78e-4460-b816-026a8fc341ba');
+
+    return Scaffold(
+      appBar: AppBar(
+        title: Row(
+          children: [
+            CircleAvatar(
+              backgroundImage: NetworkImage(receiverProfilePicture),
+            ),
+            const SizedBox(width: 10),
+            Text(receiverUsername),
+          ],
+        ),
+        elevation: 0,
+      ),
+      body: Container(
+        color: isDarkMode
+            ? const Color(0xFF121212)
+            : const Color(0xFFF5F5F5), // Dark or light background
+        child: SafeArea(
+          child: Column(
+            children: [
+              Expanded(child: _buildMessageList()),
+              _buildUserInput(),
+            ],
+          ),
+        ),
       ),
     );
   }
 
-  final String receiverUsername = args['receiverUsername'] as String;
-  final String receiverID = args['receiverID'] as String;
-  final String receiverProfilePicture = args['receiverProfilePicture'] as String? ??
-      (widget.isSpaceChat
-          ? 'https://firebasestorage.googleapis.com/v0/b/accessability-71ef7.firebasestorage.app/o/profile_pictures%2Fgroup_chat_icon.jpg?alt=media&token=7604bd51-2edf-4514-b979-e3fa84dce389'
-          : 'https://firebasestorage.googleapis.com/v0/b/accessability-71ef7.appspot.com/o/profile_pictures%2Fdefault_profile.png?alt=media&token=bc7a75a7-a78e-4460-b816-026a8fc341ba');
-
-  return Scaffold(
-    appBar: AppBar(
-      title: Row(
-        children: [
-          CircleAvatar(
-            backgroundImage: NetworkImage(receiverProfilePicture),
-          ),
-          const SizedBox(width: 10),
-          Text(receiverUsername),
-        ],
-      ),
-      elevation: 0,
-    ),
-    body: Container(
-      color: isDarkMode ? const Color(0xFF121212) : const Color(0xFFF5F5F5), // Dark or light background
-      child: SafeArea(
-        child: Column(
-          children: [
-            Expanded(child: _buildMessageList()),
-            _buildUserInput(),
-          ],
-        ),
-      ),
-    ),
-  );
-}
-
   Widget _buildMessageList() {
-  return StreamBuilder(
-    stream: chatService.getMessages(
-      widget.receiverID,
-      isSpaceChat: widget.isSpaceChat,
-    ),
-    builder: (context, snapshot) {
-      if (snapshot.hasError) {
-        return const Center(child: Text('Error loading messages.'));
-      }
-
-      if (snapshot.connectionState == ConnectionState.waiting) {
-        return const Center(child: CircularProgressIndicator());
-      }
-
-      // Extract messages from the snapshot
-      final messages = snapshot.data!.docs;
-
-      // Scroll to the bottom after messages are loaded
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (scrollController.hasClients) {
-          scrollController.animateTo(
-            scrollController.position.maxScrollExtent,
-            duration: const Duration(milliseconds: 300),
-            curve: Curves.easeOut,
-          );
-        }
-      });
-
-      // Group messages by time intervals and add dividers
-      List<Widget> messageWidgets = [];
-      DateTime? previousMessageTime;
-
-      for (var doc in messages) {
-        final data = doc.data() as Map<String, dynamic>;
-        final messageTime = (data['timestamp'] as Timestamp).toDate();
-
-        // Add a divider if the time difference is more than 10 minutes
-        if (previousMessageTime != null &&
-            messageTime.difference(previousMessageTime).inMinutes > 10) {
-          messageWidgets.add(_buildTimeDivider(messageTime));
+    return StreamBuilder(
+      stream: chatService.getMessages(
+        widget.receiverID,
+        isSpaceChat: widget.isSpaceChat,
+      ),
+      builder: (context, snapshot) {
+        if (snapshot.hasError) {
+          return const Center(child: Text('Error loading messages.'));
         }
 
-        messageWidgets.add(_buildMessageItem(doc));
-        previousMessageTime = messageTime;
-      }
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
 
-      return ListView(
-        controller: scrollController,
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        children: messageWidgets,
-      );
-    },
-  );
-}
+        // Extract messages from the snapshot
+        final messages = snapshot.data!.docs;
+
+        // Scroll to the bottom after messages are loaded
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (scrollController.hasClients) {
+            scrollController.animateTo(
+              scrollController.position.maxScrollExtent,
+              duration: const Duration(milliseconds: 300),
+              curve: Curves.easeOut,
+            );
+          }
+        });
+
+        // Group messages by time intervals and add dividers
+        List<Widget> messageWidgets = [];
+        DateTime? previousMessageTime;
+
+        for (var doc in messages) {
+          final data = doc.data() as Map<String, dynamic>;
+          final messageTime = (data['timestamp'] as Timestamp).toDate();
+
+          // Add a divider if the time difference is more than 10 minutes
+          if (previousMessageTime != null &&
+              messageTime.difference(previousMessageTime).inMinutes > 10) {
+            messageWidgets.add(_buildTimeDivider(messageTime));
+          }
+
+          messageWidgets.add(_buildMessageItem(doc));
+          previousMessageTime = messageTime;
+        }
+
+        return ListView(
+          controller: scrollController,
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          children: messageWidgets,
+        );
+      },
+    );
+  }
 
   Widget _buildMessageItem(DocumentSnapshot doc) {
     Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+    bool isSystemMessage = data['isSystemMessage'] == true;
     bool isCurrentUser = data['senderID'] == authService.getCurrentUser()!.uid;
+
+    // Handle system messages differently
+    if (isSystemMessage) {
+      return _buildSystemMessage(data['message'], data['timestamp']);
+    }
 
     return FutureBuilder<DocumentSnapshot>(
       future: FirebaseFirestore.instance
@@ -224,12 +236,14 @@ Widget build(BuildContext context) {
             isCurrentUser: isCurrentUser,
             message: data['message'],
             timestamp: data['timestamp'],
-            profilePicture: 'https://firebasestorage.googleapis.com/v0/b/accessability-71ef7.appspot.com/o/profile_pictures%2Fdefault_profile.png?alt=media&token=bc7a75a7-a78e-4460-b816-026a8fc341ba',
+            profilePicture:
+                'https://firebasestorage.googleapis.com/v0/b/accessability-71ef7.appspot.com/o/profile_pictures%2Fdefault_profile.png?alt=media&token=bc7a75a7-a78e-4460-b816-026a8fc341ba',
           );
         }
 
         final userData = snapshot.data!.data() as Map<String, dynamic>;
-        final profilePicture = userData['profilePicture'] ?? 'https://firebasestorage.googleapis.com/v0/b/accessability-71ef7.appspot.com/o/profile_pictures%2Fdefault_profile.png?alt=media&token=bc7a75a7-a78e-4460-b816-026a8fc341ba';
+        final profilePicture = userData['profilePicture'] ??
+            'https://firebasestorage.googleapis.com/v0/b/accessability-71ef7.appspot.com/o/profile_pictures%2Fdefault_profile.png?alt=media&token=bc7a75a7-a78e-4460-b816-026a8fc341ba';
 
         return ChatConvoBubble(
           isCurrentUser: isCurrentUser,
@@ -241,85 +255,110 @@ Widget build(BuildContext context) {
     );
   }
 
- Widget _buildUserInput() {
-  final bool isDarkMode = Provider.of<ThemeProvider>(context).isDarkMode;
-
-  return Container(
-    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-    decoration: BoxDecoration(
-      color: isDarkMode ? Colors.grey[900] : Colors.white,
-      boxShadow: [
-        BoxShadow(
-          color: Colors.black.withOpacity(0.1),
-          blurRadius: 8,
-          offset: const Offset(0, -2),
-        ),
-      ],
-    ),
-    child: Row(
-      children: [
-        Expanded(
-          child: CustomTextField(
-            focusNode: focusNode,
-            controller: messageController,
-            hintText: 'Type a message...',
-            obscureText: false,
-            isDarkMode: isDarkMode, // Pass dark mode flag
+  Widget _buildSystemMessage(String message, Timestamp timestamp) {
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Center(
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          decoration: BoxDecoration(
+            color: Colors.grey[300],
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Text(
+            message,
+            style: const TextStyle(
+              fontSize: 12,
+              color: Colors.grey,
+              fontStyle: FontStyle.italic,
+            ),
+            textAlign: TextAlign.center,
           ),
         ),
-        const SizedBox(width: 8),
-        Container(
-          decoration: const BoxDecoration(
-            color: Color(0xFF6750A4),
-            shape: BoxShape.circle,
-          ),
-          child: IconButton(
-            onPressed: sendMessage,
-            icon: const Icon(Icons.arrow_upward),
-            color: Colors.white,
-          ),
-        ),
-      ],
-    ),
-  );
-}
-
-  Widget _buildTimeDivider(DateTime messageTime) {
-  final now = DateTime.now();
-  final today = DateTime(now.year, now.month, now.day);
-  final yesterday = DateTime(now.year, now.month, now.day - 1);
-
-  String formattedTime;
-  if (messageTime.isAfter(today)) {
-    // Today: Use AM/PM
-    formattedTime = DateFormat('h:mm a').format(messageTime);
-  } else if (messageTime.isAfter(yesterday)) {
-    // Yesterday: Show "Yesterday"
-    formattedTime = 'Yesterday ${DateFormat('h:mm a').format(messageTime)}';
-  } else if (now.difference(messageTime).inDays <= 3) {
-    // Within 3 days: Show day and time
-    formattedTime = DateFormat('EEE h:mm a').format(messageTime);
-  } else {
-    // More than 3 days: Show date and time
-    formattedTime = DateFormat('MMM d, yyyy h:mm a').format(messageTime);
+      ),
+    );
   }
 
-  return Center(
-    child: Container(
-      margin: const EdgeInsets.symmetric(vertical: 8),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+  Widget _buildUserInput() {
+    final bool isDarkMode = Provider.of<ThemeProvider>(context).isDarkMode;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       decoration: BoxDecoration(
-        color: Colors.grey[300],
-        borderRadius: BorderRadius.circular(12),
+        color: isDarkMode ? Colors.grey[900] : Colors.white,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 8,
+            offset: const Offset(0, -2),
+          ),
+        ],
       ),
-      child: Text(
-        formattedTime,
-        style: const TextStyle(
-          fontSize: 12,
-          color: Colors.black87,
+      child: Row(
+        children: [
+          Expanded(
+            child: CustomTextField(
+              focusNode: focusNode,
+              controller: messageController,
+              hintText: 'Type a message...',
+              obscureText: false,
+              isDarkMode: isDarkMode, // Pass dark mode flag
+            ),
+          ),
+          const SizedBox(width: 8),
+          Container(
+            decoration: const BoxDecoration(
+              color: Color(0xFF6750A4),
+              shape: BoxShape.circle,
+            ),
+            child: IconButton(
+              onPressed: sendMessage,
+              icon: const Icon(Icons.arrow_upward),
+              color: Colors.white,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTimeDivider(DateTime messageTime) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final yesterday = DateTime(now.year, now.month, now.day - 1);
+
+    String formattedTime;
+    if (messageTime.isAfter(today)) {
+      // Today: Use AM/PM
+      formattedTime = DateFormat('h:mm a').format(messageTime);
+    } else if (messageTime.isAfter(yesterday)) {
+      // Yesterday: Show "Yesterday"
+      formattedTime = 'Yesterday ${DateFormat('h:mm a').format(messageTime)}';
+    } else if (now.difference(messageTime).inDays <= 3) {
+      // Within 3 days: Show day and time
+      formattedTime = DateFormat('EEE h:mm a').format(messageTime);
+    } else {
+      // More than 3 days: Show date and time
+      formattedTime = DateFormat('MMM d, yyyy h:mm a').format(messageTime);
+    }
+
+    return Center(
+      child: Container(
+        margin: const EdgeInsets.symmetric(vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+        decoration: BoxDecoration(
+          color: Colors.grey[300],
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Text(
+          formattedTime,
+          style: const TextStyle(
+            fontSize: 12,
+            color: Colors.black87,
+          ),
         ),
       ),
-    ),
-  );
-}
+    );
+  }
 }

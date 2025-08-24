@@ -698,4 +698,26 @@ class LocationHandler {
       _locationStreamController.close();
     } catch (_) {}
   }
+
+  void enableRouteDeviationChecking(Function(LatLng) onDeviationDetected) {
+    // Listen to location stream for real-time deviation detection
+    _locationStreamSubscription = _location.onLocationChanged.listen(
+      (location_package.LocationData locationData) async {
+        if (locationData.latitude == null || locationData.longitude == null) {
+          return;
+        }
+
+        final newLocation =
+            LatLng(locationData.latitude!, locationData.longitude!);
+
+        // Call the deviation callback
+        onDeviationDetected(newLocation);
+
+        // ... rest of your existing location handling code
+      },
+      onError: (error) {
+        print("Error receiving location updates: $error");
+      },
+    );
+  }
 }

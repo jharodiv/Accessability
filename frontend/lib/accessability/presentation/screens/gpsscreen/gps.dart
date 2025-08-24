@@ -100,6 +100,10 @@ class _GpsScreenState extends State<GpsScreen> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   bool _isWheelchairFriendlyRoute = false;
   Color _routeColor = const Color(0xFF6750A4); // Default purple
+  double _maxRouteDeviation = 50.0; // meters allowed off route
+  Timer? _rerouteCheckTimer;
+  LatLng? _lastRerouteLocation;
+  Duration _rerouteCheckInterval = Duration(seconds: 10);
 
   @override
   void initState() {
@@ -135,6 +139,12 @@ class _GpsScreenState extends State<GpsScreen> {
         });
       },
     );
+
+    _locationHandler.enableRouteDeviationChecking((LatLng newLocation) {
+      if (_isRouteActive && _routePoints.isNotEmpty) {
+        _checkImmediateRouteDeviation(newLocation);
+      }
+    });
 
     // Get user location and initialize marker and camera.
     _locationHandler.getUserLocation().then((_) {
@@ -300,6 +310,26 @@ class _GpsScreenState extends State<GpsScreen> {
     );
 
     return marker;
+  }
+
+  void _checkImmediateRouteDeviation(LatLng currentLocation) {
+    if (_routePoints.isEmpty || _routeDestination == null) return;
+
+    // Find nearest point on route
+    double minDistance = double.infinity;
+    for (final point in _routePoints) {
+      final distance = _calculateDistance(currentLocation, point);
+      if (distance < minDistance) {
+        minDistance = distance;
+      }
+    }
+
+    // If user is significantly off route, trigger re-route sooner
+    if (minDistance > _maxRouteDeviation * 2) {
+      // 100m off route
+      print('Immediate deviation detected, re-routing...');
+      _createRoute(currentLocation, _routeDestination!);
+    }
   }
 
   bool _polygonsGeometryEqual(Set<Polygon> a, Set<Polygon> b) {
@@ -943,6 +973,57 @@ class _GpsScreenState extends State<GpsScreen> {
     }
   }
 
+  void _startRerouteChecking() {
+    _rerouteCheckTimer?.cancel();
+    _rerouteCheckTimer = Timer.periodic(_rerouteCheckInterval, (timer) {
+      _checkRouteDeviation();
+    });
+  }
+
+  void _stopRerouteChecking() {
+    _rerouteCheckTimer?.cancel();
+    _rerouteCheckTimer = null;
+    _lastRerouteLocation = null;
+  }
+
+  Future<void> _checkRouteDeviation() async {
+    if (_locationHandler.currentLocation == null ||
+        _routePoints.isEmpty ||
+        _routeDestination == null) {
+      return;
+    }
+
+    final currentLocation = _locationHandler.currentLocation!;
+
+    // Don't check re-route too frequently from the same location
+    if (_lastRerouteLocation != null) {
+      final distanceFromLastCheck =
+          _calculateDistance(currentLocation, _lastRerouteLocation!);
+      if (distanceFromLastCheck < 10.0) {
+        // Less than 10m movement
+        return;
+      }
+    }
+
+    _lastRerouteLocation = currentLocation;
+
+    // Find nearest point on route
+    double minDistance = double.infinity;
+    for (final point in _routePoints) {
+      final distance = _calculateDistance(currentLocation, point);
+      if (distance < minDistance) {
+        minDistance = distance;
+      }
+    }
+
+    // If user is too far from route, re-route
+    if (minDistance > _maxRouteDeviation) {
+      print(
+          'User deviated from route by ${minDistance.toStringAsFixed(1)}m, re-routing...');
+      await _createRoute(currentLocation, _routeDestination!);
+    }
+  }
+
   void _toggleWheelchairFriendlyRoute() {
     setState(() {
       _isWheelchairFriendlyRoute = !_isWheelchairFriendlyRoute;
@@ -981,6 +1062,9 @@ class _GpsScreenState extends State<GpsScreen> {
     _routeUpdateTimer = Timer.periodic(Duration(seconds: 1), (timer) {
       _updateCameraForNavigation();
     });
+
+    // Start re-route checking
+    _startRerouteChecking();
   }
 
   void _updateCameraForNavigation() {
@@ -1024,13 +1108,23 @@ class _GpsScreenState extends State<GpsScreen> {
     double dynamicZoom =
         min(18.0, max(16.0, 18.0 - (distanceToDestination * 0.02)));
 
-    // 7. Calculate target point (slightly ahead of user)
-    double interpolationFactor = 0.3; // How much to look ahead (0.0 to 1.0)
+    // 7. Calculate target point (position user higher on screen)
+    // Instead of interpolating between user and lookahead point,
+    // position the camera so user is at 30% from bottom instead of center
+    final double userScreenPosition =
+        0.3; // 30% from bottom (was 0.5 for center)
+
+    // Calculate the offset to position user at 30% from bottom
+    final double offsetLat =
+        (lookAheadPoint.latitude - currentLocation.latitude) *
+            userScreenPosition;
+    final double offsetLng =
+        (lookAheadPoint.longitude - currentLocation.longitude) *
+            userScreenPosition;
+
     LatLng targetPoint = LatLng(
-      currentLocation.latitude * (1 - interpolationFactor) +
-          lookAheadPoint.latitude * interpolationFactor,
-      currentLocation.longitude * (1 - interpolationFactor) +
-          lookAheadPoint.longitude * interpolationFactor,
+      currentLocation.latitude + offsetLat,
+      currentLocation.longitude + offsetLng,
     );
 
     // 8. Update camera position smoothly
@@ -1113,6 +1207,7 @@ class _GpsScreenState extends State<GpsScreen> {
   void _stopFollowingUser() {
     _routeUpdateTimer?.cancel();
     _routeUpdateTimer = null;
+    _stopRerouteChecking();
   }
 
   void _resetCameraToNormal() {
@@ -1135,8 +1230,8 @@ class _GpsScreenState extends State<GpsScreen> {
         _polylines.clear();
         _routeDestination = null;
         _routePoints.clear();
-        _isWheelchairFriendlyRoute = false; // Reset to default
-        _routeColor = const Color(0xFF6750A4); // Reset to purple
+        _isWheelchairFriendlyRoute = false;
+        _routeColor = const Color(0xFF6750A4);
       });
     }
   }

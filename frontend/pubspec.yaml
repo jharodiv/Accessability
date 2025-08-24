@@ -78,6 +78,7 @@ flutter:
     - assets/translations/
     - assets/images/authentication/authenticationImage.png
     - assets/animation/
+    - assets/images/emergencyservices/
     - assets/images/others/
     - assets/images/onboarding/
     - assets/images/settings/

@@ -191,5 +191,12 @@
   "fingerprintLocalizedReason": "Pakipakilala ya mag-authenticate tan magparehistro na biometriko.",
   "noBiometricsTitle": "Awan lay naka-rehistro a biometriko",
   "noBiometricsMessage": "Awan lay naka-rehistro a fingerprint o face data ed say device. Buksen so Settings tan magparehistro.",
-  "openSettings": "Buksen so Settings"
+  "openSettings": "Buksen so Settings",
+  "emergency_hotline_numbers": "Emergency Hotline",
+  "dagupan_city": "Siudad na Dagupan",
+  "call": "Tawag",
+  "message": "Mensayi",
+  "cannot_launch_phone": "Di mabukat so dialer na telepono.",
+  "cannot_launch_sms": "Di mabukat so SMS app.",
+  "emergency_contacts": "Say Emergency a Kontak"
 }

@@ -2,10 +2,10 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:AccessAbility/accessability/presentation/screens/authScreens/login_screen.dart';
+import 'package:AccessAbility/accessability/presentation/screens/authscreens/login_screen.dart';
 
 class VerifyEmailScreen extends StatefulWidget {
-  final User user; 
+  final User user;
 
   const VerifyEmailScreen({super.key, required this.user});
 
@@ -15,22 +15,19 @@ class VerifyEmailScreen extends StatefulWidget {
 
 class _VerifyEmailScreenState extends State<VerifyEmailScreen> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  Timer? _timer; 
-  Timer? _resendTimer; 
-  bool _isResendDisabled = true; 
-  int _resendCountdown = 60; 
+  Timer? _timer;
+  Timer? _resendTimer;
+  bool _isResendDisabled = true;
+  int _resendCountdown = 60;
   Future<void> _checkEmailVerification() async {
-    await widget.user.reload(); 
+    await widget.user.reload();
     final updatedUser = FirebaseAuth.instance.currentUser;
     if (updatedUser != null && updatedUser.emailVerified) {
-
       await _firestore.collection('Users').doc(updatedUser.uid).update({
         'emailVerified': true,
       });
 
-
       _timer?.cancel();
-
 
       WidgetsBinding.instance.addPostFrameCallback((_) {
         Navigator.pushReplacement(
@@ -42,15 +39,15 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> {
   }
 
   void _startResendTimer() {
-    _isResendDisabled = true; 
-    _resendCountdown = 60; 
+    _isResendDisabled = true;
+    _resendCountdown = 60;
     _resendTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
       setState(() {
         if (_resendCountdown > 0) {
-          _resendCountdown--; 
+          _resendCountdown--;
         } else {
-          _isResendDisabled = false; 
-          _resendTimer?.cancel(); 
+          _isResendDisabled = false;
+          _resendTimer?.cancel();
         }
       });
     });
@@ -69,8 +66,8 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> {
 
   @override
   void dispose() {
-    _timer?.cancel(); 
-    _resendTimer?.cancel(); 
+    _timer?.cancel();
+    _resendTimer?.cancel();
     super.dispose();
   }
 
@@ -79,7 +76,8 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> {
     return Scaffold(
       body: Center(
         child: StreamBuilder<DocumentSnapshot>(
-          stream: _firestore.collection('Users').doc(widget.user.uid).snapshots(),
+          stream:
+              _firestore.collection('Users').doc(widget.user.uid).snapshots(),
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
               return const CircularProgressIndicator();
@@ -120,15 +118,16 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> {
                       : () async {
                           await _checkEmailVerification();
                           _resendVerificationEmail();
-                          _startResendTimer(); 
+                          _startResendTimer();
                         },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF6750A4),
                     foregroundColor: Colors.white,
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10), 
+                      borderRadius: BorderRadius.circular(10),
                     ),
-                    padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 15),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 30, vertical: 15),
                   ),
                   child: Text(
                     _isResendDisabled

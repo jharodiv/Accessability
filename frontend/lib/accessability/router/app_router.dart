@@ -3,9 +3,9 @@ import 'package:AccessAbility/accessability/presentation/widgets/google_helper/m
 import 'package:AccessAbility/accessability/presentation/widgets/homepageWidgets/bottomWidgetFiles/checkIn/send_location_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:AccessAbility/accessability/logic/firebase_logic/SignupModel.dart';
-import 'package:AccessAbility/accessability/presentation/screens/authScreens/login_screen.dart';
-import 'package:AccessAbility/accessability/presentation/screens/authScreens/signup_screen.dart';
-import 'package:AccessAbility/accessability/presentation/screens/authScreens/onboarding_screen.dart';
+import 'package:AccessAbility/accessability/presentation/screens/authscreens/login_screen.dart';
+import 'package:AccessAbility/accessability/presentation/screens/authscreens/signup_screen.dart';
+import 'package:AccessAbility/accessability/presentation/screens/authscreens/onboarding_screen.dart';
 import 'package:AccessAbility/accessability/presentation/screens/authscreens/upload_profile_screen.dart';
 import 'package:AccessAbility/accessability/presentation/screens/chat_system/inbox_screen.dart';
 import 'package:AccessAbility/accessability/presentation/screens/gpsscreen/add_new_place.dart';

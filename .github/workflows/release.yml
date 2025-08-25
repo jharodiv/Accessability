@@ -13,15 +13,16 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # ✅ Setup Node.js (for semantic-release only)
+      # ✅ Setup Node.js (for semantic-release)
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: 'npm'
 
-      - name: Install semantic-release
-        run: npm install -g semantic-release
+      # ✅ Install dependencies (semantic-release + plugins included)
+      - name: Install dependencies
+        run: npm install
 
       # ✅ Cache Flutter SDK
       - name: Cache Flutter SDK
@@ -79,4 +80,4 @@ jobs:
       - name: Release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: semantic-release
+        run: npx semantic-release

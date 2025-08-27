@@ -67,6 +67,7 @@ jobs:
         working-directory: frontend
         run: flutter build apk --release
 
+      # ✅ Optional: upload artifact for workflow download
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
@@ -86,7 +87,30 @@ jobs:
           node-version: 20
           cache: 'npm'
 
+      # ✅ Semantic Release
       - name: Semantic Release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: npx semantic-release
+
+      # ✅ Create GitHub Release and upload APK
+      - name: Create GitHub Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref_name }}
+          release_name: Release ${{ github.ref_name }}
+          draft: false
+          prerelease: false
+
+      - name: Upload APK to GitHub Release
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: frontend/build/app/outputs/flutter-apk/app-release.apk
+          asset_name: app-release.apk
+          asset_content_type: application/vnd.android.package-archive

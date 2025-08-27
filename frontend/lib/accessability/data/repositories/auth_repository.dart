@@ -1,8 +1,8 @@
-import 'package:AccessAbility/accessability/data/model/login_model.dart';
-import 'package:AccessAbility/accessability/data/model/user_model.dart';
-import 'package:AccessAbility/accessability/data/repositories/user_repository.dart';
-import 'package:AccessAbility/accessability/firebaseServices/auth/auth_service.dart';
-import 'package:AccessAbility/accessability/logic/firebase_logic/SignupModel.dart';
+import 'package:accessability/accessability/data/model/login_model.dart';
+import 'package:accessability/accessability/data/model/user_model.dart';
+import 'package:accessability/accessability/data/repositories/user_repository.dart';
+import 'package:accessability/accessability/firebaseServices/auth/auth_service.dart';
+import 'package:accessability/accessability/logic/firebase_logic/sign_up_model.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 import 'package:image_picker/image_picker.dart';

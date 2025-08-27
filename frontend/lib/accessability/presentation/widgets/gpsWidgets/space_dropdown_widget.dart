@@ -2,9 +2,9 @@
 
 import 'dart:async';
 
-import 'package:AccessAbility/accessability/presentation/widgets/shimmer/shimmer_space_selection.dart';
-import 'package:AccessAbility/accessability/presentation/widgets/homepageWidgets/bottomWidgetFiles/verification_code_widget.dart';
-import 'package:AccessAbility/accessability/themes/theme_provider.dart';
+import 'package:accessability/accessability/presentation/widgets/shimmer/shimmer_space_selection.dart';
+import 'package:accessability/accessability/presentation/widgets/homepageWidgets/bottomWidgetFiles/verification_code_widget.dart';
+import 'package:accessability/accessability/themes/theme_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';

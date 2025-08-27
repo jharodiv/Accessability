@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:AccessAbility/accessability/themes/theme_provider.dart';
+import 'package:accessability/accessability/themes/theme_provider.dart';
 
 class ChatUsersTile extends StatelessWidget {
   final String username;
@@ -39,14 +39,18 @@ class ChatUsersTile extends StatelessWidget {
             lastMessage,
             overflow: TextOverflow.ellipsis,
             maxLines: 1,
-            style: TextStyle(color: isDarkMode ? Colors.white : Colors.grey[600]),
+            style:
+                TextStyle(color: isDarkMode ? Colors.white : Colors.grey[600]),
           ),
           trailing: Text(
             lastMessageTime,
-            style: TextStyle(color: isDarkMode ? Colors.white : Colors.grey[600], fontSize: 12),
+            style: TextStyle(
+                color: isDarkMode ? Colors.white : Colors.grey[600],
+                fontSize: 12),
           ),
           onTap: onTap,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          contentPadding:
+              const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         ),
         const Divider(height: 1, thickness: 1),
       ],

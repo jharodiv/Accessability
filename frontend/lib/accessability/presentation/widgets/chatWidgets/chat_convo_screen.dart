@@ -1,11 +1,11 @@
-import 'package:AccessAbility/accessability/themes/theme_provider.dart';
+import 'package:accessability/accessability/themes/theme_provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:AccessAbility/accessability/firebaseServices/auth/auth_service.dart';
-import 'package:AccessAbility/accessability/firebaseServices/chat/chat_service.dart';
-import 'package:AccessAbility/accessability/presentation/widgets/chatWidgets/chat_convo_bubble.dart';
-import 'package:AccessAbility/accessability/presentation/widgets/reusableWidgets/custom_text_field.dart';
+import 'package:accessability/accessability/firebaseServices/auth/auth_service.dart';
+import 'package:accessability/accessability/firebaseServices/chat/chat_service.dart';
+import 'package:accessability/accessability/presentation/widgets/chatWidgets/chat_convo_bubble.dart';
+import 'package:accessability/accessability/presentation/widgets/reusableWidgets/custom_text_field.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 

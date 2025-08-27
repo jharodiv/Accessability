@@ -1,11 +1,11 @@
-import 'package:AccessAbility/accessability/presentation/widgets/shimmer/shimmer_review.dart';
+import 'package:accessability/accessability/presentation/widgets/shimmer/shimmer_review.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:AccessAbility/accessability/data/model/review.dart';
-import 'package:AccessAbility/accessability/logic/bloc/user/user_bloc.dart';
-import 'package:AccessAbility/accessability/logic/bloc/user/user_state.dart';
+import 'package:accessability/accessability/data/model/review.dart';
+import 'package:accessability/accessability/logic/bloc/user/user_bloc.dart';
+import 'package:accessability/accessability/logic/bloc/user/user_state.dart';
 import 'package:shimmer/shimmer.dart';
 
 class RatingReviewWidget extends StatefulWidget {

@@ -1,17 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:AccessAbility/accessability/logic/bloc/place/bloc/place_bloc.dart';
-import 'package:AccessAbility/accessability/logic/bloc/place/bloc/place_event.dart';
-import 'package:AccessAbility/accessability/logic/bloc/place/bloc/place_state.dart';
-import 'package:AccessAbility/accessability/data/model/place.dart';
+import 'package:accessability/accessability/logic/bloc/place/bloc/place_bloc.dart';
+import 'package:accessability/accessability/logic/bloc/place/bloc/place_event.dart';
+import 'package:accessability/accessability/logic/bloc/place/bloc/place_state.dart';
+import 'package:accessability/accessability/data/model/place.dart';
 import 'package:provider/provider.dart';
-import 'package:AccessAbility/accessability/themes/theme_provider.dart';
+import 'package:accessability/accessability/themes/theme_provider.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'add_list_modal.dart'; // Import the modal widget
 
 // NEW imports
 import 'package:google_maps_flutter/google_maps_flutter.dart';
-import 'package:AccessAbility/accessability/presentation/widgets/homepageWidgets/bottomWidgetFiles/service_buttons.dart';
+import 'package:accessability/accessability/presentation/widgets/homepageWidgets/bottomWidgetFiles/service_buttons.dart';
 
 class FavoriteWidget extends StatefulWidget {
   final VoidCallback? onPlaceAdded;

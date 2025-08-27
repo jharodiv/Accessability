@@ -1,15 +1,15 @@
 // lib/presentation/widgets/bottomSheetWidgets/safety_assist_widget.dart
 
-import 'package:AccessAbility/accessability/presentation/widgets/safetyAssistWidgets/add_emergency_contact.dart';
-import 'package:AccessAbility/accessability/presentation/widgets/safetyAssistWidgets/safety_assist_emergency_services.dart';
-import 'package:AccessAbility/accessability/presentation/widgets/safetyAssistWidgets/safety_assist_helper_widget.dart';
-import 'package:AccessAbility/accessability/presentation/widgets/homepageWidgets/bottomWidgetFiles/service_buttons.dart';
-import 'package:AccessAbility/accessability/presentation/screens/gpsscreen/location_handler.dart';
-import 'package:AccessAbility/accessability/data/model/emergency_contact.dart';
-import 'package:AccessAbility/accessability/logic/bloc/emergency/bloc/emergency_bloc.dart';
-import 'package:AccessAbility/accessability/logic/bloc/emergency/bloc/emergency_event.dart';
-import 'package:AccessAbility/accessability/logic/bloc/emergency/bloc/emergency_state.dart';
-import 'package:AccessAbility/accessability/themes/theme_provider.dart';
+import 'package:accessability/accessability/presentation/widgets/safetyAssistWidgets/add_emergency_contact.dart';
+import 'package:accessability/accessability/presentation/widgets/safetyAssistWidgets/safety_assist_emergency_services.dart';
+import 'package:accessability/accessability/presentation/widgets/safetyAssistWidgets/safety_assist_helper_widget.dart';
+import 'package:accessability/accessability/presentation/widgets/homepageWidgets/bottomWidgetFiles/service_buttons.dart';
+import 'package:accessability/accessability/presentation/screens/gpsscreen/location_handler.dart';
+import 'package:accessability/accessability/data/model/emergency_contact.dart';
+import 'package:accessability/accessability/logic/bloc/emergency/bloc/emergency_bloc.dart';
+import 'package:accessability/accessability/logic/bloc/emergency/bloc/emergency_event.dart';
+import 'package:accessability/accessability/logic/bloc/emergency/bloc/emergency_state.dart';
+import 'package:accessability/accessability/themes/theme_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';

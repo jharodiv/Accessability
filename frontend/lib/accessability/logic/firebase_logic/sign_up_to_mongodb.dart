@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:AccessAbility/accessability/logic/firebase_logic/SignupModel.dart';
+import 'package:accessability/accessability/logic/firebase_logic/sign_up_model.dart';
 import 'package:http/http.dart' as http;
 
 class SignUpToMongoDB {

@@ -1,7 +1,7 @@
-import 'package:AccessAbility/accessability/logic/bloc/auth/auth_bloc.dart';
-import 'package:AccessAbility/accessability/logic/bloc/auth/auth_event.dart';
-import 'package:AccessAbility/accessability/presentation/widgets/accessability_header.dart';
-import 'package:AccessAbility/accessability/presentation/widgets/authWidgets/forgot_password_confirmation.dart';
+import 'package:accessability/accessability/logic/bloc/auth/auth_bloc.dart';
+import 'package:accessability/accessability/logic/bloc/auth/auth_event.dart';
+import 'package:accessability/accessability/presentation/widgets/accessability_header.dart';
+import 'package:accessability/accessability/presentation/widgets/auth_widgets/forgot_password_confirmation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 

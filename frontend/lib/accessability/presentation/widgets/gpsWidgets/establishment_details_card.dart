@@ -1,9 +1,9 @@
-import 'package:AccessAbility/accessability/logic/bloc/place/bloc/place_bloc.dart';
-import 'package:AccessAbility/accessability/logic/bloc/place/bloc/place_event.dart';
-import 'package:AccessAbility/accessability/logic/bloc/user/user_bloc.dart';
-import 'package:AccessAbility/accessability/presentation/widgets/bottomSheetWidgets/rating_review_widget.dart';
+import 'package:accessability/accessability/logic/bloc/place/bloc/place_bloc.dart';
+import 'package:accessability/accessability/logic/bloc/place/bloc/place_event.dart';
+import 'package:accessability/accessability/logic/bloc/user/user_bloc.dart';
+import 'package:accessability/accessability/presentation/widgets/bottomSheetWidgets/rating_review_widget.dart';
 import 'package:flutter/material.dart';
-import 'package:AccessAbility/accessability/data/model/place.dart';
+import 'package:accessability/accessability/data/model/place.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';

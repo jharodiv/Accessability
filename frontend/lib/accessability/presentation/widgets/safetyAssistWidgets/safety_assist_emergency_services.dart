@@ -1,5 +1,5 @@
-import 'package:AccessAbility/accessability/presentation/widgets/safetyAssistWidgets/design_service_row.dart';
-import 'package:AccessAbility/accessability/themes/theme_provider.dart';
+import 'package:accessability/accessability/presentation/widgets/safetyAssistWidgets/design_service_row.dart';
+import 'package:accessability/accessability/themes/theme_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:easy_localization/easy_localization.dart';

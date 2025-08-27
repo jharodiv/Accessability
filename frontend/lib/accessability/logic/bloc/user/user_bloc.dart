@@ -1,7 +1,7 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:AccessAbility/accessability/logic/bloc/user/user_event.dart';
-import 'package:AccessAbility/accessability/logic/bloc/user/user_state.dart';
-import 'package:AccessAbility/accessability/data/repositories/user_repository.dart';
+import 'package:accessability/accessability/logic/bloc/user/user_event.dart';
+import 'package:accessability/accessability/logic/bloc/user/user_state.dart';
+import 'package:accessability/accessability/data/repositories/user_repository.dart';
 
 class UserBloc extends Bloc<UserEvent, UserState> {
   final UserRepository userRepository;

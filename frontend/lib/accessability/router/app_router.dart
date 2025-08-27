@@ -1,34 +1,34 @@
-import 'package:AccessAbility/accessability/presentation/screens/gpsscreen/gps.dart';
-import 'package:AccessAbility/accessability/presentation/widgets/google_helper/map_view_screen.dart';
-import 'package:AccessAbility/accessability/presentation/widgets/homepageWidgets/bottomWidgetFiles/checkIn/send_location_screen.dart';
+import 'package:accessability/accessability/presentation/screens/gpsscreen/gps.dart';
+import 'package:accessability/accessability/presentation/widgets/google_helper/map_view_screen.dart';
+import 'package:accessability/accessability/presentation/widgets/homepageWidgets/bottomWidgetFiles/checkIn/send_location_screen.dart';
 import 'package:flutter/material.dart';
-import 'package:AccessAbility/accessability/logic/firebase_logic/sign_up_model.dart';
-import 'package:AccessAbility/accessability/presentation/screens/auth_screens/login_screen.dart';
-import 'package:AccessAbility/accessability/presentation/screens/auth_screens/signup_screen.dart';
-import 'package:AccessAbility/accessability/presentation/screens/auth_screens/onboarding_screen.dart';
-import 'package:AccessAbility/accessability/presentation/screens/auth_screens/upload_profile_screen.dart';
-import 'package:AccessAbility/accessability/presentation/screens/chat_system/inbox_screen.dart';
-import 'package:AccessAbility/accessability/presentation/screens/gpsscreen/add_new_place.dart';
-import 'package:AccessAbility/accessability/presentation/screens/settings/settings_screen.dart';
-import 'package:AccessAbility/accessability/presentation/widgets/homepageWidgets/bottomWidgetFiles/sos/sos_screen.dart';
-import 'package:AccessAbility/accessability/presentation/screens/splash_screen.dart';
-import 'package:AccessAbility/accessability/presentation/screens/settings/settingsScreens/account_screen.dart';
-import 'package:AccessAbility/accessability/presentation/screens/settings/settingsScreens/biometric/biometric_screen.dart';
-import 'package:AccessAbility/accessability/presentation/screens/settings/settingsScreens/chat_with_support_screen.dart';
-import 'package:AccessAbility/accessability/presentation/screens/settings/settingsScreens/preferences_screen.dart';
-import 'package:AccessAbility/accessability/presentation/screens/settings/settingsScreens/privacy_security_screen.dart';
-import 'package:AccessAbility/accessability/presentation/screens/settings/settingsScreens/about_screen.dart';
-import 'package:AccessAbility/accessability/presentation/widgets/chatWidgets/chat_convo_screen.dart';
-import 'package:AccessAbility/accessability/presentation/widgets/bottomSheetWidgets/create_space_screen.dart';
-import 'package:AccessAbility/accessability/presentation/widgets/bottomSheetWidgets/join_space_screen.dart';
+import 'package:accessability/accessability/logic/firebase_logic/sign_up_model.dart';
+import 'package:accessability/accessability/presentation/screens/auth_screens/login_screen.dart';
+import 'package:accessability/accessability/presentation/screens/auth_screens/signup_screen.dart';
+import 'package:accessability/accessability/presentation/screens/auth_screens/onboarding_screen.dart';
+import 'package:accessability/accessability/presentation/screens/auth_screens/upload_profile_screen.dart';
+import 'package:accessability/accessability/presentation/screens/chat_system/inbox_screen.dart';
+import 'package:accessability/accessability/presentation/screens/gpsscreen/add_new_place.dart';
+import 'package:accessability/accessability/presentation/screens/settings/settings_screen.dart';
+import 'package:accessability/accessability/presentation/widgets/homepageWidgets/bottomWidgetFiles/sos/sos_screen.dart';
+import 'package:accessability/accessability/presentation/screens/splash_screen.dart';
+import 'package:accessability/accessability/presentation/screens/settings/settingsScreens/account_screen.dart';
+import 'package:accessability/accessability/presentation/screens/settings/settingsScreens/biometric/biometric_screen.dart';
+import 'package:accessability/accessability/presentation/screens/settings/settingsScreens/chat_with_support_screen.dart';
+import 'package:accessability/accessability/presentation/screens/settings/settingsScreens/preferences_screen.dart';
+import 'package:accessability/accessability/presentation/screens/settings/settingsScreens/privacy_security_screen.dart';
+import 'package:accessability/accessability/presentation/screens/settings/settingsScreens/about_screen.dart';
+import 'package:accessability/accessability/presentation/widgets/chatWidgets/chat_convo_screen.dart';
+import 'package:accessability/accessability/presentation/widgets/bottomSheetWidgets/create_space_screen.dart';
+import 'package:accessability/accessability/presentation/widgets/bottomSheetWidgets/join_space_screen.dart';
 
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 // Import the new privacy & security detail screens.
-import 'package:AccessAbility/accessability/presentation/screens/settings/settingsScreens/privacy_and_security/data_security.dart';
-import 'package:AccessAbility/accessability/presentation/screens/settings/settingsScreens/privacy_and_security/additional_data_rights.dart';
-import 'package:AccessAbility/accessability/presentation/screens/settings/settingsScreens/privacy_and_security/privacy_policy.dart';
-import 'package:AccessAbility/accessability/presentation/screens/settings/settingsScreens/space_management_screen.dart';
+import 'package:accessability/accessability/presentation/screens/settings/settingsScreens/privacy_and_security/data_security.dart';
+import 'package:accessability/accessability/presentation/screens/settings/settingsScreens/privacy_and_security/additional_data_rights.dart';
+import 'package:accessability/accessability/presentation/screens/settings/settingsScreens/privacy_and_security/privacy_policy.dart';
+import 'package:accessability/accessability/presentation/screens/settings/settingsScreens/space_management_screen.dart';
 
 class AppRouter {
   Route<dynamic>? onGenerateRoute(RouteSettings routeSettings) {

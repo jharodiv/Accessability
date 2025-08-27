@@ -1,6 +1,6 @@
-import 'package:AccessAbility/accessability/data/model/user_model.dart';
-import 'package:AccessAbility/accessability/data/model/emergency_contact.dart';
-import 'package:AccessAbility/accessability/data/model/place.dart';
+import 'package:accessability/accessability/data/model/user_model.dart';
+import 'package:accessability/accessability/data/model/emergency_contact.dart';
+import 'package:accessability/accessability/data/model/place.dart';
 
 abstract class UserState {}
 

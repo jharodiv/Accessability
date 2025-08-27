@@ -1,5 +1,5 @@
-import 'package:AccessAbility/accessability/data/model/login_model.dart';
-import 'package:AccessAbility/accessability/data/model/user_model.dart';
+import 'package:accessability/accessability/data/model/login_model.dart';
+import 'package:accessability/accessability/data/model/user_model.dart';
 import 'package:equatable/equatable.dart';
 
 abstract class AuthState extends Equatable {

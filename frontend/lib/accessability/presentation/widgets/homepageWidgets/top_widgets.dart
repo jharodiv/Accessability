@@ -1,7 +1,7 @@
-import 'package:AccessAbility/accessability/presentation/widgets/gpsWidgets/space_dropdown_widget.dart';
+import 'package:accessability/accessability/presentation/widgets/gpsWidgets/space_dropdown_widget.dart';
 import 'package:flutter/material.dart';
-import 'package:AccessAbility/accessability/presentation/widgets/homepageWidgets/category_item.dart';
-import 'package:AccessAbility/accessability/themes/theme_provider.dart';
+import 'package:accessability/accessability/presentation/widgets/homepageWidgets/category_item.dart';
+import 'package:accessability/accessability/themes/theme_provider.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:provider/provider.dart';
 

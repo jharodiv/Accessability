@@ -1,5 +1,5 @@
-import 'package:AccessAbility/accessability/data/model/place.dart';
-import 'package:AccessAbility/accessability/firebaseServices/place/place_service.dart';
+import 'package:accessability/accessability/data/model/place.dart';
+import 'package:accessability/accessability/firebaseServices/place/place_service.dart';
 
 class PlaceRepository {
   final PlaceService placeService;

@@ -1,9 +1,9 @@
-import 'package:AccessAbility/accessability/logic/bloc/auth/auth_state.dart';
-import 'package:AccessAbility/accessability/presentation/widgets/errorWidget/error_display_widget.dart';
+import 'package:accessability/accessability/logic/bloc/auth/auth_state.dart';
+import 'package:accessability/accessability/presentation/widgets/errorWidget/error_display_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:AccessAbility/accessability/logic/bloc/auth/auth_bloc.dart';
-import 'package:AccessAbility/accessability/logic/bloc/auth/auth_event.dart';
+import 'package:accessability/accessability/logic/bloc/auth/auth_bloc.dart';
+import 'package:accessability/accessability/logic/bloc/auth/auth_event.dart';
 import 'dart:async';
 
 class Forgotpasswordconfirmation extends StatefulWidget {

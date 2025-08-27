@@ -1,5 +1,5 @@
 import 'package:equatable/equatable.dart';
-import 'package:AccessAbility/accessability/data/model/emergency_contact.dart';
+import 'package:accessability/accessability/data/model/emergency_contact.dart';
 
 abstract class EmergencyState extends Equatable {
   const EmergencyState();

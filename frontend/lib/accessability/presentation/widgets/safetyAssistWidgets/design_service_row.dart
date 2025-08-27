@@ -1,4 +1,4 @@
-import 'package:AccessAbility/accessability/presentation/widgets/safetyAssistWidgets/teal_circle_action_widget.dart';
+import 'package:accessability/accessability/presentation/widgets/safetyAssistWidgets/teal_circle_action_widget.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 

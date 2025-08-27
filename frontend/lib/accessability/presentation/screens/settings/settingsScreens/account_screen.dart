@@ -1,13 +1,13 @@
 import 'dart:io';
 
-import 'package:AccessAbility/accessability/presentation/screens/settings/settingsScreens/change_password_screen.dart';
-import 'package:AccessAbility/accessability/presentation/screens/settings/settingsScreens/delete_account.dart';
-import 'package:AccessAbility/accessability/themes/theme_provider.dart';
+import 'package:accessability/accessability/presentation/screens/settings/settingsScreens/change_password_screen.dart';
+import 'package:accessability/accessability/presentation/screens/settings/settingsScreens/delete_account.dart';
+import 'package:accessability/accessability/themes/theme_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:AccessAbility/accessability/logic/bloc/user/user_bloc.dart';
-import 'package:AccessAbility/accessability/logic/bloc/user/user_event.dart';
-import 'package:AccessAbility/accessability/logic/bloc/user/user_state.dart';
+import 'package:accessability/accessability/logic/bloc/user/user_bloc.dart';
+import 'package:accessability/accessability/logic/bloc/user/user_event.dart';
+import 'package:accessability/accessability/logic/bloc/user/user_state.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import 'package:easy_localization/easy_localization.dart';

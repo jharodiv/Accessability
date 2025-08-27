@@ -1,12 +1,12 @@
-import 'package:AccessAbility/accessability/presentation/widgets/shimmer/shimmer_delete_screen.dart';
+import 'package:accessability/accessability/presentation/widgets/shimmer/shimmer_delete_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:AccessAbility/accessability/logic/bloc/auth/auth_bloc.dart';
-import 'package:AccessAbility/accessability/logic/bloc/auth/auth_event.dart';
-import 'package:AccessAbility/accessability/logic/bloc/auth/auth_state.dart';
+import 'package:accessability/accessability/logic/bloc/auth/auth_bloc.dart';
+import 'package:accessability/accessability/logic/bloc/auth/auth_event.dart';
+import 'package:accessability/accessability/logic/bloc/auth/auth_state.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:provider/provider.dart';
-import 'package:AccessAbility/accessability/themes/theme_provider.dart';
+import 'package:accessability/accessability/themes/theme_provider.dart';
 
 class DeleteAccount extends StatefulWidget {
   const DeleteAccount({super.key});

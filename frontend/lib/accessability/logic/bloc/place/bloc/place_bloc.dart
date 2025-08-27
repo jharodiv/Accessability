@@ -1,8 +1,8 @@
-import 'package:AccessAbility/accessability/logic/bloc/place/bloc/place_event.dart';
-import 'package:AccessAbility/accessability/logic/bloc/place/bloc/place_state.dart';
+import 'package:accessability/accessability/logic/bloc/place/bloc/place_event.dart';
+import 'package:accessability/accessability/logic/bloc/place/bloc/place_state.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:AccessAbility/accessability/data/model/place.dart';
-import 'package:AccessAbility/accessability/data/repositories/place_repository.dart';
+import 'package:accessability/accessability/data/model/place.dart';
+import 'package:accessability/accessability/data/repositories/place_repository.dart';
 
 class PlaceBloc extends Bloc<PlaceEvent, PlaceState> {
   final PlaceRepository placeRepository;

@@ -2,7 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:AccessAbility/accessability/presentation/screens/authscreens/login_screen.dart';
+import 'package:AccessAbility/accessability/presentation/screens/auth_screens/login_screen.dart';
 
 class VerifyEmailScreen extends StatefulWidget {
   final User user;

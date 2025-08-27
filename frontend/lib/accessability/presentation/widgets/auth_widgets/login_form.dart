@@ -11,8 +11,8 @@ import 'package:AccessAbility/accessability/logic/bloc/auth/auth_state.dart';
 import 'package:AccessAbility/accessability/logic/bloc/user/user_bloc.dart';
 import 'package:AccessAbility/accessability/logic/bloc/user/user_event.dart';
 import 'package:AccessAbility/accessability/logic/bloc/user/user_state.dart';
-import 'package:AccessAbility/accessability/presentation/screens/authscreens/forgot_password_screen.dart';
-import 'package:AccessAbility/accessability/presentation/screens/authscreens/signup_screen.dart';
+import 'package:AccessAbility/accessability/presentation/screens/auth_screens/forgot_password_screen.dart';
+import 'package:AccessAbility/accessability/presentation/screens/auth_screens/signup_screen.dart';
 import 'package:local_auth/local_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 

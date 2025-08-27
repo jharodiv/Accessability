@@ -1,12 +1,12 @@
-import 'package:AccessAbility/accessability/firebaseServices/chat/chat_service.dart';
+import 'package:accessability/accessability/firebaseServices/chat/chat_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
-import 'package:AccessAbility/accessability/presentation/widgets/chatWidgets/chat_users_list.dart';
-import 'package:AccessAbility/accessability/presentation/widgets/chatWidgets/chat_users_tile.dart';
+import 'package:accessability/accessability/presentation/widgets/chatWidgets/chat_users_list.dart';
+import 'package:accessability/accessability/presentation/widgets/chatWidgets/chat_users_tile.dart';
 import 'package:provider/provider.dart';
-import 'package:AccessAbility/accessability/themes/theme_provider.dart';
+import 'package:accessability/accessability/themes/theme_provider.dart';
 import 'package:easy_localization/easy_localization.dart';
 
 class InboxScreen extends StatefulWidget {

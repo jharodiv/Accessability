@@ -1,10 +1,10 @@
-import 'package:AccessAbility/accessability/firebaseServices/auth/auth_service.dart';
-import 'package:AccessAbility/accessability/logic/bloc/auth/auth_bloc.dart';
-import 'package:AccessAbility/accessability/logic/bloc/auth/auth_event.dart';
-import 'package:AccessAbility/accessability/logic/bloc/user/user_bloc.dart';
-import 'package:AccessAbility/accessability/logic/bloc/user/user_state.dart';
-import 'package:AccessAbility/accessability/presentation/widgets/dialog/logout_confirmation_dialog_widget.dart';
-import 'package:AccessAbility/accessability/themes/theme_provider.dart';
+import 'package:accessability/accessability/firebaseServices/auth/auth_service.dart';
+import 'package:accessability/accessability/logic/bloc/auth/auth_bloc.dart';
+import 'package:accessability/accessability/logic/bloc/auth/auth_event.dart';
+import 'package:accessability/accessability/logic/bloc/user/user_bloc.dart';
+import 'package:accessability/accessability/logic/bloc/user/user_state.dart';
+import 'package:accessability/accessability/presentation/widgets/dialog/logout_confirmation_dialog_widget.dart';
+import 'package:accessability/accessability/themes/theme_provider.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';

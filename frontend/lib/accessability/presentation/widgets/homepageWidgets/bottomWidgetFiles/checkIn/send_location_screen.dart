@@ -1,12 +1,12 @@
-import 'package:AccessAbility/accessability/firebaseServices/auth/auth_service.dart';
-import 'package:AccessAbility/accessability/presentation/screens/gpsscreen/location_handler.dart';
-import 'package:AccessAbility/accessability/themes/theme_provider.dart';
+import 'package:accessability/accessability/firebaseServices/auth/auth_service.dart';
+import 'package:accessability/accessability/presentation/screens/gpsscreen/location_handler.dart';
+import 'package:accessability/accessability/themes/theme_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:AccessAbility/accessability/firebaseServices/chat/chat_service.dart';
-import 'package:AccessAbility/accessability/firebaseServices/place/geocoding_service.dart';
+import 'package:accessability/accessability/firebaseServices/chat/chat_service.dart';
+import 'package:accessability/accessability/firebaseServices/place/geocoding_service.dart';
 import 'package:provider/provider.dart';
 import 'package:rxdart/rxdart.dart';
 

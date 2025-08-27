@@ -1,14 +1,14 @@
 import 'dart:io';
-import 'package:AccessAbility/accessability/presentation/screens/authscreens/verify_email_screen.dart';
-import 'package:AccessAbility/accessability/presentation/widgets/errorWidget/error_display_widget.dart';
+import 'package:accessability/accessability/presentation/screens/auth_screens/verify_email_screen.dart';
+import 'package:accessability/accessability/presentation/widgets/errorWidget/error_display_widget.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:AccessAbility/accessability/logic/bloc/auth/auth_state.dart';
-import 'package:AccessAbility/accessability/logic/firebase_logic/SignupModel.dart';
+import 'package:accessability/accessability/logic/bloc/auth/auth_state.dart';
+import 'package:accessability/accessability/logic/firebase_logic/sign_up_model.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:AccessAbility/accessability/logic/bloc/auth/auth_bloc.dart';
-import 'package:AccessAbility/accessability/logic/bloc/auth/auth_event.dart';
+import 'package:accessability/accessability/logic/bloc/auth/auth_bloc.dart';
+import 'package:accessability/accessability/logic/bloc/auth/auth_event.dart';
 
 class UploadProfileScreen extends StatefulWidget {
   final SignUpModel signUpModel;

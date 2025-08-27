@@ -1,5 +1,5 @@
-import 'package:AccessAbility/accessability/data/model/emergency_contact.dart';
-import 'package:AccessAbility/accessability/firebaseServices/emergency/emergency_service.dart';
+import 'package:accessability/accessability/data/model/emergency_contact.dart';
+import 'package:accessability/accessability/firebaseServices/emergency/emergency_service.dart';
 
 class EmergencyRepository {
   final EmergencyService emergencyService;

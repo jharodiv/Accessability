@@ -6,30 +6,20 @@ on:
       - release
 
 jobs:
-  release:
+  dependencies:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # ✅ Setup Node.js (for semantic-release)
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: 'npm'
 
-      # ✅ Install dependencies (semantic-release + plugins included)
-      - name: Install dependencies
+      - name: Install Node.js dependencies
         run: npm install
-
-      # ✅ Cache Flutter SDK
-      - name: Cache Flutter SDK
-        uses: actions/cache@v4
-        with:
-          path: ~/.flutter-sdk
-          key: flutter-${{ runner.os }}-3.32.7
 
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
@@ -37,8 +27,8 @@ jobs:
           flutter-version: '3.32.7'
           cache: true
 
-      # ✅ Cache Flutter pub packages
       - name: Cache Flutter pub packages
+        id: flutter-pub-cache
         uses: actions/cache@v4
         with:
           path: |
@@ -48,36 +38,79 @@ jobs:
           restore-keys: |
             pub-${{ runner.os }}-
 
-      # ✅ Cache Gradle
-      - name: Cache Gradle
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.gradle/caches
-            ~/.gradle/wrapper
-          key: gradle-${{ runner.os }}-${{ hashFiles('frontend/android/build.gradle','frontend/android/app/build.gradle') }}
-          restore-keys: |
-            gradle-${{ runner.os }}-
-
-      # ✅ Install Flutter dependencies
       - name: Get Flutter packages
+        if: steps.flutter-pub-cache.outputs.cache-hit != 'true'
         working-directory: frontend
         run: flutter pub get
 
-      # ✅ Build release APK
+  build:
+    runs-on: ubuntu-latest
+    needs: dependencies
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.32.7'
+          cache: true
+
+      # ✅ Create .env file with Google API Key
+      - name: Create .env file
+        run: |
+          echo "GOOGLE_API_KEY=${GOOGLE_API_KEY}" > frontend/.env
+        env:
+          GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+
       - name: Build APK
         working-directory: frontend
         run: flutter build apk --release
 
-      # ✅ Upload artifact for manual download
+      # ✅ Optional: upload artifact for workflow download
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: app-release-apk
           path: frontend/build/app/outputs/flutter-apk/app-release.apk
 
-      # ✅ Semantic Release (GitHub release + changelog)
-      - name: Release
+  release:
+    runs-on: ubuntu-latest
+    needs: [dependencies, build]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      # ✅ Semantic Release
+      - name: Semantic Release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: npx semantic-release
+
+      # ✅ Create GitHub Release and upload APK
+      - name: Create GitHub Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref_name }}
+          release_name: Release ${{ github.ref_name }}
+          draft: false
+          prerelease: false
+
+      - name: Upload APK to GitHub Release
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: frontend/build/app/outputs/flutter-apk/app-release.apk
+          asset_name: app-release.apk
+          asset_content_type: application/vnd.android.package-archive

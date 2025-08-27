@@ -1,10 +1,10 @@
-import 'package:AccessAbility/accessability/presentation/widgets/dialog/confirm_dialog_widget.dart';
+import 'package:accessability/accessability/presentation/widgets/dialog/confirm_dialog_widget.dart';
 import 'package:flutter/material.dart';
-import 'package:AccessAbility/accessability/data/model/user_model.dart';
-import 'package:AccessAbility/accessability/logic/bloc/user/user_bloc.dart';
-import 'package:AccessAbility/accessability/logic/bloc/user/user_event.dart';
-import 'package:AccessAbility/accessability/logic/bloc/user/user_state.dart';
-import 'package:AccessAbility/accessability/presentation/screens/settings/settingsScreens/biometric/fingerprint_enrollment_screen.dart';
+import 'package:accessability/accessability/data/model/user_model.dart';
+import 'package:accessability/accessability/logic/bloc/user/user_bloc.dart';
+import 'package:accessability/accessability/logic/bloc/user/user_event.dart';
+import 'package:accessability/accessability/logic/bloc/user/user_state.dart';
+import 'package:accessability/accessability/presentation/screens/settings/settingsScreens/biometric/fingerprint_enrollment_screen.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:local_auth/local_auth.dart';
@@ -12,7 +12,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:provider/provider.dart';
-import 'package:AccessAbility/accessability/themes/theme_provider.dart';
+import 'package:accessability/accessability/themes/theme_provider.dart';
 import 'package:easy_localization/easy_localization.dart';
 
 class BiometricScreen extends StatefulWidget {

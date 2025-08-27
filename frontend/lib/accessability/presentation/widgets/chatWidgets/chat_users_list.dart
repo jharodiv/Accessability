@@ -1,12 +1,12 @@
-import 'package:AccessAbility/accessability/presentation/widgets/shimmer/shimmer_chat_user_list.dart';
+import 'package:accessability/accessability/presentation/widgets/shimmer/shimmer_chat_user_list.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:AccessAbility/accessability/firebaseServices/auth/auth_service.dart';
-import 'package:AccessAbility/accessability/firebaseServices/chat/chat_service.dart';
+import 'package:accessability/accessability/firebaseServices/auth/auth_service.dart';
+import 'package:accessability/accessability/firebaseServices/chat/chat_service.dart';
 import 'package:intl/intl.dart';
 import 'package:rxdart/rxdart.dart';
 import 'package:provider/provider.dart';
-import 'package:AccessAbility/accessability/themes/theme_provider.dart';
+import 'package:accessability/accessability/themes/theme_provider.dart';
 
 class ChatUsersList extends StatelessWidget {
   ChatUsersList({super.key});

@@ -1,8 +1,8 @@
-import 'package:AccessAbility/accessability/presentation/widgets/errorWidget/error_display_widget.dart';
+import 'package:accessability/accessability/presentation/widgets/errorWidget/error_display_widget.dart';
 import 'package:flutter/material.dart';
-import 'package:AccessAbility/accessability/logic/firebase_logic/SignupModel.dart';
-import 'package:AccessAbility/accessability/presentation/screens/authScreens/upload_profile_screen.dart';
-import 'package:AccessAbility/accessability/presentation/screens/authscreens/login_screen.dart';
+import 'package:accessability/accessability/logic/firebase_logic/sign_up_model.dart';
+import 'package:accessability/accessability/presentation/screens/auth_screens/upload_profile_screen.dart';
+import 'package:accessability/accessability/presentation/screens/auth_screens/login_screen.dart';
 
 class SignupForm extends StatefulWidget {
   const SignupForm({super.key});

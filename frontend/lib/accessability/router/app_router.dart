@@ -2,11 +2,11 @@ import 'package:AccessAbility/accessability/presentation/screens/gpsscreen/gps.d
 import 'package:AccessAbility/accessability/presentation/widgets/google_helper/map_view_screen.dart';
 import 'package:AccessAbility/accessability/presentation/widgets/homepageWidgets/bottomWidgetFiles/checkIn/send_location_screen.dart';
 import 'package:flutter/material.dart';
-import 'package:AccessAbility/accessability/logic/firebase_logic/SignupModel.dart';
-import 'package:AccessAbility/accessability/presentation/screens/authscreens/login_screen.dart';
-import 'package:AccessAbility/accessability/presentation/screens/authscreens/signup_screen.dart';
-import 'package:AccessAbility/accessability/presentation/screens/authscreens/onboarding_screen.dart';
-import 'package:AccessAbility/accessability/presentation/screens/authscreens/upload_profile_screen.dart';
+import 'package:AccessAbility/accessability/logic/firebase_logic/sign_up_model.dart';
+import 'package:AccessAbility/accessability/presentation/screens/auth_screens/login_screen.dart';
+import 'package:AccessAbility/accessability/presentation/screens/auth_screens/signup_screen.dart';
+import 'package:AccessAbility/accessability/presentation/screens/auth_screens/onboarding_screen.dart';
+import 'package:AccessAbility/accessability/presentation/screens/auth_screens/upload_profile_screen.dart';
 import 'package:AccessAbility/accessability/presentation/screens/chat_system/inbox_screen.dart';
 import 'package:AccessAbility/accessability/presentation/screens/gpsscreen/add_new_place.dart';
 import 'package:AccessAbility/accessability/presentation/screens/settings/settings_screen.dart';

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:AccessAbility/accessability/presentation/widgets/authWidgets/signup_form.dart';
-import 'package:AccessAbility/accessability/presentation/widgets/authwidgets/authentication_image.dart';
+import 'package:AccessAbility/accessability/presentation/widgets/auth_widgets/signup_form.dart';
+import 'package:AccessAbility/accessability/presentation/widgets/auth_widgets/authentication_image.dart';
 
 class SignupScreen extends StatelessWidget {
   static const String routeName = '/signup';

@@ -1,10 +1,10 @@
 // sos_screen.dart
 import 'dart:async';
-import 'package:AccessAbility/accessability/presentation/widgets/homepageWidgets/bottomWidgetFiles/sos/slide_to_cancel.dart';
+import 'package:accessability/accessability/presentation/widgets/homepageWidgets/bottomWidgetFiles/sos/slide_to_cancel.dart';
 import 'package:flutter/material.dart';
-import 'package:AccessAbility/accessability/firebaseServices/chat/chat_service.dart';
-import 'package:AccessAbility/accessability/firebaseServices/place/geocoding_service.dart';
-import 'package:AccessAbility/accessability/presentation/screens/gpsscreen/location_handler.dart';
+import 'package:accessability/accessability/firebaseServices/chat/chat_service.dart';
+import 'package:accessability/accessability/firebaseServices/place/geocoding_service.dart';
+import 'package:accessability/accessability/presentation/screens/gpsscreen/location_handler.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:easy_localization/easy_localization.dart';

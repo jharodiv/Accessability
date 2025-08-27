@@ -1,14 +1,14 @@
 import 'dart:async';
 import 'dart:convert'; // For JSON decoding.
 import 'dart:math';
-import 'package:AccessAbility/accessability/data/model/place.dart';
-import 'package:AccessAbility/accessability/firebaseServices/place/geocoding_service.dart';
-import 'package:AccessAbility/accessability/logic/bloc/place/bloc/place_state.dart'
+import 'package:accessability/accessability/data/model/place.dart';
+import 'package:accessability/accessability/firebaseServices/place/geocoding_service.dart';
+import 'package:accessability/accessability/logic/bloc/place/bloc/place_state.dart'
     as place_state;
-import 'package:AccessAbility/accessability/presentation/widgets/gpsWidgets/circle_manager.dart';
-import 'package:AccessAbility/accessability/presentation/widgets/gpsWidgets/fov_overlay_widget.dart';
-import 'package:AccessAbility/accessability/presentation/widgets/gpsWidgets/gps_map.dart';
-import 'package:AccessAbility/accessability/utils/badge_icon.dart';
+import 'package:accessability/accessability/presentation/widgets/gpsWidgets/circle_manager.dart';
+import 'package:accessability/accessability/presentation/widgets/gpsWidgets/fov_overlay_widget.dart';
+import 'package:accessability/accessability/presentation/widgets/gpsWidgets/gps_map.dart';
+import 'package:accessability/accessability/utils/badge_icon.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -17,29 +17,29 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:provider/provider.dart';
 import 'package:easy_localization/easy_localization.dart';
 // Import your own packages (update the paths as needed)
-import 'package:AccessAbility/accessability/logic/bloc/place/bloc/place_event.dart';
-import 'package:AccessAbility/accessability/logic/bloc/user/user_event.dart';
-import 'package:AccessAbility/accessability/presentation/screens/gpsscreen/location_handler.dart';
-import 'package:AccessAbility/accessability/presentation/screens/gpsscreen/pwd_friendly_locations.dart';
-import 'package:AccessAbility/accessability/presentation/widgets/accessability_footer.dart';
-import 'package:AccessAbility/accessability/presentation/widgets/google_helper/openstreetmap_helper.dart';
-import 'package:AccessAbility/accessability/presentation/widgets/google_helper/map_view_screen.dart';
-import 'package:AccessAbility/accessability/presentation/widgets/homepageWidgets/top_widgets.dart';
-import 'package:AccessAbility/accessability/themes/theme_provider.dart';
-import 'package:AccessAbility/accessability/logic/bloc/user/user_bloc.dart';
-import 'package:AccessAbility/accessability/logic/bloc/user/user_state.dart'
+import 'package:accessability/accessability/logic/bloc/place/bloc/place_event.dart';
+import 'package:accessability/accessability/logic/bloc/user/user_event.dart';
+import 'package:accessability/accessability/presentation/screens/gpsscreen/location_handler.dart';
+import 'package:accessability/accessability/presentation/screens/gpsscreen/pwd_friendly_locations.dart';
+import 'package:accessability/accessability/presentation/widgets/accessability_footer.dart';
+import 'package:accessability/accessability/presentation/widgets/google_helper/openstreetmap_helper.dart';
+import 'package:accessability/accessability/presentation/widgets/google_helper/map_view_screen.dart';
+import 'package:accessability/accessability/presentation/widgets/homepageWidgets/top_widgets.dart';
+import 'package:accessability/accessability/themes/theme_provider.dart';
+import 'package:accessability/accessability/logic/bloc/user/user_bloc.dart';
+import 'package:accessability/accessability/logic/bloc/user/user_state.dart'
     as user_state;
-import 'package:AccessAbility/accessability/presentation/screens/gpsscreen/marker_handler.dart';
-import 'package:AccessAbility/accessability/presentation/screens/gpsscreen/nearby_places_handler.dart';
-import 'package:AccessAbility/accessability/presentation/screens/gpsscreen/tutorial_widget.dart';
-import 'package:AccessAbility/accessability/presentation/widgets/homepageWidgets/location_widgets.dart';
-import 'package:AccessAbility/accessability/presentation/widgets/bottomSheetWidgets/favorite_widget.dart';
-import 'package:AccessAbility/accessability/presentation/widgets/safetyAssistWidgets/safety_assist_widget.dart';
-import 'package:AccessAbility/accessability/logic/bloc/auth/auth_bloc.dart';
-import 'package:AccessAbility/accessability/logic/bloc/auth/auth_state.dart';
-import 'package:AccessAbility/accessability/logic/bloc/place/bloc/place_bloc.dart';
+import 'package:accessability/accessability/presentation/screens/gpsscreen/marker_handler.dart';
+import 'package:accessability/accessability/presentation/screens/gpsscreen/nearby_places_handler.dart';
+import 'package:accessability/accessability/presentation/screens/gpsscreen/tutorial_widget.dart';
+import 'package:accessability/accessability/presentation/widgets/homepageWidgets/location_widgets.dart';
+import 'package:accessability/accessability/presentation/widgets/bottomSheetWidgets/favorite_widget.dart';
+import 'package:accessability/accessability/presentation/widgets/safetyAssistWidgets/safety_assist_widget.dart';
+import 'package:accessability/accessability/logic/bloc/auth/auth_bloc.dart';
+import 'package:accessability/accessability/logic/bloc/auth/auth_state.dart';
+import 'package:accessability/accessability/logic/bloc/place/bloc/place_bloc.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:AccessAbility/accessability/presentation/widgets/reusableWidgets/favorite_map_marker.dart';
+import 'package:accessability/accessability/presentation/widgets/reusableWidgets/favorite_map_marker.dart';
 
 class GpsScreen extends StatefulWidget {
   const GpsScreen({super.key});

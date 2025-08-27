@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:io';
 import 'dart:math';
 import 'dart:ui' as ui;
-import 'package:AccessAbility/accessability/firebaseServices/place/geocoding_service.dart';
+import 'package:accessability/accessability/firebaseServices/place/geocoding_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';

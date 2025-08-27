@@ -1,9 +1,9 @@
-import 'package:AccessAbility/accessability/presentation/screens/settings/settingsScreens/privacy_and_security/additional_data_rights.dart';
-import 'package:AccessAbility/accessability/presentation/screens/settings/settingsScreens/privacy_and_security/data_security.dart';
-import 'package:AccessAbility/accessability/presentation/screens/settings/settingsScreens/privacy_and_security/privacy_policy.dart';
+import 'package:accessability/accessability/presentation/screens/settings/settingsScreens/privacy_and_security/additional_data_rights.dart';
+import 'package:accessability/accessability/presentation/screens/settings/settingsScreens/privacy_and_security/data_security.dart';
+import 'package:accessability/accessability/presentation/screens/settings/settingsScreens/privacy_and_security/privacy_policy.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:AccessAbility/accessability/themes/theme_provider.dart';
+import 'package:accessability/accessability/themes/theme_provider.dart';
 import 'package:easy_localization/easy_localization.dart';
 
 class PrivacySecurity extends StatelessWidget {

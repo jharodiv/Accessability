@@ -1,18 +1,18 @@
-import 'package:AccessAbility/accessability/presentation/widgets/errorWidget/error_display_widget.dart';
+import 'package:accessability/accessability/presentation/widgets/errorWidget/error_display_widget.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:AccessAbility/accessability/logic/bloc/auth/auth_bloc.dart';
-import 'package:AccessAbility/accessability/logic/bloc/auth/auth_event.dart';
-import 'package:AccessAbility/accessability/logic/bloc/auth/auth_state.dart';
-import 'package:AccessAbility/accessability/logic/bloc/user/user_bloc.dart';
-import 'package:AccessAbility/accessability/logic/bloc/user/user_event.dart';
-import 'package:AccessAbility/accessability/logic/bloc/user/user_state.dart';
-import 'package:AccessAbility/accessability/presentation/screens/auth_screens/forgot_password_screen.dart';
-import 'package:AccessAbility/accessability/presentation/screens/auth_screens/signup_screen.dart';
+import 'package:accessability/accessability/logic/bloc/auth/auth_bloc.dart';
+import 'package:accessability/accessability/logic/bloc/auth/auth_event.dart';
+import 'package:accessability/accessability/logic/bloc/auth/auth_state.dart';
+import 'package:accessability/accessability/logic/bloc/user/user_bloc.dart';
+import 'package:accessability/accessability/logic/bloc/user/user_event.dart';
+import 'package:accessability/accessability/logic/bloc/user/user_state.dart';
+import 'package:accessability/accessability/presentation/screens/auth_screens/forgot_password_screen.dart';
+import 'package:accessability/accessability/presentation/screens/auth_screens/signup_screen.dart';
 import 'package:local_auth/local_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 

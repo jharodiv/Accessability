@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:AccessAbility/accessability/themes/theme_provider.dart';
+import 'package:accessability/accessability/themes/theme_provider.dart';
 
 class ErrorDisplayWidget extends StatelessWidget {
   final String title;

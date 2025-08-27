@@ -1,4 +1,4 @@
-import 'package:AccessAbility/accessability/data/model/place.dart';
+import 'package:accessability/accessability/data/model/place.dart';
 import 'package:equatable/equatable.dart';
 
 abstract class PlaceState extends Equatable {

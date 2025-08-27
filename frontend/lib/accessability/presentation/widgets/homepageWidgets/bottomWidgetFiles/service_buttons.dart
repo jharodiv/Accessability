@@ -1,7 +1,7 @@
 import 'dart:math' as math;
 
-import 'package:AccessAbility/accessability/presentation/widgets/homepageWidgets/bottomWidgetFiles/checkIn/send_location_screen.dart';
-import 'package:AccessAbility/accessability/themes/theme_provider.dart';
+import 'package:accessability/accessability/presentation/widgets/homepageWidgets/bottomWidgetFiles/checkIn/send_location_screen.dart';
+import 'package:accessability/accessability/themes/theme_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:provider/provider.dart';

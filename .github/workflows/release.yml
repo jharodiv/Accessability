@@ -56,6 +56,13 @@ jobs:
           flutter-version: '3.32.7'
           cache: true
 
+      # ✅ Create .env file with Google API Key
+      - name: Create .env file
+        run: |
+          echo "GOOGLE_API_KEY=${GOOGLE_API_KEY}" > frontend/.env
+        env:
+          GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+
       - name: Build APK
         working-directory: frontend
         run: flutter build apk --release
@@ -83,5 +90,3 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: npx semantic-release
-
-        

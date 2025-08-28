@@ -98,6 +98,7 @@ flutter:
     - assets/images/others/group_chat_icon.jpg
     - assets/map_styles/dark_mode.json
     - assets/images/settings/biometric_login.png
+    - assets/model/jarvis.tflite
     - .env
 
   fonts:

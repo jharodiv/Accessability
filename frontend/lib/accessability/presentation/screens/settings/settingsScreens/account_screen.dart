@@ -234,6 +234,8 @@ class _AccountScreenState extends State<AccountScreen> {
                         style: const TextStyle(fontWeight: FontWeight.bold),
                       ),
                     ),
+                    const Divider(),
+
                     // Phone Number
                     ListTile(
                       leading: const Icon(Icons.phone_outlined,

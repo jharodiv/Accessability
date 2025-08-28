@@ -1,14 +1,45 @@
+// lib/presentation/screens/gpsscreen/gps_screen.dart
 import 'dart:async';
 import 'dart:convert'; // For JSON decoding.
 import 'dart:math';
 import 'package:accessability/accessability/data/model/place.dart';
 import 'package:accessability/accessability/firebaseServices/place/geocoding_service.dart';
+import 'package:accessability/accessability/logic/bloc/place/bloc/place_event.dart'
+    show GetAllPlacesEvent;
 import 'package:accessability/accessability/logic/bloc/place/bloc/place_state.dart'
     as place_state;
+import 'package:accessability/accessability/logic/bloc/user/user_bloc.dart'
+    show UserBloc;
+import 'package:accessability/accessability/logic/bloc/user/user_event.dart'
+    show FetchUserData;
+import 'package:accessability/accessability/logic/bloc/user/user_state.dart'
+    as user_state
+    show UserError, UserInitial, UserLoaded, UserLoading, UserState;
+import 'package:accessability/accessability/presentation/screens/gpsscreen/location_handler.dart'
+    show LocationHandler;
+import 'package:accessability/accessability/presentation/screens/gpsscreen/pwd_friendly_locations.dart'
+    show getPwdFriendlyLocations;
+import 'package:accessability/accessability/presentation/widgets/accessability_footer.dart'
+    show Accessabilityfooter;
+import 'package:accessability/accessability/presentation/widgets/google_helper/map_view_screen.dart'
+    show MapViewScreen;
+import 'package:accessability/accessability/presentation/widgets/google_helper/openstreetmap_helper.dart'
+    show OpenStreetMapHelper;
 import 'package:accessability/accessability/presentation/widgets/gpsWidgets/circle_manager.dart';
 import 'package:accessability/accessability/presentation/widgets/gpsWidgets/fov_overlay_widget.dart';
 import 'package:accessability/accessability/presentation/widgets/gpsWidgets/gps_map.dart';
+import 'package:accessability/accessability/presentation/widgets/homepageWidgets/top_widgets.dart'
+    show Topwidgets, TopwidgetsState;
+import 'package:accessability/accessability/services/marker_factory.dart'
+    show MarkerFactory;
+import 'package:accessability/accessability/services/nearby_manager.dart'
+    show NearbyManager;
+import 'package:accessability/accessability/services/route_controller.dart'
+    show RouteController;
+import 'package:accessability/accessability/themes/theme_provider.dart'
+    show ThemeProvider;
 import 'package:accessability/accessability/utils/badge_icon.dart';
+import 'package:accessability/accessability/utils/map_utils.dart' show MapUtils;
 import 'package:http/http.dart' as http;
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -16,19 +47,6 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:provider/provider.dart';
 import 'package:easy_localization/easy_localization.dart';
-// Import your own packages (update the paths as needed)
-import 'package:accessability/accessability/logic/bloc/place/bloc/place_event.dart';
-import 'package:accessability/accessability/logic/bloc/user/user_event.dart';
-import 'package:accessability/accessability/presentation/screens/gpsscreen/location_handler.dart';
-import 'package:accessability/accessability/presentation/screens/gpsscreen/pwd_friendly_locations.dart';
-import 'package:accessability/accessability/presentation/widgets/accessability_footer.dart';
-import 'package:accessability/accessability/presentation/widgets/google_helper/openstreetmap_helper.dart';
-import 'package:accessability/accessability/presentation/widgets/google_helper/map_view_screen.dart';
-import 'package:accessability/accessability/presentation/widgets/homepageWidgets/top_widgets.dart';
-import 'package:accessability/accessability/themes/theme_provider.dart';
-import 'package:accessability/accessability/logic/bloc/user/user_bloc.dart';
-import 'package:accessability/accessability/logic/bloc/user/user_state.dart'
-    as user_state;
 import 'package:accessability/accessability/presentation/screens/gpsscreen/marker_handler.dart';
 import 'package:accessability/accessability/presentation/screens/gpsscreen/nearby_places_handler.dart';
 import 'package:accessability/accessability/presentation/screens/gpsscreen/tutorial_widget.dart';
@@ -39,7 +57,9 @@ import 'package:accessability/accessability/logic/bloc/auth/auth_bloc.dart';
 import 'package:accessability/accessability/logic/bloc/auth/auth_state.dart';
 import 'package:accessability/accessability/logic/bloc/place/bloc/place_bloc.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:accessability/accessability/presentation/widgets/reusableWidgets/favorite_map_marker.dart';
+
+// MapPerspective enum (if you had it elsewhere, keep that definition; otherwise define here)
+enum MapPerspective { classic, aerial, terrain, street, perspective }
 
 class GpsScreen extends StatefulWidget {
   const GpsScreen({super.key});
@@ -49,11 +69,13 @@ class GpsScreen extends StatefulWidget {
 }
 
 class _GpsScreenState extends State<GpsScreen> {
+  // --- Handlers & services ---
   late LocationHandler _locationHandler;
   final MarkerHandler _markerHandler = MarkerHandler();
   final NearbyPlacesHandler _nearbyPlacesHandler = NearbyPlacesHandler();
-  final Map<String, BitmapDescriptor> _badgeIconCache = {};
   late TutorialWidget _tutorialWidget;
+
+  // --- Keys/UI state ---
   bool _isTutorialShown = false;
   final GlobalKey inboxKey = GlobalKey();
   final GlobalKey settingsKey = GlobalKey();
@@ -61,6 +83,8 @@ class _GpsScreenState extends State<GpsScreen> {
   final GlobalKey locationKey = GlobalKey();
   final GlobalKey securityKey = GlobalKey();
   final GlobalKey<TopwidgetsState> _topWidgetsKey = GlobalKey();
+
+  // --- Map UI state ---
   Set<Marker> _markers = {};
   Set<Circle> _circles = {};
   bool _isLocationFetched = false;
@@ -68,26 +92,15 @@ class _GpsScreenState extends State<GpsScreen> {
   String _activeSpaceId = '';
   bool _isLoading = false;
   Place? _selectedPlace;
-  double _routeBearing = 0.0;
-  double _routeTilt = 60.0;
-  double _routeZoom = 18.0;
-  bool _isRouteActive = false;
-  Timer? _routeUpdateTimer;
-  LatLng? _routeDestination;
-  List<LatLng> _routePoints = [];
   double _currentZoom = 14.0; // track current zoom
-  final double _pwdBaseRadiusMeters =
-      30.0; // base radius for pwd locations — tweak as needed
+  final double _pwdBaseRadiusMeters = 30.0; // base radius for pwd locations
   final Color _pwdCircleColor = const Color(0xFF7C4DFF);
   double _navigationPanelOffset = 0.0;
   Set<Polygon> _fovPolygons = {};
-  List<NearbyCircleSpec> _nearbyCircleSpecs = [];
   MapType _currentMapType = MapType.normal;
-  MapPerspective? _pendingPerspective; // New field
-  List<dynamic> _cachedPwdLocations = [];
-  final Map<String, BitmapDescriptor> _favMarkerCache = {};
+  MapPerspective? _pendingPerspective;
 
-  // Variables for polylines.a
+  // Polylines / route visuals (driven by RouteController callbacks)
   Set<Polyline> _polylines = {};
 
   final String _googleAPIKey = dotenv.env['GOOGLE_API_KEY'] ?? '';
@@ -98,26 +111,36 @@ class _GpsScreenState extends State<GpsScreen> {
       ValueNotifier<double>(_currentZoom);
   Timer? _zoomDebounceTimer;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  bool _isWheelchairFriendlyRoute = false;
-  Color _routeColor = const Color(0xFF6750A4); // Default purple
-  double _maxRouteDeviation = 50.0; // meters allowed off route
-  Timer? _rerouteCheckTimer;
-  LatLng? _lastRerouteLocation;
-  Duration _rerouteCheckInterval = Duration(seconds: 10);
+
+  // Minimal route UI state (mirrors controller via callbacks)
+  bool _isRouteActive = false;
   bool _isRerouting = false;
+  LatLng? _routeDestination;
+  List<LatLng> _routePoints = [];
+  bool _isWheelchairFriendlyRoute = false;
+  Timer?
+      _routeUpdateTimer; // used only to decide icon state (kept for minimal changes)
+
+  // Nearby management
+  List<NearbyCircleSpec> _nearbyCircleSpecs = [];
+  List<dynamic> _cachedPwdLocations = [];
+
+  // Services (instantiate in initState AFTER _locationHandler)
+  late final RouteController routeController;
+  final NearbyManager _nearbyManager = NearbyManager();
 
   @override
   void initState() {
     super.initState();
-    print("Using API Key: $_googleAPIKey");
 
+    print("Using API Key: $_googleAPIKey");
     _mapKey = UniqueKey();
 
     // Fetch user data and places.
     context.read<UserBloc>().add(FetchUserData());
     context.read<PlaceBloc>().add(GetAllPlacesEvent());
 
-    // Initialize the tutorial widget.
+    // Initialize tutorial widget.
     _tutorialWidget = TutorialWidget(
       inboxKey: inboxKey,
       settingsKey: settingsKey,
@@ -127,10 +150,9 @@ class _GpsScreenState extends State<GpsScreen> {
       onTutorialComplete: _onTutorialComplete,
     );
 
-    // Initialize LocationHandler.
+    // 1) Initialize LocationHandler first (used by RouteController)
     _locationHandler = LocationHandler(
       onMarkersUpdated: (markers) {
-        // Merge new markers with existing markers (excluding user markers)
         final existingMarkers = _markers
             .where((marker) => !marker.markerId.value.startsWith('user_'))
             .toSet();
@@ -141,8 +163,36 @@ class _GpsScreenState extends State<GpsScreen> {
       },
     );
 
+    // 2) Initialize RouteController after LocationHandler so its getter works correctly.
+    routeController = RouteController(
+      mapControllerGetter: () => _locationHandler.mapController,
+      onPolylinesChanged: (polys) {
+        if (!mounted) return;
+        setState(() => _polylines = polys);
+      },
+      onRouteActiveChanged: (active) {
+        if (!mounted) return;
+        setState(() {
+          _isRouteActive = active;
+          // keep routeUpdateTimer icon semantics simple:
+          if (!active) {
+            _routeUpdateTimer?.cancel();
+            _routeUpdateTimer = null;
+          }
+        });
+      },
+      onReroutingChanged: (rerouting) {
+        if (!mounted) return;
+        setState(() {
+          _isRerouting = rerouting;
+        });
+      },
+    );
+
+    // LocationHandler immediate deviation hook -> use controller's routePoints
     _locationHandler.enableRouteDeviationChecking((LatLng newLocation) {
-      if (_isRouteActive && _routePoints.isNotEmpty) {
+      if (routeController.isRouteActive &&
+          routeController.routePoints.isNotEmpty) {
         _checkImmediateRouteDeviation(newLocation);
       }
     });
@@ -166,43 +216,16 @@ class _GpsScreenState extends State<GpsScreen> {
       }
     });
 
+    // load PWD locations and markers (keeps behavior identical)
     _getPwdLocationsAndCreateMarkers();
-
-    // // Show the tutorial if onboarding has not been completed.
-    // WidgetsBinding.instance.addPostFrameCallback((_) {
-    //   final authBloc = context.read<AuthBloc>();
-    //   final hasCompletedOnboarding = authBloc.state is AuthenticatedLogin
-    //       ? (authBloc.state as AuthenticatedLogin).hasCompletedOnboarding
-    //       : false;
-    //   if (!hasCompletedOnboarding) {
-    //     _tutorialWidget.showTutorial(context);q
-    //   }
-    // });
   }
 
-  bool _latLngEqual(LatLng a, LatLng b, {double eps = 1e-6}) {
-    return (a.latitude - b.latitude).abs() <= eps &&
-        (a.longitude - b.longitude).abs() <= eps;
-  }
-
-  bool _pointsEqual(List<LatLng> a, List<LatLng> b, {double eps = 1e-6}) {
-    if (a.length != b.length) return false;
-    for (int i = 0; i < a.length; i++) {
-      if (!_latLngEqual(a[i], b[i], eps: eps)) return false;
-    }
-    return true;
-  }
-
+  // --- Helper: small place-type color mapping (kept local for quick tweak) ---
   Color _colorForPlaceType(String? type) {
-    final t = (type ?? '').toLowerCase();
-    if (t.contains('bus')) return Colors.blue;
-    if (t.contains('restaurant') || t.contains('restawran')) return Colors.red;
-    if (t.contains('grocery') || t.contains('grocer')) return Colors.green;
-    if (t.contains('hotel')) return Colors.teal;
-    // fallback to your preferred purple
-    return const Color(0xFF6750A4);
+    return MapUtils.colorForPlaceType(type);
   }
 
+  // --- Favorite/fallback marker using MarkerFactory (delegated) ---
   Future<BitmapDescriptor> _ensureFavoriteBitmap(
     BuildContext ctx,
     Place place, {
@@ -214,86 +237,43 @@ class _GpsScreenState extends State<GpsScreen> {
     final cacheKey =
         'place_${place.id}_v2_c${placeColor.value}_s${outerSize.toInt()}_is${innerSize.toInt()}';
 
-    // quick cache hit
-    if (_favMarkerCache.containsKey(cacheKey)) {
-      debugPrint('FavMarker cache hit for ${place.id} key=$cacheKey');
-      return _favMarkerCache[cacheKey]!;
-    }
-
-    debugPrint(
-        'Generating fav bitmap for place ${place.id} using color: $placeColor (key=$cacheKey)');
-
-    try {
-      final desc = await FavoriteMapMarker.toBitmapDescriptor(
-        ctx,
-        cacheKey: cacheKey,
-        pixelRatio: (pixelRatio <= 0) ? 0 : pixelRatio,
-        size: outerSize,
-        outerColor: placeColor, // your same purple (unchanged)
-        outerStrokeColor: placeColor, // same purple (unchanged)
-        outerOpacity: 0.45, // try 0.45 or 0.35 to make it even more subtle
-        innerBgColor: Colors.white,
-        iconColor: placeColor,
-        icon: Icons.place,
-        iconSize: innerSize * 0.60,
-      );
-
-      // sanity-check descriptor (some plugins may return default marker)
-      if (desc == null) throw Exception('Descriptor is null');
-
-      _favMarkerCache[cacheKey] = desc;
-      debugPrint('Generated fav bitmap for ${place.id}');
-      return desc;
-    } catch (e, st) {
-      debugPrint('Error generating fav bitmap for ${place.id}: $e\n$st');
-      // fallback: return default violet marker as last resort (visible)
-      final fallback =
-          BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueViolet);
-      _favMarkerCache[cacheKey] = fallback;
-      return fallback;
-    }
+    // delegate to MarkerFactory; pass pixelRatio in a sane way
+    return await MarkerFactory.ensureFavoriteBitmap(
+      ctx: ctx,
+      cacheKey: cacheKey,
+      placeColor: placeColor,
+      outerSize: outerSize,
+      innerSize: innerSize,
+      pixelRatio:
+          pixelRatio <= 0 ? MediaQuery.of(ctx).devicePixelRatio : pixelRatio,
+      outerOpacity: 0.45,
+    );
   }
 
-  // REPLACE THIS METHOD
+  // --- Place marker creation (delegates to MarkerFactory) ---
   Future<Marker> _createPlaceMarker(Place place) async {
-    final Color placeColor = _colorForPlaceType(place.category);
-    debugPrint('Creating marker for place ${place.id} color=$placeColor');
-
-    BitmapDescriptor icon;
-    try {
-      icon = await _ensureFavoriteBitmap(
-        context,
-        place,
+    final cacheKey =
+        'place_${place.id}_v2_c${_colorForPlaceType(place.category).value}_s88_is40';
+    return MarkerFactory.createPlaceMarker(
+      ctx: context,
+      place: place,
+      iconProvider: () => MarkerFactory.ensureFavoriteBitmap(
+        ctx: context,
+        cacheKey: cacheKey,
+        placeColor: _colorForPlaceType(place.category),
         outerSize: 88,
         innerSize: 40,
         pixelRatio: MediaQuery.of(context).devicePixelRatio,
-      );
-      debugPrint('Got BitmapDescriptor for place ${place.id}');
-    } catch (e, st) {
-      debugPrint('Error creating custom icon for place ${place.id}: $e\n$st');
-      icon = BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueViolet);
-    }
-
-    // Defensive: if icon is null (shouldn't happen), use default marker
-    final usedIcon = icon;
-
-    final marker = Marker(
-      markerId: MarkerId('place_${place.id}'),
-      position: LatLng(place.latitude, place.longitude),
-      icon: usedIcon,
-      anchor: const Offset(0.5, 0.5),
-      zIndex: 300,
-      infoWindow: InfoWindow(
-        title: place.name,
-        snippet:
-            '${'category'.tr()}: ${place.category ?? ''}\nTap for 3D navigation',
-        onTap: () {
-          if (_locationHandler.currentLocation != null) {
-            _createRoute(_locationHandler.currentLocation!,
-                LatLng(place.latitude, place.longitude));
-          }
-        },
       ),
+      onInfoTap: () {
+        if (_locationHandler.currentLocation != null) {
+          // start route to this place
+          routeController.createRoute(_locationHandler.currentLocation!,
+              LatLng(place.latitude, place.longitude));
+          routeController
+              .startFollowingUser(() => _locationHandler.currentLocation);
+        }
+      },
       onTap: () async {
         try {
           final openStreetMapHelper = OpenStreetMapHelper();
@@ -309,50 +289,13 @@ class _GpsScreenState extends State<GpsScreen> {
         }
       },
     );
-
-    return marker;
-  }
-
-  void _checkImmediateRouteDeviation(LatLng currentLocation) {
-    if (_routePoints.isEmpty || _routeDestination == null) return;
-
-    // Find nearest point on route
-    double minDistance = double.infinity;
-    for (final point in _routePoints) {
-      final distance = _calculateDistance(currentLocation, point);
-      if (distance < minDistance) {
-        minDistance = distance;
-      }
-    }
-
-    // If user is significantly off route, trigger re-route sooner
-    if (minDistance > _maxRouteDeviation * 2) {
-      // 100m off route
-      print('Immediate deviation detected, re-routing...');
-      _createRoute(currentLocation, _routeDestination!);
-    }
-  }
-
-  bool _polygonsGeometryEqual(Set<Polygon> a, Set<Polygon> b) {
-    if (a.length != b.length) return false;
-    final Map<String, Polygon> ma = {for (var p in a) p.polygonId.value: p};
-    final Map<String, Polygon> mb = {for (var p in b) p.polygonId.value: p};
-    if (!ma.keys.toSet().containsAll(mb.keys.toSet())) return false;
-    for (final id in ma.keys) {
-      final pa = ma[id]!;
-      final pb = mb[id]!;
-      if (!_pointsEqual(pa.points, pb.points)) return false;
-      // optionally compare style if you care about it:
-      if (pa.fillColor != pb.fillColor || pa.strokeWidth != pb.strokeWidth)
-        return false;
-    }
-    return true;
   }
 
   /// Call this to change PWD circle size and immediately rebuild circles
   void setPwdRadiusMultiplier(double multiplier) async {
     try {
       final locations = await getPwdFriendlyLocations();
+      _cachedPwdLocations = locations;
       setState(() {
         _pwdRadiusMultiplier = multiplier.clamp(0.2, 3.0);
         _circles = createPwdfriendlyRouteCircles(locations);
@@ -362,16 +305,7 @@ class _GpsScreenState extends State<GpsScreen> {
     }
   }
 
-  double _parseDouble(dynamic value) {
-    if (value == null) return 0.0;
-    if (value is double) return value;
-    if (value is int) return value.toDouble();
-    if (value is String) return double.tryParse(value) ?? 0.0;
-    return 0.0;
-  }
-
-  /// Create circles for the given pwd-friendly locations list.
-  /// Expects objects in `pwdFriendlyLocations` to have `latitude`, `longitude`, and optional `radiusMeters`.
+  // --- Use NearbyManager for PWD circles (delegated) ---
   Set<Circle> createPwdfriendlyRouteCircles(
     List<dynamic> pwdLocations, {
     double? currentZoom,
@@ -380,20 +314,20 @@ class _GpsScreenState extends State<GpsScreen> {
     Color? pwdCircleColor,
     void Function(LatLng center, double suggestedZoom)? onTap,
   }) {
-    final double cz = currentZoom ?? _currentZoom;
-    final double baseMeters = pwdBaseRadiusMeters ?? _pwdBaseRadiusMeters;
-    final double multiplier = pwdRadiusMultiplier ?? _pwdRadiusMultiplier;
-    final Color color = pwdCircleColor ?? _pwdCircleColor;
+    final cz = currentZoom ?? _currentZoom;
+    final baseMeters = pwdBaseRadiusMeters ?? _pwdBaseRadiusMeters;
+    final multiplier = pwdRadiusMultiplier ?? _pwdRadiusMultiplier;
+    final color = pwdCircleColor ?? _pwdCircleColor;
 
-    // Provide a sensible default onTap (same behavior you used previously).
-    final void Function(LatLng, double) effectiveOnTap = onTap ??
+    final effectiveOnTap = onTap ??
         ((center, suggestedZoom) {
           _locationHandler.mapController?.animateCamera(
-              CameraUpdate.newLatLngZoom(center, suggestedZoom));
+            CameraUpdate.newLatLngZoom(center, suggestedZoom),
+          );
         });
 
-    return CircleManager.createPwdfriendlyRouteCircles(
-      pwdLocations: pwdLocations,
+    return _nearbyManager.createPwdfriendlyRouteCircles(
+      pwdLocations,
       currentZoom: cz,
       pwdBaseRadiusMeters: baseMeters,
       pwdRadiusMultiplier: multiplier,
@@ -414,108 +348,83 @@ class _GpsScreenState extends State<GpsScreen> {
       debugPrint('[GpsScreen] MapPerspective detected, applying...');
       _pendingPerspective = args;
       if (_isLocationFetched && _locationHandler.mapController != null) {
-        debugPrint('[GpsScreen] MapPerspective applied immediately');
         applyMapPerspective(_pendingPerspective!);
         _pendingPerspective = null;
-      } else {
-        debugPrint('[GpsScreen] MapPerspective pending until map ready');
       }
     }
 
     // --- Show tutorial if route requested it ---
     final showTutorial =
         args is Map<String, dynamic> && args['showTutorial'] == true;
-    debugPrint('[GpsScreen] showTutorial flag = $showTutorial');
 
     final authState = context.read<AuthBloc>().state;
-    debugPrint('[GpsScreen] authState = $authState');
-    debugPrint('[GpsScreen] _isTutorialShown = $_isTutorialShown');
-
     if (!_isTutorialShown && authState is AuthenticatedLogin && showTutorial) {
-      debugPrint('[GpsScreen] Triggering tutorial...');
       _isTutorialShown = true;
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _tutorialWidget.showTutorial(context);
-        debugPrint('[GpsScreen] Tutorial shown');
       });
-    } else {
-      debugPrint('[GpsScreen] Tutorial not triggered');
     }
   }
 
   @override
   void dispose() {
+    routeController.dispose();
     _locationHandler.disposeHandler();
     _zoomDebounceTimer?.cancel();
     _mapZoomNotifier.dispose();
-    _locationHandler.disposeHandler();
     super.dispose();
   }
 
   void _updateMapLocation(Place place) {
-    print(
-        "Updating map location to: ${place.name} at (${place.latitude}, ${place.longitude})");
     if (_locationHandler.mapController != null) {
       _locationHandler.mapController!.animateCamera(
         CameraUpdate.newCameraPosition(
           CameraPosition(
             target: LatLng(place.latitude, place.longitude),
-            zoom: 16, // Adjust zoom level as needed.
+            zoom: 16,
           ),
         ),
       );
     }
   }
 
-  // Replace the existing _buildPlaceMarkersAsync with this version
+  // --- Build place markers (keeps prior behavior but uses marker factory) ---
   Future<void> _buildPlaceMarkersAsync(List<Place> places) async {
     debugPrint('buildPlaceMarkers called with ${places.length} places');
-
-    // Build icons in parallel to speed up marker rendering.
     final futures = <Future<Marker>>[];
     for (final place in places) {
       futures.add(_createPlaceMarker(place));
     }
-
-    // Wait for all markers to be created.
     final createdMarkers = await Future.wait(futures);
-
     if (!mounted) return;
 
-    // --- Build NearbyCircleSpec list for all places (lightweight specs) ---
     final List<NearbyCircleSpec> placeSpecs = places.map((place) {
       return NearbyCircleSpec(
         id: 'place_circle_${place.id}',
         center: LatLng(place.latitude, place.longitude),
-        // use base fallback (you can replace with per-place radius if you have one)
         baseRadius: _pwdBaseRadiusMeters,
         zIndex: 200,
         visible: true,
       );
     }).toList();
 
-    // --- Compute scaled circles using CircleManager (same algorithm as _fetchNearbyPlaces) ---
     final Set<Circle> computedPlaceCirclesRaw =
         CircleManager.computeNearbyCirclesFromSpecs(
       specs: placeSpecs,
       currentZoom: _currentZoom,
       pwdBaseRadiusMeters: _pwdBaseRadiusMeters,
       pwdRadiusMultiplier: _pwdRadiusMultiplier,
-      pwdCircleColor:
-          _pwdCircleColor, // used as placeholder - we'll recolor per-place below
+      pwdCircleColor: _pwdCircleColor,
       onTap: (center, suggestedZoom) {
         _locationHandler.mapController?.animateCamera(
           CameraUpdate.newLatLngZoom(center, suggestedZoom),
         );
       },
-      // match the tuning used for nearby places
       minPixelRadius: 24.0,
       shrinkFactor: 0.92,
       extraVisualBoost: 1.15,
     );
 
-    // --- Recolor each computed circle to match the corresponding place's color ---
-    // Build a map from place id -> color to apply
     final Map<String, Color> placeColorById = {
       for (final p in places) p.id: _colorForPlaceType(p.category)
     };
@@ -523,11 +432,7 @@ class _GpsScreenState extends State<GpsScreen> {
     final Set<Circle> computedPlaceCircles = computedPlaceCirclesRaw.map((c) {
       final String circleIdValue = c.circleId.value;
       final String placeId = _placeIdFromCircleId(circleIdValue);
-      final Color placeColor = placeColorById.containsKey(placeId)
-          ? placeColorById[placeId]!
-          : _pwdCircleColor;
-
-      // recreate the circle with the same geometry but recolored
+      final Color placeColor = placeColorById[placeId] ?? _pwdCircleColor;
       return Circle(
         circleId: c.circleId,
         center: c.center,
@@ -539,7 +444,6 @@ class _GpsScreenState extends State<GpsScreen> {
         visible: c.visible,
         consumeTapEvents: true,
         onTap: () {
-          // replicate the same onTap used by CircleManager (zoom in slightly)
           _locationHandler.mapController?.animateCamera(
             CameraUpdate.newLatLngZoom(
               c.center,
@@ -550,100 +454,16 @@ class _GpsScreenState extends State<GpsScreen> {
       );
     }).toSet();
 
-    // --- Update state atomically: replace place_ markers and place_circle_ circles ---
     setState(() {
-      // Replace all markers with place_ prefix
       _markers
           .removeWhere((marker) => marker.markerId.value.startsWith('place_'));
       _markers.addAll(createdMarkers.toSet());
-
-      // Remove existing place_circle_ circles, then add the newly computed recolored ones.
       _circles.removeWhere((c) => c.circleId.value.startsWith('place_circle_'));
       _circles = {..._circles, ...computedPlaceCircles};
     });
 
     debugPrint(
         'Added ${createdMarkers.length} place markers and ${computedPlaceCircles.length} place circles');
-  }
-
-  Future<void> _getPwdLocationsAndCreateMarkers() async {
-    try {
-      final locations = await getPwdFriendlyLocations();
-      _cachedPwdLocations = locations; // CACHE THEM
-
-      _markerHandler
-          .createMarkers(locations, _locationHandler.currentLocation)
-          .then((markers) {
-        final pwdMarkers = markers.map((marker) {
-          if (marker.markerId.value.startsWith('pwd_')) {
-            // Find the corresponding location data
-            final location = locations.firstWhere(
-              (loc) => marker.markerId.value == 'pwd_${loc["name"]}',
-              orElse: () => {},
-            );
-
-            return Marker(
-              markerId: marker.markerId,
-              position: marker.position,
-              icon: marker.icon,
-              zIndex: 100, // lower than the circle's 200
-              infoWindow: InfoWindow(
-                title: marker.infoWindow.title,
-                snippet: 'Tap to show details and rate',
-              ),
-              onTap: () async {
-                // Fetch the complete place data from Firebase including ratings
-                try {
-                  final doc = await _firestore
-                      .collection('pwd_locations')
-                      .doc(location["id"])
-                      .get();
-                  if (doc.exists) {
-                    // Convert string values to double
-                    final double latitude = _parseDouble(doc['latitude']);
-                    final double longitude = _parseDouble(doc['longitude']);
-
-                    final pwdPlace = Place(
-                      id: doc.id,
-                      userId: '',
-                      name: doc['name'],
-                      category: 'PWD Friendly',
-                      latitude: latitude,
-                      longitude: longitude,
-                      timestamp: DateTime.now(),
-                      address: doc['details'],
-                      averageRating: _parseDouble(doc['averageRating']),
-                      totalRatings: doc['totalRatings'] is int
-                          ? doc['totalRatings'] as int
-                          : int.tryParse(
-                                  doc['totalRatings']?.toString() ?? '0') ??
-                              0,
-                      reviews: doc['reviews'] != null
-                          ? List<Map<String, dynamic>>.from(doc['reviews'])
-                          : null,
-                    );
-
-                    setState(() {
-                      _selectedPlace = pwdPlace;
-                    });
-                  }
-                } catch (e) {
-                  print('Error fetching place details: $e');
-                }
-              },
-            );
-          }
-          return marker;
-        }).toSet();
-
-        setState(() {
-          _markers.addAll(pwdMarkers);
-          _circles = createPwdfriendlyRouteCircles(locations);
-        });
-      });
-    } catch (e) {
-      print('Error fetching PWD locations: $e');
-    }
   }
 
   // Callback when the tutorial is completed.
@@ -672,9 +492,12 @@ class _GpsScreenState extends State<GpsScreen> {
     });
   }
 
+  /// Convert raw nearby circles into "specs" stored in our manager and compute rescaled circles.
   Set<Circle> _computeNearbyCirclesFromRaw() {
-    return CircleManager.computeNearbyCirclesFromSpecs(
-      specs: _nearbyCircleSpecs,
+    // delegate to NearbyManager (and also keep local copy of specs for compatibility)
+    final specs = _nearbyCircleSpecs;
+    if (specs.isEmpty) return {};
+    return _nearbyManager.computeNearbyCirclesFromSpecs(
       currentZoom: _currentZoom,
       pwdBaseRadiusMeters: _pwdBaseRadiusMeters,
       pwdRadiusMultiplier: _pwdRadiusMultiplier,
@@ -684,24 +507,20 @@ class _GpsScreenState extends State<GpsScreen> {
           CameraUpdate.newLatLngZoom(center, suggestedZoom),
         );
       },
-      // tune to match the larger visuals you wanted:
       minPixelRadius: 24.0,
       shrinkFactor: 0.92,
       extraVisualBoost: 1.15,
     );
   }
 
-  /// Fetch nearby places and rebuild markers with an onTap callback
-  /// that draws a route from the user's location.
+  // --- Nearby places fetching (delegates badge creation to MarkerFactory) ---
   Future<void> _fetchNearbyPlaces(String placeType) async {
     if (_locationHandler.currentLocation == null) {
       print("Current location is null - cannot fetch places");
       return;
     }
 
-    print("Fetching nearby $placeType places...");
-
-    // return camera to user location briefly
+    // briefly move camera to user's location
     if (_locationHandler.mapController != null) {
       await _locationHandler.mapController!.animateCamera(
         CameraUpdate.newCameraPosition(
@@ -719,12 +538,7 @@ class _GpsScreenState extends State<GpsScreen> {
         _locationHandler.currentLocation!,
       );
 
-      print("Received result from NearbyPlacesHandler: ${result != null}");
-
       if (result != null && result.isNotEmpty) {
-        print("Processing ${result['markers']?.length ?? 0} markers...");
-
-        // Preserve special markers
         final existingMarkers = _markers
             .where((marker) =>
                 marker.markerId.value.startsWith("pwd_") ||
@@ -734,76 +548,39 @@ class _GpsScreenState extends State<GpsScreen> {
 
         final Set<Marker> newMarkers = {};
 
-        // mapping placeType -> icon & color (tweak to your taste)
-        IconData _iconForPlaceType(String type) {
-          final t = type.toLowerCase();
-          if (t.contains('bus')) return Icons.directions_bus;
-          if (t.contains('restaurant') || t.contains('restawran'))
-            return Icons.restaurant;
-          if (t.contains('grocery') || t.contains('grocer'))
-            return Icons.local_grocery_store;
-          if (t.contains('hotel')) return Icons.hotel;
-          return Icons.place;
-        }
+        // badge creation via MarkerFactory
+        final badgeIcon = await MarkerFactory.createBadgeForPlaceType(
+          ctx: context,
+          placeType: placeType,
+          size: 64,
+        );
 
-        Color _colorForPlaceType(String type) {
-          final t = type.toLowerCase();
-          if (t.contains('bus')) return Colors.blue;
-          if (t.contains('restaurant') || t.contains('restawran'))
-            return Colors.red;
-          if (t.contains('grocery') || t.contains('grocer'))
-            return Colors.green;
-          if (t.contains('hotel')) return Colors.teal;
-          return const Color(0xFF6750A4);
-        }
-
-        // Prepare/cache badge for this category
-        final cacheKey = 'badge_$placeType';
-        BitmapDescriptor badgeIcon;
-        if (_badgeIconCache.containsKey(cacheKey)) {
-          badgeIcon = _badgeIconCache[cacheKey]!;
-        } else {
-          // create composite badge: white outer, colored inner, white icon
-          final iconData = _iconForPlaceType(placeType);
-          final accentColor = _colorForPlaceType(placeType);
-          badgeIcon = await BadgeIcon.createBadgeWithIcon(
-            ctx: context,
-            size: 64,
-            outerRingColor: Colors.white,
-            iconBgColor: accentColor, // your purple
-            innerRatio: 0.86,
-            iconRatio:
-                0.90, // leaves a little padding so circle stroke is visible
-            icon: iconData,
-          );
-          _badgeIconCache[cacheKey] = badgeIcon;
-        }
-
-        // Build new markers from handler result
         if (result['markers'] != null) {
           final markersSet = result['markers'] is Set
               ? result['markers'] as Set<Marker>
               : Set<Marker>.from(result['markers']);
 
           for (final marker in markersSet) {
-            print("Adding marker: ${marker.markerId} at ${marker.position}");
-
+            debugPrint(
+                'nearby handler returned marker id=${marker.markerId.value} at ${marker.position}');
             final Marker newMarker = Marker(
               markerId: marker.markerId,
               position: marker.position,
-              icon: badgeIcon, // <- use our composite badge
+              icon: badgeIcon,
               infoWindow: InfoWindow(
                 title: marker.infoWindow.title,
                 snippet: 'Tap to show route',
                 onTap: () {
                   if (_locationHandler.currentLocation != null) {
-                    _createRoute(
+                    // delegate to route controller
+                    routeController.createRoute(
                         _locationHandler.currentLocation!, marker.position);
+                    routeController.startFollowingUser(
+                        () => _locationHandler.currentLocation);
                   }
                 },
               ),
               onTap: () async {
-                // same detail behavior
                 final openStreetMapHelper = OpenStreetMapHelper();
                 try {
                   final detailedPlace =
@@ -812,6 +589,7 @@ class _GpsScreenState extends State<GpsScreen> {
                     marker.position.longitude,
                     marker.infoWindow.title ?? 'Unknown Place',
                   );
+                  if (!mounted) return;
                   setState(() {
                     _selectedPlace = detailedPlace;
                   });
@@ -826,338 +604,43 @@ class _GpsScreenState extends State<GpsScreen> {
           }
         }
 
-        // Circles (if any) — rescale each incoming circle to remain visible across zooms
-        // Circles (if any) — rescale each incoming circle to remain visible across zooms
+        // Circles (if any)
         Set<Circle> newCircles = {};
         if (result['circles'] != null) {
           final raw = result['circles'] is Set<Circle>
               ? result['circles'] as Set<Circle>
               : Set<Circle>.from(result['circles']);
 
-          // convert incoming circles to lightweight "specs" we can rescale later
-          _nearbyCircleSpecs = CircleManager.specsFromRawCircles(
+          // Convert raw circles to specs via CircleManager (we keep local copy for backward compatibility)
+          _nearbyCircleSpecs = _nearbyManager.specsFromRawCircles(
             raw,
-            inflateFactor: 1.6, // preserve your earlier inflation
+            inflateFactor: 1.6,
             baseFallback: _pwdBaseRadiusMeters,
           );
 
-          // now compute scaled circles immediately for display
+          // compute scaled circles using NearbyManager helper
           newCircles = _computeNearbyCirclesFromRaw();
         }
 
-        // preserve existing special markers (pwd/user/place) earlier computed
         setState(() {
           _markers = existingMarkers.union(newMarkers);
-
-          // Preserve PWD circles already in _circles (ids starting with 'pwd_')
           final existingPwdCircles = _circles
               .where((c) => c.circleId.value.startsWith('pwd_'))
               .toSet();
-
-          // merge preserved pwd circles + newly rescaled nearby circles
           _circles = existingPwdCircles.union(newCircles);
-
           _polylines.clear();
         });
-
-        print("Total markers after update: ${_markers.length}");
-        print("Total circles after update: ${_circles.length}");
-
-        // Keep your previous camera behavior
-        if (_markers.isNotEmpty && _locationHandler.mapController != null) {
-          _locationHandler.mapController!.animateCamera(
-            CameraUpdate.newCameraPosition(
-              CameraPosition(
-                target: _locationHandler.currentLocation!,
-                zoom: 14.5,
-              ),
-            ),
-          );
-        }
       } else {
-        print("No results found for $placeType");
         setState(() {
           _circles.clear();
         });
       }
     } catch (e) {
       print("Error fetching nearby places: $e");
-      if (e is TypeError) print("Type error details: ${e.toString()}");
     }
   }
 
-  double _calculateDistance(LatLng start, LatLng end) {
-    const double earthRadius = 6371; // km
-    double lat1 = start.latitude * (pi / 180);
-    double lon1 = start.longitude * (pi / 180);
-    double lat2 = end.latitude * (pi / 180);
-    double lon2 = end.longitude * (pi / 180);
-
-    double dLat = lat2 - lat1;
-    double dLon = lon2 - lon1;
-
-    double a = sin(dLat / 2) * sin(dLat / 2) +
-        cos(lat1) * cos(lat2) * sin(dLon / 2) * sin(dLon / 2);
-    double c = 2 * atan2(sqrt(a), sqrt(1 - a));
-
-    return earthRadius * c;
-  }
-
-  /// Create a route using Google Routes API from [origin] to [destination]
-  /// and display it on the map.
-  Future<void> _createRoute(LatLng origin, LatLng destination) async {
-    try {
-      setState(() {
-        _isRouteActive = true;
-        _routeDestination = destination;
-      });
-
-      setState(() {
-        _isRerouting = true;
-      });
-
-      // First show overview of the entire route
-      if (_locationHandler.mapController != null) {
-        final bounds = _locationHandler.getLatLngBounds([origin, destination]);
-        await _locationHandler.mapController!.animateCamera(
-          CameraUpdate.newLatLngBounds(bounds, 100),
-        );
-
-        // After showing overview, zoom in to start navigation
-        await Future.delayed(Duration(seconds: 1));
-        _startFollowingUser();
-      }
-
-      // Use wheelchair profile if enabled, otherwise use driving profile
-      final profile = _isWheelchairFriendlyRoute ? 'wheelchair' : 'driving';
-
-      final url = Uri.parse('https://router.project-osrm.org/route/v1/$profile/'
-          '${origin.longitude},${origin.latitude};'
-          '${destination.longitude},${destination.latitude}?overview=full&geometries=geojson');
-
-      final response = await http.get(url);
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        final geometry = data['routes'][0]['geometry']['coordinates'];
-
-        // Store route points for following
-        _routePoints = geometry
-            .map<LatLng>((coord) => LatLng(coord[1], coord[0]))
-            .toList();
-
-        // Calculate distance and duration
-        final distance =
-            (data['routes'][0]['distance'] / 1000).toStringAsFixed(1);
-        final duration =
-            (data['routes'][0]['duration'] / 60).toStringAsFixed(0);
-
-        // Set route color based on wheelchair-friendly setting
-        final routeColor =
-            _isWheelchairFriendlyRoute ? Colors.green : const Color(0xFF6750A4);
-
-        setState(() {
-          _polylines = {
-            Polyline(
-              polylineId: const PolylineId('route'),
-              points: _routePoints,
-              color: routeColor,
-              width: 6,
-            ),
-          };
-          _routeColor = routeColor; // Store the current route color
-        });
-
-        _updateMarkerWithRouteInfo(destination, distance, duration);
-      }
-    } catch (e) {
-      print('Routing failed: $e');
-      _stopFollowingUser();
-      setState(() {
-        _isRouteActive = false;
-        _isRerouting = false;
-      });
-    } finally {
-      setState(() {
-        _isRerouting = false;
-      });
-    }
-  }
-
-  void _startRerouteChecking() {
-    _rerouteCheckTimer?.cancel();
-    _rerouteCheckTimer = Timer.periodic(_rerouteCheckInterval, (timer) {
-      _checkRouteDeviation();
-    });
-  }
-
-  void _stopRerouteChecking() {
-    _rerouteCheckTimer?.cancel();
-    _rerouteCheckTimer = null;
-    _lastRerouteLocation = null;
-  }
-
-  Future<void> _checkRouteDeviation() async {
-    if (_locationHandler.currentLocation == null ||
-        _routePoints.isEmpty ||
-        _routeDestination == null) {
-      return;
-    }
-
-    final currentLocation = _locationHandler.currentLocation!;
-
-    // Don't check re-route too frequently from the same location
-    if (_lastRerouteLocation != null) {
-      final distanceFromLastCheck =
-          _calculateDistance(currentLocation, _lastRerouteLocation!);
-      if (distanceFromLastCheck < 10.0) {
-        // Less than 10m movement
-        return;
-      }
-    }
-
-    _lastRerouteLocation = currentLocation;
-
-    // Find nearest point on route
-    double minDistance = double.infinity;
-    for (final point in _routePoints) {
-      final distance = _calculateDistance(currentLocation, point);
-      if (distance < minDistance) {
-        minDistance = distance;
-      }
-    }
-
-    // If user is too far from route, re-route
-    if (minDistance > _maxRouteDeviation) {
-      print(
-          'User deviated from route by ${minDistance.toStringAsFixed(1)}m, re-routing...');
-      await _createRoute(currentLocation, _routeDestination!);
-    }
-  }
-
-  void _toggleWheelchairFriendlyRoute() {
-    setState(() {
-      _isWheelchairFriendlyRoute = !_isWheelchairFriendlyRoute;
-    });
-
-    // If a route is already active, recreate it with the new setting
-    if (_isRouteActive &&
-        _routeDestination != null &&
-        _locationHandler.currentLocation != null) {
-      _createRoute(_locationHandler.currentLocation!, _routeDestination!);
-    }
-  }
-
-  double _calculateBearing(LatLng start, LatLng end) {
-    final startLat = start.latitude * (pi / 180);
-    final startLng = start.longitude * (pi / 180);
-    final endLat = end.latitude * (pi / 180);
-    final endLng = end.longitude * (pi / 180);
-
-    final y = sin(endLng - startLng) * cos(endLat);
-    final x = cos(startLat) * sin(endLat) -
-        sin(startLat) * cos(endLat) * cos(endLng - startLng);
-    final bearing = atan2(y, x);
-
-    return (bearing * (180 / pi) + 360) % 360;
-  }
-
-  void _startFollowingUser() {
-    // Cancel any existing timer
-    _stopFollowingUser();
-
-    // Update immediately
-    _updateCameraForNavigation();
-
-    // Set up periodic updates
-    _routeUpdateTimer = Timer.periodic(Duration(seconds: 1), (timer) {
-      _updateCameraForNavigation();
-    });
-
-    // Start re-route checking
-    _startRerouteChecking();
-  }
-
-  void _updateCameraForNavigation() {
-    if (_locationHandler.currentLocation == null ||
-        _routeDestination == null ||
-        _locationHandler.mapController == null ||
-        _routePoints.isEmpty) {
-      return;
-    }
-
-    final currentLocation = _locationHandler.currentLocation!;
-
-    // 1. Calculate bearing to destination
-    _routeBearing = _calculateBearing(currentLocation, _routeDestination!);
-
-    // 2. Find the closest point on the route to the user
-    int closestIndex = 0;
-    double minDistance = double.infinity;
-    for (int i = 0; i < _routePoints.length; i++) {
-      final distance = _calculateDistance(currentLocation, _routePoints[i]);
-      if (distance < minDistance) {
-        minDistance = distance;
-        closestIndex = i;
-      }
-    }
-
-    // 3. Look ahead on the route (about 50 meters ahead of the closest point)
-    int lookAheadIndex = min(closestIndex + 20, _routePoints.length - 1);
-    LatLng lookAheadPoint = _routePoints[lookAheadIndex];
-
-    // 4. Calculate the bearing from user's current position to the look-ahead point
-    double cameraBearing = _calculateBearing(currentLocation, lookAheadPoint);
-
-    // 5. Calculate the tilt based on distance to destination
-    double distanceToDestination =
-        _calculateDistance(currentLocation, _routeDestination!);
-    double dynamicTilt =
-        min(60.0, max(30.0, 60.0 - (distanceToDestination * 0.5)));
-
-    // 6. Calculate zoom level based on speed (if available) or distance
-    double dynamicZoom =
-        min(18.0, max(16.0, 18.0 - (distanceToDestination * 0.02)));
-
-    // 7. Calculate target point (position user higher on screen)
-    // Instead of interpolating between user and lookahead point,
-    // position the camera so user is at 30% from bottom instead of center
-    final double userScreenPosition =
-        0.3; // 30% from bottom (was 0.5 for center)
-
-    // Calculate the offset to position user at 30% from bottom
-    final double offsetLat =
-        (lookAheadPoint.latitude - currentLocation.latitude) *
-            userScreenPosition;
-    final double offsetLng =
-        (lookAheadPoint.longitude - currentLocation.longitude) *
-            userScreenPosition;
-
-    LatLng targetPoint = LatLng(
-      currentLocation.latitude + offsetLat,
-      currentLocation.longitude + offsetLng,
-    );
-
-    // 8. Update camera position smoothly
-    _locationHandler.mapController!.animateCamera(
-      CameraUpdate.newCameraPosition(
-        CameraPosition(
-          target: targetPoint,
-          zoom: dynamicZoom,
-          tilt: dynamicTilt,
-          bearing: cameraBearing,
-        ),
-      ),
-    );
-
-    // Update class variables for external access
-    setState(() {
-      _routeTilt = dynamicTilt;
-      _routeZoom = dynamicZoom;
-      _routeBearing = cameraBearing;
-    });
-  }
-
-  // Helper methods for navigation
+  /// Helper that returns a textual location name for the given LatLng.
   Future<String> _getLocationName(LatLng location) async {
     try {
       final geocodingService = OpenStreetMapGeocodingService();
@@ -1167,62 +650,56 @@ class _GpsScreenState extends State<GpsScreen> {
     }
   }
 
-  // New method to toggle navigation mode
+  // --- Navigation toggles (now delegate to RouteController) ---
   void _toggleNavigationMode() {
-    if (_routeUpdateTimer == null) {
-      _startFollowingUser();
+    if (!routeController.isRouteActive ||
+        routeController.routeDestination == null) {
+      // if route not active, start following
+      routeController
+          .startFollowingUser(() => _locationHandler.currentLocation);
+      _routeUpdateTimer?.cancel();
+      _routeUpdateTimer = Timer.periodic(const Duration(seconds: 1), (_) {});
     } else {
-      _stopFollowingUser();
+      // show overview: stop following and fit bounds
+      routeController.stopFollowingUser();
+      _routeUpdateTimer?.cancel();
+      _routeUpdateTimer = null;
       if (_locationHandler.currentLocation != null &&
-          _routeDestination != null) {
-        final bounds = _locationHandler.getLatLngBounds(
-            [_locationHandler.currentLocation!, _routeDestination!]);
+          routeController.routeDestination != null) {
+        final bounds = _locationHandler.getLatLngBounds([
+          _locationHandler.currentLocation!,
+          routeController.routeDestination!
+        ]);
         _locationHandler.mapController
             ?.animateCamera(CameraUpdate.newLatLngBounds(bounds, 100));
       }
     }
   }
 
-  Future<double> _calculateRouteDistance() async {
-    if (_locationHandler.currentLocation == null || _routePoints.isEmpty) {
-      return 0.0;
+  void _toggleWheelchairFriendlyRoute() {
+    setState(() {
+      _isWheelchairFriendlyRoute = !_isWheelchairFriendlyRoute;
+    });
+    routeController.toggleWheelchairFriendly();
+    if (routeController.isRouteActive &&
+        routeController.routeDestination != null &&
+        _locationHandler.currentLocation != null) {
+      // re-create route with new profile
+      routeController.createRoute(
+          _locationHandler.currentLocation!, routeController.routeDestination!);
     }
-
-    // Find the nearest point on the route
-    int nearestIndex = 0;
-    double minDistance = double.infinity;
-    for (int i = 0; i < _routePoints.length; i++) {
-      final distance = _calculateDistance(
-        _locationHandler.currentLocation!,
-        _routePoints[i],
-      );
-      if (distance < minDistance) {
-        minDistance = distance;
-        nearestIndex = i;
-      }
-    }
-
-    // Calculate remaining distance
-    double remainingDistance = 0.0;
-    for (int i = nearestIndex; i < _routePoints.length - 1; i++) {
-      remainingDistance += _calculateDistance(
-        _routePoints[i],
-        _routePoints[i + 1],
-      );
-    }
-
-    return remainingDistance;
   }
 
-  void _stopFollowingUser() {
-    _routeUpdateTimer?.cancel();
-    _routeUpdateTimer = null;
-    _stopRerouteChecking();
+  Future<double> _calculateRouteDistance() async {
+    final remainingKm = routeController.calculateRemainingDistanceKm(
+        fromLocation: _locationHandler.currentLocation);
+    return remainingKm;
   }
 
   void _resetCameraToNormal() {
-    _stopFollowingUser();
-
+    routeController.stopFollowingUser();
+    _routeUpdateTimer?.cancel();
+    _routeUpdateTimer = null;
     if (_locationHandler.mapController != null &&
         _locationHandler.currentLocation != null) {
       _locationHandler.mapController!.animateCamera(
@@ -1235,35 +712,33 @@ class _GpsScreenState extends State<GpsScreen> {
           ),
         ),
       );
-      setState(() {
-        _isRouteActive = false;
-        _polylines.clear();
-        _routeDestination = null;
-        _routePoints.clear();
-        _isWheelchairFriendlyRoute = false;
-        _routeColor = const Color(0xFF6750A4);
-      });
     }
+    setState(() {
+      _isRouteActive = false;
+      _polylines.clear();
+      _routeDestination = null;
+      _routePoints.clear();
+      _isWheelchairFriendlyRoute = false;
+    });
   }
 
-  void _updateMarkerWithRouteInfo(
-      LatLng position, String distance, String duration) {
-    final marker = _markers.firstWhere(
-      (m) => m.position == position,
-      orElse: () => throw Exception('Marker not found'),
-    );
+  /// Called by LocationHandler's deviation callback to check for immediate reroute.
+  void _checkImmediateRouteDeviation(LatLng currentLocation) {
+    final pts = routeController.routePoints;
+    final dest = routeController.routeDestination;
+    if (pts.isEmpty || dest == null) return;
 
-    final routeType = _isWheelchairFriendlyRoute ? 'Wheelchair' : 'Car';
+    double minDistance = double.infinity;
+    for (final point in pts) {
+      final distance = MapUtils.calculateDistanceKm(currentLocation, point) *
+          1000.0; // meters
+      if (distance < minDistance) minDistance = distance;
+    }
 
-    setState(() {
-      _markers.remove(marker);
-      _markers.add(marker.copyWith(
-        infoWindowParam: InfoWindow(
-          title: marker.infoWindow.title,
-          snippet: '$distance km • $duration mins • $routeType route',
-        ),
-      ));
-    });
+    if (minDistance > routeController.maxRouteDeviationMeters * 2) {
+      // re-route immediately from current location
+      routeController.createRoute(currentLocation, dest);
+    }
   }
 
   void _onMemberPressed(LatLng location, String userId) {
@@ -1283,7 +758,6 @@ class _GpsScreenState extends State<GpsScreen> {
     _locationHandler.updateActiveSpaceId('');
   }
 
-  // Apply a chosen perspective by updating both the map type and camera position.
   void applyMapPerspective(MapPerspective perspective) {
     CameraPosition newPosition;
     MapType newMapType;
@@ -1323,44 +797,19 @@ class _GpsScreenState extends State<GpsScreen> {
     }
   }
 
-  // Opens the map settings screen.
   Future<void> _openMapSettings() async {
     final result = await Navigator.push(
       context,
       MaterialPageRoute(builder: (_) => const MapViewScreen()),
     );
-
-    print("Returned from MapViewScreen: $result");
-
     if (result != null && result is Map<String, dynamic>) {
       final perspective = result['perspective'] as MapPerspective;
-      print("Applying perspective: $perspective");
       applyMapPerspective(perspective);
     }
   }
 
-  Future<void> _getPwdLocationsAndUpdateCircles() async {
-    try {
-      final locations = await getPwdFriendlyLocations();
-      if (mounted) {
-        setState(() {
-          // compute pwd circles and merge with any rescaled nearby circles we have
-          final Set<Circle> pwdCircles =
-              createPwdfriendlyRouteCircles(locations);
-          final Set<Circle> nearbyRescaled = _computeNearbyCirclesFromRaw();
-          _circles = pwdCircles.union(nearbyRescaled);
-        });
-      }
-    } catch (e) {
-      print('Error updating circles with Firebase data: $e');
-    }
-  }
-
   void _onMapCreated(GoogleMapController controller, bool isDarkMode) {
-    // Call your location handler or map style logic here
     _locationHandler.onMapCreated(controller, isDarkMode);
-
-    // Example: animate to current location if available
     if (_isLocationFetched && _locationHandler.currentLocation != null) {
       controller.animateCamera(
         CameraUpdate.newLatLng(_locationHandler.currentLocation!),
@@ -1369,9 +818,104 @@ class _GpsScreenState extends State<GpsScreen> {
   }
 
   String _placeIdFromCircleId(String circleIdValue) {
-    // expecting "place_circle_<id>"
     if (!circleIdValue.startsWith('place_circle_')) return '';
     return circleIdValue.substring('place_circle_'.length);
+  }
+
+  bool _polygonsGeometryEqual(Set<Polygon> a, Set<Polygon> b) {
+    if (a.length != b.length) return false;
+    final Map<String, Polygon> ma = {for (var p in a) p.polygonId.value: p};
+    final Map<String, Polygon> mb = {for (var p in b) p.polygonId.value: p};
+    if (!ma.keys.toSet().containsAll(mb.keys.toSet())) return false;
+    for (final id in ma.keys) {
+      final pa = ma[id]!;
+      final pb = mb[id]!;
+      if (!MapUtils.pointsEqual(pa.points, pb.points)) return false;
+      if (pa.fillColor != pb.fillColor || pa.strokeWidth != pb.strokeWidth)
+        return false;
+    }
+    return true;
+  }
+
+  Future<void> _getPwdLocationsAndCreateMarkers() async {
+    try {
+      final locations = await getPwdFriendlyLocations();
+      _cachedPwdLocations = locations;
+
+      _markerHandler
+          .createMarkers(locations, _locationHandler.currentLocation)
+          .then((markers) {
+        final pwdMarkers = markers.map((marker) {
+          if (marker.markerId.value.startsWith('pwd_')) {
+            final location = locations.firstWhere(
+              (loc) => marker.markerId.value == 'pwd_${loc["name"]}',
+              orElse: () => {},
+            );
+
+            return Marker(
+              markerId: marker.markerId,
+              position: marker.position,
+              icon: marker.icon,
+              zIndex: 100,
+              infoWindow: InfoWindow(
+                title: marker.infoWindow.title,
+                snippet: 'Tap to show details and rate',
+              ),
+              onTap: () async {
+                try {
+                  final doc = await _firestore
+                      .collection('pwd_locations')
+                      .doc(location["id"])
+                      .get();
+                  if (doc.exists) {
+                    final double latitude =
+                        MapUtils.parseDouble(doc['latitude']);
+                    final double longitude =
+                        MapUtils.parseDouble(doc['longitude']);
+
+                    final pwdPlace = Place(
+                      id: doc.id,
+                      userId: '',
+                      name: doc['name'],
+                      category: 'PWD Friendly',
+                      latitude: latitude,
+                      longitude: longitude,
+                      timestamp: DateTime.now(),
+                      address: doc['details'],
+                      averageRating: MapUtils.parseDouble(doc['averageRating']),
+                      totalRatings: doc['totalRatings'] is int
+                          ? doc['totalRatings'] as int
+                          : int.tryParse(
+                                  doc['totalRatings']?.toString() ?? '0') ??
+                              0,
+                      reviews: doc['reviews'] != null
+                          ? List<Map<String, dynamic>>.from(doc['reviews'])
+                          : null,
+                    );
+
+                    if (!mounted) return;
+                    setState(() {
+                      _selectedPlace = pwdPlace;
+                    });
+                  }
+                } catch (e) {
+                  print('Error fetching place details: $e');
+                }
+              },
+            );
+          }
+          return marker;
+        }).toSet();
+
+        if (!mounted) return;
+        setState(() {
+          _markers.addAll(pwdMarkers);
+          _circles = createPwdfriendlyRouteCircles(locations);
+        });
+      });
+    } catch (e) {
+      print('Error fetching PWD locations: $e');
+    }
   }
 
   @override
@@ -1379,7 +923,6 @@ class _GpsScreenState extends State<GpsScreen> {
     final bool isDarkMode = Provider.of<ThemeProvider>(context).isDarkMode;
     _mapKey = ValueKey(isDarkMode);
     final screenHeight = MediaQuery.of(context).size.height;
-    final Set<Polygon> basePolys = {};
 
     return BlocListener<PlaceBloc, place_state.PlaceState>(
       listener: (context, state) {
@@ -1424,43 +967,25 @@ class _GpsScreenState extends State<GpsScreen> {
                       ),
                       markers: _markers,
                       circles: _circles,
-                      polygons: _fovPolygons, // <-- pass the FOV polygons here
-
+                      polygons: _fovPolygons,
                       polylines: _polylines,
                       mapType: _currentMapType,
                       onCameraMove: (CameraPosition pos) {
                         final newZoom = pos.zoom;
-                        // cheap updates
-                        // only react when zoom changed noticeably
                         const zoomThreshold = 0.01;
                         if ((newZoom - _currentZoom).abs() > zoomThreshold) {
                           _currentZoom = newZoom;
                           _mapZoomNotifier.value = newZoom;
-
-                          // trigger FOV recompute / camera logic immediately (cheap)
-                          // Option 1: force FOVOverlay to recompute by calling setState on polygons,
-                          // if you have a function to compute polygons you can call it here:
-                          // final polys = FovOverlay.computePolygons(..., newZoom);
-                          // if (!_polygonsGeometryEqual(_fovPolygons, polys)) setState(() => _fovPolygons = polys);
-
-                          // Option 2: if FovOverlay calls back via onPolygonsChanged based on getMapZoom,
-                          // just force a rebuild so it re-queries the getter:
                           setState(() {});
                         } else {
-                          // small movement but still update notifier so other logic can use it
                           _mapZoomNotifier.value = newZoom;
                         }
                       },
-
-                      // heavy work deferred to onCameraIdle (fires after gestures finish)
                       onCameraIdle: () {
-                        // Debounce to avoid double-firing if there are quick idles
                         _zoomDebounceTimer?.cancel();
                         _zoomDebounceTimer =
                             Timer(const Duration(milliseconds: 120), () {
                           if (!mounted) return;
-                          // Recompute circles (PWD + nearby) using current zoom
-                          // Use cached pwd locations and nearby specs (fast)
                           final pwdSet = createPwdfriendlyRouteCircles(
                             _cachedPwdLocations,
                             currentZoom: _currentZoom,
@@ -1488,8 +1013,7 @@ class _GpsScreenState extends State<GpsScreen> {
                       getCurrentLocation: () =>
                           _locationHandler.currentLocation,
                       locationStream: _locationHandler.locationStream,
-                      mapZoomListenable: _mapZoomNotifier, // <--- pass this
-
+                      mapZoomListenable: _mapZoomNotifier,
                       getMapZoom: () => _mapZoomNotifier.value,
                       onPolygonsChanged: (polys) {
                         if (!_polygonsGeometryEqual(_fovPolygons, polys)) {
@@ -1500,16 +1024,15 @@ class _GpsScreenState extends State<GpsScreen> {
                       steps: 14,
                     ),
 
-                    // Navigation Controls
+                    // Navigation Controls (uses local UI flags which are updated by routeController)
                     if (_isRouteActive)
                       Positioned(
-                        top: screenHeight * 0.18, // 8% from top
+                        top: screenHeight * 0.18,
                         right: 20,
                         child: Material(
                           color: Colors.transparent,
                           child: Column(
                             children: [
-                              // Close Button
                               Container(
                                 decoration: BoxDecoration(
                                   color: Colors.white.withOpacity(0.9),
@@ -1530,7 +1053,6 @@ class _GpsScreenState extends State<GpsScreen> {
                                 ),
                               ),
                               SizedBox(height: 10),
-                              // Navigation Mode Toggle
                               Container(
                                 decoration: BoxDecoration(
                                   color: Colors.white.withOpacity(0.9),
@@ -1557,7 +1079,6 @@ class _GpsScreenState extends State<GpsScreen> {
                                 ),
                               ),
                               SizedBox(height: 10),
-                              // Wheelchair Friendly Route Toggle
                               Container(
                                 decoration: BoxDecoration(
                                   color: Colors.white.withOpacity(0.9),
@@ -1636,8 +1157,9 @@ class _GpsScreenState extends State<GpsScreen> {
                         ),
                       ),
 
-                    // Navigation Info Panel - Positioned above bottom widgets
-                    if (_isRouteActive && _routeDestination != null)
+                    // Navigation Info Panel
+                    if (_isRouteActive &&
+                        routeController.routeDestination != null)
                       Positioned(
                         bottom: screenHeight * _initialNavigationPanelBottom +
                             _navigationPanelOffset,
@@ -1646,7 +1168,6 @@ class _GpsScreenState extends State<GpsScreen> {
                         child: GestureDetector(
                           onVerticalDragUpdate: (details) {
                             setState(() {
-                              // Limit dragging range to prevent going off screen
                               _navigationPanelOffset = (_navigationPanelOffset -
                                       details.delta.dy)
                                   .clamp(
@@ -1654,7 +1175,6 @@ class _GpsScreenState extends State<GpsScreen> {
                             });
                           },
                           onVerticalDragEnd: (details) {
-                            // Snap back to original position if released near it
                             if (_navigationPanelOffset.abs() < 20) {
                               setState(() {
                                 _navigationPanelOffset = 0.0;
@@ -1677,7 +1197,6 @@ class _GpsScreenState extends State<GpsScreen> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                // Add a handle bar to indicate draggability
                                 Center(
                                   child: Container(
                                     width: 40,
@@ -1689,7 +1208,6 @@ class _GpsScreenState extends State<GpsScreen> {
                                     ),
                                   ),
                                 ),
-                                // Route type indicator
                                 Row(
                                   children: [
                                     Icon(
@@ -1719,8 +1237,9 @@ class _GpsScreenState extends State<GpsScreen> {
                                 SizedBox(height: 8),
                                 if (_locationHandler.currentLocation != null)
                                   FutureBuilder<String>(
-                                    future:
-                                        _getLocationName(_routeDestination!),
+                                    future: _getLocationName(
+                                        routeController.routeDestination ??
+                                            _locationHandler.currentLocation!),
                                     builder: (context, snapshot) {
                                       return Text(
                                         snapshot.data ?? 'Calculating...',
@@ -1731,7 +1250,10 @@ class _GpsScreenState extends State<GpsScreen> {
                                 SizedBox(height: 8),
                                 if (_polylines.isNotEmpty)
                                   FutureBuilder<double>(
-                                    future: _calculateRouteDistance(),
+                                    future: Future.value(routeController
+                                        .calculateRemainingDistanceKm(
+                                            fromLocation: _locationHandler
+                                                .currentLocation)),
                                     builder: (context, snapshot) {
                                       return Text(
                                         'Distance remaining: ${snapshot.hasData ? '${snapshot.data!.toStringAsFixed(1)} km' : 'Calculating...'}',

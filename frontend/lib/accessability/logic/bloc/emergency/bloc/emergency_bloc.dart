@@ -1,7 +1,7 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'emergency_event.dart';
 import 'emergency_state.dart';
-import 'package:AccessAbility/accessability/data/repositories/emergency_repository.dart';
+import 'package:accessability/accessability/data/repositories/emergency_repository.dart';
 
 class EmergencyBloc extends Bloc<EmergencyEvent, EmergencyState> {
   final EmergencyRepository emergencyRepository;

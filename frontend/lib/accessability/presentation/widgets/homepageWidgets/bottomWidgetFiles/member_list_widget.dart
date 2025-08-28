@@ -1,11 +1,11 @@
-import 'package:AccessAbility/accessability/presentation/widgets/shimmer/shimmer_member_list.dart';
+import 'package:accessability/accessability/presentation/widgets/shimmer/shimmer_member_list.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
-import 'package:AccessAbility/accessability/firebaseServices/place/geocoding_service.dart';
+import 'package:accessability/accessability/firebaseServices/place/geocoding_service.dart';
 import 'package:provider/provider.dart';
-import 'package:AccessAbility/accessability/themes/theme_provider.dart';
+import 'package:accessability/accessability/themes/theme_provider.dart';
 
 class MemberListWidget extends StatefulWidget {
   final String activeSpaceId;

@@ -1,5 +1,5 @@
 import 'dart:io';
-import 'package:AccessAbility/accessability/presentation/widgets/errorWidget/error_display_widget.dart';
+import 'package:accessability/accessability/presentation/widgets/errorWidget/error_display_widget.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:local_auth/local_auth.dart';

@@ -7,6 +7,7 @@ on:
 
 permissions:
   contents: write
+  issues: write  # Allows semantic-release to create issues
 
 jobs:
   dependencies:
@@ -15,7 +16,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # Needed for semantic-release
+          fetch-depth: 0  # Needed for semantic-release to read all tags and commits
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -86,7 +87,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # Required for semantic-release
+          fetch-depth: 0  # Required for semantic-release to read all commits and tags
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -97,27 +98,16 @@ jobs:
       # ✅ Semantic Release
       - name: Semantic Release
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.PAT_TOKEN }}  # Use a Personal Access Token with repo & workflow permissions
         run: npx semantic-release
 
-      # ✅ Create GitHub Release (optional if semantic-release already does it)
-      - name: Create GitHub Release
-        id: create_release
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: ${{ github.ref_name }}
-          release_name: Release ${{ github.ref_name }}
-          draft: false
-          prerelease: false
-
+      # ✅ Upload APK to GitHub Release (semantic-release can already create the release, optional)
       - name: Upload APK to GitHub Release
         uses: actions/upload-release-asset@v1
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.PAT_TOKEN }}
         with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          upload_url: ${{ steps.semantic_release.outputs.upload_url || github.event.release.upload_url }}
           asset_path: frontend/build/app/outputs/flutter-apk/app-release.apk
           asset_name: app-release.apk
           asset_content_type: application/vnd.android.package-archive

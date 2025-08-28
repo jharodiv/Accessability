@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 //import 'package:speech_to_text/speech_to_text.dart' as stt;
-import 'package:accessability/accessability/firebaseServices/place/geocoding_service.dart';
+import 'package:AccessAbility/accessability/firebaseServices/place/geocoding_service.dart';
 import 'package:easy_localization/easy_localization.dart';
-import 'package:accessability/accessability/presentation/widgets/homepageWidgets/bottomWidgetFiles/searchBar/huggingface/inference.dart';
+import 'package:AccessAbility/accessability/presentation/widgets/homepageWidgets/bottomWidgetFiles/searchBar/huggingface/dory_service.dart';
 import 'package:permission_handler/permission_handler.dart';
 
-import 'package:accessability/accessability/presentation/widgets/homepageWidgets/bottomWidgetFiles/searchBar/Dory/VoiceCommandService.dart';
+import 'package:AccessAbility/accessability/presentation/widgets/homepageWidgets/bottomWidgetFiles/searchBar/Jarvis/VoiceCommandService.dart';
 
 class SearchBarWithAutocomplete extends StatefulWidget {
   final Function(String) onSearch;
@@ -58,7 +58,7 @@ class _SearchBarWithAutocompleteState extends State<SearchBarWithAutocomplete> {
     });
 
     final success = await _voiceService.initialize();
-    print('Voice service initialized: $success');
+    print('Voice service initialized: $success'); 
     setState(() {
       _isVoiceServiceInitialized = success;
     });

@@ -1,5 +1,6 @@
 import 'dart:typed_data';
-import 'package:AccessAbility/accessability/presentation/widgets/homepageWidgets/bottomWidgetFiles/searchBar/huggingface/dory_service.dart';
+import 'package:accessability/accessability/presentation/widgets/homepageWidgets/bottomWidgetFiles/searchBar/Jarvis/tts_helper.dart';
+import 'package:accessability/accessability/presentation/widgets/homepageWidgets/bottomWidgetFiles/searchBar/huggingface/dory_service.dart';
 import 'package:tflite_flutter/tflite_flutter.dart';
 import 'mfcc_service.dart';
 //import 'tts_helper.dart';
@@ -7,7 +8,7 @@ import 'mfcc_service.dart';
 class WakeWordService {
   final MFCCService _mfccService = MFCCService();
   final DoryService _doryService = DoryService();
-  //final TTSHelper _ttsHelper = TTSHelper();
+  final TTSHelper _ttsHelper = TTSHelper();
 
   Interpreter? _interpreter;
   bool _isProcessing = false;
@@ -33,7 +34,7 @@ class WakeWordService {
         print("Wake word detected!");
         await _ttsHelper.speak("Hi!");
         await Future.delayed(Duration(milliseconds: 300));
-        _doryService.startListening();
+        //_doryService.startListening();
       }
     } catch (e) {
       print("WakeWordService error: $e");

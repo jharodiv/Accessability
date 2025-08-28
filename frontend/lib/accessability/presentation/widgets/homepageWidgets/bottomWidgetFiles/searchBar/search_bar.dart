@@ -1,11 +1,8 @@
+import 'package:accessability/accessability/firebaseServices/place/geocoding_service.dart';
 import 'package:flutter/material.dart';
-//import 'package:speech_to_text/speech_to_text.dart' as stt;
-import 'package:AccessAbility/accessability/firebaseServices/place/geocoding_service.dart';
+import 'package:speech_to_text/speech_to_text.dart' as stt;
 import 'package:easy_localization/easy_localization.dart';
-import 'package:AccessAbility/accessability/presentation/widgets/homepageWidgets/bottomWidgetFiles/searchBar/huggingface/dory_service.dart';
-import 'package:permission_handler/permission_handler.dart';
-
-import 'package:AccessAbility/accessability/presentation/widgets/homepageWidgets/bottomWidgetFiles/searchBar/Jarvis/VoiceCommandService.dart';
+//import 'package:AccessAbility/accessability/presentation/widgets/homepageWidgets/bottomWidgetFiles/searchBar/huggingface/inference.dart';
 
 class SearchBarWithAutocomplete extends StatefulWidget {
   final Function(String) onSearch;
@@ -21,101 +18,25 @@ class _SearchBarWithAutocompleteState extends State<SearchBarWithAutocomplete> {
   final TextEditingController _searchController = TextEditingController();
   final OpenStreetMapGeocodingService _geocodingService =
       OpenStreetMapGeocodingService();
-  //final stt.SpeechToText _speech = stt.SpeechToText();
-  //bool _isListening = false;
+  final stt.SpeechToText _speech = stt.SpeechToText();
   List<String> _suggestions = [];
-
-  late VoiceCommandService _voiceService;
-  VoiceCommandState _voiceState = VoiceCommandState.idle();
-  bool _isVoiceServiceInitialized = false;
-
   final FocusNode _focusNode = FocusNode();
+  bool _isListening = false;
 
   @override
   void initState() {
     super.initState();
-    _initializeVoiceService();
+    _initializeSpeech();
   }
 
-  void _initializeVoiceService() async {
-    _voiceService = VoiceCommandService();
-
-    bool granted = await _voiceService.requestMicrophonePermission();
-    if (!granted) {
-      print("Microphone permission denied");
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Microphone Permission Denied")),
-      );
-      return;
-    }
-
-    _voiceService.stateStream.listen((state) {
-      print('[VoiceState] status: ${state.status}, label: ${state.label}');
-      setState(() {
-        _voiceState = state;
-      });
-      _handleVoiceCommandState(state);
-    });
-
-    final success = await _voiceService.initialize();
-    print('Voice service initialized: $success'); 
-    setState(() {
-      _isVoiceServiceInitialized = success;
-    });
-
-    if (success) {
-      await _voiceService.startListening();
+  void _initializeSpeech() async {
+    bool available = await _speech.initialize();
+    if (available) {
+      setState(() {});
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('voiceServiceNotAvailable'.tr())),
+        SnackBar(content: Text('speechNotAvailable'.tr())),
       );
-    }
-  }
-
-  void _handleVoiceCommandState(VoiceCommandState state) {
-    switch (state.status) {
-      case VoiceCommandStatus.executeNavigation:
-        if (state.label != null) {
-          _executeNavigationCommand(state.label!);
-        }
-        break;
-
-      case VoiceCommandStatus.processingCommand:
-        // Show the command being processed in search bar (optional)
-        if (state.command != null) {
-          setState(() {
-            _searchController.text = state.command!;
-          });
-        }
-        break;
-
-      case VoiceCommandStatus.commandExecuted:
-        // Clear search bar after command execution
-        Future.delayed(const Duration(seconds: 1), () {
-          _clearSearch();
-        });
-        break;
-
-      case VoiceCommandStatus.error:
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(state.message ?? 'Voice command error'),
-            backgroundColor: Colors.red,
-          ),
-        );
-        break;
-
-      case VoiceCommandStatus.lowConfidence:
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Could not understand command. Please try again.'),
-            backgroundColor: Colors.orange,
-          ),
-        );
-        break;
-
-      default:
-        break;
     }
   }
 
@@ -154,94 +75,48 @@ class _SearchBarWithAutocompleteState extends State<SearchBarWithAutocomplete> {
     });
   }
 
-  void _executeNavigationCommand(String label) {
-    // Your existing navigation logic (keep the switch statement the same)
-    switch (label.toLowerCase()) {
-      case 'open_settings':
-        Navigator.pushNamed(context, '/settings');
-        break;
-      // ... keep all your existing cases exactly the same
-      default:
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Unrecognized command: $label'),
-            backgroundColor: Colors.orange,
-          ),
+  void _startListening() async {
+    if (!_isListening) {
+      bool available = await _speech.initialize();
+      if (available) {
+        setState(() {
+          _isListening = true;
+        });
+        _speech.listen(
+          onResult: (result) {
+            setState(() {
+              _searchController.text = result.recognizedWords;
+              _onSearchChanged(result.recognizedWords);
+              //_handleVoiceCommand(result.recognizedWords);
+            });
+
+            // Speech ended
+            if (result.finalResult) {
+              setState(() {
+                _isListening = false;
+              });
+
+              // Wait a bit then clear the field
+              Future.delayed(const Duration(seconds: 1), () {
+                _clearSearch();
+              });
+            }
+          },
         );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('speechNotAvailable'.tr())),
+        );
+      }
     }
   }
 
-  void _toggleVoiceListening() async {
-    if (!_isVoiceServiceInitialized) return;
-
-    if (_isVoiceListening()) {
-      await _voiceService.stopListening();
-    } else {
-      await _voiceService.startListening();
-    }
-  }
-
-  bool _isVoiceListening() {
-    return [
-      VoiceCommandStatus.ready,
-      VoiceCommandStatus.listeningForDory,
-      VoiceCommandStatus.doryDetected,
-      VoiceCommandStatus.listeningForCommand,
-    ].contains(_voiceState.status);
-  }
-
-  Color _getVoiceMicColor(bool isDarkMode) {
-    switch (_voiceState.status) {
-      case VoiceCommandStatus.listeningForDory:
-        return Colors.orange;
-      case VoiceCommandStatus.doryDetected:
-        return Colors.green;
-      case VoiceCommandStatus.listeningForCommand:
-        return Colors.purple;
-      case VoiceCommandStatus.processingCommand:
-        return Colors.blue;
-      case VoiceCommandStatus.error:
-        return Colors.red;
-      default:
-        return isDarkMode ? Colors.grey[400]! : Colors.grey[700]!;
-    }
-  }
-
-  IconData _getVoiceMicIcon() {
-    switch (_voiceState.status) {
-      case VoiceCommandStatus.listeningForDory:
-        return Icons.hearing;
-      case VoiceCommandStatus.doryDetected:
-        return Icons.pets;
-      case VoiceCommandStatus.listeningForCommand:
-        return Icons.record_voice_over;
-      case VoiceCommandStatus.processingCommand:
-        return Icons.psychology;
-      case VoiceCommandStatus.commandExecuted:
-        return Icons.check;
-      case VoiceCommandStatus.error:
-        return Icons.error;
-      default:
-        return _isVoiceListening() ? Icons.mic : Icons.mic_none;
-    }
-  }
-
-  String _getVoiceTooltip() {
-    switch (_voiceState.status) {
-      case VoiceCommandStatus.idle:
-        return 'Start voice commands';
-      case VoiceCommandStatus.listeningForDory:
-        return 'Say "Dory" to activate';
-      case VoiceCommandStatus.doryDetected:
-        return 'Dory heard! Say your command';
-      case VoiceCommandStatus.listeningForCommand:
-        return 'Listening for command...';
-      case VoiceCommandStatus.processingCommand:
-        return 'Processing command...';
-      case VoiceCommandStatus.error:
-        return 'Voice command error';
-      default:
-        return 'Voice commands';
+  void _stopListening() {
+    if (_isListening) {
+      _speech.stop();
+      setState(() {
+        _isListening = false;
+      });
     }
   }
 
@@ -249,7 +124,7 @@ class _SearchBarWithAutocompleteState extends State<SearchBarWithAutocomplete> {
   void dispose() {
     _focusNode.dispose();
     _searchController.dispose();
-    _voiceService.dispose();
+    _speech.stop();
     super.dispose();
   }
 
@@ -294,20 +169,20 @@ class _SearchBarWithAutocompleteState extends State<SearchBarWithAutocomplete> {
                   ),
                   onPressed: _clearSearch,
                 ),
-              Tooltip(
-                message: _getVoiceTooltip(),
-                child: IconButton(
-                  icon: AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 300),
-                    child: Icon(
-                      _getVoiceMicIcon(),
-                      key: ValueKey(_voiceState.status),
-                      color: _getVoiceMicColor(isDarkMode),
-                    ),
-                  ),
-                  onPressed:
-                      _isVoiceServiceInitialized ? _toggleVoiceListening : null,
+              IconButton(
+                icon: Icon(
+                  _isListening ? Icons.mic : Icons.mic_none,
+                  color: _isListening
+                      ? Colors.red
+                      : (isDarkMode ? Colors.grey[400] : Colors.grey[700]),
                 ),
+                onPressed: () {
+                  if (_isListening) {
+                    _stopListening();
+                  } else {
+                    _startListening();
+                  }
+                },
               ),
             ],
           ),

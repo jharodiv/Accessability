@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Open App</title>
+  <style>
+    body {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      font-family: sans-serif;
+      margin: 0;
+      background-color: #f9f9f9;
+      text-align: center;
+    }
+    .download-btn {
+      display: inline-block;
+      margin-top: 20px;
+      padding: 12px 24px;
+      background: #6750A4;
+      color: white;
+      text-decoration: none;
+      border-radius: 8px;
+      font-weight: bold;
+    }
+  </style>
+  <script>
+    window.onload = function() {
+      const start = Date.now();
+
+      // Try to open the app
+      window.location = "accessability://open";
+
+      // After 1.5s, redirect to APK if app not installed
+      setTimeout(() => {
+        if (Date.now() - start >= 1500) {
+          window.location = "https://github.com/Montilla007/3Y2AAPWD/releases/download/v1.0.2/app-release.apk";
+        }
+      }, 1500);
+    };
+  </script>
+</head>
+<body>
+  <div>
+    <h1>Opening App...</h1>
+    <p>If the app does not open automatically, you can download it manually:</p>
+    <a href="https://github.com/Montilla007/3Y2AAPWD/releases/latest/download/app-release.apk" class="download-btn">
+      Download APK
+    </a>
+  </div>
+</body>
+</html>

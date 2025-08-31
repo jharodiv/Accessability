@@ -5,6 +5,7 @@ import 'package:accessability/accessability/firebaseServices/chat/chat_service.d
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 
 class VerificationCodeScreen extends StatefulWidget {
   final String spaceId;
@@ -304,6 +305,35 @@ class _VerificationCodeScreenState extends State<VerificationCodeScreen> {
                 ),
                 // "Regenerate code" removed as requested
               ],
+            ],
+          ),
+        ),
+        const SizedBox(height: 24),
+
+        // 🔹 New QR code container
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(24),
+          margin: const EdgeInsets.symmetric(vertical: 4),
+          decoration: BoxDecoration(
+            color: const Color(0xFFEDE7F6), // lighter purple for QR container
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Column(
+            children: [
+              const Text(
+                'Scan to Open App',
+                style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF2E1750)),
+              ),
+              const SizedBox(height: 16),
+              QrImageView(
+                data: "accessability://open", // your deep link
+                version: QrVersions.auto,
+                size: 200,
+              ),
             ],
           ),
         ),

@@ -330,7 +330,8 @@ class _VerificationCodeScreenState extends State<VerificationCodeScreen> {
               ),
               const SizedBox(height: 16),
               QrImageView(
-                data: "accessability://open", // your deep link
+                data:
+                    "https://3-y2-aapwd-8vze.vercel.app/?code=123456", // your deep link
                 version: QrVersions.auto,
                 size: 200,
               ),

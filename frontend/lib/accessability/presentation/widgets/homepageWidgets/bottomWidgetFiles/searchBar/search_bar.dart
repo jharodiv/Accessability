@@ -26,21 +26,21 @@ class _SearchBarWithAutocompleteState extends State<SearchBarWithAutocomplete> {
   final FocusNode _focusNode = FocusNode();
   bool _isListening = false;
 
-
   //WakeWord
   late final WakeWordService _wakeWordService;
   late final AudioService _audioService;
-
 
   @override
   void initState() {
     super.initState();
 
     _wakeWordService = WakeWordService();
-    _audioService = AudioService(wakeWordService: _wakeWordService);
+    _audioService = AudioService();
 
-    // Start recording immediately
-    _audioService.startRecording();
+    // Start recording safely after first frame
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _audioService.startRecording();
+    });
   }
 
   //  void initState() {

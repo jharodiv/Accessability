@@ -1,11 +1,8 @@
 import 'package:accessability/accessability/firebaseServices/place/geocoding_service.dart';
-import 'package:accessability/accessability/presentation/widgets/homepageWidgets/bottomWidgetFiles/searchBar/Jarvis/audio_service.dart';
-import 'package:accessability/accessability/presentation/widgets/homepageWidgets/bottomWidgetFiles/searchBar/Jarvis/wakeword_service.dart';
-import 'package:accessability/accessability/presentation/widgets/homepageWidgets/bottomWidgetFiles/searchBar/huggingface/dory_service.dart';
 import 'package:flutter/material.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 import 'package:easy_localization/easy_localization.dart';
-//import 'package:AccessAbility/accessability/presentation/widgets/homepageWidgets/bottomWidgetFiles/searchBar/huggingface/inference.dart';
+import 'huggingface/dory_service.dart';
 
 class SearchBarWithAutocomplete extends StatefulWidget {
   final Function(String) onSearch;
@@ -26,27 +23,12 @@ class _SearchBarWithAutocompleteState extends State<SearchBarWithAutocomplete> {
   final FocusNode _focusNode = FocusNode();
   bool _isListening = false;
 
-  //WakeWord
-  late final WakeWordService _wakeWordService;
-  late final AudioService _audioService;
-
   @override
   void initState() {
     super.initState();
-
-    _wakeWordService = WakeWordService();
-    _audioService = AudioService();
-
-    // Start recording safely after first frame
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _audioService.startRecording();
-    });
+    _initializeSpeech();
   }
 
-  //  void initState() {
-  //    super.initState();
-  //    _initializeSpeech();
-  //}
   void _initializeSpeech() async {
     bool available = await _speech.initialize();
     if (available) {
@@ -105,6 +87,7 @@ class _SearchBarWithAutocompleteState extends State<SearchBarWithAutocomplete> {
             setState(() {
               _searchController.text = result.recognizedWords;
               _onSearchChanged(result.recognizedWords);
+              _handleVoiceCommand(result.recognizedWords);
             });
 
             // Speech ended
@@ -126,6 +109,67 @@ class _SearchBarWithAutocompleteState extends State<SearchBarWithAutocomplete> {
         );
       }
     }
+  }
+
+  void _handleVoiceCommand(String command) async {
+    try {
+      final result = await predictCommand(command);
+      final label = result['label'];
+      final confidence = result['confidence'];
+
+      if (confidence >= 50) {
+        switch (label) {
+          case 'open_settings':
+            Navigator.pushNamed(context, '/settings');
+            break;
+
+          case 'call_sos':
+            Navigator.pushNamed(context, '/sos');
+            break;
+
+          case 'open_chat':
+            Navigator.pushNamed(context, '/inbox');
+            break;
+
+          case 'opencreate_space':
+            Navigator.pushNamed(context, '/createSpace');
+            break;
+
+          case 'find_location':
+            Navigator.pushNamed(context, '/map');
+            break;
+
+          case 'pwd_route':
+            Navigator.pushNamed(context, '/pwdRoute');
+            break;
+
+          case 'open_account':
+            Navigator.pushNamed(context, '/account');
+            break;
+
+          case 'set_checkin':
+            Navigator.pushNamed(context, '/checkin');
+            break;
+
+          case 'open_safety_contact':
+            Navigator.pushNamed(context, '/safetyContact');
+            break;
+
+          case 'open_favorites':
+            Navigator.pushNamed(context, '/favorites');
+            break;
+
+          default:
+            print('Unrecognized label: $label');
+        }
+      } else {
+        print('Low confidence ($confidence%). Command not executed.');
+      }
+    } catch (e) {
+      print("Error $e");
+    }
+
+    _searchController.clear();
   }
 
   void _stopListening() {
@@ -238,66 +282,5 @@ class _SearchBarWithAutocompleteState extends State<SearchBarWithAutocomplete> {
           ),
       ],
     );
-  }
-
-  void _handleVoiceCommand(String command) async {
-    try {
-      final result = await DoryService.predictCommand(command);
-      final label = result['label'];
-      final confidence = result['confidence'];
-
-      if (confidence >= 50) {
-        switch (label) {
-          case 'open_settings':
-            Navigator.pushNamed(context, '/settings');
-            break;
-
-          case 'call_sos':
-            Navigator.pushNamed(context, '/sos');
-            break;
-
-          case 'open_chat':
-            Navigator.pushNamed(context, '/inbox');
-            break;
-
-          case 'opencreate_space':
-            Navigator.pushNamed(context, '/createSpace');
-            break;
-
-          case 'find_location':
-            Navigator.pushNamed(context, '/map');
-            break;
-
-          case 'pwd_route':
-            Navigator.pushNamed(context, '/pwdRoute');
-            break;
-
-          case 'open_account':
-            Navigator.pushNamed(context, '/account');
-            break;
-
-          case 'set_checkin':
-            Navigator.pushNamed(context, '/checkin');
-            break;
-
-          case 'open_safety_contact':
-            Navigator.pushNamed(context, '/safetyContact');
-            break;
-
-          case 'open_favorites':
-            Navigator.pushNamed(context, '/favorites');
-            break;
-
-          default:
-            print('Unrecognized label: $label');
-        }
-      } else {
-        print('Low confidence ($confidence%). Command not executed.');
-      }
-    } catch (e) {
-      print("Error $e");
-    }
-
-    _searchController.clear();
   }
 }

@@ -14,6 +14,10 @@ class Topwidgets extends StatefulWidget {
   final VoidCallback onMySpaceSelected;
   final Function(String) onSpaceIdChanged;
 
+  // NEW: accept active space id and name from parent
+  final String activeSpaceId;
+  final String activeSpaceName;
+
   const Topwidgets({
     super.key,
     required this.onOverlayChange,
@@ -23,6 +27,8 @@ class Topwidgets extends StatefulWidget {
     required this.onSpaceSelected,
     required this.onMySpaceSelected,
     required this.onSpaceIdChanged,
+    required this.activeSpaceId,
+    required this.activeSpaceName,
   });
 
   @override
@@ -33,6 +39,35 @@ class TopwidgetsState extends State<Topwidgets> {
   String _activeSpaceName = "mySpace".tr();
   String? _selectedCategory;
   String _activeSpaceId = ''; // track the ID, too
+
+  @override
+  void initState() {
+    super.initState();
+    // initialize from parent-provided values
+    _activeSpaceId = widget.activeSpaceId;
+    _activeSpaceName = (widget.activeSpaceName.isNotEmpty)
+        ? widget.activeSpaceName
+        : "mySpace".tr();
+    debugPrint('[Topwidgets] init: id=$_activeSpaceId name=$_activeSpaceName');
+  }
+
+  @override
+  void didUpdateWidget(covariant Topwidgets oldWidget) {
+    super.didUpdateWidget(oldWidget);
+
+    // If parent changed selected space, sync internal state so UI updates immediately
+    if (oldWidget.activeSpaceId != widget.activeSpaceId ||
+        oldWidget.activeSpaceName != widget.activeSpaceName) {
+      setState(() {
+        _activeSpaceId = widget.activeSpaceId;
+        _activeSpaceName = widget.activeSpaceName.isNotEmpty
+            ? widget.activeSpaceName
+            : "mySpace".tr();
+      });
+      debugPrint(
+          '[Topwidgets] didUpdateWidget -> id=$_activeSpaceId name=$_activeSpaceName');
+    }
+  }
 
   void _handleCategorySelection(String cat) {
     final map = {
@@ -80,6 +115,7 @@ class TopwidgetsState extends State<Topwidgets> {
                 width: MediaQuery.of(ctx).size.width,
                 height: MediaQuery.of(ctx).size.height * 0.6,
                 child: SpaceSelectionSheet(
+                  // Use the parent's active values as the initial ones
                   initialId: _activeSpaceId,
                   initialName: _activeSpaceName,
                   onPick: (id, name) {
@@ -97,12 +133,14 @@ class TopwidgetsState extends State<Topwidgets> {
 
     if (result != null) {
       setState(() {
-        _activeSpaceName = result['name']!;
-        _activeSpaceId = result['id']!;
+        _activeSpaceName = result['name'] ?? "mySpace".tr();
+        _activeSpaceId = result['id'] ?? '';
       });
+
+      // notify parent (existing callbacks)
       widget.onSpaceSelected(result['id']!);
       widget.onSpaceIdChanged(result['id']!);
-      if (result['id']!.isEmpty) widget.onMySpaceSelected();
+      if ((result['id'] ?? '').isEmpty) widget.onMySpaceSelected();
     }
   }
 
@@ -142,7 +180,7 @@ class TopwidgetsState extends State<Topwidgets> {
                     ),
                   ),
 
-                  // Fixed-width "My Space" pill
+                  // Fixed-width "My Space" pill (now shows parent's value)
                   GestureDetector(
                     onTap: () => _openSpaceDialog(context),
                     child: Container(

@@ -104,6 +104,7 @@ class _GpsScreenState extends State<GpsScreen> {
   Set<Polygon> _fovPolygons = {};
   MapType _currentMapType = MapType.normal;
   MapPerspective? _pendingPerspective;
+  String _activeSpaceName = '';
 
   // Polylines / route visuals (driven by RouteController callbacks)
   Set<Polyline> _polylines = {};
@@ -223,6 +224,64 @@ class _GpsScreenState extends State<GpsScreen> {
 
     // load PWD locations and markers (keeps behavior identical)
     _getPwdLocationsAndCreateMarkers();
+
+    _restoreOrAutoSelectSpace();
+  }
+
+  Future<void> _restoreOrAutoSelectSpace() async {
+    if (_autoSelectAttempted) return;
+
+    try {
+      debugPrint('[GpsScreen] restoreOrAutoSelectSpace start');
+
+      // 1) Try to restore from prefs first (and fetch the space name)
+      final saved = await _loadSavedActiveSpaceFromPrefs();
+      if (saved != null && saved.isNotEmpty) {
+        // try to fetch the space doc to get its name
+        String restoredName = '';
+        try {
+          final doc = await _firestore.collection('Spaces').doc(saved).get();
+          if (doc.exists) {
+            restoredName =
+                (doc.data() as Map<String, dynamic>)['name']?.toString() ?? '';
+          }
+        } catch (e) {
+          debugPrint('[GpsScreen] failed to fetch restored space name: $e');
+        }
+
+        if (!mounted) return;
+        setState(() {
+          _activeSpaceId = saved;
+          _activeSpaceName = restoredName;
+          _isLoading = false;
+        });
+        try {
+          _locationHandler.updateActiveSpaceId(saved);
+        } catch (e) {
+          debugPrint('[GpsScreen] updateActiveSpaceId failed: $e');
+        }
+
+        debugPrint(
+            '[GpsScreen] restored saved active space id=$saved name=$_activeSpaceName');
+        _autoSelectAttempted = true; // done
+        return;
+      }
+
+      // 2) If no saved pref, only proceed to Firestore auto-select when user is available
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) {
+        debugPrint('[GpsScreen] no current user yet; will retry later');
+        return; // don't mark attempted so we can try again when user loads
+      }
+
+      // fallback: auto-select first space from Firestore (this function will set id+name too)
+      await _autoSelectFirstSpace();
+
+      _autoSelectAttempted = true;
+    } catch (e, st) {
+      debugPrint('[GpsScreen] restoreOrAutoSelectSpace error: $e\n$st');
+      _autoSelectAttempted = true;
+    }
   }
 
   // --- Helper: small place-type color mapping (kept local for quick tweak) ---
@@ -910,6 +969,7 @@ class _GpsScreenState extends State<GpsScreen> {
         if (!mounted) return;
         setState(() {
           _activeSpaceId = id;
+          _activeSpaceName = name; // <- set name
           _isLoading = false;
         });
         // Make the LocationHandler aware of the new active space:
@@ -1046,6 +1106,11 @@ class _GpsScreenState extends State<GpsScreen> {
               ),
             );
           } else if (userState is user_state.UserLoaded) {
+            if (!_autoSelectAttempted) {
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                _restoreOrAutoSelectSpace();
+              });
+            }
             return WillPopScope(
               onWillPop: () => _locationHandler.onWillPop(context),
               child: Scaffold(
@@ -1365,6 +1430,9 @@ class _GpsScreenState extends State<GpsScreen> {
                       key: _topWidgetsKey,
                       inboxKey: inboxKey,
                       settingsKey: settingsKey,
+                      activeSpaceId: _activeSpaceId,
+                      activeSpaceName: _activeSpaceName,
+
                       onCategorySelected: (selectedType) {
                         _fetchNearbyPlaces(selectedType);
                       },

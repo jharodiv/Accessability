@@ -19,12 +19,15 @@ import 'package:shimmer/shimmer.dart';
 class SpaceSelectionSheet extends StatefulWidget {
   final void Function(String id, String name) onPick;
   final String initialId;
+  final bool autoPickOnLoad; // new flag
+
   final String initialName;
   const SpaceSelectionSheet({
     super.key,
     required this.initialId,
     required this.initialName,
     required this.onPick,
+    this.autoPickOnLoad = false,
   });
 
   @override
@@ -50,8 +53,8 @@ class _SpaceSelectionSheetState extends State<SpaceSelectionSheet> {
   @override
   void initState() {
     super.initState();
-    _activeId = widget.initialId;
-    _activeName = widget.initialName;
+    _activeId = widget.initialId.isNotEmpty ? widget.initialId : '';
+    _activeName = widget.initialId.isNotEmpty ? widget.initialName : '';
     _listenToSpaces();
   }
 
@@ -127,38 +130,32 @@ class _SpaceSelectionSheetState extends State<SpaceSelectionSheet> {
             final hasActive = _activeId.isNotEmpty &&
                 _spaces.any((s) => s['id'] == _activeId);
             if (!hasActive) {
-              // auto-select first space
+              // auto-select the first available space
               _activeId = _spaces[0]['id'] as String;
               _activeName = _spaces[0]['name'] as String;
             }
           } else {
-            // no spaces: keep placeholder
+            // no spaces: clear active
             _activeId = '';
-            _activeName = 'mySpace'.tr();
-            // allow auto-select again later when spaces appear
+            _activeName = '';
             _didAutoSelect = false;
           }
         });
 
-        // Notify parent exactly once per auto-selection (do this outside setState)
+        // Notify parent exactly once per auto-selection
         if (_spaces.isNotEmpty && !_didAutoSelect) {
-          final selectedId = _activeId;
-          final selectedName = _activeName;
           _didAutoSelect = true;
-
-          // run after frame to avoid calling callbacks mid-build
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            try {
-              widget.onPick(selectedId, selectedName);
-            } catch (e) {
-              // ignore callback errors, but you can log if you want
-              debugPrint('onPick callback failed: $e');
-            }
-
-            // OPTIONAL: auto-close the sheet and return result to caller
-            // Uncomment the next line if you want the sheet to close automatically when auto-select happens:
-            // Navigator.of(context).pop({'id': selectedId, 'name': selectedName});
-          });
+          if (widget.autoPickOnLoad) {
+            final selectedId = _activeId;
+            final selectedName = _activeName;
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              try {
+                widget.onPick(selectedId, selectedName);
+              } catch (e) {
+                debugPrint('onPick callback failed: $e');
+              }
+            });
+          }
         }
       } catch (e) {
         if (mounted) setState(() => _isLoading = false);
@@ -259,7 +256,19 @@ class _SpaceSelectionSheetState extends State<SpaceSelectionSheet> {
     final isDark =
         Provider.of<ThemeProvider>(context, listen: false).isDarkMode;
     final pill = GestureDetector(
-      onTap: () => widget.onPick(_activeId, _activeName),
+      onTap: () {
+        // Previously we immediately informed the parent via onPick which caused the sheet to close.
+        // Now just open the create flow when no space, else do nothing (keeps the sheet open).
+        if (_activeId.isEmpty) {
+          Navigator.pushNamed(context, '/createSpace').then((success) {
+            if (success == true) _listenToSpaces();
+          });
+        } else {
+          // do nothing so the sheet stays open, or optionally scroll the list to selected item
+          // you could also animate focus to the selected tile here if you want:
+          // _scrollToSelected();
+        }
+      },
       child: Container(
         width: 175,
         height: 36,
@@ -277,9 +286,14 @@ class _SpaceSelectionSheetState extends State<SpaceSelectionSheet> {
           children: [
             Expanded(
               child: Text(
-                _activeName.length > 12
-                    ? '${_activeName.substring(0, 12)}…'
-                    : _activeName,
+                // show a clearer fallback while loading or when empty
+                _isLoading
+                    ? 'loading'.tr()
+                    : (_activeName.isNotEmpty
+                        ? (_activeName.length > 12
+                            ? '${_activeName.substring(0, 12)}…'
+                            : _activeName)
+                        : 'selectSpace'.tr()),
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
                     fontWeight: FontWeight.bold,

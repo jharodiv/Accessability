@@ -135,15 +135,22 @@ class _LocationWidgetsState extends State<LocationWidgets> {
   Future<void> _initializeLocation() async {
     try {
       await widget.locationHandler.getUserLocation();
-      // get the human readable address for current location (if available)
+// if the widget was removed while awaiting, bail out
+      if (!mounted) return;
+
+// get address
       if (widget.locationHandler.currentLocation != null) {
         final addr = await _getAddressFromLatLng(
             widget.locationHandler.currentLocation!);
+        if (!mounted) return;
         setState(() {
           _yourAddress = addr;
         });
       }
-      setState(() {}); // Trigger a rebuild after location + address is fetched
+
+// final rebuild
+      if (!mounted) return;
+      setState(() {});
     } catch (e) {
       print("Error fetching user location: $e");
     }
@@ -256,32 +263,33 @@ class _LocationWidgetsState extends State<LocationWidgets> {
           .doc(currentUid)
           .snapshots()
           .listen((snap) async {
+        if (!mounted) return; // early guard for safety
         final data = snap.data();
-        if (data != null) {
-          final lat = data['latitude'];
-          final lng = data['longitude'];
+        if (data == null) return;
 
-          // convert timestamp safely
-          DateTime? ts;
-          final rawTs = data['timestamp'];
-          if (rawTs is Timestamp)
-            ts = rawTs.toDate();
-          else if (rawTs is int)
-            ts = DateTime.fromMillisecondsSinceEpoch(rawTs);
+        final lat = data['latitude'];
+        final lng = data['longitude'];
 
-          // fetch readable address (optional but consistent with members)
-          String addr;
-          try {
-            addr = await _getAddressFromLatLng(LatLng(lat, lng));
-          } catch (_) {
-            addr = 'Unavailable';
-          }
-
-          setState(() {
-            _yourAddress = addr;
-            _yourLastUpdate = ts;
-          });
+        DateTime? ts;
+        final rawTs = data['timestamp'];
+        if (rawTs is Timestamp) {
+          ts = rawTs.toDate();
+        } else if (rawTs is int) {
+          ts = DateTime.fromMillisecondsSinceEpoch(rawTs);
         }
+
+        String addr;
+        try {
+          addr = await _getAddressFromLatLng(LatLng(lat, lng));
+        } catch (_) {
+          addr = 'Unavailable';
+        }
+
+        if (!mounted) return;
+        setState(() {
+          _yourAddress = addr;
+          _yourLastUpdate = ts;
+        });
       });
 
       // add to _locationListeners so it's canceled along with others if needed

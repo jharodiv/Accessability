@@ -198,5 +198,9 @@
   "message": "Mensayi",
   "cannot_launch_phone": "Di mabukat so dialer na telepono.",
   "cannot_launch_sms": "Di mabukat so SMS app.",
-  "emergency_contacts": "Say Emergency a Kontak"
+  "emergency_contacts": "Say Emergency a Kontak",
+  "noMembersInSpace": "Awan so miyembro ed espasio mo.",
+  "noSpaceChatsOrMembers": "Awan so space chats, o awan so miyembro ed espasio mo.",
+  "pullToRefreshOrInvite": "Ihila para manibago so listaan o mangimbita ed tao",
+  "sendLocation": "Ibaki so Lugar"
 }

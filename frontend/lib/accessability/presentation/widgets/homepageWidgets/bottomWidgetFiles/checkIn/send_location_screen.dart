@@ -1,6 +1,7 @@
 import 'package:accessability/accessability/firebaseServices/auth/auth_service.dart';
 import 'package:accessability/accessability/presentation/screens/gpsscreen/location_handler.dart';
 import 'package:accessability/accessability/themes/theme_provider.dart';
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -25,6 +26,9 @@ class SendLocationScreen extends StatefulWidget {
 }
 
 class _SendLocationScreenState extends State<SendLocationScreen> {
+  // Purple used for the send icon and loading indicator
+  static const Color _purple = Color(0xFF6750A4);
+
   final ChatService _chatService = ChatService();
   final AuthService _authService = AuthService();
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -43,22 +47,54 @@ class _SendLocationScreenState extends State<SendLocationScreen> {
   @override
   Widget build(BuildContext context) {
     final bool isDarkMode = Provider.of<ThemeProvider>(context).isDarkMode;
-
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Send Location'),
-        actions: [
-          IconButton(
-            onPressed: _isSending
-                ? null
-                : _sendLocation, // Disable button when sending
-            icon: _isSending
-                ? const CircularProgressIndicator(
-                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                  )
-                : const Icon(Icons.send),
+      appBar: PreferredSize(
+        preferredSize: const Size.fromHeight(65),
+        child: Container(
+          decoration: BoxDecoration(
+            color: isDarkMode ? Colors.grey[900] : Colors.white,
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.1),
+                offset: const Offset(0, 1),
+                blurRadius: 2,
+              ),
+            ],
           ),
-        ],
+          child: AppBar(
+            elevation: 0,
+            leading: IconButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              icon: const Icon(Icons.arrow_back),
+              color: const Color(0xFF6750A4),
+            ),
+            title: Text(
+              'sendLocation'.tr(),
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
+            centerTitle: true,
+            backgroundColor: Colors.transparent,
+            actions: [
+              IconButton(
+                onPressed: _isSending ? null : _sendLocation,
+                // Disable button when sending
+                icon: _isSending
+                    ? const SizedBox(
+                        width: 24,
+                        height: 24,
+                        child: CircularProgressIndicator(
+                          // Use purple loading color
+                          valueColor: AlwaysStoppedAnimation<Color>(_purple),
+                          strokeWidth: 2.5,
+                        ),
+                      )
+                    : const Icon(Icons.send, color: _purple),
+              ),
+            ],
+          ),
+        ),
       ),
       body: Column(
         children: [
@@ -109,9 +145,14 @@ class _SendLocationScreenState extends State<SendLocationScreen> {
       ]),
       builder: (context, snapshot) {
         if (snapshot.hasError) {
-          return const Center(child: Text('Error loading chats.'));
+          final String message = widget.isSpaceChat
+              ? 'noMembersInSpace'.tr()
+              : 'noSpaceChatsOrMembers'.tr();
+          return _buildEmptyState(
+            message,
+            icon: Icons.group_off, // a more fitting icon for error/no members
+          );
         }
-
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
         }
@@ -123,15 +164,12 @@ class _SendLocationScreenState extends State<SendLocationScreen> {
 
         // Combine the lists and remove duplicates
         final Map<String, Map<String, dynamic>> uniqueUsers = {};
-
         for (var user in usersInSameSpaces) {
           uniqueUsers[user['uid']] = user;
         }
-
         for (var user in usersWithAcceptedRequests) {
           uniqueUsers[user['uid']] = user;
         }
-
         for (var space in spaceChatRooms) {
           uniqueUsers[space['id']] = {
             'uid': space['id'],
@@ -141,8 +179,13 @@ class _SendLocationScreenState extends State<SendLocationScreen> {
         }
 
         if (uniqueUsers.isEmpty) {
-          return const Center(
-            child: Text('No chats available.'),
+          final String message = widget.isSpaceChat
+              ? 'There are no members in your space yet.'
+              : 'There are no space chats yet, or there are no members in your space yet.';
+          return _buildEmptyState(
+            message,
+            icon: Icons.people_outline,
+            // Or use an image: assetPath: 'assets/images/no_chats.png',
           );
         }
 
@@ -193,11 +236,64 @@ class _SendLocationScreenState extends State<SendLocationScreen> {
     );
   }
 
+  Widget _buildEmptyState(String message, {IconData? icon, String? assetPath}) {
+    final bool isDarkMode = Provider.of<ThemeProvider>(context).isDarkMode;
+    final textColor = isDarkMode ? Colors.white70 : Colors.black54;
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 24.0),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // show an asset image if provided, otherwise show an icon
+            if (assetPath != null) ...[
+              // If using an asset, make sure to add it to pubspec.yaml
+              Image.asset(
+                assetPath,
+                width: 120,
+                height: 120,
+                fit: BoxFit.contain,
+              ),
+              const SizedBox(height: 16),
+            ] else ...[
+              // Special-case Icons.group_off: keep icon at 48 but reduce top padding
+              Container(
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: isDarkMode ? Colors.white10 : Colors.grey.shade100,
+                ),
+                // If the icon is group_off, reduce the top padding to remove the visual gap
+                padding: icon == Icons.group_off
+                    ? const EdgeInsets.fromLTRB(8, 4, 8, 8)
+                    : const EdgeInsets.all(8),
+                child: Icon(
+                  icon ?? Icons.chat_bubble_outline,
+                  // Keep the group_off icon at 48 as you requested; others stay slightly smaller
+                  size: icon == Icons.group_off ? 48 : 40,
+                  color: isDarkMode ? Colors.white70 : Colors.black54,
+                ),
+              ),
+              const SizedBox(height: 16),
+            ],
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 16,
+                color: textColor,
+              ),
+            ),
+            const SizedBox(height: 12),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildChatListItem(Map<String, dynamic> userData) {
     final bool isSpaceChat = userData['isSpaceChat'] == true;
     final String chatId = userData['uid'];
     final String username = userData['username'];
-
     return CheckboxListTile(
       title: Text(username),
       value: _selectedChats.contains(chatId),
@@ -220,11 +316,9 @@ class _SendLocationScreenState extends State<SendLocationScreen> {
       );
       return;
     }
-
     setState(() {
       _isSending = true; // Start loading animation
     });
-
     try {
       final String currentUserID = _auth.currentUser!.uid;
       final String currentUserEmail = _auth.currentUser!.email!;
@@ -244,7 +338,6 @@ class _SendLocationScreenState extends State<SendLocationScreen> {
         final spaceChatDoc =
             await _firestore.collection('space_chat_rooms').doc(chatId).get();
         final isSpaceChat = spaceChatDoc.exists;
-
         await _chatService.sendMessage(
           chatId,
           locationMessage,
@@ -255,7 +348,6 @@ class _SendLocationScreenState extends State<SendLocationScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Location sent successfully!')),
       );
-
       Navigator.pop(context); // Close the screen after sending
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(

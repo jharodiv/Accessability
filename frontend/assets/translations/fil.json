@@ -198,5 +198,9 @@
   "message": "Mensahe",
   "cannot_launch_phone": "Hindi mabuksan ang tagapag-dial ng telepono.",
   "cannot_launch_sms": "Hindi mabuksan ang SMS app.",
-  "emergency_contacts": "Mga Contact sa Emergency"
+  "emergency_contacts": "Mga Contact sa Emergency",
+  "noMembersInSpace": "Wala pang miyembro sa iyong space.",
+  "noSpaceChatsOrMembers": "Wala pang mga space chat, o wala pang miyembro sa iyong space.",
+  "pullToRefreshOrInvite": "Hilahin para i-refresh o mag-imbita ng mga tao",
+  "sendLocation": "Ipadala ang Lokasyon"
 }

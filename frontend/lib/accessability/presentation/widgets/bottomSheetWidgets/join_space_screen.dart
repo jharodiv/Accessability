@@ -47,13 +47,6 @@ class _JoinSpaceScreenState extends State<JoinSpaceScreen> {
         for (int i = 0; i < _controllers.length; i++) {
           _controllers[i].text = _inviteCodeFromLink![i];
         }
-
-        // Delay auto-submit (so UI paints first)
-        Future.delayed(const Duration(seconds: 2), () {
-          if (mounted && !_isLoading && !_navigationCompleted) {
-            _joinSpace();
-          }
-        });
       }
     }
   }

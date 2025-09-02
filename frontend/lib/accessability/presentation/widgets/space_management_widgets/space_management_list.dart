@@ -1,19 +1,25 @@
+import 'package:accessability/accessability/presentation/widgets/homepageWidgets/bottomWidgetFiles/verification_code_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:easy_localization/easy_localization.dart';
 
 class SpaceManagementList extends StatelessWidget {
   const SpaceManagementList({
     Key? key,
+    this.spaceId,
+    this.spaceName,
     this.onViewAdmin,
     this.onAddPeople,
     this.onLeave,
+    this.onEditName,
   }) : super(key: key);
 
+  final String? spaceId;
+  final String? spaceName;
   final VoidCallback? onViewAdmin;
   final VoidCallback? onAddPeople;
   final VoidCallback? onLeave;
+  final void Function(String newName)? onEditName;
 
-  // Primary purple used in your app (screenshot).
   static const Color _purple = Color(0xFF6750A4);
 
   @override
@@ -21,7 +27,6 @@ class SpaceManagementList extends StatelessWidget {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
-    // Header uses a lighter purple like in your screenshot.
     final headerStyle = (theme.textTheme.titleMedium ??
             const TextStyle(fontSize: 16.0, fontWeight: FontWeight.w600))
         .copyWith(
@@ -29,63 +34,233 @@ class SpaceManagementList extends StatelessWidget {
       color: _purple.withOpacity(isDark ? 0.8 : 0.45),
     );
 
-    // Row title style should be bold purple (matches screenshot).
+    final sectionHeaderStyle = theme.textTheme.titleMedium?.copyWith(
+      fontWeight: FontWeight.w600,
+      color: Colors.grey[500],
+    );
+
     final rowTitleStyle = const TextStyle(
       fontWeight: FontWeight.w700,
       fontSize: 16.0,
       color: _purple,
     );
 
-    // Divider color tuned for light/dark modes.
+    final rowValueStyle = TextStyle(
+      fontWeight: FontWeight.w400,
+      fontSize: 14.0,
+      color: Colors.grey[600],
+    );
+
     final dividerColor = isDark ? Colors.grey[800] : Colors.grey[200];
 
     return Container(
-      color: isDark ? Colors.grey[900] : Colors.white,
+      // light-mode: soft gray like the screenshot; dark-mode keeps scaffold bg
+      color: isDark ? theme.scaffoldBackgroundColor : Colors.grey[50],
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Section header: always "Circle Management" (ignores any space name).
-          Container(
-            width: double.infinity,
-            padding:
-                const EdgeInsets.symmetric(horizontal: 16.0, vertical: 18.0),
-            color: isDark ? Colors.grey[850] : Colors.grey[50],
-            child: Text(
-              'Circle Management'.tr(),
-              style: headerStyle,
+          // Top info card (icon group + space name + description)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+            child: Card(
+              elevation: 4,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 16.0, vertical: 18.0),
+                child: Row(
+                  children: [
+                    // icon cluster (stacked avatars)
+                    SizedBox(
+                      width: 64,
+                      height: 48,
+                      child: Stack(
+                        clipBehavior: Clip.none,
+                        children: [
+                          Positioned(
+                            left: 28,
+                            child: CircleAvatar(
+                              radius: 16,
+                              backgroundColor: Colors.yellow[700],
+                              child: Icon(Icons.person,
+                                  size: 16, color: Colors.white),
+                            ),
+                          ),
+                          Positioned(
+                            left: 14,
+                            child: CircleAvatar(
+                              radius: 16,
+                              backgroundColor: Colors.pink[300],
+                              child: Icon(Icons.person,
+                                  size: 16, color: Colors.white),
+                            ),
+                          ),
+                          CircleAvatar(
+                            radius: 16,
+                            backgroundColor: _purple,
+                            child: Icon(Icons.person,
+                                size: 16, color: Colors.white),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    const SizedBox(width: 14),
+                    // Title + description
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            spaceName?.isNotEmpty == true
+                                ? spaceName!
+                                : 'Space management'.tr(),
+                            style: theme.textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.w700,
+                              fontSize: 16,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            'Changes you make here apply only to the current selected Space.'
+                                .tr(),
+                            style: theme.textTheme.bodySmall,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ),
           ),
 
+          // Section header: Space details
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+            child: Text('Space details'.tr(), style: sectionHeaderStyle),
+          ),
           Divider(height: 1, thickness: 1, color: dividerColor),
 
-          // List of actionable rows. (My Role and Bubbles intentionally omitted.)
+          // List area
           Expanded(
             child: ListView(
+              padding: EdgeInsets.zero,
               children: [
+                // Edit Space Name (in details section) — white tile with chevron
                 _buildTile(
                   context,
-                  title: 'View Admin Status'.tr(),
+                  title: 'Edit Space Name'.tr(),
+                  titleStyle: rowTitleStyle,
+                  onTap: () {
+                    final controller =
+                        TextEditingController(text: spaceName ?? '');
+                    showDialog(
+                      context: context,
+                      builder: (ctx) => AlertDialog(
+                        title: Text('Edit Space Name'.tr()),
+                        content: TextField(
+                          controller: controller,
+                          decoration: InputDecoration(
+                              hintText: 'Enter space name'.tr()),
+                          autofocus: true,
+                        ),
+                        actions: [
+                          TextButton(
+                              onPressed: () => Navigator.of(ctx).pop(),
+                              child: Text('Cancel'.tr())),
+                          TextButton(
+                            onPressed: () {
+                              final newName = controller.text.trim();
+                              Navigator.of(ctx).pop();
+
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                    content: Text('Space name updated'.tr())),
+                              );
+
+                              if (onEditName != null && newName.isNotEmpty) {
+                                onEditName!(newName);
+                              }
+                            },
+                            child: Text('Save'.tr()),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+                Divider(height: 1, thickness: 1, color: dividerColor),
+
+                // Section header: Space Management
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+                  child:
+                      Text('Space Management'.tr(), style: sectionHeaderStyle),
+                ),
+                Divider(height: 1, thickness: 1, color: dividerColor),
+
+                // My Role (set to Admin)
+                _buildTile(
+                  context,
+                  title: 'My Role'.tr(),
+                  titleStyle: rowTitleStyle,
+                  trailingWidget: Padding(
+                    padding: const EdgeInsets.only(right: 8.0),
+                    child: Text('Admin', style: rowValueStyle),
+                  ),
+                ),
+                Divider(height: 1, thickness: 1, color: dividerColor),
+
+                // Change Admin Status
+                _buildTile(
+                  context,
+                  title: 'Change Admin Status'.tr(),
                   titleStyle: rowTitleStyle,
                   onTap: onViewAdmin,
-                  showTrailingChevron: false,
                 ),
                 Divider(height: 1, thickness: 1, color: dividerColor),
+
+                // Add people to Space
                 _buildTile(
                   context,
-                  title: 'Add people to Circle'.tr(),
+                  title: 'Add people to Space'.tr(),
                   titleStyle: rowTitleStyle,
-                  onTap: onAddPeople,
-                  showTrailingChevron: false,
+                  onTap: () {
+                    if (onAddPeople != null) {
+                      onAddPeople!();
+                      return;
+                    }
+                    final sid = (spaceId ?? '').trim();
+                    if (sid.isEmpty) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('No space selected'.tr())),
+                      );
+                      return;
+                    }
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => VerificationCodeScreen(
+                            spaceId: sid, spaceName: spaceName),
+                      ),
+                    );
+                  },
                 ),
                 Divider(height: 1, thickness: 1, color: dividerColor),
+
+                // Leave Space
                 _buildTile(
                   context,
-                  title: 'Leave Circle'.tr(),
+                  title: 'Leave Space'.tr(),
                   titleStyle: rowTitleStyle,
                   onTap: onLeave,
-                  trailingWidget: const SizedBox.shrink(),
                 ),
                 Divider(height: 1, thickness: 1, color: dividerColor),
+
                 const SizedBox(height: 24),
               ],
             ),
@@ -100,32 +275,27 @@ class SpaceManagementList extends StatelessWidget {
     required String title,
     VoidCallback? onTap,
     TextStyle? titleStyle,
-    bool showTrailingChevron = true,
+    double verticalPadding = 18.0,
     Widget? trailingWidget,
   }) {
     final effectiveTitleStyle = titleStyle ??
         const TextStyle(
-          fontWeight: FontWeight.w700,
-          fontSize: 16.0,
-          color: _purple,
-        );
+            fontWeight: FontWeight.w700, fontSize: 16.0, color: _purple);
 
+    // White tile background to match screenshot
     return Material(
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 20.0),
+          color: Colors.white,
+          padding:
+              EdgeInsets.symmetric(horizontal: 16.0, vertical: verticalPadding),
           child: Row(
             children: [
-              Expanded(
-                child: Text(
-                  title,
-                  style: effectiveTitleStyle,
-                ),
-              ),
+              Expanded(child: Text(title, style: effectiveTitleStyle)),
               if (trailingWidget != null) trailingWidget,
-              if (trailingWidget == null && showTrailingChevron)
+              if (trailingWidget == null && onTap != null)
                 Icon(Icons.chevron_right, color: Colors.grey.shade400),
             ],
           ),

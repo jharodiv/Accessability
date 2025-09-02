@@ -1,3 +1,4 @@
+import 'package:accessability/accessability/backgroundServices/deep_link_service.dart';
 import 'package:accessability/accessability/data/repositories/emergency_repository.dart';
 import 'package:accessability/accessability/data/repositories/place_repository.dart';
 import 'package:accessability/accessability/firebaseServices/emergency/emergency_service.dart';
@@ -60,6 +61,9 @@ Future<void> main() async {
   // Initialize FCMService.
   final FCMService fcmService = FCMService(navigatorKey: navigatorKey);
   fcmService.initializeFCMListeners();
+
+  // Initialize DeepLinkService.
+  await DeepLinkService().initialize(navigatorKey);
 
   final AuthService authService = AuthService();
   final PlaceService placeService = PlaceService();

@@ -23,6 +23,7 @@ class _JoinSpaceScreenState extends State<JoinSpaceScreen> {
   bool _isLoading = false;
   bool _isDisposed = false;
   bool _navigationCompleted = false;
+  String? _inviteCodeFromLink;
 
   @override
   void initState() {
@@ -30,6 +31,24 @@ class _JoinSpaceScreenState extends State<JoinSpaceScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!_isDisposed) FocusScope.of(context).requestFocus(_focusNodes[0]);
     });
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+
+    // Grab inviteCode from deep link (if available)
+    final args = ModalRoute.of(context)?.settings.arguments as Map?;
+    if (args != null && args['inviteCode'] != null) {
+      _inviteCodeFromLink = args['inviteCode'] as String?;
+      if (_inviteCodeFromLink != null &&
+          _inviteCodeFromLink!.length == _controllers.length) {
+        // Autofill the 6 boxes
+        for (int i = 0; i < _controllers.length; i++) {
+          _controllers[i].text = _inviteCodeFromLink![i];
+        }
+      }
+    }
   }
 
   @override

@@ -62,7 +62,7 @@ Future<void> main() async {
   final FCMService fcmService = FCMService(navigatorKey: navigatorKey);
   fcmService.initializeFCMListeners();
 
-  // Initialize DeepLinkService.
+  // Initialize DeepLinkService (handles cold + warm starts)
   await DeepLinkService().initialize(navigatorKey);
 
   final AuthService authService = AuthService();

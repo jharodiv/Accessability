@@ -2,6 +2,7 @@
 import 'dart:async';
 import 'dart:convert'; // For JSON decoding.
 import 'dart:math';
+import 'package:accessability/accessability/backgroundServices/deep_link_service.dart';
 import 'package:accessability/accessability/data/model/place.dart';
 import 'package:accessability/accessability/firebaseServices/place/geocoding_service.dart';
 import 'package:accessability/accessability/logic/bloc/place/bloc/place_event.dart'
@@ -218,6 +219,12 @@ class _GpsScreenState extends State<GpsScreen> {
 
     // load PWD locations and markers (keeps behavior identical)
     _getPwdLocationsAndCreateMarkers();
+
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      debugPrint("🛰️ GPS mounted, checking for pending deep links...");
+      await Future.delayed(const Duration(seconds: 2));
+      DeepLinkService().consumePendingLinkIfAny();
+    });
   }
 
   // --- Helper: small place-type color mapping (kept local for quick tweak) ---

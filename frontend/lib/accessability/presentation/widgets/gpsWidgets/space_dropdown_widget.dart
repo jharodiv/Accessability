@@ -35,6 +35,8 @@ class _SpaceSelectionSheetState extends State<SpaceSelectionSheet> {
   final _firestore = FirebaseFirestore.instance;
   final _auth = FirebaseAuth.instance;
   static const Color _purple = Color(0xFF6750A4);
+  bool _didAutoSelect =
+      false; // track if we've already auto-picked to avoid repeats
 
   late String _activeId;
   late String _activeName;
@@ -69,7 +71,6 @@ class _SpaceSelectionSheetState extends State<SpaceSelectionSheet> {
         .snapshots()
         .listen((snap) async {
       try {
-        // For each space doc we will fetch a small set of user profiles (avatars)
         final futures = snap.docs.map((d) async {
           final id = d.id;
           final data = d.data() as Map<String, dynamic>;
@@ -80,7 +81,6 @@ class _SpaceSelectionSheetState extends State<SpaceSelectionSheet> {
             members = List<String>.from(raw);
           }
 
-          // Limit how many member profiles to fetch at once (whereIn supports up to 10)
           final limited = members.take(8).toList();
 
           List<Map<String, String>> avatars = [];
@@ -100,7 +100,6 @@ class _SpaceSelectionSheetState extends State<SpaceSelectionSheet> {
                 return {'photo': photo, 'initial': initial};
               }).toList();
             } catch (_) {
-              // fallback to initials only
               avatars =
                   limited.map((m) => {'photo': '', 'initial': '?'}).toList();
             }
@@ -115,18 +114,53 @@ class _SpaceSelectionSheetState extends State<SpaceSelectionSheet> {
         }).toList();
 
         final built = await Future.wait(futures);
-        // sort by name to keep order stable (optional)
         built.sort(
             (a, b) => (a['name'] as String).compareTo(b['name'] as String));
 
-        if (mounted) {
-          setState(() {
-            _spaces = built;
-            _isLoading = false;
+        if (!mounted) return;
+
+        setState(() {
+          _spaces = built;
+          _isLoading = false;
+
+          if (_spaces.isNotEmpty) {
+            final hasActive = _activeId.isNotEmpty &&
+                _spaces.any((s) => s['id'] == _activeId);
+            if (!hasActive) {
+              // auto-select first space
+              _activeId = _spaces[0]['id'] as String;
+              _activeName = _spaces[0]['name'] as String;
+            }
+          } else {
+            // no spaces: keep placeholder
+            _activeId = '';
+            _activeName = 'mySpace'.tr();
+            // allow auto-select again later when spaces appear
+            _didAutoSelect = false;
+          }
+        });
+
+        // Notify parent exactly once per auto-selection (do this outside setState)
+        if (_spaces.isNotEmpty && !_didAutoSelect) {
+          final selectedId = _activeId;
+          final selectedName = _activeName;
+          _didAutoSelect = true;
+
+          // run after frame to avoid calling callbacks mid-build
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            try {
+              widget.onPick(selectedId, selectedName);
+            } catch (e) {
+              // ignore callback errors, but you can log if you want
+              debugPrint('onPick callback failed: $e');
+            }
+
+            // OPTIONAL: auto-close the sheet and return result to caller
+            // Uncomment the next line if you want the sheet to close automatically when auto-select happens:
+            // Navigator.of(context).pop({'id': selectedId, 'name': selectedName});
           });
         }
       } catch (e) {
-        // if something fails, stop loading but keep UI stable
         if (mounted) setState(() => _isLoading = false);
       }
     }, onError: (_) {

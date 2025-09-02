@@ -4,6 +4,8 @@ import 'dart:convert'; // For JSON decoding.
 import 'dart:math';
 import 'package:accessability/accessability/data/model/place.dart';
 import 'package:accessability/accessability/firebaseServices/place/geocoding_service.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+
 import 'package:accessability/accessability/logic/bloc/place/bloc/place_event.dart'
     show GetAllPlacesEvent;
 import 'package:accessability/accessability/logic/bloc/place/bloc/place_state.dart'
@@ -57,6 +59,7 @@ import 'package:accessability/accessability/logic/bloc/auth/auth_bloc.dart';
 import 'package:accessability/accessability/logic/bloc/auth/auth_state.dart';
 import 'package:accessability/accessability/logic/bloc/place/bloc/place_bloc.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 // MapPerspective enum (if you had it elsewhere, keep that definition; otherwise define here)
 enum MapPerspective { classic, aerial, terrain, street, perspective }
@@ -87,6 +90,8 @@ class _GpsScreenState extends State<GpsScreen> {
   // --- Map UI state ---
   Set<Marker> _markers = {};
   Set<Circle> _circles = {};
+  bool _autoSelectAttempted = false;
+  static const String _kSavedActiveSpaceKey = 'saved_active_space_id';
   bool _isLocationFetched = false;
   late Key _mapKey = UniqueKey();
   String _activeSpaceId = '';
@@ -248,6 +253,26 @@ class _GpsScreenState extends State<GpsScreen> {
           pixelRatio <= 0 ? MediaQuery.of(ctx).devicePixelRatio : pixelRatio,
       outerOpacity: 0.45,
     );
+  }
+
+  Future<void> _saveActiveSpaceToPrefs(String id) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_kSavedActiveSpaceKey, id);
+      debugPrint('[GpsScreen] saved active space $id to prefs');
+    } catch (e) {
+      debugPrint('[GpsScreen] error saving active space: $e');
+    }
+  }
+
+  Future<String?> _loadSavedActiveSpaceFromPrefs() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      return prefs.getString(_kSavedActiveSpaceKey);
+    } catch (e) {
+      debugPrint('[GpsScreen] error loading active space from prefs: $e');
+      return null;
+    }
   }
 
   // --- Place marker creation (delegates to MarkerFactory) ---
@@ -483,6 +508,32 @@ class _GpsScreenState extends State<GpsScreen> {
 
     // Use Firebase data instead of static list
     _getPwdLocationsAndCreateMarkers();
+
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      // 1) try to restore saved choice
+      final saved = await _loadSavedActiveSpaceFromPrefs();
+      if (saved != null && saved.isNotEmpty) {
+        // set and make location handler aware
+        if (mounted) {
+          setState(() {
+            _activeSpaceId = saved;
+            _isLoading = false;
+            _autoSelectAttempted = true;
+          });
+          try {
+            _locationHandler.updateActiveSpaceId(saved);
+          } catch (_) {}
+          debugPrint('[GpsScreen] restored saved space id=$saved');
+        }
+        return;
+      }
+
+      // 2) otherwise auto-select first space from Firestore (only once)
+      if (!_autoSelectAttempted && _activeSpaceId.isEmpty) {
+        _autoSelectAttempted = true;
+        await _autoSelectFirstSpace();
+      }
+    });
   }
 
   void _handleSpaceIdChanged(String spaceId) {
@@ -835,6 +886,48 @@ class _GpsScreenState extends State<GpsScreen> {
         return false;
     }
     return true;
+  }
+
+  /// Auto-select the first space the current user is a member of
+  /// (only if nothing is already selected).
+  Future<void> _autoSelectFirstSpace() async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) return;
+      // Don't override an existing selection
+      if (_activeSpaceId.isNotEmpty) return;
+
+      final snap = await _firestore
+          .collection('Spaces')
+          .where('members', arrayContains: user.uid)
+          .limit(1)
+          .get();
+
+      if (snap.docs.isNotEmpty) {
+        final doc = snap.docs.first;
+        final id = doc.id;
+        final name = (doc.data() as Map<String, dynamic>)['name'] ?? 'Unnamed';
+        if (!mounted) return;
+        setState(() {
+          _activeSpaceId = id;
+          _isLoading = false;
+        });
+        // Make the LocationHandler aware of the new active space:
+        try {
+          _locationHandler.updateActiveSpaceId(id);
+        } catch (_) {
+          // ignore if not present or fails
+        }
+
+        await _saveActiveSpaceToPrefs(id);
+
+        debugPrint('[GpsScreen] auto-selected space id=$id name=$name');
+      } else {
+        debugPrint('[GpsScreen] no spaces found for user, leaving My Space');
+      }
+    } catch (e, st) {
+      debugPrint('[GpsScreen] _autoSelectFirstSpace error: $e\n$st');
+    }
   }
 
   Future<void> _getPwdLocationsAndCreateMarkers() async {
@@ -1278,14 +1371,42 @@ class _GpsScreenState extends State<GpsScreen> {
                       onOverlayChange: (isVisible) {
                         setState(() {});
                       },
-                      onSpaceSelected: _locationHandler.updateActiveSpaceId,
-                      onMySpaceSelected: _onMySpaceSelected,
+                      // Ensure GpsScreen rebuilds when a space is selected:
+                      onSpaceSelected: (String id) async {
+                        debugPrint(
+                            '[GpsScreen] Topwidgets.onSpaceSelected -> id=$id (current _activeSpaceId=$_activeSpaceId)');
+                        setState(() {
+                          _locationHandler.updateActiveSpaceId(id);
+                          _activeSpaceId = id;
+                          _isLoading = true;
+                        });
+
+                        // persist selection so next app start restores it
+                        await _saveActiveSpaceToPrefs(id);
+
+                        WidgetsBinding.instance.addPostFrameCallback((_) {
+                          debugPrint(
+                              '[GpsScreen] postFrame: _activeSpaceId=$_activeSpaceId, locationHandler.activeSpaceId=${_locationHandler.activeSpaceId}');
+                        });
+                      },
+                      // Keep the explicit "my space" handler but make sure it updates _activeSpaceId too:
+                      onMySpaceSelected: () {
+                        setState(() {
+                          _locationHandler.updateActiveSpaceId('');
+                          _activeSpaceId = '';
+                          _isLoading = false;
+                        });
+                        // clear saved pref so next launch auto-selects first available space again
+                        _saveActiveSpaceToPrefs('');
+                      },
+                      // You can keep onSpaceIdChanged if other logic relies on it,
+                      // but ensure it updates screen state (it already does).
                       onSpaceIdChanged: _handleSpaceIdChanged,
                     ),
                     if (_locationHandler.currentIndex == 0)
                       LocationWidgets(
-                        key: ValueKey(_locationHandler.activeSpaceId),
-                        activeSpaceId: _locationHandler.activeSpaceId,
+                        key: ValueKey(_activeSpaceId),
+                        activeSpaceId: _activeSpaceId,
                         onCategorySelected: (LatLng location) {
                           _locationHandler.panCameraToLocation(location);
                         },
@@ -1299,9 +1420,10 @@ class _GpsScreenState extends State<GpsScreen> {
                           });
                         },
                         fetchNearbyPlaces: _fetchNearbyPlaces,
-                        onPlaceSelected: _updateMapLocation,
                         isJoining: false,
                         onJoinStateChanged: (bool value) {},
+                        // NEW: tell LocationWidgets whether a route is active
+                        isRouteActive: _isRouteActive,
                       ),
                     if (_locationHandler.currentIndex == 1)
                       FavoriteWidget(

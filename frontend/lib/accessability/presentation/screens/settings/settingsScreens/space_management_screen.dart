@@ -1,10 +1,13 @@
+// lib/presentation/screens/space_management_screen.dart
 import 'package:accessability/accessability/firebaseServices/chat/chat_service.dart';
+import 'package:accessability/accessability/presentation/widgets/space_management_widgets/space_management_list.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:accessability/accessability/themes/theme_provider.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class SpaceManagementScreen extends StatefulWidget {
   const SpaceManagementScreen({super.key});
@@ -18,6 +21,90 @@ class _SpaceManagementScreenState extends State<SpaceManagementScreen> {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final Map<String, bool> _expandedSpaces = {};
   final Set<String> _deletingSpaces = {};
+
+  static const String _kSavedActiveSpaceKey = 'saved_active_space_id';
+
+  String? _selectedSpaceId;
+  String? _selectedSpaceName;
+
+  /// Ensures we only auto-select a default from the snapshot once per screen lifecycle.
+  bool _didInitializeFromSnapshot = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _restoreSavedActiveSpace();
+  }
+
+  // Restore saved active space id & try to get its name (best-effort).
+  Future<void> _restoreSavedActiveSpace() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final id = prefs.getString(_kSavedActiveSpaceKey);
+      if (id != null && id.isNotEmpty) {
+        // try to fetch the doc to read its name
+        try {
+          final doc = await _firestore.collection('Spaces').doc(id).get();
+          if (doc.exists) {
+            final name = (doc.data() as Map<String, dynamic>)['name'] ?? '';
+            if (mounted) {
+              setState(() {
+                _selectedSpaceId = id;
+                _selectedSpaceName = name.toString();
+              });
+            }
+            return;
+          } else {
+            // saved id no longer valid -> remove
+            await prefs.remove(_kSavedActiveSpaceKey);
+          }
+        } catch (e) {
+          // Firestore error: still keep the id so we can try to match it against stream later
+          if (mounted) {
+            setState(() {
+              _selectedSpaceId = id;
+            });
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('restore saved space error: $e');
+    }
+  }
+
+  // Persist active space selection and update local state
+  Future<void> _saveActiveSpace(String id, String name) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_kSavedActiveSpaceKey, id);
+      if (mounted) {
+        setState(() {
+          _selectedSpaceId = id;
+          _selectedSpaceName = name;
+        });
+      }
+    } catch (e) {
+      debugPrint('save active space error: $e');
+    }
+  }
+
+  // Clear saved active space (used when a selected space is deleted/left)
+  Future<void> _clearSavedActiveSpace() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(_kSavedActiveSpaceKey);
+      if (mounted) {
+        setState(() {
+          _selectedSpaceId = null;
+          _selectedSpaceName = null;
+          // allow snapshot initialization again
+          _didInitializeFromSnapshot = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('clear saved active space error: $e');
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -45,7 +132,9 @@ class _SpaceManagementScreenState extends State<SpaceManagementScreen> {
               color: const Color(0xFF6750A4),
             ),
             title: Text(
-              'spaceManagement'.tr(),
+              _selectedSpaceName?.isNotEmpty == true
+                  ? _selectedSpaceName!
+                  : 'spaceManagement'.tr(),
               style: const TextStyle(fontWeight: FontWeight.bold),
             ),
             centerTitle: true,
@@ -61,36 +150,99 @@ class _SpaceManagementScreenState extends State<SpaceManagementScreen> {
               .where('members', arrayContains: _auth.currentUser?.uid)
               .snapshots(),
           builder: (context, snapshot) {
+            // Loading & error handling
             if (snapshot.connectionState == ConnectionState.waiting) {
               return const Center(child: CircularProgressIndicator());
             }
-
             if (snapshot.hasError) {
               return Center(child: Text('errorLoadingSpaces'.tr()));
             }
-
             if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
               return Center(child: Text('noSpacesFound'.tr()));
             }
 
             final spaces = snapshot.data!.docs;
 
-            return ListView.builder(
-              itemCount: spaces.length,
-              itemBuilder: (context, index) {
-                final space = spaces[index];
-                final spaceId = space.id;
-                final spaceData = space.data() as Map<String, dynamic>;
-                final spaceName = spaceData['name'] ?? 'Unnamed Space';
-                final creatorId = spaceData['creator'] ?? '';
-                final isCreator = creatorId == _auth.currentUser?.uid;
+            // One-time initialization from snapshot:
+            // If we don't yet have a selected space id, pick saved or default to the first.
+            if (!_didInitializeFromSnapshot) {
+              _didInitializeFromSnapshot = true;
 
-                return _buildSpaceTile(
-                  spaceId,
-                  spaceName,
-                  isCreator,
-                  spaceData['members'] ?? [],
+              // If we already had a saved id (from prefs) but no name, try to find name in snapshot
+              if (_selectedSpaceId != null && _selectedSpaceId!.isNotEmpty) {
+                final found = spaces.firstWhere(
+                  (d) => d.id == _selectedSpaceId,
+                  orElse: () => throw Exception(),
                 );
+              }
+
+              // Safer loop-based approach to find saved id or default:
+              String? foundId;
+              String? foundName;
+              for (final d in spaces) {
+                if (_selectedSpaceId != null &&
+                    _selectedSpaceId!.isNotEmpty &&
+                    d.id == _selectedSpaceId) {
+                  foundId = d.id;
+                  foundName = ((d.data() as Map<String, dynamic>)['name'] ?? '')
+                      .toString();
+                  break;
+                }
+              }
+
+              if (foundId != null) {
+                // We found the saved id inside the snapshot -> ensure name is set
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  if (mounted) {
+                    setState(() {
+                      _selectedSpaceId = foundId;
+                      _selectedSpaceName = foundName ?? _selectedSpaceName;
+                    });
+                  }
+                });
+              } else {
+                // No saved id in the snapshot - choose the first available space as default
+                final first = spaces.first;
+                final defaultId = first.id;
+                final defaultName =
+                    ((first.data() as Map<String, dynamic>)['name'] ?? '')
+                        .toString();
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  // Persist and update UI after build finishes
+                  _saveActiveSpace(defaultId, defaultName);
+                });
+              }
+            }
+
+            return SpaceManagementList(
+              onViewAdmin: () {
+                if (_selectedSpaceId == null) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Please select a space'.tr())),
+                  );
+                  return;
+                }
+                // Your existing view-admin flow (or a dialog) using _selectedSpaceId.
+                // _showAdminStatusForSelectedSpace();
+              },
+              onAddPeople: () {
+                if (_selectedSpaceId == null) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Please select a space'.tr())),
+                  );
+                  return;
+                }
+                // Open invite flow using _selectedSpaceId
+              },
+              onLeave: () {
+                if (_selectedSpaceId == null) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Please select a space'.tr())),
+                  );
+                  return;
+                }
+                _showLeaveSpaceDialog(
+                    _selectedSpaceId!, _selectedSpaceName ?? '');
               },
             );
           },
@@ -129,11 +281,37 @@ class _SpaceManagementScreenState extends State<SpaceManagementScreen> {
           ),
         ),
         children: [
+          // small header row: show active chip or "Set as active" button
+          Padding(
+            padding:
+                const EdgeInsets.symmetric(horizontal: 16.0, vertical: 6.0),
+            child: Row(
+              children: [
+                Expanded(child: SizedBox()), // push control to the right
+                if (_selectedSpaceId == spaceId)
+                  Chip(
+                    label: Text('Active',
+                        style: const TextStyle(color: Colors.white)),
+                    backgroundColor: const Color(0xFF6750A4),
+                  )
+                else
+                  TextButton(
+                    onPressed: () => _saveActiveSpace(spaceId, spaceName),
+                    child: Text('setAsActive'.tr(),
+                        style: const TextStyle(color: Color(0xFF6750A4))),
+                  ),
+              ],
+            ),
+          ),
+
+          // Members list (streaming user docs)
           StreamBuilder<QuerySnapshot>(
-            stream: _firestore
-                .collection('Users')
-                .where('uid', whereIn: memberIds)
-                .snapshots(),
+            stream: memberIds.isNotEmpty
+                ? _firestore
+                    .collection('Users')
+                    .where('uid', whereIn: memberIds)
+                    .snapshots()
+                : const Stream.empty(),
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) {
                 return const Padding(
@@ -141,13 +319,11 @@ class _SpaceManagementScreenState extends State<SpaceManagementScreen> {
                   child: CircularProgressIndicator(),
                 );
               }
-
-              if (!snapshot.hasData) {
+              if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
                 return const SizedBox();
               }
 
               final members = snapshot.data!.docs;
-
               return Column(
                 children: members.map((memberDoc) {
                   final memberData = memberDoc.data() as Map<String, dynamic>;
@@ -166,7 +342,7 @@ class _SpaceManagementScreenState extends State<SpaceManagementScreen> {
                     ),
                     title: Text(username),
                     subtitle: isCurrentUser ? Text('you'.tr()) : null,
-                    trailing: isCreator && !isCurrentUser
+                    trailing: (isCreator && !isCurrentUser)
                         ? IconButton(
                             icon: const Icon(Icons.remove_circle,
                                 color: Colors.red),
@@ -296,6 +472,11 @@ class _SpaceManagementScreenState extends State<SpaceManagementScreen> {
 
   Future<void> _deleteSpace(String spaceId, String spaceName) async {
     try {
+      // show spinner for this space
+      setState(() {
+        _deletingSpaces.add(spaceId);
+      });
+
       final currentUser = _auth.currentUser;
       final currentUsername = await _getUsername(currentUser!.uid);
 
@@ -309,6 +490,11 @@ class _SpaceManagementScreenState extends State<SpaceManagementScreen> {
       // Then delete the space document
       await _firestore.collection('Spaces').doc(spaceId).delete();
 
+      // If deleted space was the selected one, clear saved active selection
+      if (_selectedSpaceId == spaceId) {
+        await _clearSavedActiveSpace();
+      }
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('spaceDeleted'.tr())),
       );
@@ -317,6 +503,10 @@ class _SpaceManagementScreenState extends State<SpaceManagementScreen> {
         SnackBar(content: Text('errorDeletingSpace'.tr())),
       );
       print("Error deleting space: $e");
+    } finally {
+      setState(() {
+        _deletingSpaces.remove(spaceId);
+      });
     }
   }
 
@@ -338,6 +528,11 @@ class _SpaceManagementScreenState extends State<SpaceManagementScreen> {
 
       // Send notification to space chat
       await chatService.notifyMemberLeft(spaceId, currentUsername);
+
+      // If left space was the selected one, clear saved active selection
+      if (_selectedSpaceId == spaceId) {
+        await _clearSavedActiveSpace();
+      }
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('spaceLeft'.tr())),

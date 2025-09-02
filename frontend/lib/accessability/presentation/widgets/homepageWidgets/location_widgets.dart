@@ -39,6 +39,7 @@ class LocationWidgets extends StatefulWidget {
   final bool isJoining; // new
   final ValueChanged<bool> onJoinStateChanged; // new
   final LocationHandler locationHandler;
+  final bool isRouteActive;
 
   const LocationWidgets({
     super.key,
@@ -54,6 +55,7 @@ class LocationWidgets extends StatefulWidget {
     this.onSheetExpanded,
     required this.isJoining,
     required this.onJoinStateChanged,
+    required this.isRouteActive, // required now
   });
 
   @override
@@ -72,6 +74,12 @@ class _LocationWidgetsState extends State<LocationWidgets> {
   String? _yourAddress;
   DateTime? _yourLastUpdate;
   StreamSubscription<DocumentSnapshot>? _yourLocationListener;
+  late final DraggableScrollableController _draggableController;
+  final double _sheetMinChildSize = 0.20;
+  final double _sheetMaxChildSize = 1.0;
+  // helper to compute the preferred "normal" initial size
+  double get _preferredInitialSize =>
+      widget.isJoining ? 1.0 : (widget.selectedPlace != null ? 0.6 : 0.30);
 
   final TextEditingController _spaceNameController = TextEditingController();
   final FlutterTts flutterTts = FlutterTts();
@@ -88,9 +96,31 @@ class _LocationWidgetsState extends State<LocationWidgets> {
   @override
   void initState() {
     super.initState();
+    debugPrint(
+        '[LocationWidgets] initState: activeSpaceId=${widget.activeSpaceId}');
     _listenToMembers();
     _initializeLocation();
     _initializeTts();
+
+    _draggableController = DraggableScrollableController();
+
+    // Ensure sheet is at min if a route is already active on open.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (widget.isRouteActive) {
+        _draggableController.animateTo(
+          _sheetMinChildSize,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOut,
+        );
+      } else {
+        // ensure it opens to preferred initial if not in route
+        _draggableController.animateTo(
+          _preferredInitialSize,
+          duration: const Duration(milliseconds: 250),
+          curve: Curves.easeOut,
+        );
+      }
+    });
   }
 
   String _timeDiff(DateTime dt) {
@@ -122,6 +152,67 @@ class _LocationWidgetsState extends State<LocationWidgets> {
   @override
   void didUpdateWidget(LocationWidgets oldWidget) {
     super.didUpdateWidget(oldWidget);
+
+    if (oldWidget.isRouteActive != widget.isRouteActive) {
+      if (widget.isRouteActive) {
+        // push sheet down (to minimum)
+        _draggableController.animateTo(
+          _sheetMinChildSize,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOut,
+        );
+      } else {
+        // bring sheet back to preferred initial size
+        _draggableController.animateTo(
+          _preferredInitialSize,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOut,
+        );
+      }
+    }
+
+    // Also if selectedPlace or isJoining changed, ensure preferred size adjusts
+    if (oldWidget.selectedPlace != widget.selectedPlace ||
+        oldWidget.isJoining != widget.isJoining) {
+      // only animate back if route not active
+      if (!widget.isRouteActive) {
+        _draggableController.animateTo(
+          _preferredInitialSize,
+          duration: const Duration(milliseconds: 250),
+          curve: Curves.easeOut,
+        );
+      }
+    }
+
+    // If the activeSpaceId changed, restart member/location listeners
+    if (oldWidget.activeSpaceId != widget.activeSpaceId) {
+      // make sure LocationHandler knows about the change too (if you use updateActiveSpaceId)
+      try {
+        widget.locationHandler.updateActiveSpaceId(widget.activeSpaceId);
+      } catch (_) {
+        // ignore if handler doesn't have that method, or log if you want
+      }
+
+      // Cancel old listeners (safe if null)
+      _membersListener?.cancel();
+      _membersListener = null;
+      _locationListeners.forEach((l) => l.cancel());
+      _locationListeners.clear();
+      _yourLocationListener?.cancel();
+      _yourLocationListener = null;
+
+      // clear local data so UI updates immediately
+      setState(() {
+        _members = [];
+        _spaceName = null;
+        _creatorId = null;
+        _selectedMemberId = null;
+        _isLoading = true;
+      });
+
+      // restart listening for the new space
+      _listenToMembers();
+    }
   }
 
   @override
@@ -135,6 +226,8 @@ class _LocationWidgetsState extends State<LocationWidgets> {
 
     flutterTts.stop();
     _spaceNameController.dispose();
+    _draggableController.dispose();
+
     super.dispose();
   }
 
@@ -536,13 +629,11 @@ class _LocationWidgetsState extends State<LocationWidgets> {
     final bool isDarkMode = Provider.of<ThemeProvider>(context).isDarkMode;
 
     return DraggableScrollableSheet(
-      // controller: _draggableController,
+      controller: _draggableController,
       expand: true,
-      initialChildSize: widget.isJoining
-          ? 1.0 // full‐screen while joining
-          : (widget.selectedPlace != null ? 0.6 : 0.30),
-      minChildSize: 0.20,
-      maxChildSize: 1,
+      initialChildSize: _preferredInitialSize,
+      minChildSize: _sheetMinChildSize,
+      maxChildSize: _sheetMaxChildSize,
       builder: (context, scrollController) {
         return BlocBuilder<UserBloc, UserState>(
           builder: (context, userState) {
@@ -597,34 +688,47 @@ class _LocationWidgetsState extends State<LocationWidgets> {
             return Column(
               children: [
                 IgnorePointer(
-                  ignoring: _isExpanded || widget.isJoining,
-                  child: AnimatedOpacity(
-                    duration: const Duration(milliseconds: 300),
-                    opacity: (_isExpanded || widget.isJoining) ? 0.0 : 1.0,
-                    child: ServiceButtons(
-                      onButtonPressed: (label) {/* … */},
-                      currentLocation: widget.locationHandler.currentLocation,
-                      onMapViewPressed: widget.onMapViewPressed,
-                      onCenterPressed: () {
-                        debugPrint('GPS button pressed');
-                        debugPrint(
-                            'locationHandler.currentLocation: ${widget.locationHandler.currentLocation}');
-                        if (widget.locationHandler.currentLocation == null) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                                content: Text('locationNotAvailable'.tr())),
-                          );
-                          return;
-                        }
-                        try {
-                          widget.locationHandler.panCameraToLocation(
-                              widget.locationHandler.currentLocation!);
-                          debugPrint('Called panCameraToLocation()');
-                        } catch (e, st) {
-                          debugPrint('panCameraToLocation threw: $e\n$st');
-                        }
-                      },
-                    ),
+                  // now also ignore if a route is active
+                  ignoring:
+                      _isExpanded || widget.isJoining || widget.isRouteActive,
+                  child: AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 220),
+                    switchInCurve: Curves.easeOut,
+                    switchOutCurve: Curves.easeIn,
+                    child: (_isExpanded ||
+                            widget.isJoining ||
+                            widget.isRouteActive)
+                        ? const SizedBox.shrink(
+                            key: ValueKey('empty_service_buttons'))
+                        : ServiceButtons(
+                            key: const ValueKey('service_buttons'),
+                            onButtonPressed: (label) {/* … */},
+                            currentLocation:
+                                widget.locationHandler.currentLocation,
+                            onMapViewPressed: widget.onMapViewPressed,
+                            onCenterPressed: () {
+                              debugPrint('GPS button pressed');
+                              debugPrint(
+                                  'locationHandler.currentLocation: ${widget.locationHandler.currentLocation}');
+                              if (widget.locationHandler.currentLocation ==
+                                  null) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                      content:
+                                          Text('locationNotAvailable'.tr())),
+                                );
+                                return;
+                              }
+                              try {
+                                widget.locationHandler.panCameraToLocation(
+                                    widget.locationHandler.currentLocation!);
+                                debugPrint('Called panCameraToLocation()');
+                              } catch (e, st) {
+                                debugPrint(
+                                    'panCameraToLocation threw: $e\n$st');
+                              }
+                            },
+                          ),
                   ),
                 ),
                 const SizedBox(height: 10),

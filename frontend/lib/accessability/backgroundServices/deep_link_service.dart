@@ -11,8 +11,8 @@ class DeepLinkService {
   StreamSubscription<Uri>? _sub;
   Uri? _pendingUri;
 
-  // For navigation
   late GlobalKey<NavigatorState> navigatorKey;
+  bool _deepLinkHandled = false; // prevent double navigation
 
   Future<void> initialize(GlobalKey<NavigatorState> key) async {
     navigatorKey = key;
@@ -21,67 +21,68 @@ class DeepLinkService {
     // Cold start
     final initialUri = await _appLinks.getInitialLink();
     if (initialUri != null) {
-      debugPrint("❄️ Cold start link detected: $initialUri");
-      _handleLink(initialUri);
+      debugPrint("❄️ [COLD START] Deep link detected: $initialUri");
+      _pendingUri = initialUri;
     } else {
-      debugPrint("❄️ No cold start link found");
+      debugPrint("❄️ [COLD START] No deep link found");
     }
 
-    // While running
+    // Hot links while running
     _sub = _appLinks.uriLinkStream.listen((uri) {
-      debugPrint("📡 Runtime deep link received: $uri");
+      debugPrint("📡 [HOT] Runtime deep link received: $uri");
       _handleLink(uri);
     });
   }
 
   void _handleLink(Uri uri) {
-    debugPrint("📌 Handling deep link: $uri");
-
+    if (_deepLinkHandled) return; // already handled
     if (navigatorKey.currentState == null) {
       debugPrint("⏳ Navigator not ready, queuing URI: $uri");
       _pendingUri = uri;
       return;
     }
 
-    _navigate(uri);
+    _deepLinkHandled = true;
+    debugPrint("➡️ Handling deep link now: $uri");
+
+    // Small delay to allow UI to settle
+    Future.delayed(const Duration(milliseconds: 300), () => _navigate(uri));
   }
 
   void consumePendingLinkIfAny() {
-    if (_pendingUri != null && navigatorKey.currentState != null) {
-      debugPrint("🚀 Consuming pending link: $_pendingUri");
-      _navigate(_pendingUri!);
+    if (_pendingUri != null &&
+        navigatorKey.currentState != null &&
+        !_deepLinkHandled) {
+      debugPrint("🚀 Consuming pending deep link (cold start): $_pendingUri");
+      final uriToNavigate = _pendingUri!;
       _pendingUri = null;
+      _deepLinkHandled = true;
+      Future.delayed(
+          const Duration(milliseconds: 300), () => _navigate(uriToNavigate));
     } else {
-      debugPrint("ℹ️ No pending link to consume or navigator still not ready");
+      debugPrint("ℹ️ No pending link to consume or navigator not ready");
     }
   }
 
   void _navigate(Uri uri) {
+    if (navigatorKey.currentState == null) return;
+
     debugPrint("➡️ Navigating based on URI: $uri");
-    debugPrint("📂 Path segments: ${uri.pathSegments}");
 
     if (uri.pathSegments.isNotEmpty &&
         uri.pathSegments.first.toLowerCase() == "joinspace") {
       final code = uri.queryParameters['code'];
-      if (code != null) {
-        debugPrint("✅ Navigating to /joinSpace with code: $code");
-        navigatorKey.currentState!.pushNamed(
-          '/joinSpace',
-          arguments: {'inviteCode': code},
-        );
-      } else {
-        debugPrint("⚠️ Navigating to /joinSpace without code");
-        navigatorKey.currentState!.pushNamed('/joinSpace');
-      }
+      navigatorKey.currentState!.pushNamed(
+        '/joinSpace',
+        arguments: code != null ? {'inviteCode': code} : null,
+      );
     } else {
-      debugPrint("➡️ Navigating to default route: /home");
       navigatorKey.currentState!.pushNamed('/home');
     }
   }
 
   void dispose() {
-    debugPrint(
-        "🧹 Disposing DeepLinkService and cancelling stream subscription");
+    debugPrint("🧹 Disposing DeepLinkService");
     _sub?.cancel();
   }
 }

@@ -24,6 +24,7 @@ class _JoinSpaceScreenState extends State<JoinSpaceScreen> {
   bool _isDisposed = false;
   bool _navigationCompleted = false;
   String? _inviteCodeFromLink;
+  bool _isAutoFilled = false; // add this in your state
 
   @override
   void initState() {
@@ -37,7 +38,6 @@ class _JoinSpaceScreenState extends State<JoinSpaceScreen> {
   void didChangeDependencies() {
     super.didChangeDependencies();
 
-    // Grab inviteCode from deep link (if available)
     final args = ModalRoute.of(context)?.settings.arguments as Map?;
     if (args != null && args['inviteCode'] != null) {
       _inviteCodeFromLink = args['inviteCode'] as String?;
@@ -47,6 +47,7 @@ class _JoinSpaceScreenState extends State<JoinSpaceScreen> {
         for (int i = 0; i < _controllers.length; i++) {
           _controllers[i].text = _inviteCodeFromLink![i];
         }
+        _isAutoFilled = true; // mark as auto-filled
       }
     }
   }
@@ -68,6 +69,8 @@ class _JoinSpaceScreenState extends State<JoinSpaceScreen> {
 
   Future<void> _joinSpace() async {
     if (_isLoading || _isDisposed || _navigationCompleted) return;
+
+    _navigationCompleted = true;
 
     final user = _auth.currentUser;
     if (user == null) {
@@ -177,7 +180,12 @@ class _JoinSpaceScreenState extends State<JoinSpaceScreen> {
         margin: const EdgeInsets.symmetric(horizontal: 6),
         child: TextField(
           controller: _controllers[index],
-          focusNode: _focusNodes[index],
+          focusNode: _isAutoFilled
+              ? FocusNode(skipTraversal: true)
+              : _focusNodes[index],
+          readOnly: _isAutoFilled,
+          showCursor: !_isAutoFilled,
+          enableInteractiveSelection: !_isAutoFilled,
           textAlign: TextAlign.center,
           maxLength: 1,
           keyboardType: TextInputType.number,
@@ -204,7 +212,7 @@ class _JoinSpaceScreenState extends State<JoinSpaceScreen> {
             ),
           ),
           onChanged: (value) {
-            if (_isDisposed) return;
+            if (_isDisposed || _isAutoFilled) return;
             setState(() {}); // update fill & button enabled state
             if (value.isNotEmpty && index < 5) {
               FocusScope.of(context).requestFocus(_focusNodes[index + 1]);
@@ -249,9 +257,7 @@ class _JoinSpaceScreenState extends State<JoinSpaceScreen> {
               style: TextStyle(
                   color: Color(0xFF2E1750), fontWeight: FontWeight.w600),
             ),
-            centerTitle: false, // <-- left-align the title
-            // optional: adjust title spacing if you'd like it closer/further from the leading icon
-            // titleSpacing: 0,
+            centerTitle: false,
           ),
         ),
       ),
@@ -340,8 +346,7 @@ class _JoinSpaceScreenState extends State<JoinSpaceScreen> {
                 ),
               ),
               const SizedBox(height: 16),
-              const SizedBox(
-                  height: 100), // keep the lower area empty like your design
+              const SizedBox(height: 100),
             ],
           ),
         ),

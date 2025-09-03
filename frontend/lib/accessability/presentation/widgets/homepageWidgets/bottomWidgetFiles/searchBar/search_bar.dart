@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 import 'package:easy_localization/easy_localization.dart';
 import 'huggingface/dory_service.dart';
+import 'melody/melody_manager.dart';
 
 class SearchBarWithAutocomplete extends StatefulWidget {
   final Function(String) onSearch;
@@ -23,10 +24,16 @@ class _SearchBarWithAutocompleteState extends State<SearchBarWithAutocomplete> {
   final FocusNode _focusNode = FocusNode();
   bool _isListening = false;
 
+  //For Porcupine Integration
+  late MelodyManager _melodyManager;
+  bool _isWakeWordListening = false;
+
   @override
   void initState() {
     super.initState();
     _initializeSpeech();
+
+    _melodyManager = MelodyManager(onWakeWordDetected: onWakeWordDetected);
   }
 
   void _initializeSpeech() async {
@@ -38,6 +45,10 @@ class _SearchBarWithAutocompleteState extends State<SearchBarWithAutocomplete> {
         SnackBar(content: Text('speechNotAvailable'.tr())),
       );
     }
+  }
+
+  void onWakeWordDetected() {
+    print("Hi");
   }
 
   void _onSearchChanged(String query) async {
@@ -186,6 +197,7 @@ class _SearchBarWithAutocompleteState extends State<SearchBarWithAutocomplete> {
     _focusNode.dispose();
     _searchController.dispose();
     _speech.stop();
+    _melodyManager.stop();
     super.dispose();
   }
 
@@ -232,16 +244,22 @@ class _SearchBarWithAutocompleteState extends State<SearchBarWithAutocomplete> {
                 ),
               IconButton(
                 icon: Icon(
-                  _isListening ? Icons.mic : Icons.mic_none,
-                  color: _isListening
+                  _isWakeWordListening ? Icons.mic : Icons.mic_none,
+                  color: _isWakeWordListening
                       ? Colors.red
                       : (isDarkMode ? Colors.grey[400] : Colors.grey[700]),
                 ),
                 onPressed: () {
-                  if (_isListening) {
-                    _stopListening();
+                  if (_isWakeWordListening) {
+                    _melodyManager.stop();
+                    setState(() {
+                      _isWakeWordListening = false;
+                    });
                   } else {
-                    _startListening();
+                    _melodyManager.start();
+                    setState(() {
+                      _isWakeWordListening = true;
+                    });
                   }
                 },
               ),

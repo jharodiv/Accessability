@@ -329,14 +329,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.1.4"
-  fftea:
-    dependency: "direct main"
-    description:
-      name: fftea
-      sha256: fede501db039de9737d527a28b1f5ede8f68342f2c4e53459dfa372bd271ed6c
-      url: "https://pub.dev"
-    source: hosted
-    version: "1.5.0+1"
   file:
     dependency: transitive
     description:
@@ -675,30 +667,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "4.0.0"
-  flutter_sound:
-    dependency: "direct main"
-    description:
-      name: flutter_sound
-      sha256: ef89477f6e8ce2fa395158ebc4a8b11982e3ada440b4021c06fd97a4e771554b
-      url: "https://pub.dev"
-    source: hosted
-    version: "9.28.0"
-  flutter_sound_platform_interface:
-    dependency: transitive
-    description:
-      name: flutter_sound_platform_interface
-      sha256: "3394d7e664a09796818014ff85a81db0dec397f4c286cbe52f8783886fa5a497"
-      url: "https://pub.dev"
-    source: hosted
-    version: "9.28.0"
-  flutter_sound_web:
-    dependency: transitive
-    description:
-      name: flutter_sound_web
-      sha256: "4e10c94a8574bd93bb8668af59bf76f5312a890bccd3778d73168a7133217dc5"
-      url: "https://pub.dev"
-    source: hosted
-    version: "9.28.0"
   flutter_test:
     dependency: "direct dev"
     description: flutter
@@ -712,6 +680,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "4.2.3"
+  flutter_voice_processor:
+    dependency: transitive
+    description:
+      name: flutter_voice_processor
+      sha256: "8ae3fc196d6060a13392e4ca557f7a2f4a6b87898ae519787f6929f986538572"
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.1.2"
   flutter_web_plugins:
     dependency: transitive
     description: flutter
@@ -1005,14 +981,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "6.0.1"
-  logger:
-    dependency: transitive
-    description:
-      name: logger
-      sha256: "55d6c23a6c15db14920e037fe7e0dc32e7cdaf3b64b4b25df2d541b5b6b81c0c"
-      url: "https://pub.dev"
-    source: hosted
-    version: "2.6.1"
   logging:
     dependency: "direct main"
     description:
@@ -1213,6 +1181,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.1.8"
+  porcupine_flutter:
+    dependency: "direct main"
+    description:
+      name: porcupine_flutter
+      sha256: "5618b20a00c44aab80763a70cab993037dd73d924dd2a24154c36dc13bdf5c8e"
+      url: "https://pub.dev"
+    source: hosted
+    version: "3.0.5"
   posix:
     dependency: transitive
     description:
@@ -1245,14 +1221,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "4.1.0"
-  quiver:
-    dependency: transitive
-    description:
-      name: quiver
-      sha256: ea0b925899e64ecdfbf9c7becb60d5b50e706ade44a85b2363be2a22d88117d2
-      url: "https://pub.dev"
-    source: hosted
-    version: "3.2.2"
   rxdart:
     dependency: "direct main"
     description:
@@ -1434,14 +1402,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "0.7.4"
-  tflite_flutter:
-    dependency: "direct main"
-    description:
-      name: tflite_flutter
-      sha256: "48e6fde2ad97162bb66a16a142f4c4698add9e8cd397ce9d1cc7451b55537ac1"
-      url: "https://pub.dev"
-    source: hosted
-    version: "0.11.0"
   timezone:
     dependency: transitive
     description:

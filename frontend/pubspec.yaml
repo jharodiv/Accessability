@@ -60,11 +60,8 @@ dependencies:
 
   #ForVoiceCommandDependencies
   http: ^1.2.1
-  tflite_flutter: ^0.11.0
   permission_handler: ^12.0.1
-  flutter_sound: ^9.28.0
-  #flutter_fft: ^1.0.2+6
-  fftea: ^1.5.0+1
+  porcupine_flutter: ^3.0.5
 
 dev_dependencies:
   flutter_launcher_icons: ^0.14.3
@@ -100,7 +97,7 @@ flutter:
     - assets/images/others/group_chat_icon.jpg
     - assets/map_styles/dark_mode.json
     - assets/images/settings/biometric_login.png
-    - assets/model/jarvis.tflite
+    - assets/model/Melody.ppn
     - .env
 
   fonts:

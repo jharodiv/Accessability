@@ -257,16 +257,13 @@ class _SpaceSelectionSheetState extends State<SpaceSelectionSheet> {
         Provider.of<ThemeProvider>(context, listen: false).isDarkMode;
     final pill = GestureDetector(
       onTap: () {
-        // Previously we immediately informed the parent via onPick which caused the sheet to close.
-        // Now just open the create flow when no space, else do nothing (keeps the sheet open).
         if (_activeId.isEmpty) {
           Navigator.pushNamed(context, '/createSpace').then((success) {
             if (success == true) _listenToSpaces();
           });
         } else {
-          // do nothing so the sheet stays open, or optionally scroll the list to selected item
-          // you could also animate focus to the selected tile here if you want:
-          // _scrollToSelected();
+          // Close sheet and return the currently selected space (same behaviour as tapping a tile)
+          Navigator.of(context).pop({'id': _activeId, 'name': _activeName});
         }
       },
       child: Container(
@@ -286,7 +283,6 @@ class _SpaceSelectionSheetState extends State<SpaceSelectionSheet> {
           children: [
             Expanded(
               child: Text(
-                // show a clearer fallback while loading or when empty
                 _isLoading
                     ? 'loading'.tr()
                     : (_activeName.isNotEmpty

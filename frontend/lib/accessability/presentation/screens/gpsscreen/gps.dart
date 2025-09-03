@@ -5,6 +5,7 @@ import 'dart:math';
 import 'package:accessability/accessability/backgroundServices/deep_link_service.dart';
 import 'package:accessability/accessability/data/model/place.dart';
 import 'package:accessability/accessability/firebaseServices/place/geocoding_service.dart';
+import 'package:accessability/accessability/presentation/widgets/gpsWidgets/user_marker_info_card.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 import 'package:accessability/accessability/logic/bloc/place/bloc/place_event.dart'
@@ -135,6 +136,7 @@ class _GpsScreenState extends State<GpsScreen> {
   // Services (instantiate in initState AFTER _locationHandler)
   late final RouteController routeController;
   final NearbyManager _nearbyManager = NearbyManager();
+  OverlayEntry? _userOverlayEntry;
 
   @override
   void initState() {
@@ -167,6 +169,30 @@ class _GpsScreenState extends State<GpsScreen> {
         setState(() {
           _markers = updatedMarkers;
         });
+      },
+      onUserMarkerTap: ({
+        required String userId,
+        required String username,
+        required LatLng location,
+        required String address,
+        required String profileUrl,
+        required double distanceMeters,
+        int? batteryPercent,
+        double? speedKmh,
+        DateTime? timestamp,
+      }) {
+        // forward to overlay helper (now including telemetry)
+        _showUserOverlay(
+          userId: userId,
+          username: username,
+          location: location,
+          address: address,
+          profileUrl: profileUrl,
+          distanceMeters: distanceMeters,
+          batteryPercent: batteryPercent,
+          speedKmh: speedKmh,
+          timestamp: timestamp,
+        );
       },
     );
 
@@ -227,6 +253,69 @@ class _GpsScreenState extends State<GpsScreen> {
     _getPwdLocationsAndCreateMarkers();
 
     _restoreOrAutoSelectSpace();
+  }
+
+  void _removeUserOverlay() {
+    _userOverlayEntry?.remove();
+    _userOverlayEntry = null;
+  }
+
+  Future<void> _showUserOverlay({
+    required String userId,
+    required String username,
+    required LatLng location,
+    required String address,
+    required String profileUrl,
+    required double distanceMeters,
+    int? batteryPercent,
+    double? speedKmh,
+    DateTime? timestamp,
+  }) async {
+    // remove existing
+    _removeUserOverlay();
+
+    final controller = _locationHandler.mapController;
+    if (controller == null) return;
+
+    try {
+      final screenCoord = await controller.getScreenCoordinate(location);
+      final devicePixelRatio = MediaQuery.of(context).devicePixelRatio;
+
+      // convert to logical pixels used by Flutter (screenCoord is in device pixels)
+      final dx = screenCoord.x.toDouble() / devicePixelRatio;
+      final dy = screenCoord.y.toDouble() / devicePixelRatio;
+
+      // card size should match widget defaults (or pass size to widget)
+      const cardWidth = 260.0;
+      const cardHeight = 112.0;
+
+      // compute left/top and clamp to screen
+      final screenW = MediaQuery.of(context).size.width;
+      final screenH = MediaQuery.of(context).size.height;
+      final left = (dx - cardWidth / 2).clamp(8.0, screenW - cardWidth - 8.0);
+      final top = (dy - cardHeight - 12).clamp(8.0, screenH - cardHeight - 8.0);
+
+      _userOverlayEntry = OverlayEntry(builder: (ctx) {
+        return Positioned(
+          left: left,
+          top: top,
+          child: UserMarkerInfoCard(
+            username: username,
+            address: address,
+            distanceKm: distanceMeters / 1000.0,
+            profileUrl: profileUrl,
+            batteryPercent: batteryPercent,
+            speedKmh: speedKmh,
+            timestamp: timestamp,
+            onClose: () => _removeUserOverlay(),
+          ),
+        );
+      });
+
+      Overlay.of(context)!.insert(_userOverlayEntry!);
+    } catch (e) {
+      debugPrint('Error creating overlay: $e');
+    }
   }
 
   Future<void> _restoreOrAutoSelectSpace() async {
@@ -463,6 +552,7 @@ class _GpsScreenState extends State<GpsScreen> {
     _locationHandler.disposeHandler();
     _zoomDebounceTimer?.cancel();
     _mapZoomNotifier.dispose();
+    _removeUserOverlay();
     super.dispose();
   }
 
@@ -1172,7 +1262,10 @@ class _GpsScreenState extends State<GpsScreen> {
                       },
                       onMapCreated: (controller) =>
                           _onMapCreated(controller, isDarkMode),
-                      onTap: (latlng) => setState(() => _selectedPlace = null),
+                      onTap: (latlng) {
+                        setState(() => _selectedPlace = null);
+                        _removeUserOverlay(); // hide card when map tapped
+                      },
                     ),
                     FovOverlay(
                       getCurrentLocation: () =>

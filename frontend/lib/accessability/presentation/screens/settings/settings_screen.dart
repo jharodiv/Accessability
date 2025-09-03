@@ -129,7 +129,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
                 const Divider(),
                 ListTile(
-                  leading: const Icon(Icons.space_dashboard,
+                  leading: const Icon(Icons.space_dashboard_outlined,
                       color: Color(0xFF6750A4)),
                   title: Text(
                     'spaceManagement'.tr(),

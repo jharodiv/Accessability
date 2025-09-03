@@ -53,6 +53,8 @@ class GpsMap extends StatelessWidget {
         if (onMapCreated != null) onMapCreated!(controller);
       },
       circles: circles,
+      myLocationButtonEnabled: false, // <<-- hide the circular button
+
       polylines: polylines,
       mapType: mapType,
       zoomControlsEnabled: false,

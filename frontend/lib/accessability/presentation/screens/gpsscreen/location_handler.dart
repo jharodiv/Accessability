@@ -10,6 +10,19 @@ import 'package:flutter/services.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:http/http.dart' as http;
 import 'package:location/location.dart' as location_package;
+import 'package:battery_plus/battery_plus.dart';
+
+typedef UserMarkerTapCallback = void Function({
+  required String userId,
+  required String username,
+  required LatLng location,
+  required String address,
+  required String profileUrl,
+  required double distanceMeters,
+  int? batteryPercent,
+  double? speedKmh,
+  DateTime? timestamp,
+});
 
 class LocationHandler {
   final location_package.Location _location = location_package.Location();
@@ -62,8 +75,12 @@ class LocationHandler {
 
   // Callback to update markers in the parent widget
   final Function(Set<Marker>) onMarkersUpdated;
+  final UserMarkerTapCallback? onUserMarkerTap;
 
-  LocationHandler({required this.onMarkersUpdated});
+  LocationHandler({
+    required this.onMarkersUpdated,
+    this.onUserMarkerTap, // new optional callback
+  });
 
   // [Core Location Methods]
   Future<void> getUserLocation() async {
@@ -133,6 +150,47 @@ class LocationHandler {
       return result.isNotEmpty && result[0].rawAddress.isNotEmpty;
     } on SocketException catch (_) {
       return false;
+    }
+  }
+
+  Future<void> _updateUserLocation(LatLng location) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    // compute speed (lastLocation.speed is m/s)
+    double? mps;
+    try {
+      mps = _lastLocation?.speed;
+    } catch (_) {
+      mps = null;
+    }
+    double? speedKmh = (mps != null) ? mps * 3.6 : null;
+
+    // battery (optional; requires battery_plus)
+    int? batteryPercent;
+    try {
+      final battery = Battery();
+      batteryPercent = await battery.batteryLevel;
+    } catch (_) {
+      batteryPercent = null;
+    }
+
+    try {
+      await FirebaseFirestore.instance
+          .collection('UserLocations')
+          .doc(user.uid)
+          .set({
+        'latitude': location.latitude,
+        'longitude': location.longitude,
+        // server timestamp so other clients read a Timestamp object
+        'timestamp': FieldValue.serverTimestamp(),
+        'is_stationary': _isStationary,
+        'speed': mps, // meters/sec (nullable)
+        'speedKmh': speedKmh, // km/h (nullable)
+        'batteryPercent': batteryPercent, // nullable
+      }, SetOptions(merge: true));
+    } catch (e) {
+      debugPrint('Failed to update UserLocations: $e');
     }
   }
 
@@ -207,8 +265,72 @@ class LocationHandler {
       final userMarker = Marker(
         markerId: const MarkerId('user_current'),
         position: currentLocation!,
-        infoWindow: const InfoWindow(title: 'You'),
+        infoWindow: InfoWindow.noText,
+        consumeTapEvents: true,
         icon: customIcon,
+        onTap: () async {
+          final address = await getAddressForLocation(currentLocation!);
+          final usernameLocal = userDoc.data()?['username'] ?? 'You';
+
+          // compute distance (0 for current user)
+          final distMeters = 0.0;
+
+          // speed from last location (location package provides m/s)
+          double? speedKmh;
+          try {
+            final mps = _lastLocation?.speed;
+            if (mps != null) speedKmh = (mps.toDouble()) * 3.6;
+          } catch (_) {
+            speedKmh = null;
+          }
+
+          // battery (optional, requires battery_plus in pubspec)
+          int? batteryPercent;
+          try {
+            final battery = Battery();
+            batteryPercent = await battery.batteryLevel;
+          } catch (_) {
+            batteryPercent = null;
+          }
+
+          // timestamp: prefer server time when you wrote it; fallback to now
+          DateTime? timestamp;
+          try {
+            // attempt to read the stored timestamp in UserLocations doc (if present)
+            final doc = await FirebaseFirestore.instance
+                .collection('UserLocations')
+                .doc(user.uid)
+                .get();
+            final tsRaw = doc.data()?['timestamp'];
+            if (tsRaw is Timestamp) {
+              timestamp = tsRaw.toDate();
+            } else if (tsRaw is String) {
+              timestamp = DateTime.tryParse(tsRaw);
+            } else {
+              timestamp = DateTime.now();
+            }
+          } catch (_) {
+            timestamp = DateTime.now();
+          }
+
+          // Debug print so you can see exactly what is being forwarded
+          debugPrint(
+              '[LocationHandler.initializeUserMarker] tapping current user payload: battery=$batteryPercent speedKmh=$speedKmh timestamp=$timestamp');
+
+          if (onUserMarkerTap != null) {
+            onUserMarkerTap!(
+              userId: user.uid,
+              username: usernameLocal,
+              location: currentLocation!,
+              address: address,
+              profileUrl: profilePictureUrl ?? '',
+              distanceMeters: distMeters,
+              batteryPercent: batteryPercent,
+              speedKmh: speedKmh,
+              timestamp: timestamp,
+            );
+          }
+        },
       );
 
       _markers.add(userMarker);
@@ -291,23 +413,85 @@ class LocationHandler {
               }
 
               final location = LatLng(lat, lng);
-              final address = await getAddressForLocation(location);
+              // final address = await getAddressForLocation(location);
 
               updatedMarkers.add(
                 Marker(
                   markerId: MarkerId('user_$userId'),
                   position: location,
-                  infoWindow: InfoWindow(
-                    title: username,
-                    snippet: '${_calculateDistance(
-                      currentLocation!.latitude,
-                      currentLocation!.longitude,
-                      lat,
-                      lng,
-                    ).toStringAsFixed(1)} km • $address',
-                  ),
+                  // Prevent default info window and allow custom handling
+                  infoWindow: InfoWindow.noText,
+                  consumeTapEvents:
+                      true, // <- prevents default InfoWindow auto-open
                   icon: customIcon,
-                  onTap: () => _onMarkerTapped(MarkerId('user_$userId')),
+                  onTap: () async {
+                    // compute address/distance
+                    final address = await getAddressForLocation(location);
+                    double distMeters = 0.0;
+                    if (currentLocation != null) {
+                      distMeters = _calculateDistance(
+                        currentLocation!.latitude,
+                        currentLocation!.longitude,
+                        lat,
+                        lng,
+                      );
+                    }
+
+                    // parse telemetry from the user location document (doc)
+                    final dataMap = doc.data() as Map<String, dynamic>? ?? {};
+
+                    // batteryPercent (might be int or string)
+                    final rawBattery = dataMap['batteryPercent'];
+                    final int? batteryPercentParsed = rawBattery is int
+                        ? rawBattery
+                        : (rawBattery != null
+                            ? int.tryParse(rawBattery.toString())
+                            : null);
+
+                    // speed: prefer speedKmh, otherwise convert speed (m/s) -> km/h
+                    double? speedKmhParsed;
+                    if (dataMap['speedKmh'] != null) {
+                      final s = dataMap['speedKmh'];
+                      speedKmhParsed =
+                          (s is num) ? s.toDouble() : double.tryParse('$s');
+                    } else if (dataMap['speed'] != null) {
+                      final s = dataMap['speed'];
+                      final double? mps =
+                          (s is num) ? s.toDouble() : double.tryParse('$s');
+                      if (mps != null) speedKmhParsed = mps * 3.6;
+                    }
+
+                    // timestamp (Firestore Timestamp or string)
+                    DateTime? timestampParsed;
+                    final tsRaw = dataMap['timestamp'];
+                    if (tsRaw is Timestamp) {
+                      timestampParsed = tsRaw.toDate();
+                    } else if (tsRaw is String) {
+                      timestampParsed = DateTime.tryParse(tsRaw);
+                    }
+
+                    debugPrint(
+                        '[LocationHandler.listenForLocationUpdates] tapped user=$userId battery=$batteryPercentParsed speedKmh=$speedKmhParsed timestamp=$timestampParsed dist=${distMeters.toStringAsFixed(1)}');
+
+                    selectedUserId = userId;
+
+                    if (onUserMarkerTap != null) {
+                      onUserMarkerTap!(
+                        userId: userId,
+                        username: username,
+                        location: location,
+                        address: address,
+                        profileUrl: profilePictureUrl ?? '',
+                        distanceMeters: distMeters,
+                        batteryPercent: batteryPercentParsed,
+                        speedKmh: speedKmhParsed,
+                        timestamp: timestampParsed,
+                      );
+                    }
+
+                    // keep listening
+                    listenForLocationUpdates();
+                  },
                 ),
               );
             }
@@ -475,22 +659,6 @@ class LocationHandler {
       selectedUserId = userId;
       listenForLocationUpdates();
     }
-  }
-
-  Future<void> _updateUserLocation(LatLng location) async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return;
-
-    // Only update if we're supposed to (handled by _shouldUpdateLocation)
-    await FirebaseFirestore.instance
-        .collection('UserLocations')
-        .doc(user.uid)
-        .set({
-      'latitude': location.latitude,
-      'longitude': location.longitude,
-      'timestamp': DateTime.now(),
-      'is_stationary': _isStationary,
-    });
   }
 
   Future<BitmapDescriptor> _createCustomMarkerIcon(String imageUrl,

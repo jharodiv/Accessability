@@ -13,6 +13,7 @@ class Topwidgets extends StatefulWidget {
   final Function(String) onSpaceSelected;
   final VoidCallback onMySpaceSelected;
   final Function(String) onSpaceIdChanged;
+  final VoidCallback? onTopTap;
 
   // NEW: accept active space id and name from parent
   final String activeSpaceId;
@@ -29,6 +30,7 @@ class Topwidgets extends StatefulWidget {
     required this.onSpaceIdChanged,
     required this.activeSpaceId,
     required this.activeSpaceName,
+    this.onTopTap,
   });
 
   @override
@@ -161,83 +163,91 @@ class TopwidgetsState extends State<Topwidgets> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               // Header row
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  // Settings
-                  Padding(
-                    padding: const EdgeInsets.only(left: 20.0),
-                    child: CircleAvatar(
-                      key: widget.settingsKey,
-                      radius: 20,
-                      backgroundColor: isDark ? Colors.grey[800] : Colors.white,
-                      child: IconButton(
-                        icon: Icon(Icons.settings,
-                            color: isDark ? Colors.white : purple),
-                        onPressed: () =>
-                            Navigator.pushNamed(context, '/settings'),
+              GestureDetector(
+                behavior: HitTestBehavior
+                    .translucent, // so taps on empty parts still register
+                onTap: () => widget.onTopTap?.call(),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    // Settings
+                    Padding(
+                      padding: const EdgeInsets.only(left: 20.0),
+                      child: CircleAvatar(
+                        key: widget.settingsKey,
+                        radius: 20,
+                        backgroundColor:
+                            isDark ? Colors.grey[800] : Colors.white,
+                        child: IconButton(
+                          icon: Icon(Icons.settings,
+                              color: isDark ? Colors.white : purple),
+                          onPressed: () =>
+                              Navigator.pushNamed(context, '/settings'),
+                        ),
                       ),
                     ),
-                  ),
 
-                  // Fixed-width "My Space" pill (now shows parent's value)
-                  GestureDetector(
-                    onTap: () => _openSpaceDialog(context),
-                    child: Container(
-                      width: 175,
-                      height: 30,
-                      decoration: BoxDecoration(
-                        color: isDark ? Colors.grey[800] : Colors.white,
-                        borderRadius: BorderRadius.circular(20),
-                        boxShadow: const [
-                          BoxShadow(
-                            color: Colors.black26,
-                            blurRadius: 4,
-                            offset: Offset(2, 2),
-                          ),
-                        ],
-                      ),
-                      padding: const EdgeInsets.symmetric(horizontal: 12),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Flexible(
-                            child: Text(
-                              _activeSpaceName.length > 12
-                                  ? '${_activeSpaceName.substring(0, 12)}…'
-                                  : _activeSpaceName,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                color: isDark ? Colors.white : purple,
+                    // Fixed-width "My Space" pill (now shows parent's value)
+                    GestureDetector(
+                      onTap: () => _openSpaceDialog(context),
+                      child: Container(
+                        width: 175,
+                        height: 30,
+                        decoration: BoxDecoration(
+                          color: isDark ? Colors.grey[800] : Colors.white,
+                          borderRadius: BorderRadius.circular(20),
+                          boxShadow: const [
+                            BoxShadow(
+                              color: Colors.black26,
+                              blurRadius: 4,
+                              offset: Offset(2, 2),
+                            ),
+                          ],
+                        ),
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Flexible(
+                              child: Text(
+                                _activeSpaceName.length > 12
+                                    ? '${_activeSpaceName.substring(0, 12)}…'
+                                    : _activeSpaceName,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: isDark ? Colors.white : purple,
+                                ),
                               ),
                             ),
-                          ),
-                          Icon(
-                            Icons.keyboard_arrow_down,
-                            size: 20,
-                            color: isDark ? Colors.white : purple,
-                          ),
-                        ],
+                            Icon(
+                              Icons.keyboard_arrow_down,
+                              size: 20,
+                              color: isDark ? Colors.white : purple,
+                            ),
+                          ],
+                        ),
                       ),
                     ),
-                  ),
 
-                  // Inbox
-                  Padding(
-                    padding: const EdgeInsets.only(right: 20),
-                    child: CircleAvatar(
-                      key: widget.inboxKey,
-                      radius: 20,
-                      backgroundColor: isDark ? Colors.grey[800] : Colors.white,
-                      child: IconButton(
-                        icon: Icon(Icons.chat,
-                            color: isDark ? Colors.white : purple),
-                        onPressed: () => Navigator.pushNamed(context, '/inbox'),
+                    // Inbox
+                    Padding(
+                      padding: const EdgeInsets.only(right: 20),
+                      child: CircleAvatar(
+                        key: widget.inboxKey,
+                        radius: 20,
+                        backgroundColor:
+                            isDark ? Colors.grey[800] : Colors.white,
+                        child: IconButton(
+                          icon: Icon(Icons.chat,
+                              color: isDark ? Colors.white : purple),
+                          onPressed: () =>
+                              Navigator.pushNamed(context, '/inbox'),
+                        ),
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
 
               const SizedBox(height: 10),

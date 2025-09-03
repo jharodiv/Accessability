@@ -278,23 +278,64 @@ class _GpsScreenState extends State<GpsScreen> {
     if (controller == null) return;
 
     try {
-      final screenCoord = await controller.getScreenCoordinate(location);
-      final devicePixelRatio = MediaQuery.of(context).devicePixelRatio;
+      // card size used for positioning (matches old design)
+      const double cardWidth = 260.0;
+      const double cardHeight = 112.0;
 
-      // convert to logical pixels used by Flutter (screenCoord is in device pixels)
-      final dx = screenCoord.x.toDouble() / devicePixelRatio;
-      final dy = screenCoord.y.toDouble() / devicePixelRatio;
+      // offsets you requested
+      const double topOffsetFromProfile =
+          20.0; // 20 px above the profile picture
+      const double leftNudge =
+          8.0; // nudges overlay 5-10 px to the left (8 chosen)
 
-      // card size should match widget defaults (or pass size to widget)
-      const cardWidth = 260.0;
-      const cardHeight = 112.0;
-
-      // compute left/top and clamp to screen
       final screenW = MediaQuery.of(context).size.width;
       final screenH = MediaQuery.of(context).size.height;
-      final left = (dx - cardWidth / 2).clamp(8.0, screenW - cardWidth - 8.0);
-      final top = (dy - cardHeight - 12).clamp(8.0, screenH - cardHeight - 8.0);
 
+      // detect current user
+      final currentUid = FirebaseAuth.instance.currentUser?.uid;
+      final bool isCurrentUser = currentUid != null && currentUid == userId;
+
+      double left;
+      double top;
+
+      if (isCurrentUser) {
+        // center the map on the user's location first (so profile is visible)
+        try {
+          await controller.animateCamera(CameraUpdate.newLatLng(location));
+        } catch (e) {
+          debugPrint('animateCamera failed: $e');
+        }
+
+        // wait a bit for the camera to settle
+        await Future.delayed(const Duration(milliseconds: 300));
+
+        // horizontally center the card, then nudge left a bit
+        left = ((screenW - cardWidth) / 2 - leftNudge)
+            .clamp(8.0, screenW - cardWidth - 8.0);
+
+        // place the card above vertical center by the requested top offset
+        final double centerY = screenH / 2;
+        top = (centerY - cardHeight - topOffsetFromProfile)
+            .clamp(8.0, screenH - cardHeight - 8.0);
+      } else {
+        // non-current user: position relative to the marker/profile screen coordinate
+        final screenCoord = await controller.getScreenCoordinate(location);
+        final devicePixelRatio = MediaQuery.of(context).devicePixelRatio;
+
+        // convert device pixels -> logical pixels
+        final dx = screenCoord.x.toDouble() / devicePixelRatio;
+        final dy = screenCoord.y.toDouble() / devicePixelRatio;
+
+        // center the card on the marker's x, then nudge left
+        left = (dx - cardWidth / 2 - leftNudge)
+            .clamp(8.0, screenW - cardWidth - 8.0);
+
+        // put the card above the profile/marker by the requested top offset
+        top = (dy - cardHeight - topOffsetFromProfile)
+            .clamp(8.0, screenH - cardHeight - 8.0);
+      }
+
+      // insert overlay (still using the widget's original size/design)
       _userOverlayEntry = OverlayEntry(builder: (ctx) {
         return Positioned(
           left: left,
@@ -1539,6 +1580,12 @@ class _GpsScreenState extends State<GpsScreen> {
                       onOverlayChange: (isVisible) {
                         setState(() {});
                       },
+                      onTopTap: () {
+                        if (_userOverlayEntry != null) {
+                          _removeUserOverlay();
+                          if (mounted) setState(() {}); // update UI if needed
+                        }
+                      },
                       // Ensure GpsScreen rebuilds when a space is selected:
                       onSpaceSelected: (String id) async {
                         debugPrint(
@@ -1567,6 +1614,7 @@ class _GpsScreenState extends State<GpsScreen> {
                         // clear saved pref so next launch auto-selects first available space again
                         _saveActiveSpaceToPrefs('');
                       },
+
                       // You can keep onSpaceIdChanged if other logic relies on it,
                       // but ensure it updates screen state (it already does).
                       onSpaceIdChanged: _handleSpaceIdChanged,

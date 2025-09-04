@@ -11,11 +11,14 @@ class SpaceManagementList extends StatelessWidget {
     this.onViewAdmin,
     this.onAddPeople,
     this.onLeave,
+    this.lastUpdatedSpaceId,
     this.onEditName,
   }) : super(key: key);
 
   final String? spaceId;
   final String? spaceName;
+  final String? lastUpdatedSpaceId;
+
   final VoidCallback? onViewAdmin;
   final VoidCallback? onAddPeople;
   final VoidCallback? onLeave;
@@ -121,6 +124,11 @@ class SpaceManagementList extends StatelessWidget {
                             style: theme.textTheme.titleMedium?.copyWith(
                               fontWeight: FontWeight.w700,
                               fontSize: 16,
+                              // highlight in purple if this space was just updated
+                              color: (spaceId != null &&
+                                      spaceId == lastUpdatedSpaceId)
+                                  ? _purple
+                                  : null,
                             ),
                           ),
                           const SizedBox(height: 6),
@@ -168,11 +176,6 @@ class SpaceManagementList extends StatelessWidget {
                     if (result != null && result.trim().isNotEmpty) {
                       // notify parent callback
                       if (onEditName != null) onEditName!(result.trim());
-
-                      // show a snack to confirm change (optional)
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Space name updated'.tr())),
-                      );
                     }
                   },
                 ),

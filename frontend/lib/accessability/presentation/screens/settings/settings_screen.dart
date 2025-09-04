@@ -135,8 +135,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     'spaceManagement'.tr(),
                     style: const TextStyle(fontWeight: FontWeight.bold),
                   ),
-                  onTap: () {
-                    Navigator.pushNamed(context, '/spaceManagement');
+                  onTap: () async {
+                    // wait for SpaceManagementScreen to finish
+                    final result =
+                        await Navigator.pushNamed(context, '/spaceManagement');
+
+                    // if it returned an update, forward it up the stack to the widget that opened Settings
+                    if (result is Map && result['spaceUpdated'] == true) {
+                      // bubble the exact result up by popping Settings with the same result
+                      Navigator.of(context).pop(result);
+
+                      // optionally: show feedback and keep Settings open instead of popping:
+                      // ScaffoldMessenger.of(context).showSnackBar(
+                      //   SnackBar(content: Text('Space updated')),
+                      // );
+                    }
                   },
                 ),
                 const Divider(),

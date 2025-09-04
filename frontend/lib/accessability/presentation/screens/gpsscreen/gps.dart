@@ -5,6 +5,10 @@ import 'dart:math';
 import 'package:accessability/accessability/backgroundServices/deep_link_service.dart';
 import 'package:accessability/accessability/data/model/place.dart';
 import 'package:accessability/accessability/firebaseServices/place/geocoding_service.dart';
+import 'package:accessability/accessability/presentation/widgets/gpsWidgets/map_perspective.dart';
+import 'package:accessability/accessability/presentation/widgets/gpsWidgets/navigation_controls.dart';
+import 'package:accessability/accessability/presentation/widgets/gpsWidgets/navigation_panel.dart';
+import 'package:accessability/accessability/presentation/widgets/gpsWidgets/rerouting_banner.dart';
 import 'package:accessability/accessability/presentation/widgets/gpsWidgets/user_marker_info_card.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
@@ -63,9 +67,6 @@ import 'package:accessability/accessability/logic/bloc/place/bloc/place_bloc.dar
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:accessability/accessability/backgroundServices/pwd_location_notification_service.dart';
-
-// MapPerspective enum (if you had it elsewhere, keep that definition; otherwise define here)
-enum MapPerspective { classic, aerial, terrain, street, perspective }
 
 class GpsScreen extends StatefulWidget {
   const GpsScreen({super.key});
@@ -1015,37 +1016,18 @@ class _GpsScreenState extends State<GpsScreen> {
   }
 
   void applyMapPerspective(MapPerspective perspective) {
-    CameraPosition newPosition;
-    MapType newMapType;
     final currentLatLng =
         _locationHandler.currentLocation ?? const LatLng(16.0430, 120.3333);
 
-    switch (perspective) {
-      case MapPerspective.classic:
-        newMapType = MapType.normal;
-        newPosition = CameraPosition(target: currentLatLng, zoom: 14.4746);
-        break;
-      case MapPerspective.aerial:
-        newMapType = MapType.satellite;
-        newPosition = CameraPosition(target: currentLatLng, zoom: 14.4746);
-        break;
-      case MapPerspective.terrain:
-        newMapType = MapType.terrain;
-        newPosition = CameraPosition(target: currentLatLng, zoom: 14.4746);
-        break;
-      case MapPerspective.street:
-        newMapType = MapType.hybrid;
-        newPosition = CameraPosition(target: currentLatLng, zoom: 18);
-        break;
-      case MapPerspective.perspective:
-        newMapType = MapType.normal;
-        newPosition = CameraPosition(
-            target: currentLatLng, zoom: 18, tilt: 60, bearing: 45);
-        break;
-    }
+    final newMapType =
+        MapPerspectiveUtils.mapTypeFor(perspective as MapPerspective);
+    final newPosition = MapPerspectiveUtils.cameraPositionFor(
+        perspective as MapPerspective, currentLatLng);
+
     setState(() {
       _currentMapType = newMapType;
     });
+
     if (_locationHandler.mapController != null) {
       _locationHandler.mapController!.animateCamera(
         CameraUpdate.newCameraPosition(newPosition),
@@ -1336,85 +1318,13 @@ class _GpsScreenState extends State<GpsScreen> {
                       Positioned(
                         top: screenHeight * 0.18,
                         right: 20,
-                        child: Material(
-                          color: Colors.transparent,
-                          child: Column(
-                            children: [
-                              Container(
-                                decoration: BoxDecoration(
-                                  color: Colors.white.withOpacity(0.9),
-                                  shape: BoxShape.circle,
-                                  boxShadow: const [
-                                    BoxShadow(
-                                      color: Colors.black26,
-                                      blurRadius: 4,
-                                      offset: Offset(0, 2),
-                                    ),
-                                  ],
-                                ),
-                                child: IconButton(
-                                  icon: Icon(Icons.close),
-                                  color: Colors.black,
-                                  onPressed: _resetCameraToNormal,
-                                  tooltip: 'Exit navigation',
-                                ),
-                              ),
-                              SizedBox(height: 10),
-                              Container(
-                                decoration: BoxDecoration(
-                                  color: Colors.white.withOpacity(0.9),
-                                  shape: BoxShape.circle,
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: Colors.black26,
-                                      blurRadius: 4,
-                                      offset: Offset(0, 2),
-                                    ),
-                                  ],
-                                ),
-                                child: IconButton(
-                                  icon: Icon(
-                                    _routeUpdateTimer == null
-                                        ? Icons.navigation
-                                        : Icons.zoom_out_map,
-                                  ),
-                                  color: Colors.black,
-                                  onPressed: _toggleNavigationMode,
-                                  tooltip: _routeUpdateTimer == null
-                                      ? 'Follow my position'
-                                      : 'Show overview',
-                                ),
-                              ),
-                              SizedBox(height: 10),
-                              Container(
-                                decoration: BoxDecoration(
-                                  color: Colors.white.withOpacity(0.9),
-                                  shape: BoxShape.circle,
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: Colors.black26,
-                                      blurRadius: 4,
-                                      offset: Offset(0, 2),
-                                    ),
-                                  ],
-                                ),
-                                child: IconButton(
-                                  icon: Icon(
-                                    _isWheelchairFriendlyRoute
-                                        ? Icons.accessible
-                                        : Icons.accessible_forward,
-                                    color: _isWheelchairFriendlyRoute
-                                        ? Colors.green
-                                        : Colors.black,
-                                  ),
-                                  onPressed: _toggleWheelchairFriendlyRoute,
-                                  tooltip: _isWheelchairFriendlyRoute
-                                      ? 'Using wheelchair-friendly route'
-                                      : 'Switch to wheelchair-friendly route',
-                                ),
-                              ),
-                            ],
-                          ),
+                        child: NavigationControls(
+                          isWheelchair: _isWheelchairFriendlyRoute,
+                          isRouted: _isRouteActive,
+                          onReset: _resetCameraToNormal,
+                          onToggleFollow: _toggleNavigationMode,
+                          onToggleWheelchair: _toggleWheelchairFriendlyRoute,
+                          isFollowing: _routeUpdateTimer != null,
                         ),
                       ),
 
@@ -1423,45 +1333,7 @@ class _GpsScreenState extends State<GpsScreen> {
                         top: screenHeight * 0.15,
                         left: 0,
                         right: 0,
-                        child: Center(
-                          child: Container(
-                            padding: EdgeInsets.symmetric(
-                                horizontal: 16, vertical: 8),
-                            decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.9),
-                              borderRadius: BorderRadius.circular(20),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black26,
-                                  blurRadius: 6,
-                                  offset: Offset(0, 2),
-                                ),
-                              ],
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                SizedBox(
-                                  width: 16,
-                                  height: 16,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    valueColor: AlwaysStoppedAnimation<Color>(
-                                        Colors.green),
-                                  ),
-                                ),
-                                SizedBox(width: 8),
-                                Text(
-                                  'Re-routing...',
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.green,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
+                        child: const Center(child: ReroutingBanner()),
                       ),
 
                     // Navigation Info Panel
@@ -1472,105 +1344,32 @@ class _GpsScreenState extends State<GpsScreen> {
                             _navigationPanelOffset,
                         left: 20,
                         right: 20,
-                        child: GestureDetector(
-                          onVerticalDragUpdate: (details) {
+                        child: NavigationInfoPanel(
+                          bottomOffset:
+                              screenHeight * _initialNavigationPanelBottom +
+                                  _navigationPanelOffset,
+                          isWheelchair: _isWheelchairFriendlyRoute,
+                          // Provide closures so the panel can fetch data when it builds.
+                          getDestinationName: () => _getLocationName(
+                            routeController.routeDestination ??
+                                _locationHandler.currentLocation!,
+                          ),
+                          getRemainingKm: () async =>
+                              routeController.calculateRemainingDistanceKm(
+                            fromLocation: _locationHandler.currentLocation,
+                          ),
+                          onDragUpdate: (delta) {
                             setState(() {
-                              _navigationPanelOffset = (_navigationPanelOffset -
-                                      details.delta.dy)
-                                  .clamp(
+                              _navigationPanelOffset =
+                                  (_navigationPanelOffset - delta).clamp(
                                       -screenHeight * 0.3, screenHeight * 0.3);
                             });
                           },
-                          onVerticalDragEnd: (details) {
+                          onDragReset: () {
                             if (_navigationPanelOffset.abs() < 20) {
-                              setState(() {
-                                _navigationPanelOffset = 0.0;
-                              });
+                              setState(() => _navigationPanelOffset = 0.0);
                             }
                           },
-                          child: Container(
-                            padding: EdgeInsets.all(12),
-                            decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.9),
-                              borderRadius: BorderRadius.circular(12),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black26,
-                                  blurRadius: 6,
-                                  offset: Offset(0, 2),
-                                ),
-                              ],
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Center(
-                                  child: Container(
-                                    width: 40,
-                                    height: 4,
-                                    margin: EdgeInsets.only(bottom: 8),
-                                    decoration: BoxDecoration(
-                                      color: Colors.grey[400],
-                                      borderRadius: BorderRadius.circular(2),
-                                    ),
-                                  ),
-                                ),
-                                Row(
-                                  children: [
-                                    Icon(
-                                      _isWheelchairFriendlyRoute
-                                          ? Icons.accessible
-                                          : Icons.directions_car,
-                                      color: _isWheelchairFriendlyRoute
-                                          ? Colors.green
-                                          : const Color(0xFF6750A4),
-                                      size: 20,
-                                    ),
-                                    SizedBox(width: 8),
-                                    Text(
-                                      _isWheelchairFriendlyRoute
-                                          ? 'Wheelchair-friendly route'
-                                          : 'Standard route',
-                                      style: TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 16,
-                                        color: _isWheelchairFriendlyRoute
-                                            ? Colors.green
-                                            : const Color(0xFF6750A4),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                SizedBox(height: 8),
-                                if (_locationHandler.currentLocation != null)
-                                  FutureBuilder<String>(
-                                    future: _getLocationName(
-                                        routeController.routeDestination ??
-                                            _locationHandler.currentLocation!),
-                                    builder: (context, snapshot) {
-                                      return Text(
-                                        snapshot.data ?? 'Calculating...',
-                                        style: TextStyle(fontSize: 14),
-                                      );
-                                    },
-                                  ),
-                                SizedBox(height: 8),
-                                if (_polylines.isNotEmpty)
-                                  FutureBuilder<double>(
-                                    future: Future.value(routeController
-                                        .calculateRemainingDistanceKm(
-                                            fromLocation: _locationHandler
-                                                .currentLocation)),
-                                    builder: (context, snapshot) {
-                                      return Text(
-                                        'Distance remaining: ${snapshot.hasData ? '${snapshot.data!.toStringAsFixed(1)} km' : 'Calculating...'}',
-                                        style: TextStyle(fontSize: 14),
-                                      );
-                                    },
-                                  ),
-                              ],
-                            ),
-                          ),
                         ),
                       ),
 

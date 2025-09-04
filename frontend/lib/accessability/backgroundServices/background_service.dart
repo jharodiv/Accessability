@@ -1,8 +1,11 @@
+import 'package:accessability/accessability/backgroundServices/space_member_notification_service.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter_background_service/flutter_background_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:location/location.dart';
+import 'package:accessability/accessability/backgroundServices/pwd_location_notification_service.dart';
 
 Future<void> initializeService() async {
   final service = FlutterBackgroundService();
@@ -32,6 +35,13 @@ void onStart(ServiceInstance service) async {
     // Initialize Firebase
     await Firebase.initializeApp();
 
+    // Initialize PWD notification service - ADD THIS
+    final pwdNotificationService = PWDLocationNotificationService();
+    await pwdNotificationService.initialize();
+
+    final spaceMemberNotificationService = SpaceMemberNotificationService();
+    await spaceMemberNotificationService.initialize();
+
     if (service is AndroidServiceInstance) {
       await service.setForegroundNotificationInfo(
         title: "Location Tracking",
@@ -52,6 +62,13 @@ void onStart(ServiceInstance service) async {
 
     // Listen for location updates
     location.onLocationChanged.listen((LocationData locationData) async {
+      if (locationData.latitude == null || locationData.longitude == null) {
+        return;
+      }
+
+      final latLng = LatLng(locationData.latitude!, locationData.longitude!);
+
+      // Update Firestore
       await FirebaseFirestore.instance
           .collection('UserLocations')
           .doc(user.uid)
@@ -60,6 +77,9 @@ void onStart(ServiceInstance service) async {
         'longitude': locationData.longitude,
         'timestamp': DateTime.now(),
       });
+
+      // Check for nearby PWD locations - ADD THIS
+      pwdNotificationService.checkLocationForNotifications(latLng);
 
       service.invoke('update', {
         'latitude': locationData.latitude,

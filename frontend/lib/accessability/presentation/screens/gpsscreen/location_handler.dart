@@ -2,6 +2,8 @@ import 'dart:async';
 import 'dart:io';
 import 'dart:math';
 import 'dart:ui' as ui;
+import 'package:accessability/accessability/backgroundServices/pwd_location_notification_service.dart';
+import 'package:accessability/accessability/backgroundServices/space_member_notification_service.dart';
 import 'package:accessability/accessability/firebaseServices/place/geocoding_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -68,6 +70,11 @@ class LocationHandler {
   bool get isNavigating => _isNavigating;
   Set<Circle> _circles = {};
   Set<Circle> get circles => _circles;
+  final PWDLocationNotificationService _pwdNotificationService =
+      PWDLocationNotificationService();
+
+  final SpaceMemberNotificationService _spaceMemberNotificationService =
+      SpaceMemberNotificationService();
 
   // Cache for addresses
   final Map<String, String> _addressCache = {};
@@ -189,9 +196,20 @@ class LocationHandler {
         'speedKmh': speedKmh, // km/h (nullable)
         'batteryPercent': batteryPercent, // nullable
       }, SetOptions(merge: true));
+
+      _pwdNotificationService.checkLocationForNotifications(location);
+      if (activeSpaceId.isNotEmpty) {
+        _spaceMemberNotificationService.checkForNearbyMembers(
+            location, activeSpaceId);
+      }
     } catch (e) {
       debugPrint('Failed to update UserLocations: $e');
     }
+  }
+
+  Future<void> initializeNotificationService() async {
+    await _pwdNotificationService.initialize();
+    _pwdNotificationService.startLocationMonitoring();
   }
 
   Future<LatLng?> getUserLocationOnce() async {
@@ -862,6 +880,7 @@ class LocationHandler {
   void disposeHandler() {
     _locationStreamSubscription?.cancel();
     _firestoreSubscription?.cancel();
+    _pwdNotificationService.stopLocationMonitoring();
     try {
       _locationStreamController.close();
     } catch (_) {}

@@ -1,3 +1,4 @@
+import 'package:accessability/accessability/backgroundServices/space_member_notification_service.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter_background_service/flutter_background_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -37,6 +38,9 @@ void onStart(ServiceInstance service) async {
     // Initialize PWD notification service - ADD THIS
     final pwdNotificationService = PWDLocationNotificationService();
     await pwdNotificationService.initialize();
+
+    final spaceMemberNotificationService = SpaceMemberNotificationService();
+    await spaceMemberNotificationService.initialize();
 
     if (service is AndroidServiceInstance) {
       await service.setForegroundNotificationInfo(

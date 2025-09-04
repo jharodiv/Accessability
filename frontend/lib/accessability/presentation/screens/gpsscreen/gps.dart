@@ -67,6 +67,7 @@ import 'package:accessability/accessability/logic/bloc/place/bloc/place_bloc.dar
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:accessability/accessability/backgroundServices/pwd_location_notification_service.dart';
+import 'package:accessability/accessability/backgroundServices/space_member_notification_service.dart';
 
 class GpsScreen extends StatefulWidget {
   const GpsScreen({super.key});
@@ -123,6 +124,8 @@ class _GpsScreenState extends State<GpsScreen> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final PWDLocationNotificationService _pwdNotificationService =
       PWDLocationNotificationService();
+  final SpaceMemberNotificationService _spaceMemberNotificationService =
+      SpaceMemberNotificationService();
 
   // Minimal route UI state (mirrors controller via callbacks)
   bool _isRouteActive = false;
@@ -151,6 +154,10 @@ class _GpsScreenState extends State<GpsScreen> {
 
     _pwdNotificationService.initialize().then((_) {
       _pwdNotificationService.startLocationMonitoring();
+    });
+
+    _spaceMemberNotificationService.initialize().then((_) {
+      _spaceMemberNotificationService.startMemberMonitoring();
     });
 
     // Fetch user data and places.
@@ -600,6 +607,7 @@ class _GpsScreenState extends State<GpsScreen> {
     routeController.dispose();
     _locationHandler.disposeHandler();
     _pwdNotificationService.stopLocationMonitoring();
+    _spaceMemberNotificationService.stopMemberMonitoring();
     _zoomDebounceTimer?.cancel();
     _mapZoomNotifier.dispose();
     _removeUserOverlay();
@@ -1403,6 +1411,8 @@ class _GpsScreenState extends State<GpsScreen> {
                           _isLoading = true;
                         });
 
+                        _spaceMemberNotificationService.updateActiveSpace(id);
+
                         // persist selection so next app start restores it
                         await _saveActiveSpaceToPrefs(id);
 
@@ -1418,6 +1428,8 @@ class _GpsScreenState extends State<GpsScreen> {
                           _activeSpaceId = '';
                           _isLoading = false;
                         });
+
+                        _spaceMemberNotificationService.updateActiveSpace('');
                         // clear saved pref so next launch auto-selects first available space again
                         _saveActiveSpaceToPrefs('');
                       },

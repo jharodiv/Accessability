@@ -1,5 +1,6 @@
 import 'package:accessability/accessability/backgroundServices/deep_link_service.dart';
 import 'package:accessability/accessability/backgroundServices/pwd_location_notification_service.dart';
+import 'package:accessability/accessability/backgroundServices/space_member_notification_service.dart';
 import 'package:accessability/accessability/data/repositories/emergency_repository.dart';
 import 'package:accessability/accessability/data/repositories/place_repository.dart';
 import 'package:accessability/accessability/firebaseServices/emergency/emergency_service.dart';
@@ -44,6 +45,9 @@ Future<void> main() async {
 
   final pwdNotificationService = PWDLocationNotificationService();
   await pwdNotificationService.initialize();
+
+  final spaceMemberNotificationService = SpaceMemberNotificationService();
+  await spaceMemberNotificationService.initialize();
 
   await EasyLocalization.ensureInitialized();
 

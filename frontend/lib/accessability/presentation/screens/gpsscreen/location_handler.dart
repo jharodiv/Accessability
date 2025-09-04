@@ -3,6 +3,7 @@ import 'dart:io';
 import 'dart:math';
 import 'dart:ui' as ui;
 import 'package:accessability/accessability/backgroundServices/pwd_location_notification_service.dart';
+import 'package:accessability/accessability/backgroundServices/space_member_notification_service.dart';
 import 'package:accessability/accessability/firebaseServices/place/geocoding_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -71,6 +72,9 @@ class LocationHandler {
   Set<Circle> get circles => _circles;
   final PWDLocationNotificationService _pwdNotificationService =
       PWDLocationNotificationService();
+
+  final SpaceMemberNotificationService _spaceMemberNotificationService =
+      SpaceMemberNotificationService();
 
   // Cache for addresses
   final Map<String, String> _addressCache = {};
@@ -194,6 +198,10 @@ class LocationHandler {
       }, SetOptions(merge: true));
 
       _pwdNotificationService.checkLocationForNotifications(location);
+      if (activeSpaceId.isNotEmpty) {
+        _spaceMemberNotificationService.checkForNearbyMembers(
+            location, activeSpaceId);
+      }
     } catch (e) {
       debugPrint('Failed to update UserLocations: $e');
     }

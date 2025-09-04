@@ -5,16 +5,12 @@ final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 Future<List<Map<String, dynamic>>> getPwdFriendlyLocations() async {
   try {
     final querySnapshot = await _firestore.collection('pwd_locations').get();
-    print('Found ${querySnapshot.docs.length} PWD location documents');
 
     return querySnapshot.docs.map((doc) {
       final data = doc.data();
-      print('Processing document: ${doc.id}');
 
       // Debug: Print all fields and their types
-      data.forEach((key, value) {
-        print('  $key: ${value.runtimeType} = $value');
-      });
+      data.forEach((key, value) {});
 
       // Handle notificationRadius type conversion
       dynamic notificationRadius = data['notificationRadius'];

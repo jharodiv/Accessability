@@ -280,6 +280,27 @@ class _VerificationCodeScreenState extends State<VerificationCodeScreen> {
         ),
         const SizedBox(height: 24),
 
+        // 🔹 OR separator
+        Row(
+          children: const [
+            Expanded(child: Divider(thickness: 1, color: Color(0xFFCCC2DC))),
+            Padding(
+              padding: EdgeInsets.symmetric(horizontal: 12),
+              child: Text(
+                "OR",
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF7A6E9A),
+                ),
+              ),
+            ),
+            Expanded(child: Divider(thickness: 1, color: Color(0xFFCCC2DC))),
+          ],
+        ),
+
+        const SizedBox(height: 24),
+
         // 🔹 New QR code container
         Container(
           width: double.infinity,
@@ -292,7 +313,7 @@ class _VerificationCodeScreenState extends State<VerificationCodeScreen> {
           child: Column(
             children: [
               const Text(
-                'Scan to Open App',
+                'Scan to enter directly',
                 style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,

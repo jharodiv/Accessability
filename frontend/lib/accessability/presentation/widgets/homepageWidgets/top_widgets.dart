@@ -181,8 +181,29 @@ class TopwidgetsState extends State<Topwidgets> {
                         child: IconButton(
                           icon: Icon(Icons.settings,
                               color: isDark ? Colors.white : purple),
-                          onPressed: () =>
-                              Navigator.pushNamed(context, '/settings'),
+                          onPressed: () async {
+                            final result =
+                                await Navigator.pushNamed(context, '/settings');
+
+                            if (result is Map &&
+                                result['spaceUpdated'] == true) {
+                              final id = (result['spaceId'] ?? '') as String;
+                              final name =
+                                  (result['spaceName'] ?? '') as String;
+
+                              // update Topwidgets internal UI
+                              setState(() {
+                                _activeSpaceId = id;
+                                _activeSpaceName =
+                                    name.isNotEmpty ? name : "mySpace".tr();
+                              });
+
+                              // notify the GpsScreen/parent (so LocationHandler etc. also update)
+                              widget.onSpaceSelected(id, name);
+                              widget.onSpaceIdChanged(id);
+                              if (id.isEmpty) widget.onMySpaceSelected();
+                            }
+                          },
                         ),
                       ),
                     ),

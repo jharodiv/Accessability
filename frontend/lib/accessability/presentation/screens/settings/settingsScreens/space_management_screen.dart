@@ -8,6 +8,8 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:accessability/accessability/themes/theme_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:accessability/accessability/firebaseServices/space/space_service.dart';
+import 'package:accessability/accessability/firebaseServices/space/space_service.dart';
 
 class SpaceManagementScreen extends StatefulWidget {
   const SpaceManagementScreen({super.key});
@@ -21,6 +23,8 @@ class _SpaceManagementScreenState extends State<SpaceManagementScreen> {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final Map<String, bool> _expandedSpaces = {};
   final Set<String> _deletingSpaces = {};
+  final SpaceService _spaceService = SpaceService();
+  String? _lastUpdatedSpaceId;
 
   static const String _kSavedActiveSpaceKey = 'saved_active_space_id';
 
@@ -88,6 +92,22 @@ class _SpaceManagementScreenState extends State<SpaceManagementScreen> {
     }
   }
 
+  void _showFullWidthSnack(String message,
+      {Color background = const Color(0xFF6750A4)}) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          message,
+          style:
+              const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+        ),
+        backgroundColor: background,
+        behavior: SnackBarBehavior.fixed,
+        duration: const Duration(seconds: 3),
+      ),
+    );
+  }
+
   // Clear saved active space (used when a selected space is deleted/left)
   Future<void> _clearSavedActiveSpace() async {
     try {
@@ -103,6 +123,65 @@ class _SpaceManagementScreenState extends State<SpaceManagementScreen> {
       }
     } catch (e) {
       debugPrint('clear saved active space error: $e');
+    }
+  }
+
+  Future<void> _renameSpace(String spaceId, String newName) async {
+    if (spaceId.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('noSpaceSelected'.tr())),
+        );
+      }
+      return;
+    }
+
+    try {
+      await _spaceService.renameSpace(spaceId, newName);
+
+      // If this was the active space update the saved name + UI title
+      if (_selectedSpaceId == spaceId) {
+        await _saveActiveSpace(spaceId, newName);
+      }
+
+      // Highlight the just-updated space name
+      if (mounted) {
+        setState(() {
+          _lastUpdatedSpaceId = spaceId;
+        });
+        // clear highlight after 3 seconds
+        Future.delayed(const Duration(seconds: 3), () {
+          if (mounted) {
+            setState(() {
+              _lastUpdatedSpaceId = null;
+            });
+          }
+        });
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Space name updated'.tr(),
+              style: const TextStyle(
+                  color: Colors.white, fontWeight: FontWeight.w600),
+            ),
+            backgroundColor: const Color(0xFF6750A4),
+            behavior: SnackBarBehavior.floating,
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint('Error renaming space: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('errorUpdatingSpaceName'.tr())),
+        );
+      }
     }
   }
 
@@ -127,7 +206,13 @@ class _SpaceManagementScreenState extends State<SpaceManagementScreen> {
           child: AppBar(
             elevation: 0,
             leading: IconButton(
-              onPressed: () => Navigator.pop(context),
+              onPressed: () {
+                Navigator.of(context).pop({
+                  'spaceUpdated': true,
+                  'spaceId': _selectedSpaceId,
+                  'spaceName': _selectedSpaceName,
+                });
+              },
               icon: const Icon(Icons.arrow_back),
               color: const Color(0xFF6750A4),
             ),
@@ -215,6 +300,17 @@ class _SpaceManagementScreenState extends State<SpaceManagementScreen> {
             }
 
             return SpaceManagementList(
+              spaceId: _selectedSpaceId,
+              spaceName: _selectedSpaceName,
+              lastUpdatedSpaceId: _lastUpdatedSpaceId, // <-- pass it here
+
+              onEditName: (newName) async {
+                if (_selectedSpaceId != null) {
+                  await _renameSpace(_selectedSpaceId!, newName);
+                } else {
+                  // maybe prompt user to pick a space first
+                }
+              },
               onViewAdmin: () {
                 if (_selectedSpaceId == null) {
                   ScaffoldMessenger.of(context).showSnackBar(

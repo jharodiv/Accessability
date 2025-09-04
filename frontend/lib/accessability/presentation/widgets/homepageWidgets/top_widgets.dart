@@ -10,7 +10,7 @@ class Topwidgets extends StatefulWidget {
   final Function(String) onCategorySelected;
   final GlobalKey inboxKey;
   final GlobalKey settingsKey;
-  final Function(String) onSpaceSelected;
+  final Function(String, String) onSpaceSelected;
   final VoidCallback onMySpaceSelected;
   final Function(String) onSpaceIdChanged;
   final VoidCallback? onTopTap;
@@ -140,7 +140,7 @@ class TopwidgetsState extends State<Topwidgets> {
       });
 
       // notify parent (existing callbacks)
-      widget.onSpaceSelected(result['id']!);
+      widget.onSpaceSelected(result['id']!, result['name'] ?? '');
       widget.onSpaceIdChanged(result['id']!);
       if ((result['id'] ?? '').isEmpty) widget.onMySpaceSelected();
     }
@@ -181,8 +181,29 @@ class TopwidgetsState extends State<Topwidgets> {
                         child: IconButton(
                           icon: Icon(Icons.settings,
                               color: isDark ? Colors.white : purple),
-                          onPressed: () =>
-                              Navigator.pushNamed(context, '/settings'),
+                          onPressed: () async {
+                            final result =
+                                await Navigator.pushNamed(context, '/settings');
+
+                            if (result is Map &&
+                                result['spaceUpdated'] == true) {
+                              final id = (result['spaceId'] ?? '') as String;
+                              final name =
+                                  (result['spaceName'] ?? '') as String;
+
+                              // update Topwidgets internal UI
+                              setState(() {
+                                _activeSpaceId = id;
+                                _activeSpaceName =
+                                    name.isNotEmpty ? name : "mySpace".tr();
+                              });
+
+                              // notify the GpsScreen/parent (so LocationHandler etc. also update)
+                              widget.onSpaceSelected(id, name);
+                              widget.onSpaceIdChanged(id);
+                              if (id.isEmpty) widget.onMySpaceSelected();
+                            }
+                          },
                         ),
                       ),
                     ),

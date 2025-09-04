@@ -120,12 +120,24 @@ class ServiceButtons extends StatelessWidget {
                     GestureDetector(
                       behavior: HitTestBehavior.opaque,
                       onTap: () {
-                        debugPrint('mapView pressed');
-                        if (onMapViewPressed != null) {
-                          onMapViewPressed!();
-                        } else {
-                          Navigator.pushNamed(context, '/mapviewsettings');
-                        }
+                        debugPrint(
+                            'mapView icon tapped; scheduling parent callback or route');
+                        WidgetsBinding.instance.addPostFrameCallback((_) {
+                          if (onMapViewPressed != null) {
+                            try {
+                              onMapViewPressed!();
+                            } catch (e, st) {
+                              debugPrint('onMapViewPressed threw: $e\n$st');
+                            }
+                          } else {
+                            try {
+                              Navigator.pushNamed(context, '/mapviewsettings');
+                            } catch (e, st) {
+                              debugPrint(
+                                  'Navigator.pushNamed(/mapviewsettings) threw: $e\n$st');
+                            }
+                          }
+                        });
                       },
                       child: _buildCircularIcon(
                         context,

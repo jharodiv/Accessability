@@ -360,6 +360,25 @@ class _GpsScreenState extends State<GpsScreen> {
     }
   }
 
+  MapPerspective? _mapPerspectiveFromDynamic(dynamic v) {
+    if (v == null) return null;
+    try {
+      if (v is MapPerspective) return v;
+      if (v is int) {
+        final idx = v.clamp(0, MapPerspective.values.length - 1).toInt();
+        return MapPerspective.values[idx];
+      }
+      if (v is String) {
+        final byName = MapPerspective.values.firstWhere(
+          (e) => e.toString().split('.').last.toLowerCase() == v.toLowerCase(),
+          orElse: () => MapPerspective.classic,
+        );
+        return byName;
+      }
+    } catch (_) {}
+    return null;
+  }
+
   Future<void> _restoreOrAutoSelectSpace() async {
     if (_autoSelectAttempted) return;
 
@@ -566,15 +585,25 @@ class _GpsScreenState extends State<GpsScreen> {
     final args = ModalRoute.of(context)?.settings.arguments;
     debugPrint('[GpsScreen] didChangeDependencies: args = $args');
 
-    if (args is MapPerspective) {
-      debugPrint('[GpsScreen] MapPerspective detected, applying...');
-      _pendingPerspective = args;
+    dynamic maybe = args;
+    if (args is Map)
+      maybe = args['perspective'] ??
+          args['perspectiveIndex'] ??
+          args['perspectiveName'];
+    final maybePerspective = _mapPerspectiveFromDynamic(maybe);
+    debugPrint('[GpsScreen] maybePerspective = $maybePerspective');
+
+    if (maybePerspective != null) {
+      _pendingPerspective = maybePerspective;
       if (_isLocationFetched && _locationHandler.mapController != null) {
+        debugPrint('[GpsScreen] applying pending perspective now');
         applyMapPerspective(_pendingPerspective!);
         _pendingPerspective = null;
+      } else {
+        debugPrint(
+            '[GpsScreen] pending perspective saved for later because map or location not ready');
       }
     }
-
     // --- Show tutorial if route requested it ---
     final showTutorial =
         args is Map<String, dynamic> && args['showTutorial'] == true;
@@ -734,10 +763,27 @@ class _GpsScreenState extends State<GpsScreen> {
     });
   }
 
-  void _handleSpaceIdChanged(String spaceId) {
+  void _handleSpaceIdChanged(String spaceId) async {
     setState(() {
       _activeSpaceId = spaceId;
       _isLoading = true;
+    });
+
+    String name = '';
+    if (spaceId.isNotEmpty) {
+      try {
+        final doc = await _firestore.collection('Spaces').doc(spaceId).get();
+        if (doc.exists) {
+          name = (doc.data() as Map<String, dynamic>)['name']?.toString() ?? '';
+        }
+      } catch (e) {
+        debugPrint('[GpsScreen] _handleSpaceIdChanged failed: $e');
+      }
+    }
+    if (!mounted) return;
+    setState(() {
+      _activeSpaceName = name;
+      _isLoading = false;
     });
   }
 
@@ -1008,33 +1054,66 @@ class _GpsScreenState extends State<GpsScreen> {
   }
 
   void applyMapPerspective(MapPerspective perspective) {
+    debugPrint('[GpsScreen] applyMapPerspective called with -> $perspective');
     final currentLatLng =
         _locationHandler.currentLocation ?? const LatLng(16.0430, 120.3333);
 
-    final newMapType =
-        MapPerspectiveUtils.mapTypeFor(perspective as MapPerspective);
-    final newPosition = MapPerspectiveUtils.cameraPositionFor(
-        perspective as MapPerspective, currentLatLng);
+    final newMapType = MapPerspectiveUtils.mapTypeFor(perspective);
+    final newPosition =
+        MapPerspectiveUtils.cameraPositionFor(perspective, currentLatLng);
+
+    // debug info
+    debugPrint(
+        '[GpsScreen] old mapType=$_currentMapType -> new mapType=$newMapType');
+    debugPrint(
+        '[GpsScreen] newCameraPosition: zoom=${newPosition.zoom}, tilt=${newPosition.tilt}, bearing=${newPosition.bearing}');
 
     setState(() {
       _currentMapType = newMapType;
     });
 
+    // force a full rebuild of the GpsMap by nudging its key (see below)
+    _mapKey = ValueKey(
+        'map_${_currentMapType.toString()}_${DateTime.now().millisecondsSinceEpoch}');
+
     if (_locationHandler.mapController != null) {
-      _locationHandler.mapController!.animateCamera(
+      debugPrint('[GpsScreen] animateCamera -> controller present, animating');
+      _locationHandler.mapController!
+          .animateCamera(
         CameraUpdate.newCameraPosition(newPosition),
-      );
+      )
+          .catchError((e) {
+        debugPrint('[GpsScreen] animateCamera error: $e');
+      });
+    } else {
+      debugPrint('[GpsScreen] mapController is null — camera animate skipped');
     }
   }
 
   Future<void> _openMapSettings() async {
-    final result = await Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => const MapViewScreen()),
-    );
-    if (result != null && result is Map<String, dynamic>) {
-      final perspective = result['perspective'] as MapPerspective;
-      applyMapPerspective(perspective);
+    debugPrint(
+        '[GpsScreen] _openMapSettings -> attempting push (rootNavigator)');
+    try {
+      final route = MaterialPageRoute(builder: (_) => const MapViewScreen());
+      final result =
+          await Navigator.of(context, rootNavigator: true).push(route);
+      debugPrint('[GpsScreen] _openMapSettings returned -> $result');
+
+      dynamic dyn = result;
+      if (result is Map<String, dynamic>) {
+        dyn = result['perspective'] ??
+            result['perspectiveIndex'] ??
+            result['perspectiveName'];
+      }
+      final perspective = _mapPerspectiveFromDynamic(dyn);
+      if (perspective != null) {
+        debugPrint('[GpsScreen] parsed perspective -> $perspective');
+        applyMapPerspective(perspective);
+      } else {
+        debugPrint('[GpsScreen] no valid perspective extracted from result');
+      }
+    } catch (e, st) {
+      debugPrint('[GpsScreen] _openMapSettings push failed: $e\n$st');
     }
   }
 
@@ -1372,50 +1451,31 @@ class _GpsScreenState extends State<GpsScreen> {
                       settingsKey: settingsKey,
                       activeSpaceId: _activeSpaceId,
                       activeSpaceName: _activeSpaceName,
-
                       onCategorySelected: (selectedType) {
                         _fetchNearbyPlaces(selectedType);
                       },
                       onOverlayChange: (isVisible) {
                         setState(() {});
                       },
-                      onTopTap: () {
-                        if (_userOverlayEntry != null) {
-                          _removeUserOverlay();
-                          if (mounted) setState(() {}); // update UI if needed
-                        }
-                      },
-                      // Ensure GpsScreen rebuilds when a space is selected:
-                      onSpaceSelected: (String id) async {
-                        debugPrint(
-                            '[GpsScreen] Topwidgets.onSpaceSelected -> id=$id (current _activeSpaceId=$_activeSpaceId)');
+                      onSpaceSelected: (String id, String name) async {
                         setState(() {
-                          _locationHandler.updateActiveSpaceId(id);
                           _activeSpaceId = id;
-                          _isLoading = true;
+                          _activeSpaceName = name;
+                          _isLoading = false;
                         });
-
-                        // persist selection so next app start restores it
+                        _locationHandler.updateActiveSpaceId(id);
                         await _saveActiveSpaceToPrefs(id);
-
-                        WidgetsBinding.instance.addPostFrameCallback((_) {
-                          debugPrint(
-                              '[GpsScreen] postFrame: _activeSpaceId=$_activeSpaceId, locationHandler.activeSpaceId=${_locationHandler.activeSpaceId}');
-                        });
                       },
-                      // Keep the explicit "my space" handler but make sure it updates _activeSpaceId too:
                       onMySpaceSelected: () {
+                        // clear name as well
                         setState(() {
                           _locationHandler.updateActiveSpaceId('');
                           _activeSpaceId = '';
+                          _activeSpaceName = ''; // <-- important
                           _isLoading = false;
                         });
-                        // clear saved pref so next launch auto-selects first available space again
                         _saveActiveSpaceToPrefs('');
                       },
-
-                      // You can keep onSpaceIdChanged if other logic relies on it,
-                      // but ensure it updates screen state (it already does).
                       onSpaceIdChanged: _handleSpaceIdChanged,
                     ),
                     if (_locationHandler.currentIndex == 0)
@@ -1425,7 +1485,11 @@ class _GpsScreenState extends State<GpsScreen> {
                         onCategorySelected: (LatLng location) {
                           _locationHandler.panCameraToLocation(location);
                         },
-                        onMapViewPressed: _openMapSettings,
+                        onMapViewPressed: () async {
+                          debugPrint(
+                              '[GpsScreen] onMapViewPressed closure called');
+                          await _openMapSettings();
+                        },
                         onMemberPressed: _onMemberPressed,
                         locationHandler: _locationHandler,
                         selectedPlace: _selectedPlace,

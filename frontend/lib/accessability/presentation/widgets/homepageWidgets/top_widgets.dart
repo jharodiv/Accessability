@@ -10,7 +10,7 @@ class Topwidgets extends StatefulWidget {
   final Function(String) onCategorySelected;
   final GlobalKey inboxKey;
   final GlobalKey settingsKey;
-  final Function(String) onSpaceSelected;
+  final Function(String, String) onSpaceSelected;
   final VoidCallback onMySpaceSelected;
   final Function(String) onSpaceIdChanged;
   final VoidCallback? onTopTap;
@@ -140,7 +140,7 @@ class TopwidgetsState extends State<Topwidgets> {
       });
 
       // notify parent (existing callbacks)
-      widget.onSpaceSelected(result['id']!);
+      widget.onSpaceSelected(result['id']!, result['name'] ?? '');
       widget.onSpaceIdChanged(result['id']!);
       if ((result['id'] ?? '').isEmpty) widget.onMySpaceSelected();
     }

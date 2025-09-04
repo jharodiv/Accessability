@@ -62,6 +62,7 @@ import 'package:accessability/accessability/logic/bloc/auth/auth_state.dart';
 import 'package:accessability/accessability/logic/bloc/place/bloc/place_bloc.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:accessability/accessability/backgroundServices/pwd_location_notification_service.dart';
 
 // MapPerspective enum (if you had it elsewhere, keep that definition; otherwise define here)
 enum MapPerspective { classic, aerial, terrain, street, perspective }
@@ -119,6 +120,8 @@ class _GpsScreenState extends State<GpsScreen> {
       ValueNotifier<double>(_currentZoom);
   Timer? _zoomDebounceTimer;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final PWDLocationNotificationService _pwdNotificationService =
+      PWDLocationNotificationService();
 
   // Minimal route UI state (mirrors controller via callbacks)
   bool _isRouteActive = false;
@@ -144,6 +147,10 @@ class _GpsScreenState extends State<GpsScreen> {
 
     print("Using API Key: $_googleAPIKey");
     _mapKey = UniqueKey();
+
+    _pwdNotificationService.initialize().then((_) {
+      _pwdNotificationService.startLocationMonitoring();
+    });
 
     // Fetch user data and places.
     context.read<UserBloc>().add(FetchUserData());
@@ -591,6 +598,7 @@ class _GpsScreenState extends State<GpsScreen> {
   void dispose() {
     routeController.dispose();
     _locationHandler.disposeHandler();
+    _pwdNotificationService.stopLocationMonitoring();
     _zoomDebounceTimer?.cancel();
     _mapZoomNotifier.dispose();
     _removeUserOverlay();

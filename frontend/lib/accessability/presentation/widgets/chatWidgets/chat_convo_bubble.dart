@@ -1,3 +1,4 @@
+import 'package:accessability/accessability/presentation/widgets/chatWidgets/verification_code_bubble.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:accessability/accessability/themes/theme_provider.dart';
@@ -14,7 +15,8 @@ class ChatConvoBubble extends StatefulWidget {
   final Function()? onEdit;
   final Function()? onDelete;
   final Function(String emoji)? onReact;
-  final bool isSystemMessage; // Add this property
+  final bool isSystemMessage;
+  final Map<String, dynamic>? metadata; // Add metadata property
 
   const ChatConvoBubble({
     super.key,
@@ -25,7 +27,8 @@ class ChatConvoBubble extends StatefulWidget {
     this.onEdit,
     this.onDelete,
     this.onReact,
-    this.isSystemMessage = false, // Default to false
+    this.isSystemMessage = false,
+    this.metadata, // Add metadata parameter
   });
 
   @override
@@ -115,6 +118,14 @@ class _ChatConvoBubbleState extends State<ChatConvoBubble> {
     bool isDarkMode =
         Provider.of<ThemeProvider>(context, listen: false).isDarkMode;
 
+    final isVerificationCode = widget.metadata != null &&
+        widget.metadata!['type'] == 'verification_code';
+
+    // Handle verification code messages differently
+    if (isVerificationCode) {
+      return _buildVerificationCodeBubble(context, isDarkMode);
+    }
+
     // Handle system messages differently
     if (widget.isSystemMessage) {
       return _buildSystemMessage(context, isDarkMode);
@@ -192,6 +203,22 @@ class _ChatConvoBubbleState extends State<ChatConvoBubble> {
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildVerificationCodeBubble(BuildContext context, bool isDarkMode) {
+    final spaceId = widget.metadata!['spaceId'];
+    final verificationCode = widget.metadata!['verificationCode'];
+    final spaceName = widget.metadata!['spaceName'];
+    final expiresAt = DateTime.parse(widget.metadata!['expiresAt']);
+    final codeTimestamp = widget.timestamp.toDate();
+    return VerificationCodeBubble(
+      spaceId: spaceId,
+      verificationCode: verificationCode,
+      codeTimestamp: codeTimestamp,
+      expiresAt: expiresAt,
+      isSpaceMember:
+          false, // This will be checked in the VerificationCodeBubble itself
     );
   }
 

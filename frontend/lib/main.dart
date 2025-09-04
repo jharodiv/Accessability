@@ -3,6 +3,7 @@ import 'package:accessability/accessability/backgroundServices/pwd_location_noti
 import 'package:accessability/accessability/backgroundServices/space_member_notification_service.dart';
 import 'package:accessability/accessability/data/repositories/emergency_repository.dart';
 import 'package:accessability/accessability/data/repositories/place_repository.dart';
+import 'package:accessability/accessability/firebaseServices/chat/chat_service.dart';
 import 'package:accessability/accessability/firebaseServices/emergency/emergency_service.dart';
 import 'package:accessability/accessability/firebaseServices/place/place_service.dart';
 import 'package:accessability/accessability/logic/bloc/emergency/bloc/emergency_bloc.dart';
@@ -48,6 +49,16 @@ Future<void> main() async {
 
   final spaceMemberNotificationService = SpaceMemberNotificationService();
   await spaceMemberNotificationService.initialize();
+
+  WidgetsBinding.instance.addPostFrameCallback((_) async {
+    try {
+      final chatService = ChatService();
+      await chatService.checkAndExpireRequests();
+      print('Completed initial expiration check on app startup');
+    } catch (e) {
+      print('Error in initial expiration check: $e');
+    }
+  });
 
   await EasyLocalization.ensureInitialized();
 

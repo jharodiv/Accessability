@@ -1,4 +1,5 @@
 import 'package:accessability/accessability/presentation/screens/gpsscreen/gps.dart';
+import 'package:accessability/accessability/presentation/widgets/chatWidgets/verification_request_screen.dart';
 import 'package:accessability/accessability/presentation/widgets/google_helper/map_view_screen.dart';
 import 'package:accessability/accessability/presentation/widgets/homepageWidgets/bottomWidgetFiles/checkIn/send_location_screen.dart';
 import 'package:flutter/material.dart';
@@ -84,6 +85,32 @@ class AppRouter {
       case '/spaceManagement':
         return _buildRoute(const SpaceManagementScreen(),
             settings: routeSettings);
+      case '/verificationRequest':
+        final args = routeSettings.arguments as Map<String, dynamic>?;
+        if (args == null) {
+          throw ArgumentError(
+              'Arguments must not be null for /verificationRequest route');
+        }
+
+        // Add null checks for all parameters
+        final requestId = args['requestId'] as String? ?? '';
+        final spaceId = args['spaceId'] as String? ?? '';
+        final spaceName = args['spaceName'] as String? ?? 'Space';
+        final verificationCode = args['verificationCode'] as String? ?? '';
+        final expiresAt = args['expiresAt'] as DateTime? ?? DateTime.now();
+        final senderID = args['senderID'] as String? ?? '';
+
+        return MaterialPageRoute(
+          builder: (context) => VerificationRequestScreen(
+            requestId: requestId,
+            spaceId: spaceId,
+            spaceName: spaceName,
+            verificationCode: verificationCode,
+            expiresAt: expiresAt,
+            senderID: senderID,
+          ),
+          settings: routeSettings,
+        );
       case '/send-location':
         final args = routeSettings.arguments as Map<String, dynamic>?;
         if (args == null) {

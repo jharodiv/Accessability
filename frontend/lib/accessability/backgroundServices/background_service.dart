@@ -1,4 +1,7 @@
+import 'dart:async';
+
 import 'package:accessability/accessability/backgroundServices/space_member_notification_service.dart';
+import 'package:accessability/accessability/firebaseServices/chat/chat_service.dart'; // ADD THIS IMPORT
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter_background_service/flutter_background_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -35,7 +38,6 @@ void onStart(ServiceInstance service) async {
     // Initialize Firebase
     await Firebase.initializeApp();
 
-    // Initialize PWD notification service - ADD THIS
     final pwdNotificationService = PWDLocationNotificationService();
     await pwdNotificationService.initialize();
 
@@ -57,8 +59,21 @@ void onStart(ServiceInstance service) async {
       return;
     }
 
+    // Initialize ChatService for expiration checking
+    final chatService = ChatService();
+
     // Initialize location service
     final location = Location();
+
+    // Timer for periodic expiration checks (every 5 minutes)
+    Timer.periodic(Duration(minutes: 5), (timer) async {
+      try {
+        await chatService.checkAndExpireRequests();
+        print('Completed expiration check cycle');
+      } catch (e) {
+        print('Error in expiration check timer: $e');
+      }
+    });
 
     // Listen for location updates
     location.onLocationChanged.listen((LocationData locationData) async {
@@ -78,7 +93,7 @@ void onStart(ServiceInstance service) async {
         'timestamp': DateTime.now(),
       });
 
-      // Check for nearby PWD locations - ADD THIS
+      // Check for nearby PWD locations
       pwdNotificationService.checkLocationForNotifications(latLng);
 
       service.invoke('update', {

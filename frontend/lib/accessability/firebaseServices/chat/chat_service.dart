@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:accessability/accessability/data/model/message.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -126,20 +128,50 @@ class ChatService {
     });
   }
 
+  Future<void> sendChatRequestWithMetadata(
+      String receiverID, String message, Map<String, dynamic> metadata) async {
+    final String senderID = _auth.currentUser!.uid;
+    final Timestamp timestamp = Timestamp.now();
+
+    await firebaseFirestore.collection('chat_requests').add({
+      'senderID': senderID,
+      'receiverID': receiverID,
+      'message': message,
+      'status': 'pending',
+      'timestamp': timestamp,
+      'metadata': metadata, // Include metadata
+    });
+  }
+
   // Accept a chat request and create a chat room with the last message
   Future<void> acceptChatRequest(String requestID) async {
+    print('Accepting chat request with ID: $requestID'); // Add debug print
+
+    if (requestID.isEmpty) {
+      print('Error: Request ID is empty');
+      throw Exception('Request ID cannot be empty');
+    }
+
     final requestSnapshot = await firebaseFirestore
         .collection('chat_requests')
         .doc(requestID)
         .get();
 
-    if (!requestSnapshot.exists) return;
+    print('Request snapshot exists: ${requestSnapshot.exists}'); // Debug
+
+    if (!requestSnapshot.exists) {
+      print('Error: Chat request document does not exist');
+      return;
+    }
 
     final requestData = requestSnapshot.data() as Map<String, dynamic>;
     final senderID = requestData['senderID'];
     final receiverID = requestData['receiverID'];
     final message = requestData['message'];
     final timestamp = requestData['timestamp'];
+    final metadata = requestData['metadata']; // Preserve metadata
+
+    print('Sender: $senderID, Receiver: $receiverID'); // Debug
 
     // Create a chat room if it doesn't exist
     List<String> ids = [senderID, receiverID];
@@ -151,7 +183,7 @@ class ChatService {
       'createdAt': timestamp,
     });
 
-    // Add the last message from the chat request as the first message in the chat room
+    // Add the message with preserved metadata
     await firebaseFirestore
         .collection('chat_rooms')
         .doc(chatRoomID)
@@ -161,12 +193,15 @@ class ChatService {
       'receiverID': receiverID,
       'message': message,
       'timestamp': timestamp,
+      'metadata': metadata, // Preserve metadata
     });
 
     // Mark the chat request as accepted
     await firebaseFirestore.collection('chat_requests').doc(requestID).update({
       'status': 'accepted',
     });
+
+    print('Chat request accepted successfully');
   }
 
   // Reject a chat request
@@ -176,15 +211,24 @@ class ChatService {
     });
   }
 
-  // Get pending chat requests for the current user
-  Stream<QuerySnapshot> getPendingChatRequests() {
+  Stream<List<Map<String, dynamic>>> getVerificationCodeChatRequests() {
     final String receiverID = _auth.currentUser!.uid;
+
     return firebaseFirestore
         .collection('chat_requests')
         .where('receiverID', isEqualTo: receiverID)
         .where('status', isEqualTo: 'pending')
+        .where('metadata.type', isEqualTo: 'verification_code')
         .orderBy('timestamp', descending: true)
-        .snapshots();
+        .snapshots()
+        .asyncMap((snapshot) {
+      return snapshot.docs.map((doc) {
+        return {
+          'id': doc.id, // Include the document ID
+          ...doc.data(), // Include all document data
+        };
+      }).toList();
+    });
   }
 
   // Check if a chat request exists between two users
@@ -315,6 +359,36 @@ class ChatService {
       if (memberId != newMemberId) {
         await createChatRoomForMembers(newMemberId, memberId, spaceName);
       }
+    }
+  }
+
+  // In ChatService, add this method:
+  Future<void> checkAndExpireRequests() async {
+    try {
+      final String receiverID = _auth.currentUser!.uid;
+
+      final snapshot = await firebaseFirestore
+          .collection('chat_requests')
+          .where('receiverID', isEqualTo: receiverID)
+          .where('status', isEqualTo: 'pending')
+          .where('metadata.type', isEqualTo: 'verification_code')
+          .get();
+
+      for (var doc in snapshot.docs) {
+        final data = doc.data();
+        final metadata = data['metadata'] as Map<String, dynamic>?;
+        final expiresAtString = metadata?['expiresAt'] as String?;
+
+        if (expiresAtString != null) {
+          final expiresAt = DateTime.parse(expiresAtString);
+          if (DateTime.now().isAfter(expiresAt)) {
+            print('Auto-declining expired verification request: ${doc.id}');
+            await rejectChatRequest(doc.id);
+          }
+        }
+      }
+    } catch (e) {
+      print('Error in expiration checker: $e');
     }
   }
 
@@ -466,6 +540,148 @@ class ChatService {
       await sendSystemMessage(spaceId, '$username was removed from the space');
     } catch (e) {
       print('Error removing member from space chat room: $e');
+    }
+  }
+
+  Future<void> sendVerificationCode(
+      String receiverID, String spaceId, String spaceName) async {
+    final String senderID = _auth.currentUser!.uid;
+
+    // Get or generate verification code
+    final spaceSnapshot =
+        await firebaseFirestore.collection('Spaces').doc(spaceId).get();
+    String verificationCode;
+    DateTime codeTimestamp;
+
+    if (spaceSnapshot.exists) {
+      final existingCode = spaceSnapshot['verificationCode'];
+      final existingTimestamp = spaceSnapshot['codeTimestamp']?.toDate();
+
+      if (existingCode != null && existingTimestamp != null) {
+        final now = DateTime.now();
+        final difference = now.difference(existingTimestamp).inMinutes;
+        verificationCode =
+            difference < 10 ? existingCode : _generateVerificationCode();
+      } else {
+        verificationCode = _generateVerificationCode();
+      }
+    } else {
+      verificationCode = _generateVerificationCode();
+    }
+
+    codeTimestamp = DateTime.now();
+
+    // Update space with verification code and timestamp
+    await firebaseFirestore.collection('Spaces').doc(spaceId).update({
+      'verificationCode': verificationCode,
+      'codeTimestamp': codeTimestamp,
+    });
+
+    // Prepare metadata for verification code
+    final metadata = {
+      'type': 'verification_code',
+      'spaceId': spaceId,
+      'verificationCode': verificationCode,
+      'spaceName': spaceName,
+      'expiresAt': codeTimestamp.add(Duration(minutes: 10)).toIso8601String(),
+      'requestId': '', // This will be populated when sending as chat request
+    };
+
+    final message =
+        'Join $spaceName! Verification code: $verificationCode (Expires in 10 minutes)';
+
+    // Use the unified method to send with metadata
+    await _sendMessageWithMetadata(receiverID, message, metadata);
+  }
+
+  Future<void> _sendMessageWithMetadata(
+      String receiverID, String message, Map<String, dynamic> metadata) async {
+    final String senderID = _auth.currentUser!.uid;
+    final String currentUserEmail = _auth.currentUser!.email!;
+    final Timestamp timestamp = Timestamp.now();
+
+    // Check if chat room exists
+    final bool chatRoomExists = await hasChatRoom(senderID, receiverID);
+
+    if (chatRoomExists) {
+      // Send to existing chat room - we need to generate a unique ID for this case
+      List<String> ids = [senderID, receiverID];
+      ids.sort();
+      String chatRoomID = ids.join('_');
+
+      // Generate a unique ID for this verification message
+      final messageId = _generateMessageId();
+
+      await firebaseFirestore
+          .collection('chat_rooms')
+          .doc(chatRoomID)
+          .collection('messages')
+          .add({
+        'senderID': senderID,
+        'senderEmail': currentUserEmail,
+        'receiverID': receiverID,
+        'message': message,
+        'timestamp': timestamp,
+        'metadata': {
+          ...metadata,
+          'requestId': messageId, // Use generated ID for chat room messages
+        },
+      });
+    } else {
+      // Send as chat request with metadata - use a document reference with known ID
+      final newDocRef = firebaseFirestore.collection('chat_requests').doc();
+
+      await newDocRef.set({
+        'senderID': senderID,
+        'receiverID': receiverID,
+        'message': message,
+        'status': 'pending',
+        'timestamp': timestamp,
+        'metadata': {
+          ...metadata,
+          'requestId': newDocRef.id, // Use the document ID for chat requests
+        },
+      });
+    }
+  }
+
+  String _generateMessageId() {
+    return 'msg_${DateTime.now().millisecondsSinceEpoch}_${_auth.currentUser!.uid}';
+  }
+
+  Future<void> _sendChatRequestWithMetadata(
+      String receiverID, String message, Map<String, dynamic> metadata) async {
+    final String senderID = _auth.currentUser!.uid;
+    final Timestamp timestamp = Timestamp.now();
+
+    await firebaseFirestore.collection('chat_requests').add({
+      'senderID': senderID,
+      'receiverID': receiverID,
+      'message': message,
+      'status': 'pending',
+      'timestamp': timestamp,
+      'metadata': metadata, // Include metadata in chat requests
+    });
+  }
+
+  String _generateVerificationCode() {
+    final random = Random();
+    return (100000 + random.nextInt(900000)).toString();
+  }
+
+// Add this method to check if user is space member
+  Future<bool> isUserSpaceMember(String spaceId, String userId) async {
+    try {
+      final spaceDoc =
+          await firebaseFirestore.collection('Spaces').doc(spaceId).get();
+      if (spaceDoc.exists) {
+        final members = List<String>.from(spaceDoc['members'] ?? []);
+        return members.contains(userId);
+      }
+      return false;
+    } catch (e) {
+      print('Error checking space membership: $e');
+      return false;
     }
   }
 }

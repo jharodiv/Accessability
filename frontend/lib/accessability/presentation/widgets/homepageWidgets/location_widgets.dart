@@ -465,8 +465,7 @@ class _LocationWidgetsState extends State<LocationWidgets> {
     if (email == user.email) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('You cannot send a verification code to yourself'),
-        ),
+            content: Text('You cannot send a verification code to yourself')),
       );
       return;
     }
@@ -505,47 +504,19 @@ class _LocationWidgetsState extends State<LocationWidgets> {
       return;
     }
 
-    // Get or generate verification code
-    final existingCode = spaceSnapshot['verificationCode'];
-    final codeTimestamp = spaceSnapshot['codeTimestamp']?.toDate();
-
-    String verificationCode;
-    if (existingCode != null && codeTimestamp != null) {
-      final now = DateTime.now();
-      final difference = now.difference(codeTimestamp).inMinutes;
-      verificationCode =
-          difference < 10 ? existingCode : _generateVerificationCode();
-    } else {
-      verificationCode = _generateVerificationCode();
-    }
-
-    final hasChatRoom = await _chatService.hasChatRoom(user.uid, receiverID);
-    if (!hasChatRoom) {
-      await _chatService.sendChatRequest(
-        receiverID,
-        'Join My Space! \n Your verification code is: $verificationCode (Expires in 10 minutes)',
+    // Use the unified ChatService method
+    try {
+      await _chatService.sendVerificationCode(
+          receiverID, widget.activeSpaceId, _spaceName!);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Verification code sent via chat')),
       );
-    } else {
-      await _chatService.sendMessage(
-        receiverID,
-        'Join My Space! \n Your verification code is: $verificationCode (Expires in 10 minutes)',
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+            content: Text('Error sending verification code: ${e.toString()}')),
       );
     }
-
-    // Update space with new verification code and timestamp
-    await _firestore.collection('Spaces').doc(widget.activeSpaceId).update({
-      'verificationCode': verificationCode,
-      'codeTimestamp': DateTime.now(),
-    });
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Verification code sent via chat')),
-    );
-  }
-
-  String _generateVerificationCode() {
-    final random = Random();
-    return (100000 + random.nextInt(900000)).toString();
   }
 
   Future<String?> _showAddPersonDialog() async {

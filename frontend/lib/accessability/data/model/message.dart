@@ -6,13 +6,16 @@ class Message {
   final String receiverID;
   final String message;
   final Timestamp timestamp;
+  final Map<String, dynamic>? metadata; // Add metadata field
 
-  Message(
-      {required this.senderID,
-      required this.senderEmail,
-      required this.receiverID,
-      required this.message,
-      required this.timestamp});
+  Message({
+    required this.senderID,
+    required this.senderEmail,
+    required this.receiverID,
+    required this.message,
+    required this.timestamp,
+    this.metadata, // Add metadata parameter
+  });
 
   Map<String, dynamic> toMap() {
     return {
@@ -20,7 +23,21 @@ class Message {
       'senderEmail': senderEmail,
       'receiverID': receiverID,
       'message': message,
-      'timestamp': timestamp
+      'timestamp': timestamp,
+      'metadata': metadata, // Include metadata in toMap
     };
+  }
+
+  factory Message.fromMap(Map<String, dynamic> map) {
+    return Message(
+      senderID: map['senderID'],
+      senderEmail: map['senderEmail'],
+      receiverID: map['receiverID'],
+      message: map['message'],
+      timestamp: map['timestamp'],
+      metadata: map['metadata'] != null
+          ? Map<String, dynamic>.from(map['metadata'])
+          : null,
+    );
   }
 }

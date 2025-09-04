@@ -28,6 +28,7 @@ class ChatUsersList extends StatelessWidget {
         chatService.getUsersInSameSpaces(),
         chatService.getUsersWithAcceptedChatRequests(),
         chatService.getSpaceChatRooms(),
+        chatService.getVerificationCodeChatRequests(),
       ]),
       builder: (context, snapshot) {
         if (snapshot.hasError) {
@@ -77,8 +78,18 @@ class ChatUsersList extends StatelessWidget {
         final List<Map<String, dynamic>> usersWithAcceptedRequests =
             snapshot.data![1];
         final List<Map<String, dynamic>> spaceChatRooms = snapshot.data![2];
+        final List<Map<String, dynamic>> verificationCodeRequests =
+            snapshot.data![3];
 
         final Map<String, Map<String, dynamic>> uniqueUsers = {};
+
+        // DEBUG: Print what we're getting
+        print('Users in same spaces: ${usersInSameSpaces.length}');
+        print(
+            'Users with accepted requests: ${usersWithAcceptedRequests.length}');
+        print('Space chat rooms: ${spaceChatRooms.length}');
+        print('Verification code requests: ${verificationCodeRequests.length}');
+        print('Verification requests: $verificationCodeRequests');
 
         // Add users in the same spaces (excluding space chat rooms)
         for (var user in usersInSameSpaces) {
@@ -125,7 +136,9 @@ class ChatUsersList extends StatelessWidget {
             .where((user) => user['isSpaceChat'] == true)
             .toList();
         final List<Map<String, dynamic>> individualUsers = uniqueUsers.values
-            .where((user) => user['isSpaceChat'] != true)
+            .where((user) =>
+                user['isSpaceChat'] != true &&
+                user['isVerificationRequest'] != true)
             .toList();
 
         // Display space chat rooms and individual users separately
@@ -366,6 +379,10 @@ class ChatUsersList extends StatelessWidget {
       );
     }
 
+    if (userData['isVerificationRequest'] == true) {
+      return _buildVerificationRequestItem(userData, context, isDarkMode);
+    }
+
     if (userData['email'] != authService.getCurrentUser()!.email) {
       final String chatRoomID = _getChatRoomID(userData['uid']);
 
@@ -576,6 +593,74 @@ class ChatUsersList extends StatelessWidget {
     } else {
       return const SizedBox.shrink();
     }
+  }
+
+  Widget _buildVerificationRequestItem(
+      Map<String, dynamic> requestData, BuildContext context, bool isDarkMode) {
+    final metadata = requestData['metadata'] as Map<String, dynamic>;
+    final spaceName = metadata['spaceName'] as String? ?? 'Space Invitation';
+    final verificationCode = metadata['verificationCode'] as String? ?? '';
+    final expiresAtString = metadata['expiresAt'] as String?;
+
+    // Handle null expiresAt
+    DateTime expiresAt;
+    if (expiresAtString != null) {
+      expiresAt = DateTime.parse(expiresAtString);
+    } else {
+      expiresAt = DateTime.now().add(Duration(minutes: 10)); // Default fallback
+    }
+
+    final requestId = requestData['id'] as String? ?? '';
+    final senderID = requestData['senderID'] as String? ?? '';
+
+    return ListTile(
+      leading: CircleAvatar(
+        backgroundColor: Colors.blue,
+        child: Icon(Icons.vpn_key, color: Colors.white),
+      ),
+      title: Text(
+        'Space Invitation: $spaceName',
+        style: TextStyle(
+          fontWeight: FontWeight.bold,
+          color: isDarkMode ? Colors.white : Colors.black,
+        ),
+      ),
+      subtitle: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Verification code: $verificationCode',
+            style: TextStyle(
+              color: isDarkMode ? Colors.white70 : Colors.black54,
+            ),
+          ),
+          Text(
+            'Expires: ${DateFormat('MMM d, h:mm a').format(expiresAt)}',
+            style: TextStyle(
+              fontSize: 12,
+              color: isDarkMode ? Colors.white60 : Colors.grey[600],
+            ),
+          ),
+        ],
+      ),
+      trailing: Icon(Icons.arrow_forward_ios, size: 16),
+      onTap: () {
+        print('Navigating with requestId: ${requestData['id']}'); // Debug
+        Navigator.pushNamed(
+          context,
+          '/verificationRequest',
+          arguments: {
+            'requestId':
+                requestData['id'] as String, // Make sure this is correct
+            'spaceId': metadata['spaceId'] as String,
+            'spaceName': spaceName,
+            'verificationCode': verificationCode,
+            'expiresAt': expiresAt,
+            'senderID': requestData['senderID'] as String,
+          },
+        );
+      },
+    );
   }
 
   String _getChatRoomID(String userID) {

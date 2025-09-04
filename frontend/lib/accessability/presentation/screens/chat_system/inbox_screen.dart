@@ -76,8 +76,8 @@ class _InboxScreenState extends State<InboxScreen> {
             ),
 
             // Chat Requests Section (Only shown if there are requests)
-            StreamBuilder<QuerySnapshot>(
-              stream: chatService.getPendingChatRequests(),
+            StreamBuilder<List<Map<String, dynamic>>>(
+              stream: chatService.getVerificationCodeChatRequests(),
               builder: (context, snapshot) {
                 // If there was an error loading requests, show the "no messages" asset
                 if (snapshot.hasError) {
@@ -112,7 +112,7 @@ class _InboxScreenState extends State<InboxScreen> {
                   return const SizedBox.shrink(); // Hide while loading
                 }
 
-                final requests = snapshot.data?.docs ?? [];
+                final requests = snapshot.data ?? [];
 
                 if (requests.isEmpty) {
                   return const SizedBox.shrink(); // Hide if no requests
@@ -123,119 +123,80 @@ class _InboxScreenState extends State<InboxScreen> {
                   builder: (context, filteredSnapshot) {
                     if (filteredSnapshot.connectionState ==
                         ConnectionState.waiting) {
-                      return const SizedBox.shrink(); // Hide while loading
+                      return const SizedBox.shrink();
                     }
 
                     final filteredRequests = filteredSnapshot.data ?? [];
 
                     if (filteredRequests.isEmpty) {
-                      return const SizedBox
-                          .shrink(); // Hide if no filtered requests
+                      return const SizedBox.shrink();
                     }
 
                     return Column(
                       children: [
-                        // Divider with "Message Requests" text
-                        const Divider(),
+                        // Chat Requests Header (matching other sections)
                         Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 16.0, vertical: 8.0),
                           child: Row(
                             children: [
                               Text(
-                                'message_requests'.tr(),
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
+                                'Chat Requests',
+                                style: TextStyle(
                                   fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  color: isDarkMode
+                                      ? Colors.white
+                                      : Colors.grey[700],
                                 ),
                               ),
                               const Spacer(),
                               Text(
                                 '${filteredRequests.length}',
-                                style: const TextStyle(
-                                  color: Colors.grey,
+                                style: TextStyle(
+                                  color: isDarkMode
+                                      ? Colors.white60
+                                      : Colors.grey[600],
                                   fontSize: 14,
                                 ),
                               ),
                             ],
                           ),
                         ),
-                        const Divider(),
-                        // List of filtered pending chat requests
+                        // List of chat requests
                         ListView.builder(
                           shrinkWrap: true,
                           physics: const NeverScrollableScrollPhysics(),
                           itemCount: filteredRequests.length,
                           itemBuilder: (context, index) {
-                            final doc = filteredRequests[index];
-                            final data = doc['data'] as Map<String, dynamic>;
-                            final senderID = data['senderID'];
-                            final message = data['message'];
+                            final request = filteredRequests[index];
+                            final metadata =
+                                request['metadata'] as Map<String, dynamic>?;
+                            final isVerificationRequest = metadata != null &&
+                                metadata['type'] == 'verification_code';
 
-                            return FutureBuilder<DocumentSnapshot>(
-                              future: FirebaseFirestore.instance
-                                  .collection('Users')
-                                  .doc(senderID)
-                                  .get(),
-                              builder: (context, userSnapshot) {
-                                if (userSnapshot.connectionState ==
-                                    ConnectionState.waiting) {
-                                  return ListTile(
-                                    title: Text('loading'.tr()),
-                                  );
-                                }
+                            // Check if request is expired
+                            final expiresAtString =
+                                metadata?['expiresAt'] as String?;
+                            final isExpired = expiresAtString != null &&
+                                DateTime.now()
+                                    .isAfter(DateTime.parse(expiresAtString));
 
-                                if (!userSnapshot.hasData ||
-                                    !userSnapshot.data!.exists) {
-                                  return ListTile(
-                                    title: Text('unknown_user'.tr()),
-                                    subtitle: Text(message ?? ''),
-                                  );
-                                }
+                            // Auto-decline expired requests
+                            if (isExpired) {
+                              WidgetsBinding.instance.addPostFrameCallback((_) {
+                                chatService.rejectChatRequest(request['id']);
+                              });
+                              return const SizedBox.shrink();
+                            }
 
-                                final userData = userSnapshot.data!.data()
-                                    as Map<String, dynamic>;
-                                final senderUsername = userData['username'] ??
-                                    userData['firstName'] ??
-                                    'User';
-                                final profilePicture =
-                                    userData['profilePicture'] ??
-                                        'https://via.placeholder.com/150';
-
-                                return ListTile(
-                                  leading: CircleAvatar(
-                                    backgroundImage:
-                                        NetworkImage(profilePicture),
-                                  ),
-                                  title: Text(senderUsername),
-                                  subtitle: Text(message ?? ''),
-                                  trailing: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      IconButton(
-                                        icon: const Icon(Icons.check,
-                                            color: Colors.green),
-                                        onPressed: () async {
-                                          await chatService
-                                              .acceptChatRequest(doc['id']);
-                                          setState(
-                                              () {}); // refresh after accept
-                                        },
-                                      ),
-                                      IconButton(
-                                        icon: const Icon(Icons.close,
-                                            color: Colors.red),
-                                        onPressed: () async {
-                                          await chatService
-                                              .rejectChatRequest(doc['id']);
-                                          setState(
-                                              () {}); // refresh after reject
-                                        },
-                                      ),
-                                    ],
-                                  ),
-                                );
-                              },
-                            );
+                            if (isVerificationRequest) {
+                              return _buildVerificationRequestItem(
+                                  request, isDarkMode);
+                            } else {
+                              return _buildRegularRequestItem(
+                                  request, isDarkMode);
+                            }
                           },
                         ),
                       ],
@@ -250,9 +211,129 @@ class _InboxScreenState extends State<InboxScreen> {
     );
   }
 
+  Widget _buildVerificationRequestItem(
+      Map<String, dynamic> request, bool isDarkMode) {
+    final metadata = request['metadata'] as Map<String, dynamic>;
+    final spaceName = metadata['spaceName'] as String? ?? 'Space';
+    final verificationCode = metadata['verificationCode'] as String? ?? '';
+    final expiresAt = DateTime.parse(metadata['expiresAt'] as String? ??
+        DateTime.now().add(Duration(minutes: 10)).toIso8601String());
+
+    return ListTile(
+      leading: CircleAvatar(
+        backgroundColor: Colors.blue,
+        child: Icon(Icons.vpn_key, color: Colors.white),
+      ),
+      title: Text(
+        'Space Invitation: $spaceName',
+        style: TextStyle(
+          fontWeight: FontWeight.w500,
+          color: isDarkMode ? Colors.white : Colors.black,
+        ),
+      ),
+      subtitle: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Code: $verificationCode',
+            style: TextStyle(
+              color: isDarkMode ? Colors.white70 : Colors.black54,
+            ),
+          ),
+          Text(
+            'Expires: ${DateFormat('MMM d, h:mm a').format(expiresAt)}',
+            style: TextStyle(
+              fontSize: 12,
+              color: isDarkMode ? Colors.white60 : Colors.grey[600],
+            ),
+          ),
+        ],
+      ),
+      trailing: Icon(Icons.arrow_forward_ios,
+          size: 16, color: isDarkMode ? Colors.white70 : Colors.grey[600]),
+      onTap: () {
+        Navigator.pushNamed(
+          context,
+          '/verificationRequest',
+          arguments: {
+            'requestId': request['id'],
+            'spaceId': metadata['spaceId'],
+            'spaceName': spaceName,
+            'verificationCode': verificationCode,
+            'expiresAt': expiresAt,
+            'senderID': request['senderID'],
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildRegularRequestItem(
+      Map<String, dynamic> request, bool isDarkMode) {
+    final senderID = request['senderID'];
+    final message = request['message'];
+
+    return FutureBuilder<DocumentSnapshot>(
+      future:
+          FirebaseFirestore.instance.collection('Users').doc(senderID).get(),
+      builder: (context, userSnapshot) {
+        if (userSnapshot.connectionState == ConnectionState.waiting) {
+          return ListTile(
+            title: Text('Loading...',
+                style:
+                    TextStyle(color: isDarkMode ? Colors.white : Colors.black)),
+          );
+        }
+
+        if (!userSnapshot.hasData || !userSnapshot.data!.exists) {
+          return ListTile(
+            title: Text('Unknown user',
+                style:
+                    TextStyle(color: isDarkMode ? Colors.white : Colors.black)),
+            subtitle: Text(message ?? '',
+                style: TextStyle(
+                    color: isDarkMode ? Colors.white70 : Colors.black54)),
+          );
+        }
+
+        final userData = userSnapshot.data!.data() as Map<String, dynamic>;
+        final senderUsername =
+            userData['username'] ?? userData['firstName'] ?? 'User';
+        final profilePicture = userData['profilePicture'] ??
+            'https://firebasestorage.googleapis.com/v0/b/accessability-71ef7.firebasestorage.app/o/profile_pictures%2Fdefault_profile.png?alt=media&token=bc7a75a7-a78e-4460-b816-026a8fc341ba';
+
+        return ListTile(
+          leading: CircleAvatar(backgroundImage: NetworkImage(profilePicture)),
+          title: Text(senderUsername,
+              style: TextStyle(
+                fontWeight: FontWeight.w500,
+                color: isDarkMode ? Colors.white : Colors.black,
+              )),
+          subtitle: Text(message ?? '',
+              style: TextStyle(
+                color: isDarkMode ? Colors.white70 : Colors.black54,
+              )),
+          trailing: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              IconButton(
+                icon: Icon(Icons.check, color: Colors.green),
+                onPressed: () => chatService.acceptChatRequest(request['id']),
+              ),
+              IconButton(
+                icon: Icon(Icons.close, color: Colors.red),
+                onPressed: () => chatService.rejectChatRequest(request['id']),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   // Filter out chat requests from users in the same space
   Future<List<Map<String, dynamic>>> _filterRequestsFromSpaceMembers(
-      List<QueryDocumentSnapshot> requests) async {
+      List<Map<String, dynamic>> requests) async {
     final currentUserID = FirebaseAuth.instance.currentUser!.uid;
 
     // Fetch all spaces the current user is in
@@ -270,16 +351,9 @@ class _InboxScreenState extends State<InboxScreen> {
     }
 
     // Filter out requests from users in the same space
-    return requests
-        .where((doc) {
-          final data = doc.data() as Map<String, dynamic>;
-          final senderID = data['senderID'];
-          return !spaceMemberIds.contains(senderID);
-        })
-        .map((doc) => {
-              'id': doc.id,
-              'data': doc.data(),
-            })
-        .toList();
+    return requests.where((request) {
+      final senderID = request['senderID'];
+      return !spaceMemberIds.contains(senderID);
+    }).toList();
   }
 }

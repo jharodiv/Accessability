@@ -1,3 +1,4 @@
+import 'package:accessability/accessability/presentation/widgets/chatWidgets/verification_code_bubble.dart';
 import 'package:accessability/accessability/themes/theme_provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -225,6 +226,14 @@ class _ChatConvoScreenState extends State<ChatConvoScreen> {
       return _buildSystemMessage(data['message'], data['timestamp']);
     }
 
+    // Check if this is a verification code message with metadata
+    // This works for both chat requests and regular messages
+    if (data['metadata'] != null &&
+        data['metadata']['type'] == 'verification_code') {
+      return _buildVerificationCodeBubble(data);
+    }
+
+    // Handle normal messages
     return FutureBuilder<DocumentSnapshot>(
       future: FirebaseFirestore.instance
           .collection('Users')
@@ -238,6 +247,9 @@ class _ChatConvoScreenState extends State<ChatConvoScreen> {
             timestamp: data['timestamp'],
             profilePicture:
                 'https://firebasestorage.googleapis.com/v0/b/accessability-71ef7.appspot.com/o/profile_pictures%2Fdefault_profile.png?alt=media&token=bc7a75a7-a78e-4460-b816-026a8fc341ba',
+            metadata: data['metadata'] != null
+                ? Map<String, dynamic>.from(data['metadata'])
+                : null, // Pass metadata
           );
         }
 
@@ -250,6 +262,9 @@ class _ChatConvoScreenState extends State<ChatConvoScreen> {
           message: data['message'],
           timestamp: data['timestamp'],
           profilePicture: profilePicture,
+          metadata: data['metadata'] != null
+              ? Map<String, dynamic>.from(data['metadata'])
+              : null, // Pass metadata
         );
       },
     );
@@ -276,6 +291,56 @@ class _ChatConvoScreenState extends State<ChatConvoScreen> {
             textAlign: TextAlign.center,
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildVerificationCodeBubble(Map<String, dynamic> data) {
+    final metadata = Map<String, dynamic>.from(data['metadata']);
+    final spaceId = metadata['spaceId'];
+    final verificationCode = metadata['verificationCode'];
+    final spaceName = metadata['spaceName'];
+    final expiresAt = DateTime.parse(metadata['expiresAt']);
+    final codeTimestamp = data['timestamp'].toDate();
+    return FutureBuilder(
+      future: chatService.isUserSpaceMember(spaceId, _auth.currentUser!.uid),
+      builder: (context, membershipSnapshot) {
+        if (membershipSnapshot.connectionState == ConnectionState.waiting) {
+          return _buildLoadingBubble();
+        }
+
+        final isSpaceMember = membershipSnapshot.data ?? false;
+
+        return VerificationCodeBubble(
+          spaceId: spaceId,
+          verificationCode: verificationCode,
+          codeTimestamp: codeTimestamp,
+          expiresAt: expiresAt,
+          isSpaceMember: isSpaceMember,
+        );
+      },
+    );
+  }
+
+  Widget _buildLoadingBubble() {
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.grey[100],
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.grey, width: 1),
+      ),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 20,
+            height: 20,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          ),
+          SizedBox(width: 12),
+          Text('Loading verification code...'),
+        ],
       ),
     );
   }

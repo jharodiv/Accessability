@@ -142,22 +142,10 @@ class _VerificationCodeScreenState extends State<VerificationCodeScreen> {
   }
 
   Future<void> _shareCode() async {
-    // This action uses the existing chat service logic you provided.
-    // It asks for an email to lookup a user and sends the code via in-app chat.
-    if (_verificationCode == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No verification code available')),
-      );
-      return;
-    }
+    if (_verificationCode == null) return;
 
     final user = _auth.currentUser;
-    if (user == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('You must be logged in')),
-      );
-      return;
-    }
+    if (user == null) return;
 
     final email = await _showEmailInputDialog();
     if (email == null || email.trim().isEmpty) return;
@@ -185,37 +173,19 @@ class _VerificationCodeScreenState extends State<VerificationCodeScreen> {
 
       final receiverId = receiverSnapshot.docs.first.id;
 
-      final hasChatRoom = await _chatService.hasChatRoom(user.uid, receiverId);
-      final codeDisplay = _displayFormattedCode(_verificationCode);
-      final message =
-          'Join My Space!\nVerification code: $codeDisplay\nExpires in ${_formatValidityText()}';
+      // Use the unified ChatService method
+      await _chatService.sendVerificationCode(
+          receiverId, widget.spaceId, widget.spaceName ?? 'Unnamed Space');
 
-      if (!hasChatRoom) {
-        await _chatService.sendChatRequest(receiverId, message);
-      } else {
-        await _chatService.sendMessage(receiverId, message);
-      }
-
-      // Make sure space doc has current code/timestamp
-      await _firestore.collection('Spaces').doc(widget.spaceId).update({
-        'verificationCode': _verificationCode,
-        'codeTimestamp': DateTime.now(),
-      });
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Verification code sent via chat')),
-        );
-      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Verification code sent via chat')),
+      );
     } catch (e) {
-      debugPrint('send error: $e');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: ${e.toString()}')),
-        );
-      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error: ${e.toString()}')),
+      );
     } finally {
-      if (mounted) setState(() => _isLoading = false);
+      setState(() => _isLoading = false);
     }
   }
 

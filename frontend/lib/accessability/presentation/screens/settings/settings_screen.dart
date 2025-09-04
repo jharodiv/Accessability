@@ -9,6 +9,7 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -25,6 +26,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final authBloc = context.read<AuthBloc>();
 
     try {
+      // Clear the active space ID from SharedPreferences before logging out
+      await _clearActiveSpaceId();
+
       await authService.signOut();
       authBloc.add(LogoutEvent());
       Navigator.of(context).pushNamedAndRemoveUntil(
@@ -47,6 +51,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ],
         ),
       );
+    }
+  }
+
+  Future<void> _clearActiveSpaceId() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove('saved_active_space_id');
+      print('Cleared active space ID from SharedPreferences');
+    } catch (e) {
+      print('Error clearing active space ID: $e');
     }
   }
 

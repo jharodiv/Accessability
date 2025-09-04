@@ -203,6 +203,9 @@ class AuthService {
         });
       }
 
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove('saved_active_space_id');
+
       // Stop the background service if it is running
       final service = FlutterBackgroundService();
       final isRunning = await service.isRunning();

@@ -699,45 +699,59 @@ class _LocationWidgetsState extends State<LocationWidgets> {
                   // now also ignore if a route is active
                   ignoring:
                       _isExpanded || widget.isJoining || widget.isRouteActive,
-                  child: AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 220),
-                    switchInCurve: Curves.easeOut,
-                    switchOutCurve: Curves.easeIn,
-                    child: (_isExpanded ||
-                            widget.isJoining ||
-                            widget.isRouteActive)
-                        ? const SizedBox.shrink(
-                            key: ValueKey('empty_service_buttons'))
-                        : ServiceButtons(
-                            key: const ValueKey('service_buttons'),
-                            onButtonPressed: (label) {/* … */},
-                            currentLocation:
-                                widget.locationHandler.currentLocation,
-                            onMapViewPressed: widget.onMapViewPressed,
-                            onCenterPressed: () {
-                              debugPrint('GPS button pressed');
-                              debugPrint(
-                                  'locationHandler.currentLocation: ${widget.locationHandler.currentLocation}');
-                              if (widget.locationHandler.currentLocation ==
-                                  null) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                      content:
-                                          Text('locationNotAvailable'.tr())),
-                                );
-                                return;
-                              }
-                              try {
-                                widget.locationHandler.panCameraToLocation(
-                                    widget.locationHandler.currentLocation!);
-                                debugPrint('Called panCameraToLocation()');
-                              } catch (e, st) {
+                  child: Builder(builder: (ctx) {
+                    // debug info to confirm whether button area is shown or hidden
+                    debugPrint(
+                        '[LocationWidgets] ServiceButtons: _isExpanded=$_isExpanded, isJoining=${widget.isJoining}, isRouteActive=${widget.isRouteActive}');
+                    final showButtons = !(_isExpanded ||
+                        widget.isJoining ||
+                        widget.isRouteActive);
+                    debugPrint('[LocationWidgets] showButtons = $showButtons');
+
+                    return AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 220),
+                      switchInCurve: Curves.easeOut,
+                      switchOutCurve: Curves.easeIn,
+                      child: showButtons
+                          ? ServiceButtons(
+                              key: const ValueKey('service_buttons'),
+                              onButtonPressed: (label) {/* … */},
+                              currentLocation:
+                                  widget.locationHandler.currentLocation,
+                              // WRAP the map view callback with logging so we can see if it fires
+                              onMapViewPressed: () {
                                 debugPrint(
-                                    'panCameraToLocation threw: $e\n$st');
-                              }
-                            },
-                          ),
-                  ),
+                                    '[LocationWidgets] onMapViewPressed wrapper fired. widget.onMapViewPressed != null? ${widget.onMapViewPressed != null}');
+                                // call the parent callback (if provided)
+                                widget.onMapViewPressed?.call();
+                              },
+                              onCenterPressed: () {
+                                debugPrint('GPS button pressed');
+                                debugPrint(
+                                    'locationHandler.currentLocation: ${widget.locationHandler.currentLocation}');
+                                if (widget.locationHandler.currentLocation ==
+                                    null) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                        content:
+                                            Text('locationNotAvailable'.tr())),
+                                  );
+                                  return;
+                                }
+                                try {
+                                  widget.locationHandler.panCameraToLocation(
+                                      widget.locationHandler.currentLocation!);
+                                  debugPrint('Called panCameraToLocation()');
+                                } catch (e, st) {
+                                  debugPrint(
+                                      'panCameraToLocation threw: $e\n$st');
+                                }
+                              },
+                            )
+                          : const SizedBox.shrink(
+                              key: ValueKey('empty_service_buttons')),
+                    );
+                  }),
                 ),
                 const SizedBox(height: 10),
                 Expanded(

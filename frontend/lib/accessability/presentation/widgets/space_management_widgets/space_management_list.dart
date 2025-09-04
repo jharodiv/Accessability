@@ -1,4 +1,5 @@
 import 'package:accessability/accessability/presentation/widgets/homepageWidgets/bottomWidgetFiles/verification_code_widget.dart';
+import 'package:accessability/accessability/presentation/widgets/space_management_widgets/edit_space_name_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:easy_localization/easy_localization.dart';
 
@@ -156,42 +157,23 @@ class SpaceManagementList extends StatelessWidget {
                   context,
                   title: 'Edit Space Name'.tr(),
                   titleStyle: rowTitleStyle,
-                  onTap: () {
-                    final controller =
-                        TextEditingController(text: spaceName ?? '');
-                    showDialog(
-                      context: context,
-                      builder: (ctx) => AlertDialog(
-                        title: Text('Edit Space Name'.tr()),
-                        content: TextField(
-                          controller: controller,
-                          decoration: InputDecoration(
-                              hintText: 'Enter space name'.tr()),
-                          autofocus: true,
-                        ),
-                        actions: [
-                          TextButton(
-                              onPressed: () => Navigator.of(ctx).pop(),
-                              child: Text('Cancel'.tr())),
-                          TextButton(
-                            onPressed: () {
-                              final newName = controller.text.trim();
-                              Navigator.of(ctx).pop();
-
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                    content: Text('Space name updated'.tr())),
-                              );
-
-                              if (onEditName != null && newName.isNotEmpty) {
-                                onEditName!(newName);
-                              }
-                            },
-                            child: Text('Save'.tr()),
-                          ),
-                        ],
+                  onTap: () async {
+                    final result = await Navigator.of(context).push<String>(
+                      MaterialPageRoute(
+                        builder: (_) =>
+                            EditSpaceNameScreen(initialName: spaceName ?? ''),
                       ),
                     );
+
+                    if (result != null && result.trim().isNotEmpty) {
+                      // notify parent callback
+                      if (onEditName != null) onEditName!(result.trim());
+
+                      // show a snack to confirm change (optional)
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Space name updated'.tr())),
+                      );
+                    }
                   },
                 ),
                 Divider(height: 1, thickness: 1, color: dividerColor),

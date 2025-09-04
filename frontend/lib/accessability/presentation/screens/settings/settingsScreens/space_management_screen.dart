@@ -106,6 +106,43 @@ class _SpaceManagementScreenState extends State<SpaceManagementScreen> {
     }
   }
 
+  Future<void> _renameSpace(String? spaceId, String newName) async {
+    if (spaceId == null || spaceId.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('noSpaceSelected'.tr())),
+        );
+      }
+      return;
+    }
+
+    try {
+      // update firestore
+      await _firestore.collection('Spaces').doc(spaceId).update({
+        'name': newName,
+        'updatedAt': FieldValue.serverTimestamp(), // optional
+      });
+
+      // update saved active space name + local state (also persists to prefs)
+      await _saveActiveSpace(spaceId, newName);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+              content:
+                  Text('spaceNameUpdated'.tr())), // add key to translations
+        );
+      }
+    } catch (e) {
+      debugPrint('Error renaming space: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('errorUpdatingSpaceName'.tr())),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final bool isDarkMode = Provider.of<ThemeProvider>(context).isDarkMode;
@@ -215,6 +252,8 @@ class _SpaceManagementScreenState extends State<SpaceManagementScreen> {
             }
 
             return SpaceManagementList(
+              spaceId: _selectedSpaceId,
+              spaceName: _selectedSpaceName,
               onViewAdmin: () {
                 if (_selectedSpaceId == null) {
                   ScaffoldMessenger.of(context).showSnackBar(

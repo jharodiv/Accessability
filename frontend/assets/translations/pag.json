@@ -243,5 +243,8 @@
   "shareCode": "Iparay so Kodigo",
   "or": "O",
   "scanToEnter": "I-scan tan direkta ka makapasok",
-  "inviteCode": "Kodigo na Paanyaya"
+  "inviteCode": "Kodigo na Paanyaya",
+  "roleMember": "Kamiyembro",
+  "roleOwner": "Agmaymaysa ya agtagikua",
+  "roleAdmin": "Admin"
 }

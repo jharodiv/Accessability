@@ -267,5 +267,8 @@
   "shareCode": "Share Code",
   "or": "OR",
   "scanToEnter": "Scan to enter directly",
-  "inviteCode": "Invite Code"
+  "inviteCode": "Invite Code",
+  "roleMember": "Member",
+  "roleOwner": "Owner",
+  "roleAdmin": "Admin"
 }

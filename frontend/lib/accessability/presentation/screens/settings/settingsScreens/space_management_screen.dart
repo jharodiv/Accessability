@@ -32,6 +32,7 @@ class _SpaceManagementScreenState extends State<SpaceManagementScreen> {
 
   String? _selectedSpaceId;
   String? _selectedSpaceName;
+  String? _currentUserRole;
 
   /// Ensures we only auto-select a default from the snapshot once per screen lifecycle.
   bool _didInitializeFromSnapshot = false;
@@ -40,6 +41,30 @@ class _SpaceManagementScreenState extends State<SpaceManagementScreen> {
   void initState() {
     super.initState();
     _restoreSavedActiveSpace();
+  }
+
+  void _computeAndSetRoleFromDoc(DocumentSnapshot doc) {
+    try {
+      final data = (doc.data() as Map<String, dynamic>?) ?? {};
+      final creator = (data['creator'] ?? '') as String;
+      final admins = List<String>.from(data['admins'] ?? <String>[]);
+      final currentUserId = _auth.currentUser?.uid ?? '';
+
+      String role;
+      if (currentUserId.isNotEmpty && creator == currentUserId) {
+        role = 'owner';
+      } else if (currentUserId.isNotEmpty && admins.contains(currentUserId)) {
+        role = 'admin';
+      } else {
+        role = 'member';
+      }
+
+      if (mounted) {
+        setState(() => _currentUserRole = role);
+      }
+    } catch (e) {
+      if (mounted) setState(() => _currentUserRole = null);
+    }
   }
 
   Future<void> _leaveSpace(String spaceId, String spaceName) async {
@@ -200,6 +225,8 @@ class _SpaceManagementScreenState extends State<SpaceManagementScreen> {
                 _selectedSpaceId = id;
                 _selectedSpaceName = name.toString();
               });
+              // compute role from the fetched doc
+              _computeAndSetRoleFromDoc(doc);
             }
             return;
           } else {
@@ -231,6 +258,15 @@ class _SpaceManagementScreenState extends State<SpaceManagementScreen> {
           _selectedSpaceName = name;
         });
       }
+
+      // compute current user's role for this space (best-effort)
+      try {
+        final doc = await _firestore.collection('Spaces').doc(id).get();
+        if (doc.exists) _computeAndSetRoleFromDoc(doc);
+      } catch (e) {
+        // ignore role compute error (non-fatal)
+        debugPrint('Error computing role after saveActiveSpace: $e');
+      }
     } catch (e) {
       debugPrint('save active space error: $e');
     }
@@ -261,6 +297,7 @@ class _SpaceManagementScreenState extends State<SpaceManagementScreen> {
         setState(() {
           _selectedSpaceId = null;
           _selectedSpaceName = null;
+          _currentUserRole = null; // clear role when no space selected
           // allow snapshot initialization again
           _didInitializeFromSnapshot = false;
         });
@@ -487,6 +524,7 @@ class _SpaceManagementScreenState extends State<SpaceManagementScreen> {
               spaceId: _selectedSpaceId,
               spaceName: _selectedSpaceName,
               lastUpdatedSpaceId: _lastUpdatedSpaceId, // <-- pass it here
+              currentUserRole: _currentUserRole, // <-- pass role here
 
               onEditName: (newName) async {
                 if (_selectedSpaceId != null) {

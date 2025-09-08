@@ -17,6 +17,7 @@ class SpaceManagementList extends StatelessWidget {
     this.onLeave,
     this.lastUpdatedSpaceId,
     this.onEditName,
+    this.currentUserRole, // <-- add this
   }) : super(key: key);
 
   final String? spaceId;
@@ -26,6 +27,8 @@ class SpaceManagementList extends StatelessWidget {
   final VoidCallback? onViewAdmin;
   final VoidCallback? onAddPeople;
   final VoidCallback? onLeave;
+  final String? currentUserRole; // <-- add this
+
   final void Function(String newName)? onEditName;
 
   static const Color _purple = Color(0xFF6750A4);
@@ -59,6 +62,10 @@ class SpaceManagementList extends StatelessWidget {
       fontSize: 14.0,
       color: Colors.grey[600],
     );
+
+    final String? _roleKey = currentUserRole == 'owner'
+        ? 'roleOwner'
+        : (currentUserRole == 'admin' ? 'roleAdmin' : 'roleMember');
 
     final dividerColor = isDark ? Colors.grey[800] : Colors.grey[200];
 
@@ -195,13 +202,18 @@ class SpaceManagementList extends StatelessWidget {
                 Divider(height: 1, thickness: 1, color: dividerColor),
 
                 // My Role (set to Admin)
+
                 _buildTile(
                   context,
                   title: 'My Role'.tr(),
                   titleStyle: rowTitleStyle,
                   trailingWidget: Padding(
                     padding: const EdgeInsets.only(right: 8.0),
-                    child: Text('Admin', style: rowValueStyle),
+                    child: Text(
+                      // show translated label; fallback to empty string if null
+                      (_roleKey != null) ? _roleKey.tr() : '',
+                      style: rowValueStyle,
+                    ),
                   ),
                 ),
                 Divider(height: 1, thickness: 1, color: dividerColor),

@@ -9,15 +9,12 @@ typedef VoidAdminToggle = Future<void> Function(
 typedef VoidTransferOwnership = Future<void> Function(String newOwnerId);
 
 class ChangeAdminStatusScreen extends StatefulWidget {
-  /// members: each item must be a Map<String, dynamic> with keys:
-  /// 'id' (String), 'username' (String), 'profilePicture' (String), 'isAdmin' (bool)
   final List<Map<String, dynamic>> members;
   final String currentUserId;
   final String creatorId;
   final VoidCallback? onAddMember;
   final VoidAdminToggle? onToggleAdmin;
-  final VoidTransferOwnership?
-      onTransferOwnership; // optional, for owner-leave flow
+  final VoidTransferOwnership? onTransferOwnership;
 
   const ChangeAdminStatusScreen({
     Key? key,
@@ -37,10 +34,7 @@ class ChangeAdminStatusScreen extends StatefulWidget {
 class _ChangeAdminStatusScreenState extends State<ChangeAdminStatusScreen> {
   static const Color purple = Color(0xFF6750A4);
 
-  // local mutable copy of admin flags for optimistic UI
   late List<Map<String, dynamic>> _membersLocal;
-
-  // track pending toggles to avoid double taps and show loading
   final Set<String> _pendingToggleIds = {};
 
   bool get _isCreator => widget.currentUserId == widget.creatorId;
@@ -56,18 +50,28 @@ class _ChangeAdminStatusScreenState extends State<ChangeAdminStatusScreen> {
   void initState() {
     super.initState();
     _membersLocal = _deepCopyMembers(widget.members);
+    _ensureOwnerFirst();
   }
 
   @override
   void didUpdateWidget(covariant ChangeAdminStatusScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
-    // if parent updates members list, reconcile local copy (preserve order from parent)
     if (oldWidget.members != widget.members) {
       _membersLocal = _deepCopyMembers(widget.members);
-      // clear pending toggles referencing members that no longer exist
+      _ensureOwnerFirst();
       final ids = _membersLocal.map((m) => m['id'] as String).toSet();
       _pendingToggleIds.removeWhere((id) => !ids.contains(id));
       setState(() {});
+    }
+  }
+
+  void _ensureOwnerFirst() {
+    // Find the creator row and move it to the front if present.
+    final ownerIndex =
+        _membersLocal.indexWhere((m) => m['id'] == widget.creatorId);
+    if (ownerIndex > 0) {
+      final owner = _membersLocal.removeAt(ownerIndex);
+      _membersLocal.insert(0, owner);
     }
   }
 
@@ -90,14 +94,10 @@ class _ChangeAdminStatusScreenState extends State<ChangeAdminStatusScreen> {
   }
 
   Future<void> _toggleAdmin(String memberId, bool makeAdmin, int index) async {
-    // guard: prevent toggling the creator row
     final member = _membersLocal[index];
     if ((member['id'] ?? '') == widget.creatorId) return;
-
-    // guard: avoid double toggle while pending
     if (_pendingToggleIds.contains(memberId)) return;
 
-    // optimistic update + show pending
     setState(() {
       _membersLocal[index]['isAdmin'] = makeAdmin;
       _pendingToggleIds.add(memberId);
@@ -112,7 +112,6 @@ class _ChangeAdminStatusScreenState extends State<ChangeAdminStatusScreen> {
               : 'adminDemoted'.tr(args: [member['username']])),
         ));
       } catch (e) {
-        // revert on error
         setState(() {
           _membersLocal[index]['isAdmin'] = !makeAdmin;
         });
@@ -124,7 +123,6 @@ class _ChangeAdminStatusScreenState extends State<ChangeAdminStatusScreen> {
         });
       }
     } else {
-      // no callback provided -> revert and clear pending
       setState(() {
         _membersLocal[index]['isAdmin'] = !makeAdmin;
         _pendingToggleIds.remove(memberId);
@@ -138,12 +136,10 @@ class _ChangeAdminStatusScreenState extends State<ChangeAdminStatusScreen> {
   Future<void> _promptTransferOwnershipIfCreatorLeaves() async {
     if (!_isCreator) return;
 
-    // Build list of eligible members (excluding current creator)
     final candidates =
         _membersLocal.where((m) => m['id'] != widget.creatorId).toList();
 
     if (candidates.isEmpty) {
-      // no other members -> cannot transfer; show message
       await showDialog(
         context: context,
         builder: (_) => AlertDialog(
@@ -158,7 +154,6 @@ class _ChangeAdminStatusScreenState extends State<ChangeAdminStatusScreen> {
       return;
     }
 
-    // Show selection bottom sheet to pick new owner
     final selected = await showModalBottomSheet<String>(
       context: context,
       isScrollControlled: true,
@@ -209,14 +204,13 @@ class _ChangeAdminStatusScreenState extends State<ChangeAdminStatusScreen> {
       if (widget.onTransferOwnership != null) {
         try {
           await widget.onTransferOwnership!(selected);
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-              content: Text('ownershipTransferred'.tr()))); // simple msg
+          ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('ownershipTransferred'.tr())));
         } catch (e) {
           ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(content: Text('errorTransferringOwnership'.tr())));
         }
       } else {
-        // no backend callback provided — caller must implement transfer logic
         ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text('implementTransferOwnershipCallback'.tr())));
       }
@@ -226,12 +220,9 @@ class _ChangeAdminStatusScreenState extends State<ChangeAdminStatusScreen> {
   @override
   Widget build(BuildContext context) {
     final bool isDarkMode = Provider.of<ThemeProvider>(context).isDarkMode;
-
-    // divider color: valid color indices only
     final dividerColor = isDarkMode ? Colors.grey[700] : Colors.grey[200];
 
     return Scaffold(
-      // apply appbar container style like your settings appbar, but title left & smaller
       appBar: PreferredSize(
         preferredSize: const Size.fromHeight(65),
         child: Container(
@@ -258,7 +249,7 @@ class _ChangeAdminStatusScreenState extends State<ChangeAdminStatusScreen> {
                   : 'viewAdminStatus'.tr(),
               style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16),
             ),
-            centerTitle: false, // left aligned title per your request
+            centerTitle: false,
             backgroundColor: Colors.transparent,
             actions: [
               if (_isCreator)
@@ -273,10 +264,8 @@ class _ChangeAdminStatusScreenState extends State<ChangeAdminStatusScreen> {
           ),
         ),
       ),
-
       body: Column(
         children: [
-          // header row similar to screenshot (pale background) - left aligned, smaller font
           Container(
             width: double.infinity,
             color: isDarkMode ? Colors.grey[850] : Colors.grey[100],
@@ -291,7 +280,6 @@ class _ChangeAdminStatusScreenState extends State<ChangeAdminStatusScreen> {
               textAlign: TextAlign.left,
             ),
           ),
-
           Expanded(
             child: _membersLocal.isEmpty
                 ? _NoMembersPlaceholder(onAddPressed: () {
@@ -313,57 +301,59 @@ class _ChangeAdminStatusScreenState extends State<ChangeAdminStatusScreen> {
 
                       Widget trailing;
 
-                      if (_isPrivileged) {
-                        // privileged users (creator or admin) see aesthetic toggles (first screenshot)
-                        if (isCreatorRow) {
-                          trailing = Chip(
-                            label: Text('Owner'.tr()),
-                            backgroundColor: purple,
-                            labelStyle: const TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.w700),
-                          );
-                        } else {
-                          // show loading indicator if pending
-                          trailing = isPending
-                              ? SizedBox(
-                                  width: 46,
-                                  height: 26,
-                                  child: Center(
-                                    child: SizedBox(
-                                        width: 18,
-                                        height: 18,
-                                        child: CircularProgressIndicator(
-                                          strokeWidth: 2,
-                                          valueColor:
-                                              AlwaysStoppedAnimation(purple),
-                                        )),
-                                  ),
-                                )
-                              : _AestheticToggle(
-                                  value: isAdmin,
-                                  onChanged: (v) {
-                                    _toggleAdmin(memberId, v, index);
-                                  },
-                                  activeColor: purple,
-                                );
-                        }
+                      if (isCreatorRow) {
+                        // Owner chip (always shown and should be first row due to sorting)
+                        trailing = Container(
+                          padding: const EdgeInsets.symmetric(
+                              vertical: 8, horizontal: 14),
+                          decoration: const BoxDecoration(
+                            color: purple,
+                            borderRadius: BorderRadius.all(Radius.circular(20)),
+                          ),
+                          child: Text('Owner'.tr(),
+                              style: const TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w700)),
+                        );
+                      } else if (_isPrivileged) {
+                        // show toggle (or loading spinner) for privileged users
+                        trailing = isPending
+                            ? SizedBox(
+                                width: 46,
+                                height: 26,
+                                child: Center(
+                                  child: SizedBox(
+                                      width: 18,
+                                      height: 18,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        valueColor:
+                                            AlwaysStoppedAnimation(purple),
+                                      )),
+                                ),
+                              )
+                            : _AestheticToggle(
+                                value: isAdmin,
+                                onChanged: (v) {
+                                  _toggleAdmin(memberId, v, index);
+                                },
+                                activeColor: purple,
+                              );
                       } else {
-                        // non-privileged users (members) see chips for admins or nothing (second screenshot)
-                        if (isCreatorRow) {
-                          trailing = Chip(
-                            label: Text('Owner'.tr()),
-                            backgroundColor: purple,
-                            labelStyle: const TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.w700),
-                          );
-                        } else if (isAdmin) {
-                          trailing = Chip(
-                            label: Text('admin'.tr()),
-                            backgroundColor: purple.withOpacity(0.15),
-                            labelStyle: TextStyle(
-                                color: purple, fontWeight: FontWeight.w700),
+                        // non-privileged members see an admin chip or nothing
+                        if (isAdmin) {
+                          trailing = Container(
+                            padding: const EdgeInsets.symmetric(
+                                vertical: 8, horizontal: 12),
+                            decoration: BoxDecoration(
+                              color: purple.withOpacity(0.12),
+                              borderRadius:
+                                  const BorderRadius.all(Radius.circular(16)),
+                            ),
+                            child: Text('admin'.tr(),
+                                style: TextStyle(
+                                    color: purple,
+                                    fontWeight: FontWeight.w700)),
                           );
                         } else {
                           trailing = const SizedBox.shrink();
@@ -396,9 +386,7 @@ class _ChangeAdminStatusScreenState extends State<ChangeAdminStatusScreen> {
                             ? Text('you'.tr(), style: TextStyle(fontSize: 12))
                             : null,
                         trailing: trailing,
-                        onTap: () {
-                          // optional: show profile / actions
-                        },
+                        onTap: () {},
                       );
                     },
                   ),
@@ -409,8 +397,8 @@ class _ChangeAdminStatusScreenState extends State<ChangeAdminStatusScreen> {
   }
 }
 
-/// Custom small aesthetic toggle (pill-style) with white thumb and purple track.
-/// It keeps internal animation state in sync with the external `value`.
+/// Fixed _AestheticToggle widget — thumb no longer appears "cut".
+/// Replace your existing _AestheticToggle and _AestheticToggleState with this code.
 class _AestheticToggle extends StatefulWidget {
   final bool value;
   final ValueChanged<bool> onChanged;
@@ -448,22 +436,20 @@ class _AestheticToggleState extends State<_AestheticToggle>
     super.didUpdateWidget(oldWidget);
     if (oldWidget.value != widget.value) {
       _value = widget.value;
-      if (_value) {
+      if (_value)
         _anim.forward();
-      } else {
+      else
         _anim.reverse();
-      }
     }
   }
 
   void _handleTap() {
     final newVal = !_value;
-    // animate immediately
-    if (newVal) {
+    if (newVal)
       _anim.forward();
-    } else {
+    else
       _anim.reverse();
-    }
+
     setState(() => _value = newVal);
     widget.onChanged(newVal);
   }
@@ -476,42 +462,51 @@ class _AestheticToggleState extends State<_AestheticToggle>
 
   @override
   Widget build(BuildContext context) {
+    // NOTE: adjusted thumb/track/padding so the white thumb + shadow has breathing room
     final trackWidth = 46.0;
     final trackHeight = 26.0;
-    final thumbSize = 20.0;
+    final thumbSize = 18.0; // slightly smaller to avoid clipping of shadow
+    final horizontalPadding = 4.0;
+    final verticalPadding = 4.0;
 
     return GestureDetector(
       onTap: _handleTap,
+      behavior: HitTestBehavior.translucent,
       child: AnimatedBuilder(
         animation: _anim,
         builder: (context, _) {
           final t = _anim.value;
-          // interpolate track color
           final active = widget.activeColor;
           final inactive = Colors.grey.shade300;
-          final trackColor = Color.lerp(inactive, active.withOpacity(0.9), t)!;
+          final trackColor = Color.lerp(inactive, active.withOpacity(0.92), t)!;
+
+          // compute thumb left position (0..1) then map to pixels
+          final maxThumbLeft = trackWidth - thumbSize - (horizontalPadding * 2);
+          final thumbLeft = (maxThumbLeft) * t;
 
           return Container(
             width: trackWidth,
             height: trackHeight,
-            padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 3),
+            padding: EdgeInsets.symmetric(
+                horizontal: horizontalPadding, vertical: verticalPadding),
+            // no clip — give thumb + shadow room inside the container
             decoration: BoxDecoration(
               color: trackColor,
               borderRadius: BorderRadius.circular(trackHeight / 2),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.06 * t),
+                  color: Colors.black.withOpacity(0.04 * t),
                   blurRadius: 4 * t,
                   offset: Offset(0, 1 * t),
                 )
               ],
             ),
             child: Stack(
+              clipBehavior: Clip.none, // ensure thumb/shadow aren't clipped
               children: [
-                // animated thumb
                 Positioned(
-                  left: (trackWidth - thumbSize - 6) * t,
-                  top: (trackHeight - thumbSize) / 2,
+                  left: thumbLeft,
+                  top: (trackHeight - verticalPadding * 2 - thumbSize) / 2,
                   child: Container(
                     width: thumbSize,
                     height: thumbSize,
@@ -520,7 +515,7 @@ class _AestheticToggleState extends State<_AestheticToggle>
                       shape: BoxShape.circle,
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.12),
+                          color: Colors.black.withOpacity(0.16),
                           blurRadius: 4,
                           offset: const Offset(0, 1),
                         )

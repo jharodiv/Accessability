@@ -4,10 +4,10 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:accessability/accessability/presentation/widgets/chatWidgets/chat_users_list.dart';
-import 'package:accessability/accessability/presentation/widgets/chatWidgets/chat_users_tile.dart';
 import 'package:provider/provider.dart';
 import 'package:accessability/accessability/themes/theme_provider.dart';
 import 'package:easy_localization/easy_localization.dart';
+import 'package:intl/intl.dart';
 
 class InboxScreen extends StatefulWidget {
   const InboxScreen({super.key});
@@ -18,6 +18,11 @@ class InboxScreen extends StatefulWidget {
 
 class _InboxScreenState extends State<InboxScreen> {
   final ChatService chatService = ChatService();
+  final DraggableScrollableController _draggableController =
+      DraggableScrollableController();
+  final double _initialChildSize = 0.25;
+  final double _minChildSize = 0.25; // bottom limit = initial placement
+  final double _maxChildSize = 0.8;
 
   @override
   void initState() {
@@ -25,9 +30,14 @@ class _InboxScreenState extends State<InboxScreen> {
 
     // Listen for new messages
     FirebaseMessaging.onMessage.listen((RemoteMessage message) {
-      // Refresh the chat list or show a notification
-      setState(() {});
+      setState(() {}); // refresh UI
     });
+  }
+
+  @override
+  void dispose() {
+    _draggableController.dispose();
+    super.dispose();
   }
 
   @override
@@ -51,9 +61,7 @@ class _InboxScreenState extends State<InboxScreen> {
           child: AppBar(
             elevation: 0,
             leading: IconButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
+              onPressed: () => Navigator.of(context).pop(),
               icon: const Icon(Icons.arrow_back),
               color: const Color(0xFF6750A4),
             ),
@@ -68,54 +76,28 @@ class _InboxScreenState extends State<InboxScreen> {
       ),
       body: Container(
         color: isDarkMode ? Colors.grey[900] : Colors.white,
-        child: Column(
+        child: Stack(
           children: [
-            // Chat Users List (Moved to the top)
-            Expanded(
-              child: ChatUsersList(),
-            ),
+            /// Chat Users List takes the background
+            ChatUsersList(),
 
-            // Chat Requests Section (Only shown if there are requests)
+            /// Chat Requests as draggable sheet
             StreamBuilder<List<Map<String, dynamic>>>(
               stream: chatService.getVerificationCodeChatRequests(),
               builder: (context, snapshot) {
-                // If there was an error loading requests, show the "no messages" asset
-                if (snapshot.hasError) {
-                  return Padding(
-                    padding: const EdgeInsets.symmetric(
-                        vertical: 24.0, horizontal: 16.0),
-                    child: Column(
-                      children: [
-                        SizedBox(
-                          height: 220,
-                          child: Image.asset(
-                            'assets/images/others/nomessage.png',
-                            fit: BoxFit.contain,
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        Text(
-                          'Your Inbox is Empty',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
-                            color: isDarkMode ? Colors.white : Colors.black,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                      ],
-                    ),
-                  );
-                }
-
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const SizedBox.shrink(); // Hide while loading
+                if (snapshot.hasError || !snapshot.hasData) {
+                  return const SizedBox.shrink();
                 }
 
                 final requests = snapshot.data ?? [];
+// remove expired ones immediately so UI never shows them
+                final activeRequests = _removeExpiredRequests(requests);
 
+                if (activeRequests.isEmpty) {
+                  return const SizedBox.shrink();
+                }
                 if (requests.isEmpty) {
-                  return const SizedBox.shrink(); // Hide if no requests
+                  return const SizedBox.shrink();
                 }
 
                 return FutureBuilder<List<Map<String, dynamic>>>(
@@ -132,74 +114,148 @@ class _InboxScreenState extends State<InboxScreen> {
                       return const SizedBox.shrink();
                     }
 
-                    return Column(
-                      children: [
-                        // Chat Requests Header (matching other sections)
-                        Padding(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 16.0, vertical: 8.0),
-                          child: Row(
-                            children: [
-                              Text(
-                                'Chat Requests',
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                  color: isDarkMode
-                                      ? Colors.white
-                                      : Colors.grey[700],
-                                ),
-                              ),
-                              const Spacer(),
-                              Text(
-                                '${filteredRequests.length}',
-                                style: TextStyle(
-                                  color: isDarkMode
-                                      ? Colors.white60
-                                      : Colors.grey[600],
-                                  fontSize: 14,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        // List of chat requests
-                        ListView.builder(
-                          shrinkWrap: true,
-                          physics: const NeverScrollableScrollPhysics(),
-                          itemCount: filteredRequests.length,
-                          itemBuilder: (context, index) {
-                            final request = filteredRequests[index];
-                            final metadata =
-                                request['metadata'] as Map<String, dynamic>?;
-                            final isVerificationRequest = metadata != null &&
-                                metadata['type'] == 'verification_code';
+                    /// Draggable sheet for requests
+                    return DraggableScrollableSheet(
+                      controller: _draggableController,
+                      initialChildSize: _initialChildSize,
+                      minChildSize: _minChildSize,
+                      maxChildSize: _maxChildSize,
+                      builder: (context, scrollController) {
+                        // Make the entire sheet respond to vertical drags,
+                        // but only when the inner ListView is at its top (so scrolling still works).
+                        return GestureDetector(
+                          behavior: HitTestBehavior.opaque,
+                          onVerticalDragUpdate: (DragUpdateDetails details) {
+                            // if inner list is scrolled (not at top), don't drag the sheet
+                            if (scrollController.hasClients &&
+                                scrollController.position.pixels > 0) return;
 
-                            // Check if request is expired
-                            final expiresAtString =
-                                metadata?['expiresAt'] as String?;
-                            final isExpired = expiresAtString != null &&
-                                DateTime.now()
-                                    .isAfter(DateTime.parse(expiresAtString));
-
-                            // Auto-decline expired requests
-                            if (isExpired) {
-                              WidgetsBinding.instance.addPostFrameCallback((_) {
-                                chatService.rejectChatRequest(request['id']);
-                              });
-                              return const SizedBox.shrink();
-                            }
-
-                            if (isVerificationRequest) {
-                              return _buildVerificationRequestItem(
-                                  request, isDarkMode);
-                            } else {
-                              return _buildRegularRequestItem(
-                                  request, isDarkMode);
-                            }
+                            final screenHeight =
+                                MediaQuery.of(context).size.height;
+                            final delta = -details.delta.dy /
+                                screenHeight; // up -> positive
+                            final newSize = (_draggableController.size + delta)
+                                .clamp(_minChildSize, _maxChildSize);
+                            _draggableController.jumpTo(newSize);
                           },
-                        ),
-                      ],
+                          onVerticalDragEnd: (DragEndDetails details) {
+                            // if inner list is scrolled (not at top), do nothing
+                            if (scrollController.hasClients &&
+                                scrollController.position.pixels > 0) return;
+
+                            final velocity = details.primaryVelocity ?? 0.0;
+                            double target;
+                            if (velocity < -200) {
+                              // fast swipe up
+                              target = _maxChildSize;
+                            } else if (velocity > 200) {
+                              // fast swipe down
+                              target = _minChildSize;
+                            } else {
+                              final mid = (_minChildSize + _maxChildSize) / 2;
+                              target = (_draggableController.size >= mid)
+                                  ? _maxChildSize
+                                  : _minChildSize;
+                            }
+                            _draggableController.animateTo(target,
+                                duration: const Duration(milliseconds: 300),
+                                curve: Curves.easeOut);
+                          },
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color:
+                                  isDarkMode ? Colors.grey[850] : Colors.white,
+                              borderRadius: const BorderRadius.vertical(
+                                top: Radius.circular(16),
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.1),
+                                  blurRadius: 6,
+                                  offset: const Offset(0, -2),
+                                ),
+                              ],
+                            ),
+                            child: Column(
+                              children: [
+                                // simple handle (no separate gestures — whole sheet handles it now)
+                                Padding(
+                                  padding: const EdgeInsets.only(top: 8),
+                                  child: Container(
+                                    margin: const EdgeInsets.only(
+                                        top: 8, bottom: 8),
+                                    height: 5,
+                                    width: 50,
+                                    decoration: BoxDecoration(
+                                      color: isDarkMode
+                                          ? Colors.white24
+                                          : Colors.grey[400],
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                  ),
+                                ),
+
+                                // Header
+                                Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 16.0, vertical: 8.0),
+                                  child: Row(
+                                    children: [
+                                      Text(
+                                        'Chat Requests',
+                                        style: TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.bold,
+                                          color: isDarkMode
+                                              ? Colors.white
+                                              : Colors.grey[700],
+                                        ),
+                                      ),
+                                      const Spacer(),
+                                      Text(
+                                        '${filteredRequests.length}',
+                                        style: TextStyle(
+                                          color: isDarkMode
+                                              ? Colors.white60
+                                              : Colors.grey[600],
+                                          fontSize: 14,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+
+                                // List
+                                Expanded(
+                                  child: ListView.builder(
+                                    controller: scrollController,
+                                    itemCount: filteredRequests.length,
+                                    itemBuilder: (context, index) {
+                                      final request = filteredRequests[index];
+                                      final metadata = request['metadata']
+                                          as Map<String, dynamic>?;
+
+                                      // safe-check the metadata['type'] value and only treat it as verification when it's exactly 'verification_code'
+                                      final isVerificationRequest =
+                                          metadata != null &&
+                                              metadata['type']?.toString() ==
+                                                  'verification_code';
+
+                                      if (isVerificationRequest) {
+                                        return _buildVerificationRequestItem(
+                                            request, isDarkMode);
+                                      } else {
+                                        return _buildRegularRequestItem(
+                                            request, isDarkMode);
+                                      }
+                                    },
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
                     );
                   },
                 );
@@ -211,63 +267,71 @@ class _InboxScreenState extends State<InboxScreen> {
     );
   }
 
+  /// Build Verification Request
   Widget _buildVerificationRequestItem(
       Map<String, dynamic> request, bool isDarkMode) {
     final metadata = request['metadata'] as Map<String, dynamic>;
     final spaceName = metadata['spaceName'] as String? ?? 'Space';
     final verificationCode = metadata['verificationCode'] as String? ?? '';
     final expiresAt = DateTime.parse(metadata['expiresAt'] as String? ??
-        DateTime.now().add(Duration(minutes: 10)).toIso8601String());
+        DateTime.now().add(const Duration(minutes: 10)).toIso8601String());
 
-    return ListTile(
-      leading: CircleAvatar(
-        backgroundColor: Colors.blue,
-        child: Icon(Icons.vpn_key, color: Colors.white),
-      ),
-      title: Text(
-        'Space Invitation: $spaceName',
-        style: TextStyle(
-          fontWeight: FontWeight.w500,
-          color: isDarkMode ? Colors.white : Colors.black,
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8.0),
+      child: ListTile(
+        leading: CircleAvatar(
+          backgroundColor: Colors.deepPurple,
+          child: const Icon(Icons.vpn_key, color: Colors.white),
         ),
-      ),
-      subtitle: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Code: $verificationCode',
-            style: TextStyle(
-              color: isDarkMode ? Colors.white70 : Colors.black54,
-            ),
+        title: Text(
+          'Space Invitation: $spaceName',
+          style: TextStyle(
+            fontWeight: FontWeight.w500,
+            color: isDarkMode ? Colors.white : Colors.black,
           ),
-          Text(
-            'Expires: ${DateFormat('MMM d, h:mm a').format(expiresAt)}',
-            style: TextStyle(
-              fontSize: 12,
-              color: isDarkMode ? Colors.white60 : Colors.grey[600],
+        ),
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Code: $verificationCode',
+              style: TextStyle(
+                color: isDarkMode ? Colors.white70 : Colors.black54,
+              ),
             ),
-          ),
-        ],
+            Text(
+              'Expires: ${DateFormat('MMM d, h:mm a').format(expiresAt)}',
+              style: TextStyle(
+                fontSize: 12,
+                color: isDarkMode ? Colors.white60 : Colors.grey[600],
+              ),
+            ),
+          ],
+        ),
+        trailing: const Icon(
+          Icons.arrow_forward_ios,
+          size: 16,
+          color: Colors.deepPurple,
+        ),
+        onTap: () {
+          Navigator.pushNamed(
+            context,
+            '/verificationRequest',
+            arguments: {
+              'requestId': request['id'],
+              'spaceId': metadata['spaceId'],
+              'spaceName': spaceName,
+              'verificationCode': verificationCode,
+              'expiresAt': expiresAt,
+              'senderID': request['senderID'],
+            },
+          );
+        },
       ),
-      trailing: Icon(Icons.arrow_forward_ios,
-          size: 16, color: isDarkMode ? Colors.white70 : Colors.grey[600]),
-      onTap: () {
-        Navigator.pushNamed(
-          context,
-          '/verificationRequest',
-          arguments: {
-            'requestId': request['id'],
-            'spaceId': metadata['spaceId'],
-            'spaceName': spaceName,
-            'verificationCode': verificationCode,
-            'expiresAt': expiresAt,
-            'senderID': request['senderID'],
-          },
-        );
-      },
     );
   }
 
+  /// Build Regular Request
   Widget _buildRegularRequestItem(
       Map<String, dynamic> request, bool isDarkMode) {
     final senderID = request['senderID'];
@@ -317,11 +381,11 @@ class _InboxScreenState extends State<InboxScreen> {
             mainAxisSize: MainAxisSize.min,
             children: [
               IconButton(
-                icon: Icon(Icons.check, color: Colors.green),
+                icon: const Icon(Icons.check, color: Colors.green),
                 onPressed: () => chatService.acceptChatRequest(request['id']),
               ),
               IconButton(
-                icon: Icon(Icons.close, color: Colors.red),
+                icon: const Icon(Icons.close, color: Colors.red),
                 onPressed: () => chatService.rejectChatRequest(request['id']),
               ),
             ],
@@ -331,12 +395,48 @@ class _InboxScreenState extends State<InboxScreen> {
     );
   }
 
-  // Filter out chat requests from users in the same space
+  // call this to filter out expired requests and auto-reject them
+  List<Map<String, dynamic>> _removeExpiredRequests(
+      List<Map<String, dynamic>> requests) {
+    final now = DateTime.now();
+    final List<Map<String, dynamic>> valid = [];
+
+    for (final req in requests) {
+      try {
+        final metadata = req['metadata'] as Map<String, dynamic>?;
+        final expiresAtStr = metadata?['expiresAt'] as String?;
+        if (expiresAtStr == null) {
+          // no expiry info -> keep
+          valid.add(req);
+          continue;
+        }
+
+        final expiresAt = DateTime.parse(expiresAtStr);
+        if (expiresAt.isAfter(now)) {
+          // still valid
+          valid.add(req);
+        } else {
+          // expired -> request removal (do it after frame to avoid setState during build)
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            try {
+              chatService.rejectChatRequest(req['id']);
+            } catch (_) {}
+          });
+        }
+      } catch (e) {
+        // parsing error or unexpected shape -> keep (safer)
+        valid.add(req);
+      }
+    }
+
+    return valid;
+  }
+
+  /// Filter out requests from users in the same space
   Future<List<Map<String, dynamic>>> _filterRequestsFromSpaceMembers(
       List<Map<String, dynamic>> requests) async {
     final currentUserID = FirebaseAuth.instance.currentUser!.uid;
 
-    // Fetch all spaces the current user is in
     final spacesSnapshot = await FirebaseFirestore.instance
         .collection('space_chat_rooms')
         .where('members', arrayContains: currentUserID)
@@ -344,13 +444,11 @@ class _InboxScreenState extends State<InboxScreen> {
 
     final Set<String> spaceMemberIds = {};
 
-    // Collect all member IDs from the spaces
     for (final spaceDoc in spacesSnapshot.docs) {
       final members = List<String>.from(spaceDoc['members'] ?? []);
       spaceMemberIds.addAll(members);
     }
 
-    // Filter out requests from users in the same space
     return requests.where((request) {
       final senderID = request['senderID'];
       return !spaceMemberIds.contains(senderID);

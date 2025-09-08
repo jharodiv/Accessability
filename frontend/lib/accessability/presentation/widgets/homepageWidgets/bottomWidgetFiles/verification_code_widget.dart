@@ -4,6 +4,7 @@ import 'dart:math';
 import 'package:accessability/accessability/firebaseServices/chat/chat_service.dart';
 import 'package:accessability/accessability/presentation/widgets/reusableWidgets/send_code_dialog_widget.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:easy_localization/easy_localization.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:qr_flutter/qr_flutter.dart';
@@ -48,7 +49,7 @@ class _VerificationCodeScreenState extends State<VerificationCodeScreen> {
       if (!docSnap.exists) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Space not found')),
+            SnackBar(content: Text('spaceNotFound'.tr())),
           );
           Navigator.of(context).pop();
         }
@@ -82,7 +83,11 @@ class _VerificationCodeScreenState extends State<VerificationCodeScreen> {
       debugPrint('Error ensuring code: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: ${e.toString()}')),
+          SnackBar(
+            content: Text(
+              'errorOccurred'.tr(namedArgs: {'detail': e.toString()}),
+            ),
+          ),
         );
       }
     } finally {
@@ -107,6 +112,7 @@ class _VerificationCodeScreenState extends State<VerificationCodeScreen> {
     final hrs = codeValidityDuration.inHours;
     if (hrs % 24 == 0) {
       final days = hrs ~/ 24;
+      // Use tr for singular/plural if you later add plurals; for now return plain text
       return '$days ${days == 1 ? "day" : "days"}';
     } else {
       return '$hrs ${hrs == 1 ? "hour" : "hours"}';
@@ -133,7 +139,7 @@ class _VerificationCodeScreenState extends State<VerificationCodeScreen> {
 
     if (email.trim() == user.email) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('You cannot send the code to yourself')),
+        SnackBar(content: Text('cannotSendToSelf'.tr())),
       );
       return;
     }
@@ -147,7 +153,7 @@ class _VerificationCodeScreenState extends State<VerificationCodeScreen> {
 
       if (receiverSnapshot.docs.isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('User not found')),
+          SnackBar(content: Text('userNotFound'.tr())),
         );
         return;
       }
@@ -159,11 +165,22 @@ class _VerificationCodeScreenState extends State<VerificationCodeScreen> {
           receiverId, widget.spaceId, widget.spaceName ?? 'Unnamed Space');
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Verification code sent via chat')),
+        SnackBar(
+          backgroundColor: const Color(0xFF6750A4), // Purple
+          behavior: SnackBarBehavior.floating,
+          margin: EdgeInsets.zero, // full width, no margin
+          content: Text(
+            'verificationSent'.tr(),
+            style: const TextStyle(
+                color: Colors.white, fontWeight: FontWeight.w600),
+          ),
+        ),
       );
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: ${e.toString()}')),
+        SnackBar(
+            content:
+                Text('errorOccurred'.tr(namedArgs: {'detail': e.toString()}))),
       );
     } finally {
       setState(() => _isLoading = false);
@@ -175,6 +192,7 @@ class _VerificationCodeScreenState extends State<VerificationCodeScreen> {
     final displayName = (widget.spaceName?.trim().isNotEmpty ?? false)
         ? widget.spaceName!.trim()
         : 'Space';
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start, // left align texts
       children: [
@@ -182,7 +200,7 @@ class _VerificationCodeScreenState extends State<VerificationCodeScreen> {
         Padding(
           padding: const EdgeInsets.only(left: 8, right: 8),
           child: Text(
-            'Invite members to the $displayName Space',
+            'inviteMembers'.tr(namedArgs: {'space': displayName}),
             style: const TextStyle(
               fontSize: 24,
               fontWeight: FontWeight.w700,
@@ -193,13 +211,13 @@ class _VerificationCodeScreenState extends State<VerificationCodeScreen> {
         ),
         const SizedBox(
             height: 20), // increased spacing between title & subtitle
-        const Padding(
+        Padding(
           padding: const EdgeInsets.only(left: 8, right: 8),
           child: Text(
-            'Share your code out loud or send it in a message',
+            'shareCodeInstruction'.tr(),
             textAlign: TextAlign.center,
-            style:
-                TextStyle(fontSize: 15, color: Color(0xFF7A6E9A), height: 1.4),
+            style: const TextStyle(
+                fontSize: 15, color: Color(0xFF7A6E9A), height: 1.4),
           ),
         ),
         const SizedBox(height: 25), // more space before the purple card
@@ -230,7 +248,8 @@ class _VerificationCodeScreenState extends State<VerificationCodeScreen> {
                 ),
                 const SizedBox(height: 14),
                 Text(
-                  'This code will be active for ${_formatValidityText()}',
+                  'codeActiveFor'
+                      .tr(namedArgs: {'duration': _formatValidityText()}),
                   style: const TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.w400,
@@ -247,10 +266,10 @@ class _VerificationCodeScreenState extends State<VerificationCodeScreen> {
                       shape: const StadiumBorder(),
                     ),
                     onPressed: _isLoading ? null : _shareCode,
-                    child: const Text(
-                      'Share Code',
-                      style:
-                          TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                    child: Text(
+                      'shareCode'.tr(),
+                      style: const TextStyle(
+                          fontSize: 16, fontWeight: FontWeight.w700),
                     ),
                   ),
                 ),
@@ -263,20 +282,22 @@ class _VerificationCodeScreenState extends State<VerificationCodeScreen> {
 
         // 🔹 OR separator
         Row(
-          children: const [
-            Expanded(child: Divider(thickness: 1, color: Color(0xFFCCC2DC))),
+          children: [
+            const Expanded(
+                child: Divider(thickness: 1, color: Color(0xFFCCC2DC))),
             Padding(
-              padding: EdgeInsets.symmetric(horizontal: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 12),
               child: Text(
-                "OR",
-                style: TextStyle(
+                'or'.tr(),
+                style: const TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
                   color: Color(0xFF7A6E9A),
                 ),
               ),
             ),
-            Expanded(child: Divider(thickness: 1, color: Color(0xFFCCC2DC))),
+            const Expanded(
+                child: Divider(thickness: 1, color: Color(0xFFCCC2DC))),
           ],
         ),
 
@@ -293,9 +314,9 @@ class _VerificationCodeScreenState extends State<VerificationCodeScreen> {
           ),
           child: Column(
             children: [
-              const Text(
-                'Scan to enter directly',
-                style: TextStyle(
+              Text(
+                'scanToEnter'.tr(),
+                style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
                     color: Color(0xFF2E1750)),
@@ -344,9 +365,9 @@ class _VerificationCodeScreenState extends State<VerificationCodeScreen> {
               color: const Color(0xFF6750A4),
               onPressed: _safePop,
             ),
-            title: const Text(
-              'Invite Code',
-              style: TextStyle(
+            title: Text(
+              'inviteCode'.tr(),
+              style: const TextStyle(
                   color: Color(0xFF2E1750), fontWeight: FontWeight.w600),
             ),
             centerTitle: false,

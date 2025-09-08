@@ -241,5 +241,31 @@
   "adminPromotedTo": "{0} is now an admin",
   "adminDemotedFrom": "{0} is no longer an admin",
   "sendCode": "Send Code",
-  "enterEmailToSendCode": "Enter the recipient's email to send the invite code."
+  "enterEmailToSendCode": "Enter the recipient's email to send the invite code.",
+  "noSpaceSelected": "No space selected",
+  "goBackHomeSelectSpace": "Go back home to select a space first.",
+
+  "viewAdminStatus": "View Admin Status",
+  "Admin status": "Admin status",
+  "Owner": "Owner",
+
+  "selectNewOwner": "Select a new owner",
+  "ownershipTransferred": "Ownership transferred",
+  "errorTransferringOwnership": "Error transferring ownership",
+  "implementTransferOwnershipCallback": "Transfer callback not implemented",
+  "noOtherMembers": "No other members",
+  "cannotLeaveNoOtherMembers": "You cannot leave because there are no other members to transfer ownership to.",
+
+  "cannotLeaveAsOwner": "Cannot leave as owner",
+  "pleaseTransferOwnershipBeforeLeaving": "Please transfer ownership to another member before leaving this space.",
+  "transfer": "Transfer",
+
+  "verificationSent": "Verification code sent via chat",
+  "inviteMembers": "Invite members to the {space} Space",
+  "shareCodeInstruction": "Share your code out loud or send it in a message",
+  "codeActiveFor": "This code will be active for {duration}",
+  "shareCode": "Share Code",
+  "or": "OR",
+  "scanToEnter": "Scan to enter directly",
+  "inviteCode": "Invite Code"
 }

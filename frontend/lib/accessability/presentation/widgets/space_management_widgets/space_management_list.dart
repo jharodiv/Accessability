@@ -2,8 +2,10 @@ import 'package:accessability/accessability/presentation/widgets/homepageWidgets
 import 'package:accessability/accessability/presentation/widgets/space_management_widgets/change_admin_status.dart';
 import 'package:accessability/accessability/presentation/widgets/space_management_widgets/edit_space_name_screen.dart';
 import 'package:accessability/accessability/presentation/widgets/space_management_widgets/leave_space_dialog.dart';
+import 'package:accessability/accessability/themes/theme_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:easy_localization/easy_localization.dart';
+import 'package:provider/provider.dart';
 
 class SpaceManagementList extends StatelessWidget {
   const SpaceManagementList({
@@ -32,6 +34,7 @@ class SpaceManagementList extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
+    final bool isDarkMode = Provider.of<ThemeProvider>(context).isDarkMode;
 
     final headerStyle = (theme.textTheme.titleMedium ??
             const TextStyle(fontSize: 16.0, fontWeight: FontWeight.w600))

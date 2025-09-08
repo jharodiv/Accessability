@@ -5,6 +5,52 @@ class SpaceService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final String collection = 'Spaces';
 
+  Future<void> transferOwnership({
+    required String spaceId,
+    required String newOwnerId,
+    required String performedBy,
+  }) async {
+    if (spaceId.isEmpty || newOwnerId.isEmpty || performedBy.isEmpty) {
+      throw ArgumentError('spaceId/newOwnerId/performedBy must not be empty');
+    }
+
+    final docRef = _firestore.collection(collection).doc(spaceId);
+
+    await _firestore.runTransaction((tx) async {
+      final snap = await tx.get(docRef);
+      if (!snap.exists) throw Exception('Space not found');
+
+      final data = snap.data()!;
+      final creator = (data['creator'] ?? '') as String;
+      final members = List<String>.from(data['members'] ?? <String>[]);
+      final admins = List<String>.from(data['admins'] ?? <String>[]);
+
+      // Only current creator can transfer ownership
+      if (performedBy != creator) {
+        throw Exception('Only the current creator can transfer ownership.');
+      }
+
+      // new owner must be a member
+      if (!members.contains(newOwnerId)) {
+        throw Exception('New owner must be a member of the space.');
+      }
+
+      // update creator field and ensure newOwnerId is an admin
+      final Map<String, dynamic> updates = {
+        'creator': newOwnerId,
+        'updatedAt': FieldValue.serverTimestamp(),
+      };
+
+      tx.update(docRef, updates);
+
+      if (!admins.contains(newOwnerId)) {
+        tx.update(docRef, {
+          'admins': FieldValue.arrayUnion([newOwnerId])
+        });
+      }
+    });
+  }
+
   /// Create a new space document. Returns the new doc id.
   Future<String> createSpace({
     required String name,

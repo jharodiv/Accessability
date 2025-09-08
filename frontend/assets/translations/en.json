@@ -225,5 +225,21 @@
   "noSpaceChatsOrMembers": "There are no space chats yet, or there are no members in your space yet.",
   "pullToRefreshOrInvite": "Pull to refresh or invite people",
   "sendLocation": "Send Location",
-  "areYouSureLeaveSpace": "Are you sure you want to leave this space?"
+  "areYouSureLeaveSpace": "Are you sure you want to leave this space?",
+  "changeAdminStatus": "Change Admin Status",
+  "yourCircleNeedsMembers": "Your Circle Needs Members",
+  "circleNeedsMembersDesc": "At least one member needs to join your Circle before you can edit your notifications.",
+  "addANewMember": "Add a New Member",
+  "noMembersAddPlease": "Please add a member to continue.",
+  "makeAdmin": "Make Admin",
+  "adminChangedTo": "Admin changed to {0}",
+  "admin": "Admin",
+  "adminPromoted": "Promoted {0} to admin",
+  "adminDemoted": "Demoted {0} from admin",
+  "errorUpdatingAdmin": "Could not update admin status. Try again.",
+  "errorLoadingMembers": "Error loading members.",
+  "adminPromotedTo": "{0} is now an admin",
+  "adminDemotedFrom": "{0} is no longer an admin",
+  "sendCode": "Send Code",
+  "enterEmailToSendCode": "Enter the recipient's email to send the invite code."
 }

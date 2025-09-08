@@ -1,5 +1,7 @@
 // lib/presentation/screens/space_management_screen.dart
 import 'package:accessability/accessability/firebaseServices/chat/chat_service.dart';
+import 'package:accessability/accessability/presentation/widgets/homepageWidgets/bottomWidgetFiles/verification_code_widget.dart';
+import 'package:accessability/accessability/presentation/widgets/space_management_widgets/change_admin_status.dart';
 import 'package:accessability/accessability/presentation/widgets/space_management_widgets/space_management_list.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -311,16 +313,126 @@ class _SpaceManagementScreenState extends State<SpaceManagementScreen> {
                   // maybe prompt user to pick a space first
                 }
               },
-              onViewAdmin: () {
+              onViewAdmin: () async {
                 if (_selectedSpaceId == null) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(content: Text('Please select a space'.tr())),
                   );
                   return;
                 }
-                // Your existing view-admin flow (or a dialog) using _selectedSpaceId.
-                // _showAdminStatusForSelectedSpace();
+
+                // show loading indicator
+                showDialog(
+                  context: context,
+                  barrierDismissible: false,
+                  builder: (_) =>
+                      const Center(child: CircularProgressIndicator()),
+                );
+
+                try {
+                  // fetch space doc to read members/admins/creator
+                  final doc = await _spaceService.getSpace(_selectedSpaceId!);
+                  final data = (doc.data() as Map<String, dynamic>?) ?? {};
+                  final List<dynamic> memberIdsDynamic =
+                      data['members'] ?? <dynamic>[];
+                  final List<String> memberIds =
+                      memberIdsDynamic.map((e) => e.toString()).toList();
+                  final List<dynamic> adminsDynamic =
+                      data['admins'] ?? <dynamic>[];
+                  final List<String> adminIds =
+                      adminsDynamic.map((e) => e.toString()).toList();
+                  final String creatorId = (data['creator'] ?? '') as String;
+
+                  // If no members (shouldn't happen since current user is a member) show placeholder screen:
+                  if (memberIds.isEmpty) {
+                    Navigator.of(context).pop(); // remove loader
+                    Navigator.of(context).push(MaterialPageRoute(
+                      builder: (_) => ChangeAdminStatusScreen(
+                        members: const [],
+                        currentUserId: _auth.currentUser!.uid,
+                        creatorId: creatorId,
+                        onAddMember: () {
+                          // reuse existing add flow
+                          if (_selectedSpaceId != null) {
+                            Navigator.of(context).push(MaterialPageRoute(
+                              builder: (_) => VerificationCodeScreen(
+                                  spaceId: _selectedSpaceId!,
+                                  spaceName: _selectedSpaceName),
+                            ));
+                          }
+                        },
+                      ),
+                    ));
+                    return;
+                  }
+
+                  // fetch users data for the memberIds (batch query whereIn; keep chunking if >10 in production)
+                  final usersQuery = await _firestore
+                      .collection('Users')
+                      .where('uid', whereIn: memberIds)
+                      .get();
+                  final membersData = usersQuery.docs.map((d) {
+                    final m = d.data() as Map<String, dynamic>;
+                    final uid = (m['uid'] ?? d.id).toString();
+                    return <String, dynamic>{
+                      'id': uid,
+                      'username':
+                          (m['username'] ?? m['displayName'] ?? 'Unknown')
+                              .toString(),
+                      'profilePicture': (m['profilePicture'] ?? '').toString(),
+                      'isAdmin': adminIds.contains(uid) || (creatorId == uid),
+                    };
+                  }).toList();
+
+                  Navigator.of(context).pop(); // remove loader
+                  Navigator.of(context).push(MaterialPageRoute(
+                    builder: (_) => ChangeAdminStatusScreen(
+                      members: membersData,
+                      currentUserId: _auth.currentUser!.uid,
+                      creatorId: creatorId,
+                      onAddMember: () {
+                        // reuse existing add flow
+                        if (_selectedSpaceId != null) {
+                          Navigator.of(context).push(MaterialPageRoute(
+                            builder: (_) => VerificationCodeScreen(
+                                spaceId: _selectedSpaceId!,
+                                spaceName: _selectedSpaceName),
+                          ));
+                        }
+                      },
+                      onToggleAdmin: (memberId, makeAdmin) async {
+                        try {
+                          final performedBy = _auth.currentUser!.uid;
+                          if (makeAdmin) {
+                            await _spaceService.promoteToAdmin(
+                                spaceId: _selectedSpaceId!,
+                                userId: memberId,
+                                performedBy: performedBy);
+                          } else {
+                            await _spaceService.demoteAdmin(
+                                spaceId: _selectedSpaceId!,
+                                userId: memberId,
+                                performedBy: performedBy);
+                          }
+
+                          // update UI & notify user
+                          _showFullWidthSnack(makeAdmin
+                              ? 'adminPromotedTo'.tr(args: [memberId])
+                              : 'adminDemotedFrom'.tr(args: [memberId]));
+                        } catch (e) {
+                          debugPrint('Error toggling admin: $e');
+                          rethrow;
+                        }
+                      },
+                    ),
+                  ));
+                } catch (e) {
+                  Navigator.of(context).pop(); // remove loader
+                  ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('errorLoadingMembers'.tr())));
+                }
               },
+
               onAddPeople: () {
                 if (_selectedSpaceId == null) {
                   ScaffoldMessenger.of(context).showSnackBar(

@@ -2,6 +2,7 @@
 import 'dart:math';
 
 import 'package:accessability/accessability/firebaseServices/chat/chat_service.dart';
+import 'package:accessability/accessability/presentation/widgets/reusableWidgets/send_code_dialog_widget.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -113,32 +114,12 @@ class _VerificationCodeScreenState extends State<VerificationCodeScreen> {
   }
 
   Future<String?> _showEmailInputDialog() async {
-    String? email;
-    await showDialog<String?>(
+    // show our styled dialog which returns the entered email (or null)
+    final result = await showDialog<String?>(
       context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text('Send Code'),
-          content: TextField(
-            autofocus: true,
-            keyboardType: TextInputType.emailAddress,
-            decoration: const InputDecoration(labelText: 'Email'),
-            onChanged: (v) => email = v,
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () => Navigator.of(context).pop(email),
-              child: const Text('Send'),
-            ),
-          ],
-        );
-      },
+      builder: (context) => const SendCodeDialogWidget(),
     );
-    return email;
+    return result;
   }
 
   Future<void> _shareCode() async {

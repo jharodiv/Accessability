@@ -203,5 +203,21 @@
   "noSpaceChatsOrMembers": "Awan so space chats, o awan so miyembro ed espasio mo.",
   "pullToRefreshOrInvite": "Ihila para manibago so listaan o mangimbita ed tao",
   "sendLocation": "Ibaki so Lugar",
-  "areYouSureLeaveSpace": "Sigurado ka la’y ya antok manlaylay ed sayan a space?"
+  "areYouSureLeaveSpace": "Sigurado ka la’y ya antok manlaylay ed sayan a space?",
+  "changeAdminStatus": "Baguen so Katayan na Admin",
+  "yourCircleNeedsMembers": "Masapol so Miyembro so Circle Mo",
+  "circleNeedsMembersDesc": "Masapol la’y so mabilang a miyembro a sumali ed Circle mo sakey bago ka makabago na notifications mo.",
+  "addANewMember": "Idugang ya Bagong Miyembro",
+  "noMembersAddPlease": "Mangyaring idugang ya miyembro tan agpatuloy ka.",
+  "makeAdmin": "Aramiden Admin",
+  "adminChangedTo": "Naibaguen so admin ed {0}",
+  "admin": "Admin",
+  "adminPromoted": "Inibaguen si {0 bilang admin}",
+  "adminDemoted": "Inalis si {0} bilang admin",
+  "errorUpdatingAdmin": "Di mabalin ed pag-update na katayan na admin. Sulay manen.",
+  "errorLoadingMembers": "Error ed panagkarga na miyembro.",
+  "adminPromotedTo": "Si {0} ya admin na",
+  "adminDemotedFrom": "Di na admin si {0}",
+  "sendCode": "Iyagon so Kodigo",
+  "enterEmailToSendCode": "Ipasok ed email na tatanggap tan iyagon so kodigo na imbita."
 }

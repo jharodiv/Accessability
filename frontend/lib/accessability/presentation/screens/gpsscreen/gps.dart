@@ -825,7 +825,29 @@ class _GpsScreenState extends State<GpsScreen> {
   }
 
   // --- Nearby places fetching (delegates badge creation to MarkerFactory) ---
+// --- Nearby places fetching (delegates badge creation to MarkerFactory) ---
   Future<void> _fetchNearbyPlaces(String placeType) async {
+    // If no place type => treat as "toggle off" and remove previously-added nearby markers/circles.
+    if (placeType.isEmpty) {
+      if (!mounted) return;
+      setState(() {
+        // keep only core markers: PWD, user, and place (per your existing conventions)
+        _markers.removeWhere((m) => !(m.markerId.value.startsWith('pwd_') ||
+            m.markerId.value.startsWith('user_') ||
+            m.markerId.value.startsWith('place_')));
+
+        // keep only PWD circles; remove any place/nearby circles
+        _circles.removeWhere((c) => !c.circleId.value.startsWith('pwd_'));
+
+        // clear computed nearby specs so computeNearbyCirclesFromSpecs returns nothing
+        _nearbyCircleSpecs = [];
+
+        // clear route visuals that may have been created
+        _polylines.clear();
+      });
+      return;
+    }
+
     if (_locationHandler.currentLocation == null) {
       print("Current location is null - cannot fetch places");
       return;
@@ -850,6 +872,7 @@ class _GpsScreenState extends State<GpsScreen> {
       );
 
       if (result != null && result.isNotEmpty) {
+        // preserve core markers only (pwd_, user_, place_), we'll add new nearby markers
         final existingMarkers = _markers
             .where((marker) =>
                 marker.markerId.value.startsWith("pwd_") ||
@@ -883,7 +906,6 @@ class _GpsScreenState extends State<GpsScreen> {
                 snippet: 'Tap to show route',
                 onTap: () {
                   if (_locationHandler.currentLocation != null) {
-                    // delegate to route controller
                     routeController.createRoute(
                         _locationHandler.currentLocation!, marker.position);
                     routeController.startFollowingUser(
@@ -942,8 +964,10 @@ class _GpsScreenState extends State<GpsScreen> {
           _polylines.clear();
         });
       } else {
+        // nothing returned => clear nearby circles (but keep pwd ones)
         setState(() {
-          _circles.clear();
+          _circles.removeWhere((c) => !c.circleId.value.startsWith('pwd_'));
+          _nearbyCircleSpecs = [];
         });
       }
     } catch (e) {

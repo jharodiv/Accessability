@@ -27,6 +27,7 @@ class _SearchBarWithAutocompleteState extends State<SearchBarWithAutocomplete> {
   //For Porcupine Integration
   late MelodyManager _melodyManager;
   bool _isWakeWordListening = false;
+  bool _isProcessingWakeWord = false; // Add this flag
 
   @override
   void initState() {
@@ -48,7 +49,21 @@ class _SearchBarWithAutocompleteState extends State<SearchBarWithAutocomplete> {
   }
 
   void onWakeWordDetected() {
-    print("Hi");
+    print("✅☑️Wake Word Detected");
+
+    // Set processing flag to prevent multiple triggers
+    if (_isProcessingWakeWord || _isListening) return;
+
+    setState(() {
+      _isProcessingWakeWord = true;
+    });
+
+    _melodyManager.stop();
+
+    // Add a small delay to ensure wake word detection is complete
+    Future.delayed(const Duration(milliseconds: 500), () {
+      _startDoryListening();
+    });
   }
 
   void _onSearchChanged(String query) async {
@@ -86,49 +101,134 @@ class _SearchBarWithAutocompleteState extends State<SearchBarWithAutocomplete> {
     });
   }
 
-  void _startListening() async {
-    if (!_isListening) {
-      bool available = await _speech.initialize();
-      if (available) {
-        setState(() {
-          _isListening = true;
-        });
-        _speech.listen(
-          onResult: (result) {
-            setState(() {
-              _searchController.text = result.recognizedWords;
-              _onSearchChanged(result.recognizedWords);
-              _handleVoiceCommand(result.recognizedWords);
-            });
+  // Renamed and modified for wake word triggered listening
+  void _startDoryListening() async {
+    print("🎤 Starting Dory listening after wake word...");
 
-            // Speech ended
-            if (result.finalResult) {
-              setState(() {
-                _isListening = false;
-              });
-
-              // Wait a bit then clear the field
-              Future.delayed(const Duration(seconds: 1), () {
-                _clearSearch();
-              });
-            }
-          },
-        );
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('speechNotAvailable'.tr())),
-        );
-      }
+    if (_isListening) {
+      print("⚠️ Already listening, stopping previous session");
+      _speech.stop();
+      await Future.delayed(const Duration(milliseconds: 100));
     }
+
+    //bool available = await _speech.initialize();
+    if (!_speech.isAvailable) {
+      print("❌ Speech not available");
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('speechNotAvailable'.tr())),
+      );
+      setState(() {
+        _isProcessingWakeWord = false;
+      });
+      return;
+    }
+
+    setState(() {
+      _isListening = true;
+      _searchController.text = "Listening..."; // Visual feedback
+    });
+
+    print("🎯 Speech listening started for Dory commands");
+
+    _speech.listen(
+      onResult: (result) async {
+        print(
+            "🗣️ Speech result: ${result.recognizedWords} (final: ${result.finalResult})");
+
+        setState(() {
+          _searchController.text = result.recognizedWords;
+        });
+
+        // Process command only when we have final result
+        if (result.finalResult) {
+          final command = result.recognizedWords.trim();
+          print("🚀 Final command for Dory: '$command'");
+
+          // Send to Dory for processing
+          await _handleVoiceCommand(command);
+
+          // Clean up
+          setState(() {
+            _isListening = false;
+            _isProcessingWakeWord = false;
+          });
+
+          // Clear search after processing
+          Future.delayed(const Duration(seconds: 1), () {
+            _clearSearch();
+          });
+        }
+      },
+      listenFor: const Duration(seconds: 8), // Extended time for voice commands
+      pauseFor: const Duration(seconds: 2), // Longer pause detection
+      partialResults: true, // Show partial results for better UX
+      onSoundLevelChange: (level) {
+        // Optional: You can add sound level visualization here
+        // print("Sound level: $level");
+      },
+      cancelOnError: true,
+      localeId: 'en_US', // You can make this dynamic for multilingual support
+    );
   }
 
-  void _handleVoiceCommand(String command) async {
+  // Regular listening (triggered by manual mic button)
+  void _startListening() async {
+    if (_isListening) return;
+
+    bool available = await _speech.initialize();
+    if (!available) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('speechNotAvailable'.tr())),
+      );
+      return;
+    }
+
+    setState(() {
+      _isListening = true;
+    });
+
+    _speech.listen(
+      onResult: (result) async {
+        setState(() {
+          _searchController.text = result.recognizedWords;
+          _onSearchChanged(result.recognizedWords);
+        });
+
+        if (result.finalResult) {
+          final command = result.recognizedWords.trim();
+          print("Manual command: $command");
+
+          await _handleVoiceCommand(command);
+
+          setState(() {
+            _isListening = false;
+          });
+
+          Future.delayed(const Duration(seconds: 1), () {
+            _clearSearch();
+          });
+        }
+      },
+      listenFor: const Duration(seconds: 5),
+      pauseFor: const Duration(seconds: 1),
+      partialResults: false,
+      cancelOnError: true,
+    );
+  }
+
+  _handleVoiceCommand(String command) async {
+    print("🧠 Processing command with Dory: '$command'");
+
     try {
       final result = await predictCommand(command);
       final label = result['label'];
       final confidence = result['confidence'];
 
+      print("🎯 Dory result - Label: $label, Confidence: $confidence%");
+
       if (confidence >= 50) {
+        print("✅ Executing command: $label");
+
         switch (label) {
           case 'open_settings':
             Navigator.pushNamed(context, '/settings');
@@ -171,13 +271,24 @@ class _SearchBarWithAutocompleteState extends State<SearchBarWithAutocomplete> {
             break;
 
           default:
-            print('Unrecognized label: $label');
+            print('❓ Unrecognized label: $label');
+            // Optional: Show user feedback for unrecognized commands
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Command not recognized: $command')),
+            );
         }
       } else {
-        print('Low confidence ($confidence%). Command not executed.');
+        print('⚠️ Low confidence ($confidence%). Command not executed.');
+        // Optional: Show user feedback for low confidence
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Command unclear, please try again')),
+        );
       }
     } catch (e) {
-      print("Error $e");
+      print("❌ Error processing command: $e");
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error processing voice command')),
+      );
     }
 
     _searchController.clear();
@@ -188,6 +299,7 @@ class _SearchBarWithAutocompleteState extends State<SearchBarWithAutocomplete> {
       _speech.stop();
       setState(() {
         _isListening = false;
+        _isProcessingWakeWord = false;
       });
     }
   }
@@ -210,7 +322,7 @@ class _SearchBarWithAutocompleteState extends State<SearchBarWithAutocomplete> {
     return Column(
       children: [
         Container(
-          height: 50, // Fixed height for the search bar
+          height: 50,
           padding: const EdgeInsets.symmetric(horizontal: 16),
           decoration: BoxDecoration(
             color: isDarkMode ? Colors.grey[800] : Colors.grey[200],
@@ -223,18 +335,24 @@ class _SearchBarWithAutocompleteState extends State<SearchBarWithAutocomplete> {
                   controller: _searchController,
                   focusNode: _focusNode,
                   decoration: InputDecoration(
-                    hintText: 'searchLocationHint'.tr(),
+                    hintText: _isProcessingWakeWord
+                        ? 'Say your command...'
+                        : 'searchLocationHint'.tr(),
                     hintStyle: TextStyle(
-                        color:
-                            isDarkMode ? Colors.grey[400] : Colors.grey[700]),
+                        color: _isProcessingWakeWord
+                            ? Colors.green
+                            : (isDarkMode
+                                ? Colors.grey[400]
+                                : Colors.grey[700])),
                     border: InputBorder.none,
                   ),
-                  style: TextStyle(color: textColor),
+                  style: TextStyle(
+                      color: _isProcessingWakeWord ? Colors.green : textColor),
                   onChanged: _onSearchChanged,
                   onSubmitted: widget.onSearch,
                 ),
               ),
-              if (_searchController.text.isNotEmpty)
+              if (_searchController.text.isNotEmpty && !_isListening)
                 IconButton(
                   icon: Icon(
                     Icons.clear,
@@ -244,18 +362,29 @@ class _SearchBarWithAutocompleteState extends State<SearchBarWithAutocomplete> {
                 ),
               IconButton(
                 icon: Icon(
-                  _isWakeWordListening ? Icons.mic : Icons.mic_none,
-                  color: _isWakeWordListening
-                      ? Colors.red
-                      : (isDarkMode ? Colors.grey[400] : Colors.grey[700]),
+                  _isListening
+                      ? Icons.mic
+                      : (_isWakeWordListening
+                          ? Icons.mic_external_on
+                          : Icons.mic_none),
+                  color: _isListening
+                      ? Colors.green
+                      : (_isWakeWordListening
+                          ? Colors.red
+                          : (isDarkMode ? Colors.grey[400] : Colors.grey[700])),
                 ),
                 onPressed: () {
-                  if (_isWakeWordListening) {
+                  if (_isListening) {
+                    // Stop current listening
+                    _stopListening();
+                  } else if (_isWakeWordListening) {
+                    // Stop wake word listening
                     _melodyManager.stop();
                     setState(() {
                       _isWakeWordListening = false;
                     });
                   } else {
+                    // Start wake word listening
                     _melodyManager.start();
                     setState(() {
                       _isWakeWordListening = true;
@@ -270,10 +399,10 @@ class _SearchBarWithAutocompleteState extends State<SearchBarWithAutocomplete> {
           Container(
             margin: const EdgeInsets.only(top: 10),
             constraints: const BoxConstraints(
-              maxHeight: 200, // Constrain the height of the suggestions list
+              maxHeight: 200,
             ),
             decoration: BoxDecoration(
-              color: backgroundColor, // Use theme-based background color
+              color: backgroundColor,
               borderRadius: BorderRadius.circular(8),
               boxShadow: [
                 BoxShadow(
@@ -290,8 +419,7 @@ class _SearchBarWithAutocompleteState extends State<SearchBarWithAutocomplete> {
                 return ListTile(
                   title: Text(
                     _suggestions[index],
-                    style: TextStyle(
-                        color: textColor), // Use theme-based text color
+                    style: TextStyle(color: textColor),
                   ),
                   onTap: () => _onSuggestionSelected(_suggestions[index]),
                 );

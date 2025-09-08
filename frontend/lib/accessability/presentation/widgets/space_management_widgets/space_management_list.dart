@@ -1,5 +1,6 @@
 import 'package:accessability/accessability/presentation/widgets/homepageWidgets/bottomWidgetFiles/verification_code_widget.dart';
 import 'package:accessability/accessability/presentation/widgets/space_management_widgets/edit_space_name_screen.dart';
+import 'package:accessability/accessability/presentation/widgets/space_management_widgets/leave_space_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:easy_localization/easy_localization.dart';
 
@@ -242,8 +243,20 @@ class SpaceManagementList extends StatelessWidget {
                   context,
                   title: 'Leave Space'.tr(),
                   titleStyle: rowTitleStyle,
-                  onTap: onLeave,
+                  onTap: () {
+                    showDialog(
+                      context: context,
+                      builder: (_) => LeaveSpaceDialogWidget(
+                        onConfirm: () {
+                          if (onLeave != null) {
+                            onLeave!(); // trigger parent callback
+                          }
+                        },
+                      ),
+                    );
+                  },
                 ),
+
                 Divider(height: 1, thickness: 1, color: dividerColor),
 
                 const SizedBox(height: 24),

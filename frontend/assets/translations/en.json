@@ -224,5 +224,6 @@
   "noMembersInSpace": "There are no members in your space yet.",
   "noSpaceChatsOrMembers": "There are no space chats yet, or there are no members in your space yet.",
   "pullToRefreshOrInvite": "Pull to refresh or invite people",
-  "sendLocation": "Send Location"
+  "sendLocation": "Send Location",
+  "areYouSureLeaveSpace": "Are you sure you want to leave this space?"
 }

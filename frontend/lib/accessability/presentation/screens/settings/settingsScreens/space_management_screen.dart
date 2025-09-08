@@ -634,11 +634,6 @@ class _SpaceManagementScreenState extends State<SpaceManagementScreen> {
                                 userId: memberId,
                                 performedBy: performedBy);
                           }
-
-                          // update UI & notify user
-                          _showFullWidthSnack(makeAdmin
-                              ? 'adminPromotedTo'.tr(args: [memberId])
-                              : 'adminDemotedFrom'.tr(args: [memberId]));
                         } catch (e) {
                           debugPrint('Error toggling admin: $e');
                           rethrow;
@@ -654,13 +649,22 @@ class _SpaceManagementScreenState extends State<SpaceManagementScreen> {
               },
 
               onAddPeople: () {
-                if (_selectedSpaceId == null) {
+                if (_selectedSpaceId == null ||
+                    (_selectedSpaceId ?? '').trim().isEmpty) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(content: Text('Please select a space'.tr())),
                   );
                   return;
                 }
-                // Open invite flow using _selectedSpaceId
+
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => VerificationCodeScreen(
+                      spaceId: _selectedSpaceId!,
+                      spaceName: _selectedSpaceName,
+                    ),
+                  ),
+                );
               },
               onLeave: () {
                 if (_selectedSpaceId == null) {

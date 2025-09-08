@@ -1,4 +1,6 @@
 // change_admin_status_screen.dart
+import 'package:accessability/accessability/firebaseServices/space/space_service.dart';
+import 'package:accessability/accessability/firebaseServices/space/user_service.dart';
 import 'package:accessability/accessability/themes/theme_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:easy_localization/easy_localization.dart';
@@ -79,6 +81,7 @@ class _ChangeAdminStatusScreenState extends State<ChangeAdminStatusScreen> {
     return src
         .map((m) => {
               'id': (m['id'] ?? '') as String,
+              'uid': (m['uid'] ?? m['id'] ?? '') as String, // <-- added
               'username': (m['username'] ?? 'Unknown') as String,
               'profilePicture': (m['profilePicture'] ?? '') as String,
               'isAdmin': (m['isAdmin'] ?? false) as bool,
@@ -95,41 +98,91 @@ class _ChangeAdminStatusScreenState extends State<ChangeAdminStatusScreen> {
 
   Future<void> _toggleAdmin(String memberId, bool makeAdmin, int index) async {
     final member = _membersLocal[index];
-    if ((member['id'] ?? '') == widget.creatorId) return;
-    if (_pendingToggleIds.contains(memberId)) return;
+    debugPrint(
+        '[_toggleAdmin] start: memberId=$memberId, index=$index, member=$member');
 
+    // guard: don't touch the creator row
+    if ((member['id'] ?? '') == widget.creatorId) {
+      debugPrint('[_toggleAdmin] abort: member is creator');
+      return;
+    }
+
+    // avoid duplicate operations
+    if (_pendingToggleIds.contains(memberId)) {
+      debugPrint('[_toggleAdmin] abort: already pending');
+      return;
+    }
+
+    // optimistic UI update
     setState(() {
       _membersLocal[index]['isAdmin'] = makeAdmin;
       _pendingToggleIds.add(memberId);
     });
 
-    if (widget.onToggleAdmin != null) {
-      try {
+    try {
+      if (widget.onToggleAdmin != null) {
+        debugPrint('[_toggleAdmin] calling parent onToggleAdmin for $memberId');
         await widget.onToggleAdmin!(memberId, makeAdmin);
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(makeAdmin
-              ? 'adminPromoted'.tr(args: [member['username']])
-              : 'adminDemoted'.tr(args: [member['username']])),
-        ));
-      } catch (e) {
+      } else {
+        // fallback: revert and show message
         setState(() {
           _membersLocal[index]['isAdmin'] = !makeAdmin;
         });
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('errorUpdatingAdmin'.tr())));
-      } finally {
-        setState(() {
-          _pendingToggleIds.remove(memberId);
-        });
+        debugPrint('[_toggleAdmin] no parent callback provided');
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('implementToggleAdminCallback'.tr())),
+        );
+        return;
       }
-    } else {
+
+      // Try to resolve a friendly name
+      final userService = UserService();
+      final fullName = await userService.getFullName(memberId);
+      debugPrint(
+          '[_toggleAdmin] getFullName returned: "$fullName" for $memberId');
+
+      // fallback chain: first fullName, then member.username, then member.uid, then memberId
+      final displayName = (fullName.isNotEmpty)
+          ? fullName
+          : ((member['username'] as String?)?.trim().isNotEmpty == true
+              ? (member['username'] as String)
+              : ((member['uid'] as String?)?.trim().isNotEmpty == true
+                  ? (member['uid'] as String)
+                  : memberId));
+
+      debugPrint('[_toggleAdmin] final displayName="$displayName"');
+
+      // show snack: purple for promote, neutral for demote
+      final msg = makeAdmin
+          ? 'adminPromoted'.tr(namedArgs: {'name': displayName})
+          : 'adminDemoted'.tr(namedArgs: {'name': displayName});
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(msg,
+              style: TextStyle(
+                  color: makeAdmin ? Colors.white : null,
+                  fontWeight: FontWeight.w600)),
+          backgroundColor: makeAdmin ? purple : null,
+          behavior: SnackBarBehavior.floating,
+          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          duration: const Duration(seconds: 3),
+        ),
+      );
+    } catch (e, st) {
+      debugPrint('[_toggleAdmin] ERROR: $e\n$st');
+      // rollback UI on error
       setState(() {
         _membersLocal[index]['isAdmin'] = !makeAdmin;
+      });
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('errorUpdatingAdmin'.tr())));
+    } finally {
+      setState(() {
         _pendingToggleIds.remove(memberId);
       });
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('implementToggleAdminCallback'.tr())),
-      );
+      debugPrint('[_toggleAdmin] finished for $memberId');
     }
   }
 

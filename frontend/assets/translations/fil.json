@@ -202,5 +202,6 @@
   "noMembersInSpace": "Wala pang miyembro sa iyong space.",
   "noSpaceChatsOrMembers": "Wala pang mga space chat, o wala pang miyembro sa iyong space.",
   "pullToRefreshOrInvite": "Hilahin para i-refresh o mag-imbita ng mga tao",
-  "sendLocation": "Ipadala ang Lokasyon"
+  "sendLocation": "Ipadala ang Lokasyon",
+  "areYouSureLeaveSpace": "Sigurado ka bang gusto mong umalis sa space na ito?"
 }

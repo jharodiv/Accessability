@@ -234,8 +234,6 @@
   "makeAdmin": "Make Admin",
   "adminChangedTo": "Admin changed to {0}",
   "admin": "Admin",
-  "adminPromoted": "Promoted {0} to admin",
-  "adminDemoted": "Demoted {0} from admin",
   "errorUpdatingAdmin": "Could not update admin status. Try again.",
   "errorLoadingMembers": "Error loading members.",
   "adminPromotedTo": "{0} is now an admin",
@@ -270,5 +268,7 @@
   "inviteCode": "Invite Code",
   "roleMember": "Member",
   "roleOwner": "Owner",
-  "roleAdmin": "Admin"
+  "roleAdmin": "Admin",
+  "adminPromoted": "Promoted {name}",
+  "adminDemoted": "Demoted {name}"
 }

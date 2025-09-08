@@ -42,6 +42,148 @@ class _SpaceManagementScreenState extends State<SpaceManagementScreen> {
     _restoreSavedActiveSpace();
   }
 
+  Future<void> _leaveSpace(String spaceId, String spaceName) async {
+    try {
+      final currentUserId = _auth.currentUser?.uid;
+      if (currentUserId == null) return;
+
+      // Fetch latest space doc to inspect creator, members, admins
+      final snap = await _firestore.collection('Spaces').doc(spaceId).get();
+      if (!snap.exists) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('spaceNotFound'.tr())));
+        return;
+      }
+
+      final data = snap.data() as Map<String, dynamic>;
+      final creator = (data['creator'] ?? '') as String;
+      final members = List<String>.from(data['members'] ?? <String>[]);
+      final admins = List<String>.from(data['admins'] ?? <String>[]);
+
+      // CASE: current user is the creator/owner
+      if (creator == currentUserId) {
+        // if creator is the only member -> allow leave
+        if (members.length <= 1) {
+          // Proceed with leaving (no transfer needed)
+        } else {
+          // There are other members: require either another admin exists OR transfer ownership
+          final otherAdmins = admins.where((a) => a != creator).toList();
+
+          if (otherAdmins.isNotEmpty) {
+            // There is at least one other admin -> allow leave without transfer
+            // (optional: you might want to auto-promote someone as new creator, but per your rule it's not required)
+          } else {
+            // No other admins and other members exist -> must transfer ownership first
+            await showDialog(
+              context: context,
+              builder: (context) => AlertDialog(
+                title: Text('cannotLeaveAsOwner'.tr()),
+                content: Text('pleaseTransferOwnershipBeforeLeaving'.tr()),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: Text('cancel'.tr()),
+                  ),
+                  TextButton(
+                    onPressed: () {
+                      Navigator.pop(context);
+                      // Open transfer flow so owner can pick new owner/admin
+                      _openChangeAdminStatusForTransfer(spaceId);
+                    },
+                    child: Text('Transfer'.tr()),
+                  ),
+                ],
+              ),
+            );
+            return; // stop here until transfer happens
+          }
+        }
+      }
+
+      // At this point: either user is not creator OR allowed to leave (creator + allowed condition)
+      // Remove user from members
+      await _firestore.collection('Spaces').doc(spaceId).update({
+        'members': FieldValue.arrayRemove([currentUserId])
+      });
+
+      // Also remove from space chat room collection via ChatService
+      final chatService = ChatService();
+      await chatService.removeMemberFromSpaceChatRoom(spaceId, currentUserId);
+
+      // Notify space chat that member left (best-effort)
+      final currentUsername = await _getUsername(currentUserId);
+      await chatService.notifyMemberLeft(spaceId, currentUsername);
+
+      // If left space was the selected one, clear saved active selection
+      if (_selectedSpaceId == spaceId) {
+        await _clearSavedActiveSpace();
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('spaceLeft'.tr())),
+      );
+    } catch (e) {
+      debugPrint('Error leaving space: $e');
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('errorLeavingSpace'.tr())));
+    }
+  }
+
+  void _openChangeAdminStatusForTransfer(String spaceId) async {
+    try {
+      // fetch up-to-date space doc
+      final doc = await _spaceService.getSpace(spaceId);
+      final data = (doc.data() as Map<String, dynamic>?) ?? {};
+      final List<dynamic> memberIdsDynamic = data['members'] ?? <dynamic>[];
+      final List<String> memberIds =
+          memberIdsDynamic.map((e) => e.toString()).toList();
+      final List<dynamic> adminsDynamic = data['admins'] ?? <dynamic>[];
+      final List<String> adminIds =
+          adminsDynamic.map((e) => e.toString()).toList();
+      final String creatorId = (data['creator'] ?? '') as String;
+
+      if (memberIds.isEmpty) return;
+
+      final usersQuery = await _firestore
+          .collection('Users')
+          .where('uid', whereIn: memberIds)
+          .get();
+      final membersData = usersQuery.docs.map((d) {
+        final m = d.data() as Map<String, dynamic>;
+        final uid = (m['uid'] ?? d.id).toString();
+        return <String, dynamic>{
+          'id': uid,
+          'username':
+              (m['username'] ?? m['displayName'] ?? 'Unknown').toString(),
+          'profilePicture': (m['profilePicture'] ?? '').toString(),
+          'isAdmin': adminIds.contains(uid) || (creatorId == uid),
+        };
+      }).toList();
+
+      // open screen with onTransferOwnership bound to the new transfer method
+      Navigator.of(context).push(MaterialPageRoute(
+        builder: (_) => ChangeAdminStatusScreen(
+          members: membersData,
+          currentUserId: _auth.currentUser!.uid,
+          creatorId: creatorId,
+          onTransferOwnership: (newOwnerId) async {
+            final performedBy = _auth.currentUser!.uid;
+            await _spaceService.transferOwnership(
+              spaceId: spaceId,
+              newOwnerId: newOwnerId,
+              performedBy: performedBy,
+            );
+            // optional: after transfer you might automatically call leave again or notify user
+          },
+        ),
+      ));
+    } catch (e) {
+      debugPrint('Error opening transfer owner flow: $e');
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('errorLoadingMembers'.tr())));
+    }
+  }
+
   // Restore saved active space id & try to get its name (best-effort).
   Future<void> _restoreSavedActiveSpace() async {
     try {
@@ -245,7 +387,47 @@ class _SpaceManagementScreenState extends State<SpaceManagementScreen> {
               return Center(child: Text('errorLoadingSpaces'.tr()));
             }
             if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-              return Center(child: Text('noSpacesFound'.tr()));
+              final bool isDarkMode =
+                  Provider.of<ThemeProvider>(context).isDarkMode;
+
+              return Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    // bigger icon
+                    Icon(
+                      Icons.meeting_room_outlined,
+                      size: 96, // <- bigger
+                      color:
+                          isDarkMode ? Colors.white70 : const Color(0xFF6750A4),
+                    ),
+
+                    const SizedBox(height: 16),
+
+                    // title (localized)
+                    Text(
+                      'noSpaceSelected'.tr(),
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
+                        color: isDarkMode ? Colors.white : Colors.black87,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+
+                    const SizedBox(height: 8),
+
+                    // subtitle (localized)
+                    Text(
+                      'goBackHomeSelectSpace'.tr(),
+                      style: Theme.of(context).textTheme.bodySmall,
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
+                ),
+              );
             }
 
             final spaces = snapshot.data!.docs;
@@ -528,7 +710,32 @@ class _SpaceManagementScreenState extends State<SpaceManagementScreen> {
                 );
               }
               if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-                return const SizedBox();
+                // read theme locally here
+                final bool isDarkMode =
+                    Provider.of<ThemeProvider>(context).isDarkMode;
+
+                return Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.meeting_room,
+                        size: 64,
+                        color: isDarkMode ? Colors.white70 : Colors.grey[700],
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        'noSpaceSelected'.tr(),
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: isDarkMode ? Colors.white70 : Colors.black54,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
+                  ),
+                );
               }
 
               final members = snapshot.data!.docs;
@@ -715,40 +922,6 @@ class _SpaceManagementScreenState extends State<SpaceManagementScreen> {
       setState(() {
         _deletingSpaces.remove(spaceId);
       });
-    }
-  }
-
-  Future<void> _leaveSpace(String spaceId, String spaceName) async {
-    try {
-      final currentUserId = _auth.currentUser?.uid;
-      if (currentUserId == null) return;
-
-      final currentUsername = await _getUsername(currentUserId);
-
-      // Remove from Spaces collection
-      await _firestore.collection('Spaces').doc(spaceId).update({
-        'members': FieldValue.arrayRemove([currentUserId])
-      });
-
-      // Remove from space_chat_rooms collection using ChatService
-      final chatService = ChatService();
-      await chatService.removeMemberFromSpaceChatRoom(spaceId, currentUserId);
-
-      // Send notification to space chat
-      await chatService.notifyMemberLeft(spaceId, currentUsername);
-
-      // If left space was the selected one, clear saved active selection
-      if (_selectedSpaceId == spaceId) {
-        await _clearSavedActiveSpace();
-      }
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('spaceLeft'.tr())),
-      );
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('errorLeavingSpace'.tr())),
-      );
     }
   }
 

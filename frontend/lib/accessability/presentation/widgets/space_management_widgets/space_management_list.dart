@@ -1,4 +1,5 @@
 import 'package:accessability/accessability/presentation/widgets/homepageWidgets/bottomWidgetFiles/verification_code_widget.dart';
+import 'package:accessability/accessability/presentation/widgets/space_management_widgets/change_admin_status.dart';
 import 'package:accessability/accessability/presentation/widgets/space_management_widgets/edit_space_name_screen.dart';
 import 'package:accessability/accessability/presentation/widgets/space_management_widgets/leave_space_dialog.dart';
 import 'package:flutter/material.dart';
@@ -207,7 +208,16 @@ class SpaceManagementList extends StatelessWidget {
                   context,
                   title: 'Change Admin Status'.tr(),
                   titleStyle: rowTitleStyle,
-                  onTap: onViewAdmin,
+                  onTap: () {
+                    if (onViewAdmin != null) {
+                      onViewAdmin!();
+                    } else {
+                      // fallback behaviour (optional):
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Please select a space'.tr())),
+                      );
+                    }
+                  },
                 ),
                 Divider(height: 1, thickness: 1, color: dividerColor),
 

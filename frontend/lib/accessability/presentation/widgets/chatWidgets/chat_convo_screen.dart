@@ -28,6 +28,7 @@ class ChatConvoScreen extends StatefulWidget {
 
 class _ChatConvoScreenState extends State<ChatConvoScreen> {
   final TextEditingController messageController = TextEditingController();
+  final TextEditingController editController = TextEditingController();
   final ScrollController scrollController = ScrollController();
   final ChatService chatService = ChatService();
   final AuthService authService = AuthService();
@@ -35,6 +36,7 @@ class _ChatConvoScreenState extends State<ChatConvoScreen> {
   FocusNode focusNode = FocusNode();
   bool _isRequestPending = true;
   final FirebaseAuth _auth = FirebaseAuth.instance;
+  String? editingMessageId;
 
   @override
   void initState() {
@@ -88,6 +90,108 @@ class _ChatConvoScreenState extends State<ChatConvoScreen> {
         ),
       );
     }
+  }
+
+  void _editMessage(String messageId, String currentMessage) {
+    setState(() {
+      editingMessageId = messageId;
+      editController.text = currentMessage;
+    });
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text('Edit Message'),
+          content: TextField(
+            controller: editController,
+            maxLines: 3,
+            decoration: InputDecoration(hintText: 'Edit your message...'),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context);
+                setState(() {
+                  editingMessageId = null;
+                });
+              },
+              child: Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () async {
+                if (editController.text.trim().isNotEmpty) {
+                  try {
+                    final chatRoomId = chatService.getChatRoomId(
+                      _auth.currentUser!.uid,
+                      widget.receiverID,
+                    );
+
+                    await chatService.editMessage(
+                      chatRoomId: chatRoomId,
+                      messageId: messageId,
+                      newMessage: editController.text.trim(),
+                      isSpaceChat: widget.isSpaceChat,
+                    );
+
+                    Navigator.pop(context);
+                    setState(() {
+                      editingMessageId = null;
+                    });
+                  } catch (e) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Failed to edit message: $e')),
+                    );
+                  }
+                }
+              },
+              child: Text('Save'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _deleteMessage(String messageId) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text('Delete Message'),
+          content: Text('Are you sure you want to delete this message?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () async {
+                try {
+                  final chatRoomId = chatService.getChatRoomId(
+                    _auth.currentUser!.uid,
+                    widget.receiverID,
+                  );
+
+                  await chatService.deleteMessage(
+                    chatRoomId: chatRoomId,
+                    messageId: messageId,
+                    isSpaceChat: widget.isSpaceChat,
+                  );
+
+                  Navigator.pop(context);
+                } catch (e) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Failed to delete message: $e')),
+                  );
+                }
+              },
+              child: Text('Delete', style: TextStyle(color: Colors.red)),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   @override
@@ -220,14 +324,23 @@ class _ChatConvoScreenState extends State<ChatConvoScreen> {
     Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
     bool isSystemMessage = data['isSystemMessage'] == true;
     bool isCurrentUser = data['senderID'] == authService.getCurrentUser()!.uid;
+    bool isDeleted = data['deleted'] == true;
+    bool isEdited = data['edited'] == true;
 
-    // Handle system messages differently
+    // Get chat room ID
+    final chatRoomId = widget.isSpaceChat
+        ? widget.receiverID
+        : chatService.getChatRoomId(
+            _auth.currentUser!.uid,
+            widget.receiverID,
+          );
+
+    // Handle system messages
     if (isSystemMessage) {
       return _buildSystemMessage(data['message'], data['timestamp']);
     }
 
-    // Check if this is a verification code message with metadata
-    // This works for both chat requests and regular messages
+    // Handle verification code messages
     if (data['metadata'] != null &&
         data['metadata']['type'] == 'verification_code') {
       return _buildVerificationCodeBubble(data);
@@ -243,28 +356,48 @@ class _ChatConvoScreenState extends State<ChatConvoScreen> {
         if (snapshot.hasError || !snapshot.hasData || !snapshot.data!.exists) {
           return ChatConvoBubble(
             isCurrentUser: isCurrentUser,
-            message: data['message'],
+            message: isDeleted ? 'This message was deleted' : data['message'],
             timestamp: data['timestamp'],
-            profilePicture:
-                'https://firebasestorage.googleapis.com/v0/b/accessability-71ef7.appspot.com/o/profile_pictures%2Fdefault_profile.png?alt=media&token=bc7a75a7-a78e-4460-b816-026a8fc341ba',
+            profilePicture: 'https://.../default_profile.png',
             metadata: data['metadata'] != null
                 ? Map<String, dynamic>.from(data['metadata'])
-                : null, // Pass metadata
+                : null,
+            edited: isEdited,
+            deleted: isDeleted,
+            messageId: doc.id, // Pass message ID
+            chatRoomId: chatRoomId, // Pass chat room ID
+            isSpaceChat: widget.isSpaceChat,
+            onEdit: isCurrentUser && !isDeleted
+                ? () => _editMessage(doc.id, data['message'])
+                : null,
+            onDelete: isCurrentUser && !isDeleted
+                ? () => _deleteMessage(doc.id)
+                : null,
           );
         }
 
         final userData = snapshot.data!.data() as Map<String, dynamic>;
-        final profilePicture = userData['profilePicture'] ??
-            'https://firebasestorage.googleapis.com/v0/b/accessability-71ef7.appspot.com/o/profile_pictures%2Fdefault_profile.png?alt=media&token=bc7a75a7-a78e-4460-b816-026a8fc341ba';
+        final profilePicture =
+            userData['profilePicture'] ?? 'https://.../default_profile.png';
 
         return ChatConvoBubble(
           isCurrentUser: isCurrentUser,
-          message: data['message'],
+          message: isDeleted ? 'This message was deleted' : data['message'],
           timestamp: data['timestamp'],
           profilePicture: profilePicture,
           metadata: data['metadata'] != null
               ? Map<String, dynamic>.from(data['metadata'])
-              : null, // Pass metadata
+              : null,
+          edited: isEdited,
+          deleted: isDeleted,
+          messageId: doc.id,
+          chatRoomId: chatRoomId,
+          isSpaceChat: widget.isSpaceChat,
+          onEdit: isCurrentUser && !isDeleted
+              ? () => _editMessage(doc.id, data['message'])
+              : null,
+          onDelete:
+              isCurrentUser && !isDeleted ? () => _deleteMessage(doc.id) : null,
         );
       },
     );

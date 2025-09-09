@@ -684,4 +684,70 @@ class ChatService {
       return false;
     }
   }
+
+  Future<void> editMessage({
+    required String chatRoomId,
+    required String messageId,
+    required String newMessage,
+    bool isSpaceChat = false,
+  }) async {
+    try {
+      final collection = isSpaceChat
+          ? firebaseFirestore
+              .collection('space_chat_rooms')
+              .doc(chatRoomId)
+              .collection('messages')
+          : firebaseFirestore
+              .collection('chat_rooms')
+              .doc(chatRoomId)
+              .collection('messages');
+
+      await collection.doc(messageId).update({
+        'message': newMessage,
+        'edited': true,
+        'editedAt': FieldValue.serverTimestamp(),
+      });
+    } catch (e) {
+      print('Error editing message: $e');
+      throw Exception('Failed to edit message');
+    }
+  }
+
+  Future<void> deleteMessage({
+    required String chatRoomId,
+    required String messageId,
+    bool isSpaceChat = false,
+  }) async {
+    try {
+      final collection = isSpaceChat
+          ? firebaseFirestore
+              .collection('space_chat_rooms')
+              .doc(chatRoomId)
+              .collection('messages')
+          : firebaseFirestore
+              .collection('chat_rooms')
+              .doc(chatRoomId)
+              .collection('messages');
+
+      // Option 1: Soft delete (recommended)
+      await collection.doc(messageId).update({
+        'deleted': true,
+        'deletedAt': FieldValue.serverTimestamp(),
+        'originalMessage':
+            FieldValue.delete(), // Optional: store original message
+      });
+
+      // Option 2: Hard delete (uncomment if you want to permanently remove)
+      // await collection.doc(messageId).delete();
+    } catch (e) {
+      print('Error deleting message: $e');
+      throw Exception('Failed to delete message');
+    }
+  }
+
+  String getChatRoomId(String user1, String user2) {
+    List<String> ids = [user1, user2];
+    ids.sort();
+    return ids.join('_');
+  }
 }

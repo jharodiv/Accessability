@@ -11,7 +11,16 @@ console.log("✅ Environment variables loaded");
 // Create Express app
 const app = express();
 app.use(express.json());
+
+// --- CORS setup ---
+// Allow all origins (for testing/development)
 app.use(cors());
+
+// OR restrict to your frontend origin:
+// app.use(cors({ origin: "https://your-frontend-domain.com" }));
+
+// Handle preflight OPTIONS requests globally
+app.options("*", cors());
 
 // --- Redis connection ---
 const client = createClient({

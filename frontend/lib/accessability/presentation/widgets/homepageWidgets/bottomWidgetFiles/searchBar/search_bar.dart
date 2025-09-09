@@ -141,6 +141,8 @@ class _SearchBarWithAutocompleteState extends State<SearchBarWithAutocomplete> {
       return;
     }
 
+    await Future.delayed(const Duration(milliseconds: 600));
+
     setState(() {
       _isListening = true;
       _searchController.text = "Listening..."; // Visual feedback
@@ -177,10 +179,9 @@ class _SearchBarWithAutocompleteState extends State<SearchBarWithAutocomplete> {
           });
         }
       },
-      listenFor: const Duration(seconds: 8),
-      pauseFor: const Duration(seconds: 2),
+      listenFor: const Duration(seconds: 30),
+      pauseFor: const Duration(seconds: 10),
       partialResults: true,
-      onSoundLevelChange: (level) {},
       cancelOnError: true,
       localeId: 'en_US',
     );
@@ -224,8 +225,8 @@ class _SearchBarWithAutocompleteState extends State<SearchBarWithAutocomplete> {
           });
         }
       },
-      listenFor: const Duration(seconds: 5),
-      pauseFor: const Duration(seconds: 1),
+      listenFor: const Duration(seconds: 30),
+      pauseFor: const Duration(seconds: 10),
       partialResults: false,
       cancelOnError: true,
     );
@@ -287,17 +288,15 @@ class _SearchBarWithAutocompleteState extends State<SearchBarWithAutocomplete> {
 
           default:
             print('❓ Unrecognized label: $label');
-            // Optional: Show user feedback for unrecognized commands
+            await _speak(
+                "Sorry, I can't process your command. Please try again.");
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(content: Text('Command not recognized: $command')),
             );
         }
       } else {
         print('⚠️ Low confidence ($confidence%). Command not executed.');
-        // Optional: Show user feedback for low confidence
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Command unclear, please try again')),
-        );
+        await _speak("Sorry, I can't process your command. Please try again.");
       }
     } catch (e) {
       print("❌ Error processing command: $e");
@@ -351,7 +350,7 @@ class _SearchBarWithAutocompleteState extends State<SearchBarWithAutocomplete> {
                   focusNode: _focusNode,
                   decoration: InputDecoration(
                     hintText: _isProcessingWakeWord
-                        ? 'Say your command...'
+                        ? 'Listening...'
                         : 'searchLocationHint'.tr(),
                     hintStyle: TextStyle(
                         color: _isProcessingWakeWord

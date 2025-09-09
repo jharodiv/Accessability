@@ -270,5 +270,7 @@
   "roleOwner": "Owner",
   "roleAdmin": "Admin",
   "adminPromoted": "Promoted {name}",
-  "adminDemoted": "Demoted {name}"
+  "adminDemoted": "Demoted {name}",
+  "destination_reached": "Destination Reached",
+  "you_have_arrived_at_destination": "You have arrived at your destination. Navigation will now stop."
 }

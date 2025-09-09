@@ -235,6 +235,8 @@ class _GpsScreenState extends State<GpsScreen> {
           _isRerouting = rerouting;
         });
       },
+      // NEW: Add destination reached callback
+      onDestinationReached: _showDestinationReachedDialog,
     );
 
     // LocationHandler immediate deviation hook -> use controller's routePoints
@@ -268,6 +270,33 @@ class _GpsScreenState extends State<GpsScreen> {
     _getPwdLocationsAndCreateMarkers();
 
     _restoreOrAutoSelectSpace();
+  }
+
+  void _showDestinationReachedDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Destination Reached'),
+          content: const Text(
+              'You have arrived at your destination. Navigation will now stop.'),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                // Additional cleanup if needed
+                setState(() {
+                  _isRouteActive = false;
+                  _polylines.clear();
+                });
+              },
+              child: const Text('OK'),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   void _removeUserOverlay() {

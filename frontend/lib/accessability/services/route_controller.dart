@@ -11,6 +11,8 @@ import 'package:http/http.dart' as http;
 typedef OnPolylinesChanged = void Function(Set<Polyline> polylines);
 typedef OnRouteActiveChanged = void Function(bool active);
 typedef OnReroutingChanged = void Function(bool rerouting);
+typedef OnDestinationReached = void
+    Function(); // NEW: Destination reached callback
 
 class RouteController {
   RouteController({
@@ -18,7 +20,10 @@ class RouteController {
     this.onPolylinesChanged,
     this.onRouteActiveChanged,
     this.onReroutingChanged,
+    this.onDestinationReached, // NEW: Destination reached callback
     this.maxRouteDeviationMeters = 50.0,
+    this.destinationReachedThresholdMeters =
+        10.0, // NEW: Threshold for destination reached
   });
 
   /// A function returning the current GoogleMapController (may be null).
@@ -27,6 +32,8 @@ class RouteController {
   final OnPolylinesChanged? onPolylinesChanged;
   final OnRouteActiveChanged? onRouteActiveChanged;
   final OnReroutingChanged? onReroutingChanged;
+  final OnDestinationReached?
+      onDestinationReached; // NEW: Destination reached callback
 
   // Internal state (kept inside controller)
   List<LatLng> _routePoints = [];
@@ -35,12 +42,17 @@ class RouteController {
   bool _isRerouting = false;
   bool _isWheelchair = false;
   Color _routeColor = const Color(0xFF6750A4);
+  bool _destinationReachedNotified =
+      false; // NEW: Track if notification was shown
 
   Timer? _routeUpdateTimer;
   Timer? _rerouteCheckTimer;
 
   /// Tuning: meters considered "off-route".
   double maxRouteDeviationMeters;
+
+  /// NEW: Distance threshold to consider destination reached (in meters)
+  double destinationReachedThresholdMeters;
 
   // Expose read-only state for UI
   List<LatLng> get routePoints => _routePoints;
@@ -54,10 +66,31 @@ class RouteController {
     _rerouteCheckTimer?.cancel();
   }
 
+  /// NEW: Check if user has reached destination
+  bool _hasReachedDestination(LatLng currentLocation) {
+    if (_routeDestination == null) return false;
+
+    final distanceToDestination =
+        MapUtils.calculateDistanceKm(currentLocation, _routeDestination!) *
+            1000.0; // Convert km to meters
+
+    return distanceToDestination <= destinationReachedThresholdMeters;
+  }
+
+  /// NEW: Stop navigation and notify that destination was reached
+  void _handleDestinationReached() {
+    if (!_destinationReachedNotified) {
+      _destinationReachedNotified = true;
+      stopFollowingUser();
+      onDestinationReached?.call();
+    }
+  }
+
   /// Create a route from [origin] to [destination] using OSRM (same API as before).
   /// This function sets internal route state and notifies callbacks (polylines).
   Future<void> createRoute(LatLng origin, LatLng destination) async {
     _isRerouting = true;
+    _destinationReachedNotified = false; // NEW: Reset reached notification
     onReroutingChanged?.call(true);
     try {
       // Use wheelchair/driving profile to match original toggling behavior.
@@ -114,11 +147,22 @@ class RouteController {
     _updateCameraForNavigation(currentLocationGetter);
 
     _routeUpdateTimer = Timer.periodic(updateInterval, (_) {
-      _updateCameraForNavigation(currentLocationGetter);
+      final currentLocation = currentLocationGetter();
+      if (currentLocation != null) {
+        // NEW: Check if destination reached on each update
+        if (_hasReachedDestination(currentLocation)) {
+          _handleDestinationReached();
+          return; // Stop further updates if destination reached
+        }
+        _updateCameraForNavigation(currentLocationGetter);
+      }
     });
 
     _rerouteCheckTimer = Timer.periodic(rerouteInterval, (_) {
-      _checkRouteDeviation(currentLocationGetter());
+      final currentLocation = currentLocationGetter();
+      if (currentLocation != null && !_hasReachedDestination(currentLocation)) {
+        _checkRouteDeviation(currentLocation);
+      }
     });
   }
 
@@ -128,6 +172,15 @@ class RouteController {
     _routeUpdateTimer = null;
     _rerouteCheckTimer?.cancel();
     _rerouteCheckTimer = null;
+
+    // NEW: Clear route state when stopping
+    if (_isRouteActive) {
+      _isRouteActive = false;
+      _routePoints.clear();
+      _routeDestination = null;
+      onPolylinesChanged?.call({});
+      onRouteActiveChanged?.call(false);
+    }
   }
 
   /// Toggle wheelchair profile used for routing.
@@ -137,10 +190,8 @@ class RouteController {
 
   /// Checks whether the user has deviated too far from the route; if so,
   /// re-request route from current location to the stored destination.
-  Future<void> _checkRouteDeviation(LatLng? currentLocation) async {
-    if (currentLocation == null ||
-        _routePoints.isEmpty ||
-        _routeDestination == null) return;
+  Future<void> _checkRouteDeviation(LatLng currentLocation) async {
+    if (_routePoints.isEmpty || _routeDestination == null) return;
 
     double minDistanceMeters = double.infinity;
     for (final p in _routePoints) {
@@ -168,6 +219,12 @@ class RouteController {
         currentLocation == null ||
         _routeDestination == null ||
         _routePoints.isEmpty) return;
+
+    // NEW: Don't update camera if destination reached
+    if (_hasReachedDestination(currentLocation)) {
+      _handleDestinationReached();
+      return;
+    }
 
     // 1) find closest index
     int closestIndex = 0;

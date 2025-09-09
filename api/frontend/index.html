@@ -27,23 +27,40 @@
     }
   </style>
   <script>
-    window.onload = function() {
+    async function saveDeepLink(deviceId, code) {
+      try {
+        await fetch("http://your-server.com/save-deeplink", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ deviceId, inviteCode: code })
+        });
+      } catch (err) {
+        console.error("❌ Failed to save deeplink:", err);
+      }
+    }
+
+    window.onload = async function() {
       const start = Date.now();
 
-      // Get code from query params
+      // Get invite code from query params
       const params = new URLSearchParams(window.location.search);
       const code = params.get("code");
 
-      // Build deep link
-      let deepLink = "accessability://open/joinspace";
+      // Generate temporary deviceId
+      const deviceId = crypto.randomUUID();
+
+      // Save inviteCode → Redis via API
       if (code) {
-        deepLink += "?code=" + encodeURIComponent(code);
+        await saveDeepLink(deviceId, code);
       }
 
-      // Try to open the app
+      // Build deep link with deviceId (not the raw code!)
+      let deepLink = "accessability://open/joinspace?deviceId=" + encodeURIComponent(deviceId);
+
+      // Try to open app
       window.location = deepLink;
 
-      // Fallback: if app not installed, redirect to APK after 1.5s
+      // Fallback → if not installed, redirect to APK
       setTimeout(() => {
         if (Date.now() - start >= 1500) {
           window.location = "https://github.com/Montilla007/3Y2AAPWD/releases/latest/download/app-release.apk";

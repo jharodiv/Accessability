@@ -112,6 +112,7 @@ class _GpsScreenState extends State<GpsScreen> {
   MapType _currentMapType = MapType.normal;
   MapPerspective? _pendingPerspective;
   String _activeSpaceName = '';
+  bool _showingPwdMarkers = false;
 
   // Polylines / route visuals (driven by RouteController callbacks)
   Set<Polyline> _polylines = {};
@@ -267,9 +268,6 @@ class _GpsScreenState extends State<GpsScreen> {
         _pendingPerspective = null;
       }
     });
-
-    // load PWD locations and markers (keeps behavior identical)
-    _getPwdLocationsAndCreateMarkers();
 
     _restoreOrAutoSelectSpace();
   }
@@ -588,6 +586,105 @@ class _GpsScreenState extends State<GpsScreen> {
     }
   }
 
+  Future<void> _showPwdLocations() async {
+    try {
+      final locations = await getPwdFriendlyLocations();
+      _cachedPwdLocations = locations;
+
+      final markers = await _markerHandler.createMarkers(
+          locations, _locationHandler.currentLocation);
+
+      final pwdMarkers = markers.map((marker) {
+        if (marker.markerId.value.startsWith('pwd_')) {
+          final location = locations.firstWhere(
+            (loc) => marker.markerId.value == 'pwd_${loc["name"]}',
+            orElse: () => {},
+          );
+
+          return Marker(
+            markerId: marker.markerId,
+            position: marker.position,
+            icon: marker.icon,
+            zIndex: 100,
+            infoWindow: InfoWindow(
+              title: marker.infoWindow.title,
+              snippet: 'Tap to show route',
+              onTap: () {
+                if (_locationHandler.currentLocation != null) {
+                  routeController.createRoute(
+                    _locationHandler.currentLocation!,
+                    marker.position,
+                  );
+                  routeController.startFollowingUser(
+                    () => _locationHandler.currentLocation,
+                  );
+                }
+              },
+            ),
+            onTap: () async {
+              try {
+                final doc = await _firestore
+                    .collection('pwd_locations')
+                    .doc(location["id"])
+                    .get();
+                if (doc.exists) {
+                  final double latitude = MapUtils.parseDouble(doc['latitude']);
+                  final double longitude =
+                      MapUtils.parseDouble(doc['longitude']);
+
+                  final pwdPlace = Place(
+                    id: doc.id,
+                    userId: '',
+                    name: doc['name'],
+                    category: 'PWD Friendly',
+                    latitude: latitude,
+                    longitude: longitude,
+                    timestamp: DateTime.now(),
+                    address: doc['details'],
+                    averageRating: MapUtils.parseDouble(doc['averageRating']),
+                    totalRatings: doc['totalRatings'] is int
+                        ? doc['totalRatings'] as int
+                        : int.tryParse(
+                                doc['totalRatings']?.toString() ?? '0') ??
+                            0,
+                    reviews: doc['reviews'] != null
+                        ? List<Map<String, dynamic>>.from(doc['reviews'])
+                        : null,
+                  );
+
+                  if (!mounted) return;
+                  setState(() {
+                    _selectedPlace = pwdPlace;
+                  });
+                }
+              } catch (e) {
+                print('Error fetching place details: $e');
+              }
+            },
+          );
+        }
+        return marker;
+      }).toSet();
+
+      if (!mounted) return;
+      setState(() {
+        // Remove any existing PWD markers first
+        _markers
+            .removeWhere((marker) => marker.markerId.value.startsWith('pwd_'));
+        // Add the new PWD markers
+        _markers.addAll(pwdMarkers);
+
+        // Remove any existing PWD circles
+        _circles
+            .removeWhere((circle) => circle.circleId.value.startsWith('pwd_'));
+        // Create and add new PWD circles
+        _circles = _circles.union(createPwdfriendlyRouteCircles(locations));
+      });
+    } catch (e) {
+      print('Error fetching PWD locations: $e');
+    }
+  }
+
   // --- Use NearbyManager for PWD circles (delegated) ---
   Set<Circle> createPwdfriendlyRouteCircles(
     List<dynamic> pwdLocations, {
@@ -681,6 +778,23 @@ class _GpsScreenState extends State<GpsScreen> {
           ),
         ),
       );
+    }
+  }
+
+  void _togglePwdMarkers() {
+    if (_showingPwdMarkers) {
+      // Clear PWD markers and circles
+      setState(() {
+        _markers
+            .removeWhere((marker) => marker.markerId.value.startsWith('pwd_'));
+        _circles
+            .removeWhere((circle) => circle.circleId.value.startsWith('pwd_'));
+        _showingPwdMarkers = false;
+      });
+    } else {
+      // Show PWD markers
+      _getPwdLocationsAndCreateMarkers();
+      _showingPwdMarkers = true;
     }
   }
 
@@ -852,30 +966,63 @@ class _GpsScreenState extends State<GpsScreen> {
     );
   }
 
-  // --- Nearby places fetching (delegates badge creation to MarkerFactory) ---
 // --- Nearby places fetching (delegates badge creation to MarkerFactory) ---
   Future<void> _fetchNearbyPlaces(String placeType) async {
+    // If PWD category is selected
+    if (placeType == 'PWD') {
+      if (_showingPwdMarkers) {
+        // Clear PWD markers and circles (toggle off)
+        if (!mounted) return;
+        setState(() {
+          _markers.removeWhere(
+              (marker) => marker.markerId.value.startsWith('pwd_'));
+          _circles.removeWhere(
+              (circle) => circle.circleId.value.startsWith('pwd_'));
+          _showingPwdMarkers = false;
+        });
+      } else {
+        // Show PWD markers (toggle on)
+        await _showPwdLocations();
+        _showingPwdMarkers = true;
+      }
+      return;
+    }
+
     // If no place type => treat as "toggle off" and remove previously-added nearby markers/circles.
     if (placeType.isEmpty) {
       if (!mounted) return;
       setState(() {
-        // keep only core markers: PWD, user, and place (per your existing conventions)
-        _markers.removeWhere((m) => !(m.markerId.value.startsWith('pwd_') ||
-            m.markerId.value.startsWith('user_') ||
+        // Clear all markers except user and place markers
+        _markers.removeWhere((m) => !(m.markerId.value.startsWith('user_') ||
             m.markerId.value.startsWith('place_')));
 
-        // keep only PWD circles; remove any place/nearby circles
-        _circles.removeWhere((c) => !c.circleId.value.startsWith('pwd_'));
+        // Clear all circles
+        _circles.clear();
 
-        // clear computed nearby specs so computeNearbyCirclesFromSpecs returns nothing
+        // Clear computed nearby specs
         _nearbyCircleSpecs = [];
 
-        // clear route visuals that may have been created
+        // Clear route visuals
         _polylines.clear();
+
+        // Also clear PWD markers if they were showing
+        _showingPwdMarkers = false;
       });
       return;
     }
 
+    // Clear PWD markers when other categories are selected
+    if (_showingPwdMarkers) {
+      setState(() {
+        _markers
+            .removeWhere((marker) => marker.markerId.value.startsWith('pwd_'));
+        _circles
+            .removeWhere((circle) => circle.circleId.value.startsWith('pwd_'));
+        _showingPwdMarkers = false;
+      });
+    }
+
+    // Original nearby places fetching logic for other categories
     if (_locationHandler.currentLocation == null) {
       print("Current location is null - cannot fetch places");
       return;
@@ -1279,9 +1426,8 @@ class _GpsScreenState extends State<GpsScreen> {
               zIndex: 100,
               infoWindow: InfoWindow(
                 title: marker.infoWindow.title,
-                snippet: 'Tap to show route', // Changed from rating text
+                snippet: 'Tap to show route',
                 onTap: () {
-                  // Add route functionality when info window is tapped
                   if (_locationHandler.currentLocation != null) {
                     routeController.createRoute(
                       _locationHandler.currentLocation!,
@@ -1341,8 +1487,13 @@ class _GpsScreenState extends State<GpsScreen> {
 
         if (!mounted) return;
         setState(() {
+          _markers.removeWhere(
+              (marker) => marker.markerId.value.startsWith('pwd_'));
           _markers.addAll(pwdMarkers);
+          _circles.removeWhere(
+              (circle) => circle.circleId.value.startsWith('pwd_'));
           _circles = createPwdfriendlyRouteCircles(locations);
+          _showingPwdMarkers = true;
         });
       });
     } catch (e) {

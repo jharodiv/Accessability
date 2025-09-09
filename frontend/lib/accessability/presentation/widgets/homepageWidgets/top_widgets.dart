@@ -278,6 +278,13 @@ class TopwidgetsState extends State<Topwidgets> {
                 scrollDirection: Axis.horizontal,
                 child: Row(
                   children: [
+                    // NEW: PWD category as the first option
+                    CategoryItem(
+                      title: 'pwd'.tr(),
+                      icon: Icons.accessible,
+                      onCategorySelected: _handleCategorySelection,
+                      isSelected: _selectedCategory == 'PWD',
+                    ),
                     CategoryItem(
                       title: 'hotel'.tr(),
                       icon: Icons.hotel,

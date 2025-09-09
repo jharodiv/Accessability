@@ -525,6 +525,72 @@ class _SpaceManagementScreenState extends State<SpaceManagementScreen> {
               spaceName: _selectedSpaceName,
               lastUpdatedSpaceId: _lastUpdatedSpaceId, // <-- pass it here
               currentUserRole: _currentUserRole, // <-- pass role here
+              onRemoveMembers: (List<String> removedIds) async {
+                if (_selectedSpaceId == null || _selectedSpaceId!.isEmpty)
+                  return;
+
+                final currentUser = _auth.currentUser;
+                if (currentUser == null) return;
+
+                final spaceService = _spaceService;
+                final chatService = ChatService();
+                int success = 0;
+
+                // show a progress indicator while removals occur
+                showDialog(
+                  context: context,
+                  barrierDismissible: false,
+                  builder: (_) =>
+                      const Center(child: CircularProgressIndicator()),
+                );
+
+                for (final rid in removedIds) {
+                  try {
+                    // server-side permission checked remove
+                    await spaceService.removeMember(
+                      spaceId: _selectedSpaceId!,
+                      userId: rid,
+                      performedBy: currentUser.uid,
+                    );
+
+                    // remove from chat room (best-effort)
+                    try {
+                      await chatService.removeMemberFromSpaceChatRoom(
+                          _selectedSpaceId!, rid);
+                    } catch (e) {
+                      debugPrint(
+                          'Failed to remove from chat room for $rid: $e');
+                    }
+
+                    success++;
+                  } catch (e) {
+                    debugPrint('Error removing $rid : $e');
+                    // continue removing others
+                  }
+                }
+
+                // hide progress dialog
+                Navigator.of(context).pop();
+
+                // show a subtle purple snackbar if any were removed, otherwise an error snackbar
+                if (success > 0) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('$success member(s) removed'),
+                      backgroundColor: const Color(0xFF6750A4),
+                      behavior: SnackBarBehavior.floating,
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8)),
+                      margin: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 12),
+                    ),
+                  );
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('errorRemovingMember'.tr())),
+                  );
+                }
+              },
 
               onEditName: (newName) async {
                 if (_selectedSpaceId != null) {

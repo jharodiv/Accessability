@@ -96,10 +96,52 @@ class SpaceService {
   }
 
   /// Remove a member from a space
-  Future<void> removeMember(String spaceId, String userId) async {
-    if (spaceId.isEmpty || userId.isEmpty) return;
-    await _firestore.collection(collection).doc(spaceId).update({
-      'members': FieldValue.arrayRemove([userId]),
+  /// Remove a member from a space. Only an admin or the creator (owner) can remove a member.
+  /// This will also remove the user from the admins array if they were an admin.
+  Future<void> removeMember({
+    required String spaceId,
+    required String userId,
+    required String performedBy,
+  }) async {
+    if (spaceId.isEmpty || userId.isEmpty || performedBy.isEmpty) return;
+
+    final docRef = _firestore.collection(collection).doc(spaceId);
+
+    await _firestore.runTransaction((tx) async {
+      final snap = await tx.get(docRef);
+      if (!snap.exists) throw Exception('Space not found');
+
+      final data = snap.data()!;
+      final creator = (data['creator'] ?? '') as String;
+      final admins = List<String>.from(data['admins'] ?? <String>[]);
+      final members = List<String>.from(data['members'] ?? <String>[]);
+
+      // Permission check: only creator or admins can remove members
+      if (performedBy != creator && !admins.contains(performedBy)) {
+        throw Exception('Only admins or the owner can remove members.');
+      }
+
+      // Never allow removing the creator/owner
+      if (userId == creator) {
+        throw Exception('Cannot remove the creator/owner.');
+      }
+
+      // Ensure the user is actually a member
+      if (!members.contains(userId)) {
+        throw Exception('User is not a member of this space.');
+      }
+
+      // Remove from members
+      tx.update(docRef, {
+        'members': FieldValue.arrayRemove([userId]),
+      });
+
+      // If the removed user was an admin, also remove from admins
+      if (admins.contains(userId)) {
+        tx.update(docRef, {
+          'admins': FieldValue.arrayRemove([userId]),
+        });
+      }
     });
   }
 

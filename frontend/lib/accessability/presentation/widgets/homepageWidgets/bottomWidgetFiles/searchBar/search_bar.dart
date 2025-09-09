@@ -4,6 +4,7 @@ import 'package:speech_to_text/speech_to_text.dart' as stt;
 import 'package:easy_localization/easy_localization.dart';
 import 'huggingface/dory_service.dart';
 import 'melody/melody_manager.dart';
+import 'package:flutter_tts/flutter_tts.dart';
 
 class SearchBarWithAutocomplete extends StatefulWidget {
   final Function(String) onSearch;
@@ -27,7 +28,10 @@ class _SearchBarWithAutocompleteState extends State<SearchBarWithAutocomplete> {
   //For Porcupine Integration
   late MelodyManager _melodyManager;
   bool _isWakeWordListening = false;
-  bool _isProcessingWakeWord = false; // Add this flag
+  bool _isProcessingWakeWord = false;
+
+  //Tts Integration
+  late FlutterTts _flutterTts;
 
   @override
   void initState() {
@@ -35,6 +39,17 @@ class _SearchBarWithAutocompleteState extends State<SearchBarWithAutocomplete> {
     _initializeSpeech();
 
     _melodyManager = MelodyManager(onWakeWordDetected: onWakeWordDetected);
+
+    //Tts Integration
+    _flutterTts = FlutterTts();
+    _flutterTts.setLanguage("en-US");
+    _flutterTts.setPitch(1.0);
+    _flutterTts.setSpeechRate(0.9);
+
+    _flutterTts.setCompletionHandler(() {
+      print("✅ Melody finished speaking");
+      _startDoryListening();
+    });
   }
 
   void _initializeSpeech() async {
@@ -48,10 +63,14 @@ class _SearchBarWithAutocompleteState extends State<SearchBarWithAutocomplete> {
     }
   }
 
-  void onWakeWordDetected() {
-    print("✅☑️Wake Word Detected");
+  Future<void> _speak(String text) async {
+    await _flutterTts.stop();
+    await _flutterTts.speak(text);
+  }
 
-    // Set processing flag to prevent multiple triggers
+  void onWakeWordDetected() async {
+    print("✅☑️ Wake Word Detected");
+
     if (_isProcessingWakeWord || _isListening) return;
 
     setState(() {
@@ -60,10 +79,9 @@ class _SearchBarWithAutocompleteState extends State<SearchBarWithAutocomplete> {
 
     _melodyManager.stop();
 
-    // Add a small delay to ensure wake word detection is complete
-    Future.delayed(const Duration(milliseconds: 500), () {
-      _startDoryListening();
-    });
+    await _speech.stop();
+
+    await _speak("Hi, what can I do for you?");
   }
 
   void _onSearchChanged(String query) async {
@@ -159,15 +177,12 @@ class _SearchBarWithAutocompleteState extends State<SearchBarWithAutocomplete> {
           });
         }
       },
-      listenFor: const Duration(seconds: 8), // Extended time for voice commands
-      pauseFor: const Duration(seconds: 2), // Longer pause detection
-      partialResults: true, // Show partial results for better UX
-      onSoundLevelChange: (level) {
-        // Optional: You can add sound level visualization here
-        // print("Sound level: $level");
-      },
+      listenFor: const Duration(seconds: 8),
+      pauseFor: const Duration(seconds: 2),
+      partialResults: true,
+      onSoundLevelChange: (level) {},
       cancelOnError: true,
-      localeId: 'en_US', // You can make this dynamic for multilingual support
+      localeId: 'en_US',
     );
   }
 

@@ -11,17 +11,19 @@ class AddPlaceEvent extends PlaceEvent {
   final String name;
   final double latitude;
   final double longitude;
-  final String? category; // Optional category
+  final String? category;
+  final double notificationRadius; // NEW
 
   const AddPlaceEvent({
     required this.name,
     required this.latitude,
     required this.longitude,
     this.category,
+    this.notificationRadius = 100.0, // NEW
   });
 
   @override
-  List<Object?> get props => [name, latitude, longitude];
+  List<Object?> get props => [name, latitude, longitude, notificationRadius];
 }
 
 class GetAllPlacesEvent extends PlaceEvent {
@@ -58,4 +60,17 @@ class RemovePlaceFromCategoryEvent extends PlaceEvent {
   final String placeId;
 
   const RemovePlaceFromCategoryEvent({required this.placeId});
+}
+
+class UpdatePlaceNotificationRadiusEvent extends PlaceEvent {
+  final String placeId;
+  final double radius;
+
+  const UpdatePlaceNotificationRadiusEvent({
+    required this.placeId,
+    required this.radius,
+  });
+
+  @override
+  List<Object?> get props => [placeId, radius];
 }

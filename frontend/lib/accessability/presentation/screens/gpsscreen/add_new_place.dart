@@ -33,26 +33,19 @@ class _AddNewPlaceScreenState extends State<AddNewPlaceScreen> {
 
   // Instance of LocationHandler (requires onMarkersUpdated).
   late LocationHandler _locationHandler;
-
   @override
   void initState() {
     super.initState();
-    // Initialize LocationHandler with a dummy onMarkersUpdated callback.
     _locationHandler = LocationHandler(
-      onMarkersUpdated: (markers) {
-        // No marker update logic required in AddNewPlaceScreen.
-      },
+      onMarkersUpdated: (markers) {},
     );
-    // Fetch the current user location.
     _locationHandler.getUserLocation().then((_) {
       print("Fetched location: ${_locationHandler.currentLocation}");
       if (_locationHandler.currentLocation != null) {
-        // Initialize user marker (as done in GpsScreen).
         _locationHandler.initializeUserMarker();
         setState(() {
           _currentLatLng = _locationHandler.currentLocation!;
         });
-        // If the map is already created, animate the camera.
         if (_mapController != null) {
           _mapController!.animateCamera(
             CameraUpdate.newCameraPosition(
@@ -83,7 +76,7 @@ class _AddNewPlaceScreenState extends State<AddNewPlaceScreen> {
       ),
       body: Column(
         children: [
-          // Row for entering the place name.
+          // Place name input
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8),
             child: Column(
@@ -92,7 +85,6 @@ class _AddNewPlaceScreenState extends State<AddNewPlaceScreen> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
-                    // TextField for the place name.
                     Expanded(
                       child: TextField(
                         controller: _placeNameController,
@@ -117,7 +109,8 @@ class _AddNewPlaceScreenState extends State<AddNewPlaceScreen> {
               ],
             ),
           ),
-          // Label for the map location section.
+
+          // Map location section
           Padding(
             padding: const EdgeInsets.only(left: 16.0, top: 8, bottom: 4),
             child: Align(
@@ -129,7 +122,8 @@ class _AddNewPlaceScreenState extends State<AddNewPlaceScreen> {
               ),
             ),
           ),
-          // Map with a centered marker (for selecting the place location).
+
+          // Map
           Expanded(
             child: Container(
               decoration: BoxDecoration(
@@ -147,7 +141,6 @@ class _AddNewPlaceScreenState extends State<AddNewPlaceScreen> {
                   GoogleMap(
                     onMapCreated: (controller) {
                       _mapController = controller;
-                      // If current location is already fetched, animate the camera.
                       if (_locationHandler.currentLocation != null) {
                         setState(() {
                           _currentLatLng = _locationHandler.currentLocation!;
@@ -168,7 +161,6 @@ class _AddNewPlaceScreenState extends State<AddNewPlaceScreen> {
                       _currentLatLng = position.target;
                     },
                   ),
-                  // Default center marker icon.
                   const Center(
                     child: Icon(
                       Icons.location_on,
@@ -176,7 +168,6 @@ class _AddNewPlaceScreenState extends State<AddNewPlaceScreen> {
                       color: Color(0xFF6750A4),
                     ),
                   ),
-                  // "Next" button at the bottom.
                   Positioned(
                     bottom: 16,
                     left: 16,
@@ -209,7 +200,6 @@ class _AddNewPlaceScreenState extends State<AddNewPlaceScreen> {
     );
   }
 
-  // When "Next" is pressed, dispatch the AddPlaceEvent with the place name and current location.
   void _onNextPressed() {
     final placeName = _placeNameController.text.trim();
     if (placeName.isEmpty) {
@@ -223,6 +213,7 @@ class _AddNewPlaceScreenState extends State<AddNewPlaceScreen> {
             name: placeName,
             latitude: _currentLatLng.latitude,
             longitude: _currentLatLng.longitude,
+            // Notification radius is now automatically set to 100.0 in the event
           ),
         );
     Navigator.of(context).pop();

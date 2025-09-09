@@ -7,12 +7,21 @@ class PlaceRepository {
   PlaceRepository({required this.placeService});
 
   Future<void> addPlace(String name, double latitude, double longitude,
-      {String? category}) async {
+      {String? category, double notificationRadius = 100.0}) async {
+    // NEW
     try {
       await placeService.addPlace(name, latitude, longitude,
-          category: category);
+          category: category, notificationRadius: notificationRadius); // NEW
     } catch (e) {
       throw Exception('Failed to add place: ${e.toString()}');
+    }
+  }
+
+  Future<void> updateNotificationRadius(String placeId, double radius) async {
+    try {
+      await placeService.updateNotificationRadius(placeId, radius);
+    } catch (e) {
+      throw Exception('Failed to update notification radius: ${e.toString()}');
     }
   }
 

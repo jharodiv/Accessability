@@ -1,4 +1,5 @@
 import 'package:accessability/accessability/backgroundServices/deep_link_service.dart';
+import 'package:accessability/accessability/backgroundServices/place_notification_service.dart';
 import 'package:accessability/accessability/backgroundServices/pwd_location_notification_service.dart';
 import 'package:accessability/accessability/backgroundServices/space_member_notification_service.dart';
 import 'package:accessability/accessability/data/repositories/emergency_repository.dart';
@@ -49,6 +50,10 @@ Future<void> main() async {
 
   final spaceMemberNotificationService = SpaceMemberNotificationService();
   await spaceMemberNotificationService.initialize();
+
+  final placeNotificationService = PlaceNotificationService();
+  await placeNotificationService.initialize();
+  placeNotificationService.startLocationMonitoring();
 
   WidgetsBinding.instance.addPostFrameCallback((_) async {
     try {

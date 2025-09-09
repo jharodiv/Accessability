@@ -11,6 +11,7 @@ class PlaceService {
     double latitude,
     double longitude, {
     String? category,
+    double notificationRadius = 100.0,
   }) async {
     try {
       final user = _auth.currentUser;
@@ -27,12 +28,24 @@ class PlaceService {
         latitude: latitude,
         longitude: longitude,
         timestamp: DateTime.now(),
+        notificationRadius: notificationRadius,
       );
 
       await _firestore.collection('Places').add(place.toMap());
     } catch (e) {
       print('Error adding place: $e');
       throw Exception('Failed to add place: $e');
+    }
+  }
+
+  Future<void> updateNotificationRadius(String placeId, double radius) async {
+    try {
+      await _firestore.collection('Places').doc(placeId).update({
+        'notificationRadius': radius,
+      });
+    } catch (e) {
+      print('Error updating notification radius: $e');
+      throw Exception('Failed to update notification radius: $e');
     }
   }
 

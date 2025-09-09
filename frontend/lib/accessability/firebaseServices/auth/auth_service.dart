@@ -1,3 +1,4 @@
+import 'package:accessability/accessability/backgroundServices/place_notification_service.dart';
 import 'package:accessability/accessability/firebaseServices/chat/fcm_service.dart';
 import 'package:accessability/main.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -133,6 +134,9 @@ class AuthService {
         });
       }
 
+      final placeService = PlaceNotificationService();
+      placeService.updateUserId(user.uid);
+
       return userCredential;
     } on FirebaseAuthException catch (e) {
       if (e.code == 'user-not-found') {
@@ -205,6 +209,9 @@ class AuthService {
 
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove('saved_active_space_id');
+
+      final placeService = PlaceNotificationService();
+      placeService.updateUserId(null);
 
       // Stop the background service if it is running
       final service = FlutterBackgroundService();

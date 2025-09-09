@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:accessability/accessability/backgroundServices/place_notification_service.dart';
 import 'package:accessability/accessability/backgroundServices/space_member_notification_service.dart';
 import 'package:accessability/accessability/firebaseServices/chat/chat_service.dart'; // ADD THIS IMPORT
 import 'package:firebase_core/firebase_core.dart';
@@ -41,6 +42,9 @@ void onStart(ServiceInstance service) async {
     final pwdNotificationService = PWDLocationNotificationService();
     await pwdNotificationService.initialize();
 
+    final placeNotificationService = PlaceNotificationService();
+    await placeNotificationService.initialize();
+
     final spaceMemberNotificationService = SpaceMemberNotificationService();
     await spaceMemberNotificationService.initialize();
 
@@ -75,6 +79,8 @@ void onStart(ServiceInstance service) async {
       }
     });
 
+    print('Background service initialized successfully');
+
     // Listen for location updates
     location.onLocationChanged.listen((LocationData locationData) async {
       if (locationData.latitude == null || locationData.longitude == null) {
@@ -94,13 +100,23 @@ void onStart(ServiceInstance service) async {
       });
 
       // Check for nearby PWD locations
+      print('Checking for PWD locations...');
       pwdNotificationService.checkLocationForNotifications(latLng);
+
+      // Check for nearby regular places
+      print('Checking for regular places...');
+      placeNotificationService.checkLocationForNotifications(latLng);
 
       service.invoke('update', {
         'latitude': locationData.latitude,
         'longitude': locationData.longitude,
       });
     });
+
+    // Start monitoring for both services
+    pwdNotificationService.startLocationMonitoring();
+    placeNotificationService.startLocationMonitoring();
+    print('Location monitoring started');
 
     service.on('stopService').listen((event) {
       service.stopSelf();

@@ -14,6 +14,8 @@ class PlaceBloc extends Bloc<PlaceEvent, PlaceState> {
     on<DeletePlaceEvent>(_onDeletePlaceEvent);
     on<UpdatePlaceCategoryEvent>(_onUpdatePlaceCategoryEvent);
     on<RemovePlaceFromCategoryEvent>(_onRemovePlaceFromCategoryEvent);
+    on<UpdatePlaceNotificationRadiusEvent>(
+        _onUpdatePlaceNotificationRadiusEvent);
   }
 
   Future<void> _onAddPlaceEvent(
@@ -91,6 +93,20 @@ class PlaceBloc extends Bloc<PlaceEvent, PlaceState> {
     } catch (e) {
       emit(PlaceOperationError(
           'Failed to remove place from category: ${e.toString()}'));
+    }
+  }
+
+  Future<void> _onUpdatePlaceNotificationRadiusEvent(
+      UpdatePlaceNotificationRadiusEvent event,
+      Emitter<PlaceState> emit) async {
+    emit(PlaceOperationLoading());
+    try {
+      await placeRepository.updateNotificationRadius(
+          event.placeId, event.radius);
+      emit(PlaceOperationSuccess());
+    } catch (e) {
+      emit(PlaceOperationError(
+          'Failed to update notification radius: ${e.toString()}'));
     }
   }
 }

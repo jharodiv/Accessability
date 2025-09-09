@@ -19,6 +19,7 @@ class Place {
   final double? averageRating;
   final int? totalRatings;
   final List<Map<String, dynamic>>? reviews;
+  final double notificationRadius;
 
   Place({
     required this.id,
@@ -38,6 +39,7 @@ class Place {
     this.totalRatings,
     this.reviews,
     this.isFromOSM = false,
+    this.notificationRadius = 100.0,
   });
 
   factory Place.fromMap(String id, Map<String, dynamic> data) {
@@ -66,6 +68,8 @@ class Place {
       reviews: data['reviews'] != null
           ? List<Map<String, dynamic>>.from(data['reviews'])
           : null,
+      notificationRadius:
+          (data['notificationRadius'] as num?)?.toDouble() ?? 100.0,
     );
   }
 
@@ -87,61 +91,62 @@ class Place {
       'averageRating': averageRating,
       'totalRatings': totalRatings,
       'reviews': reviews,
+      'notificationRadius': notificationRadius,
     };
   }
 
   /// Creates a Place from a nearby Marker
   factory Place.fromNearbyMarker(Marker marker, {bool isOSM = false}) {
     return Place(
-      id: marker.markerId.value,
-      userId: '',
-      googlePlaceId: isOSM ? null : marker.markerId.value,
-      osmId: isOSM ? marker.markerId.value : null,
-      name: marker.infoWindow.title ?? 'Unknown Place',
-      rating: 0.0,
-      reviewsCount: 0,
-      address: marker.infoWindow.snippet ?? 'No address available',
-      imageUrl: '',
-      category: '',
-      latitude: marker.position.latitude,
-      longitude: marker.position.longitude,
-      timestamp: DateTime.now(), // Added timestamp
-      isFromOSM: isOSM,
-    );
+        id: marker.markerId.value,
+        userId: '',
+        googlePlaceId: isOSM ? null : marker.markerId.value,
+        osmId: isOSM ? marker.markerId.value : null,
+        name: marker.infoWindow.title ?? 'Unknown Place',
+        rating: 0.0,
+        reviewsCount: 0,
+        address: marker.infoWindow.snippet ?? 'No address available',
+        imageUrl: '',
+        category: '',
+        latitude: marker.position.latitude,
+        longitude: marker.position.longitude,
+        timestamp: DateTime.now(), // Added timestamp
+        isFromOSM: isOSM,
+        notificationRadius: 100.0);
   }
 
   /// Creates a copy of the place with updated values
-  Place copyWith({
-    String? id,
-    String? userId,
-    String? googlePlaceId,
-    String? osmId,
-    double? rating,
-    int? reviewsCount,
-    String? address,
-    String? imageUrl,
-    String? name,
-    String? category,
-    double? latitude,
-    double? longitude,
-    DateTime? timestamp,
-    bool? isFromOSM,
-  }) {
+  Place copyWith(
+      {String? id,
+      String? userId,
+      String? googlePlaceId,
+      String? osmId,
+      double? rating,
+      int? reviewsCount,
+      String? address,
+      String? imageUrl,
+      String? name,
+      String? category,
+      double? latitude,
+      double? longitude,
+      DateTime? timestamp,
+      bool? isFromOSM,
+      double? notificationRadius}) {
     return Place(
-      id: id ?? this.id,
-      userId: userId ?? this.userId,
-      googlePlaceId: googlePlaceId ?? this.googlePlaceId,
-      osmId: osmId ?? this.osmId,
-      rating: rating ?? this.rating,
-      reviewsCount: reviewsCount ?? this.reviewsCount,
-      address: address ?? this.address,
-      imageUrl: imageUrl ?? this.imageUrl,
-      name: name ?? this.name,
-      category: category ?? this.category,
-      latitude: latitude ?? this.latitude,
-      longitude: longitude ?? this.longitude,
-      timestamp: timestamp ?? this.timestamp,
-      isFromOSM: isFromOSM ?? this.isFromOSM,
-    );
+        id: id ?? this.id,
+        userId: userId ?? this.userId,
+        googlePlaceId: googlePlaceId ?? this.googlePlaceId,
+        osmId: osmId ?? this.osmId,
+        rating: rating ?? this.rating,
+        reviewsCount: reviewsCount ?? this.reviewsCount,
+        address: address ?? this.address,
+        imageUrl: imageUrl ?? this.imageUrl,
+        name: name ?? this.name,
+        category: category ?? this.category,
+        latitude: latitude ?? this.latitude,
+        longitude: longitude ?? this.longitude,
+        timestamp: timestamp ?? this.timestamp,
+        isFromOSM: isFromOSM ?? this.isFromOSM,
+        notificationRadius: notificationRadius ?? this.notificationRadius);
   }
 }

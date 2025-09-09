@@ -13,6 +13,7 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:http/http.dart' as http;
 import 'package:location/location.dart' as location_package;
 import 'package:battery_plus/battery_plus.dart';
+import 'package:accessability/accessability/backgroundServices/place_notification_service.dart';
 
 typedef UserMarkerTapCallback = void Function({
   required String userId,
@@ -196,6 +197,8 @@ class LocationHandler {
         'speedKmh': speedKmh, // km/h (nullable)
         'batteryPercent': batteryPercent, // nullable
       }, SetOptions(merge: true));
+
+      PlaceNotificationService().checkLocationForNotifications(location);
 
       _pwdNotificationService.checkLocationForNotifications(location);
       if (activeSpaceId.isNotEmpty) {

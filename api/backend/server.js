@@ -1,7 +1,7 @@
 // server.js
-import express from "express";
-import { createClient } from "redis";
-import dotenv from "dotenv";
+const express = require("express");
+const { createClient } = require("redis");
+const dotenv = require("dotenv");
 
 // Load environment variables from root .env
 dotenv.config({ path: ".env" });

@@ -579,7 +579,12 @@ class _GpsScreenState extends State<GpsScreen> {
       _cachedPwdLocations = locations;
       setState(() {
         _pwdRadiusMultiplier = multiplier.clamp(0.2, 3.0);
-        _circles = createPwdfriendlyRouteCircles(locations);
+        // Only update circles if PWD markers are currently showing
+        if (_showingPwdMarkers) {
+          _circles.removeWhere(
+              (circle) => circle.circleId.value.startsWith('pwd_'));
+          _circles = _circles.union(createPwdfriendlyRouteCircles(locations));
+        }
       });
     } catch (e) {
       print('Error updating circles: $e');
@@ -679,9 +684,15 @@ class _GpsScreenState extends State<GpsScreen> {
             .removeWhere((circle) => circle.circleId.value.startsWith('pwd_'));
         // Create and add new PWD circles
         _circles = _circles.union(createPwdfriendlyRouteCircles(locations));
+
+        // Set the state to show PWD markers
+        _showingPwdMarkers = true;
       });
     } catch (e) {
       print('Error fetching PWD locations: $e');
+      setState(() {
+        _showingPwdMarkers = false;
+      });
     }
   }
 
@@ -1574,19 +1585,25 @@ class _GpsScreenState extends State<GpsScreen> {
                         _zoomDebounceTimer =
                             Timer(const Duration(milliseconds: 120), () {
                           if (!mounted) return;
-                          final pwdSet = createPwdfriendlyRouteCircles(
-                            _cachedPwdLocations,
-                            currentZoom: _currentZoom,
-                            pwdBaseRadiusMeters: _pwdBaseRadiusMeters,
-                            pwdRadiusMultiplier: _pwdRadiusMultiplier,
-                            pwdCircleColor: _pwdCircleColor,
-                            onTap: (center, suggestedZoom) {
-                              _locationHandler.mapController?.animateCamera(
-                                CameraUpdate.newLatLngZoom(
-                                    center, suggestedZoom),
-                              );
-                            },
-                          );
+
+                          Set<Circle> pwdSet = {};
+                          // Only create PWD circles if they should be showing
+                          if (_showingPwdMarkers) {
+                            pwdSet = createPwdfriendlyRouteCircles(
+                              _cachedPwdLocations,
+                              currentZoom: _currentZoom,
+                              pwdBaseRadiusMeters: _pwdBaseRadiusMeters,
+                              pwdRadiusMultiplier: _pwdRadiusMultiplier,
+                              pwdCircleColor: _pwdCircleColor,
+                              onTap: (center, suggestedZoom) {
+                                _locationHandler.mapController?.animateCamera(
+                                  CameraUpdate.newLatLngZoom(
+                                      center, suggestedZoom),
+                                );
+                              },
+                            );
+                          }
+
                           final nearbySet = _computeNearbyCirclesFromRaw();
                           setState(() {
                             _circles = pwdSet.union(nearbySet);

@@ -1,5 +1,6 @@
 // server.js
 const express = require("express");
+const cors = require("cors"); 
 const { createClient } = require("redis");
 const dotenv = require("dotenv");
 
@@ -10,6 +11,7 @@ console.log("✅ Environment variables loaded");
 // Create Express app
 const app = express();
 app.use(express.json());
+app.use(cors());
 
 // --- Redis connection ---
 const client = createClient({

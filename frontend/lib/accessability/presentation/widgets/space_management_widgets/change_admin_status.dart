@@ -1,3 +1,4 @@
+// <entire file with modifications> - ChangeAdminStatusScreen.dart
 import 'package:accessability/accessability/firebaseServices/space/space_service.dart';
 import 'package:accessability/accessability/firebaseServices/space/user_service.dart';
 import 'package:accessability/accessability/themes/theme_provider.dart';
@@ -52,21 +53,27 @@ class _ChangeAdminStatusScreenState extends State<ChangeAdminStatusScreen> {
   String?
       _creatorIdLocal; // resolved creator id (may be from widget or fetched)
 
+  // whether the current (viewer) is the creator/owner
   bool get _isCreator =>
       widget.currentUserId == (_creatorIdLocal ?? widget.creatorId);
 
+  // whether the current (viewer) is an admin (kept for other uses)
   bool get _currentUserIsAdmin {
     final m = _findMember(widget.currentUserId);
     return (m?['isAdmin'] ?? false) as bool;
   }
 
-  bool get _isPrivileged => _isCreator || _currentUserIsAdmin;
+  // IMPORTANT: only creator (owner) can toggle roles in the UI per spec.
+  // We keep _currentUserIsAdmin for other UI decisions, but toggles are
+  // only shown to the owner.
+  // bool get _isPrivileged => _isCreator || _currentUserIsAdmin;
+  bool get _isPrivileged => _isCreator;
 
   @override
   void initState() {
     super.initState();
     _membersLocal = _deepCopyMembers(widget.members);
-    _ensureOwnerFirst();
+    _sortMembersByRole();
     _creatorIdLocal = widget.creatorId;
 
     // If parent asked us to auto-load members by spaceId, do it now
@@ -112,13 +119,14 @@ class _ChangeAdminStatusScreenState extends State<ChangeAdminStatusScreen> {
           'username':
               (m['username'] ?? m['displayName'] ?? 'Unknown').toString(),
           'profilePicture': (m['profilePicture'] ?? '').toString(),
+          // creator is considered admin as well for UI purposes
           'isAdmin': adminIds.contains(uid) || (creatorId == uid),
         };
       }).toList();
 
       setState(() {
         _membersLocal = membersData;
-        _ensureOwnerFirst();
+        _sortMembersByRole();
         _isLoadingMembers = false;
       });
     } catch (e, st) {
@@ -136,20 +144,35 @@ class _ChangeAdminStatusScreenState extends State<ChangeAdminStatusScreen> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.members != widget.members) {
       _membersLocal = _deepCopyMembers(widget.members);
-      _ensureOwnerFirst();
+      _sortMembersByRole();
       final ids = _membersLocal.map((m) => m['id'] as String).toSet();
       _pendingToggleIds.removeWhere((id) => !ids.contains(id));
       setState(() {});
     }
   }
 
-  void _ensureOwnerFirst() {
-    final ownerIndex = _membersLocal.indexWhere(
-        (m) => m['id'] == (widget.creatorId ?? _creatorIdLocal ?? ''));
-    if (ownerIndex > 0) {
-      final owner = _membersLocal.removeAt(ownerIndex);
-      _membersLocal.insert(0, owner);
-    }
+  /// Sort members so Owner (creator) is first, then Admins, then Members.
+  /// Within each group, sort by username (case-insensitive).
+  void _sortMembersByRole() {
+    final creatorId = (_creatorIdLocal ?? widget.creatorId) ?? '';
+    _membersLocal.sort((a, b) {
+      // owner first
+      final aIsOwner = (a['id'] ?? '') == creatorId;
+      final bIsOwner = (b['id'] ?? '') == creatorId;
+      if (aIsOwner && !bIsOwner) return -1;
+      if (!aIsOwner && bIsOwner) return 1;
+
+      // admins second
+      final aIsAdmin = (a['isAdmin'] ?? false) as bool;
+      final bIsAdmin = (b['isAdmin'] ?? false) as bool;
+      if (aIsAdmin && !bIsAdmin) return -1;
+      if (!aIsAdmin && bIsAdmin) return 1;
+
+      // otherwise alphabetical by username
+      final aName = (a['username'] ?? '').toString().toLowerCase();
+      final bName = (b['username'] ?? '').toString().toLowerCase();
+      return aName.compareTo(bName);
+    });
   }
 
   List<Map<String, dynamic>> _deepCopyMembers(List<Map<String, dynamic>> src) {
@@ -193,6 +216,8 @@ class _ChangeAdminStatusScreenState extends State<ChangeAdminStatusScreen> {
     setState(() {
       _membersLocal[index]['isAdmin'] = makeAdmin;
       _pendingToggleIds.add(memberId);
+      // re-sort so they move between admin/member groups as needed
+      _sortMembersByRole();
     });
 
     try {
@@ -203,6 +228,7 @@ class _ChangeAdminStatusScreenState extends State<ChangeAdminStatusScreen> {
         // fallback: revert and show message
         setState(() {
           _membersLocal[index]['isAdmin'] = !makeAdmin;
+          _sortMembersByRole();
         });
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('implementToggleAdminCallback'.tr())),
@@ -243,6 +269,7 @@ class _ChangeAdminStatusScreenState extends State<ChangeAdminStatusScreen> {
       // rollback UI on error
       setState(() {
         _membersLocal[index]['isAdmin'] = !makeAdmin;
+        _sortMembersByRole();
       });
       ScaffoldMessenger.of(context)
           .showSnackBar(SnackBar(content: Text('errorUpdatingAdmin'.tr())));
@@ -482,30 +509,56 @@ class _ChangeAdminStatusScreenState extends State<ChangeAdminStatusScreen> {
                     color: Colors.white, fontWeight: FontWeight.w700)),
           );
         } else if (_isPrivileged) {
-          // show toggle (or loading spinner) for privileged users
-          trailing = isPending
-              ? SizedBox(
-                  width: 46,
-                  height: 26,
-                  child: Center(
-                    child: SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          valueColor: AlwaysStoppedAnimation(purple),
-                        )),
-                  ),
-                )
-              : _AestheticToggle(
-                  value: isAdmin,
-                  onChanged: (v) {
-                    _toggleAdmin(memberId, v, index);
-                  },
-                  activeColor: purple,
-                );
+          // Viewer is the owner -> show toggle (or loading spinner) for everyone except:
+          // - the creator (handled above)
+          // - prevent changing your own role (owner cannot change their own role)
+          // So if this row represents the current user (owner themselves) we won't show a toggle.
+          if (isPending) {
+            trailing = SizedBox(
+              width: 46,
+              height: 26,
+              child: Center(
+                child: SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor: AlwaysStoppedAnimation(purple),
+                    )),
+              ),
+            );
+          } else {
+            // If the row is the current user (owner), do not show a toggle.
+            if (isCurrentUser) {
+              // Current user (the owner) — show nothing special (owner row was already handled),
+              // but as a safeguard show an admin chip if the user is admin (shouldn't happen).
+              trailing = isAdmin
+                  ? Container(
+                      padding: const EdgeInsets.symmetric(
+                          vertical: 8, horizontal: 12),
+                      decoration: BoxDecoration(
+                        color: purple.withOpacity(0.12),
+                        borderRadius:
+                            const BorderRadius.all(Radius.circular(16)),
+                      ),
+                      child: Text('admin'.tr(),
+                          style: TextStyle(
+                              color: purple, fontWeight: FontWeight.w700)),
+                    )
+                  : const SizedBox.shrink();
+            } else {
+              // Owner viewing someone else -> show the toggle so owner can promote/demote admins.
+              trailing = _AestheticToggle(
+                value: isAdmin,
+                onChanged: (v) {
+                  _toggleAdmin(memberId, v, index);
+                },
+                activeColor: purple,
+              );
+            }
+          }
         } else {
-          // non-privileged members see an admin chip or nothing
+          // non-owner viewers see an admin chip for admins, or nothing for regular members.
           if (isAdmin) {
             trailing = Container(
               padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),

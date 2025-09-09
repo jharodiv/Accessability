@@ -11,16 +11,7 @@ console.log("✅ Environment variables loaded");
 // Create Express app
 const app = express();
 app.use(express.json());
-
-// --- CORS setup ---
-// Allow all origins (for testing/development)
 app.use(cors());
-
-// OR restrict to your frontend origin:
-// app.use(cors({ origin: "https://your-frontend-domain.com" }));
-
-// Handle preflight OPTIONS requests globally
-app.options("*", cors());
 
 // --- Redis connection ---
 const client = createClient({
@@ -39,6 +30,16 @@ client.on("end", () => console.log("🔒 Redis connection closed"));
 
 // --- API endpoint to save invite code ---
 app.post("/api/save-deeplink", async (req, res) => {
+
+  res.setHeader("Access-Control-Allow-Origin", "*"); // allow any origin
+  res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+
+  // ✅ Handle OPTIONS preflight
+  if (req.method === "OPTIONS") {
+    return res.status(200).end();
+  }
+  
   const { deviceId, inviteCode } = req.body;
   console.log("📩 Save request:", { deviceId, inviteCode });
 

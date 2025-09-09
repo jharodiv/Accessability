@@ -576,7 +576,8 @@ class _SpaceManagementScreenState extends State<SpaceManagementScreen> {
                   // maybe prompt user to pick a space first
                 }
               },
-              onViewAdmin: () {
+              onViewAdmin: () async {
+                // now awaits are allowed
                 if (_selectedSpaceId == null) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(content: Text('Please select a space'.tr())),
@@ -584,44 +585,83 @@ class _SpaceManagementScreenState extends State<SpaceManagementScreen> {
                   return;
                 }
 
+                final doc = await _firestore
+                    .collection('Spaces')
+                    .doc(_selectedSpaceId)
+                    .get();
+                if (!doc.exists) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('spaceNotFound'.tr())),
+                  );
+                  return;
+                }
+
+                final data = (doc.data() as Map<String, dynamic>?) ?? {};
+                final creatorId = (data['creator'] ?? '').toString();
+                final List<dynamic> memberIdsDynamic =
+                    data['members'] ?? <dynamic>[];
+                final List<String> memberIds =
+                    memberIdsDynamic.map((e) => e.toString()).toList();
+                final List<dynamic> adminsDynamic =
+                    data['admins'] ?? <dynamic>[];
+                final List<String> adminIds =
+                    adminsDynamic.map((e) => e.toString()).toList();
+
+                // guard: whereIn fails if list is empty, so check first:
+                List<QueryDocumentSnapshot> usersDocs;
+                if (memberIds.isEmpty) {
+                  usersDocs = [];
+                } else {
+                  final usersQuery = await _firestore
+                      .collection('Users')
+                      .where('uid', whereIn: memberIds)
+                      .get();
+                  usersDocs = usersQuery.docs;
+                }
+
+                final membersData = usersDocs.map((d) {
+                  final m = d.data() as Map<String, dynamic>;
+                  final uid = (m['uid'] ?? d.id).toString();
+                  return <String, dynamic>{
+                    'id': uid,
+                    'username': (m['username'] ?? m['displayName'] ?? 'Unknown')
+                        .toString(),
+                    'profilePicture': (m['profilePicture'] ?? '').toString(),
+                    'isAdmin': adminIds.contains(uid) || (creatorId == uid),
+                  };
+                }).toList();
+
                 Navigator.of(context).push(
                   MaterialPageRoute(
                     builder: (_) => ChangeAdminStatusScreen(
+                      members: membersData,
                       currentUserId: _auth.currentUser!.uid,
-                      creatorId: _selectedSpaceId == null
-                          ? ''
-                          : _selectedSpaceName ??
-                              '', // keep existing creatorId usage if you want; not required if autoLoadMembers true
+                      creatorId: creatorId,
                       spaceId: _selectedSpaceId,
-                      autoLoadMembers: true,
-                      onAddMember: () {
-                        if (_selectedSpaceId != null) {
-                          Navigator.of(context).push(MaterialPageRoute(
-                            builder: (_) => VerificationCodeScreen(
-                              spaceId: _selectedSpaceId!,
-                              spaceName: _selectedSpaceName,
-                            ),
-                          ));
+                      autoLoadMembers: false,
+                      onToggleAdmin: (memberId, makeAdmin) async {
+                        final performedBy = _auth.currentUser!.uid;
+                        if (makeAdmin) {
+                          await _spaceService.promoteToAdmin(
+                            spaceId: _selectedSpaceId!,
+                            userId: memberId,
+                            performedBy: performedBy,
+                          );
+                        } else {
+                          await _spaceService.demoteAdmin(
+                            spaceId: _selectedSpaceId!,
+                            userId: memberId,
+                            performedBy: performedBy,
+                          );
                         }
                       },
-                      onToggleAdmin: (memberId, makeAdmin) async {
-                        try {
-                          final performedBy = _auth.currentUser!.uid;
-                          if (makeAdmin) {
-                            await _spaceService.promoteToAdmin(
-                                spaceId: _selectedSpaceId!,
-                                userId: memberId,
-                                performedBy: performedBy);
-                          } else {
-                            await _spaceService.demoteAdmin(
-                                spaceId: _selectedSpaceId!,
-                                userId: memberId,
-                                performedBy: performedBy);
-                          }
-                        } catch (e) {
-                          debugPrint('Error toggling admin: $e');
-                          rethrow;
-                        }
+                      onTransferOwnership: (newOwnerId) async {
+                        final performedBy = _auth.currentUser!.uid;
+                        await _spaceService.transferOwnership(
+                          spaceId: _selectedSpaceId!,
+                          newOwnerId: newOwnerId,
+                          performedBy: performedBy,
+                        );
                       },
                     ),
                   ),

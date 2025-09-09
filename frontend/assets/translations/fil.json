@@ -246,5 +246,11 @@
   "inviteCode": "Paanyayang Kodigo",
   "roleMember": "Miyembro",
   "roleOwner": "May-ari",
-  "roleAdmin": "Admin"
+  "roleAdmin": "Admin",
+  "removePeopleFromSpace": "Tanggalin ang mga tao mula sa Space",
+  "noOtherMembersInSpace": "Walang ibang miyembro sa Space na ito.",
+  "removedMembers": "Naalis ang {count} miyembro",
+  "remove": "Tanggalin",
+  "selected": "napili",
+  "spaceManagement": "Pamamahala ng Space"
 }

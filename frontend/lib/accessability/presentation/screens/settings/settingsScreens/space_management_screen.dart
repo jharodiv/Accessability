@@ -525,6 +525,49 @@ class _SpaceManagementScreenState extends State<SpaceManagementScreen> {
               spaceName: _selectedSpaceName,
               lastUpdatedSpaceId: _lastUpdatedSpaceId, // <-- pass it here
               currentUserRole: _currentUserRole, // <-- pass role here
+              onRemoveMembers: (List<String> removedIds) async {
+                if (_selectedSpaceId == null || _selectedSpaceId!.isEmpty)
+                  return;
+
+                final currentUser = _auth.currentUser;
+                if (currentUser == null) throw Exception('not_signed_in');
+
+                final spaceService = _spaceService;
+                final chatService = ChatService();
+                int success = 0;
+
+                for (final rid in removedIds) {
+                  try {
+                    // server-side removal (permission checks should be done in service)
+                    await spaceService.removeMember(
+                      spaceId: _selectedSpaceId!,
+                      userId: rid,
+                      performedBy: currentUser.uid,
+                    );
+
+                    // best-effort: remove from space chat room
+                    try {
+                      await chatService.removeMemberFromSpaceChatRoom(
+                          _selectedSpaceId!, rid);
+                    } catch (e) {
+                      debugPrint(
+                          'Failed to remove from chat room for $rid: $e');
+                    }
+
+                    success++;
+                  } catch (e) {
+                    debugPrint('Error removing $rid : $e');
+                    // continue trying other removals
+                  }
+                }
+
+                // If nothing was removed, throw so the caller (RemoveMembersScreen) shows an error.
+                if (success <= 0) {
+                  throw Exception('no_members_removed');
+                }
+
+                // otherwise return silently — RemoveMembersScreen shows success snackbar and pops.
+              },
 
               onEditName: (newName) async {
                 if (_selectedSpaceId != null) {
@@ -534,6 +577,7 @@ class _SpaceManagementScreenState extends State<SpaceManagementScreen> {
                 }
               },
               onViewAdmin: () async {
+                // now awaits are allowed
                 if (_selectedSpaceId == null) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(content: Text('Please select a space'.tr())),
@@ -541,113 +585,88 @@ class _SpaceManagementScreenState extends State<SpaceManagementScreen> {
                   return;
                 }
 
-                // show loading indicator
-                showDialog(
-                  context: context,
-                  barrierDismissible: false,
-                  builder: (_) =>
-                      const Center(child: CircularProgressIndicator()),
-                );
+                final doc = await _firestore
+                    .collection('Spaces')
+                    .doc(_selectedSpaceId)
+                    .get();
+                if (!doc.exists) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('spaceNotFound'.tr())),
+                  );
+                  return;
+                }
 
-                try {
-                  // fetch space doc to read members/admins/creator
-                  final doc = await _spaceService.getSpace(_selectedSpaceId!);
-                  final data = (doc.data() as Map<String, dynamic>?) ?? {};
-                  final List<dynamic> memberIdsDynamic =
-                      data['members'] ?? <dynamic>[];
-                  final List<String> memberIds =
-                      memberIdsDynamic.map((e) => e.toString()).toList();
-                  final List<dynamic> adminsDynamic =
-                      data['admins'] ?? <dynamic>[];
-                  final List<String> adminIds =
-                      adminsDynamic.map((e) => e.toString()).toList();
-                  final String creatorId = (data['creator'] ?? '') as String;
+                final data = (doc.data() as Map<String, dynamic>?) ?? {};
+                final creatorId = (data['creator'] ?? '').toString();
+                final List<dynamic> memberIdsDynamic =
+                    data['members'] ?? <dynamic>[];
+                final List<String> memberIds =
+                    memberIdsDynamic.map((e) => e.toString()).toList();
+                final List<dynamic> adminsDynamic =
+                    data['admins'] ?? <dynamic>[];
+                final List<String> adminIds =
+                    adminsDynamic.map((e) => e.toString()).toList();
 
-                  // If no members (shouldn't happen since current user is a member) show placeholder screen:
-                  if (memberIds.isEmpty) {
-                    Navigator.of(context).pop(); // remove loader
-                    Navigator.of(context).push(MaterialPageRoute(
-                      builder: (_) => ChangeAdminStatusScreen(
-                        members: const [],
-                        currentUserId: _auth.currentUser!.uid,
-                        creatorId: creatorId,
-                        onAddMember: () {
-                          // reuse existing add flow
-                          if (_selectedSpaceId != null) {
-                            Navigator.of(context).push(MaterialPageRoute(
-                              builder: (_) => VerificationCodeScreen(
-                                  spaceId: _selectedSpaceId!,
-                                  spaceName: _selectedSpaceName),
-                            ));
-                          }
-                        },
-                      ),
-                    ));
-                    return;
-                  }
-
-                  // fetch users data for the memberIds (batch query whereIn; keep chunking if >10 in production)
+                // guard: whereIn fails if list is empty, so check first:
+                List<QueryDocumentSnapshot> usersDocs;
+                if (memberIds.isEmpty) {
+                  usersDocs = [];
+                } else {
                   final usersQuery = await _firestore
                       .collection('Users')
                       .where('uid', whereIn: memberIds)
                       .get();
-                  final membersData = usersQuery.docs.map((d) {
-                    final m = d.data() as Map<String, dynamic>;
-                    final uid = (m['uid'] ?? d.id).toString();
-                    return <String, dynamic>{
-                      'id': uid,
-                      'username':
-                          (m['username'] ?? m['displayName'] ?? 'Unknown')
-                              .toString(),
-                      'profilePicture': (m['profilePicture'] ?? '').toString(),
-                      'isAdmin': adminIds.contains(uid) || (creatorId == uid),
-                    };
-                  }).toList();
+                  usersDocs = usersQuery.docs;
+                }
 
-                  Navigator.of(context).pop(); // remove loader
-                  Navigator.of(context).push(MaterialPageRoute(
+                final membersData = usersDocs.map((d) {
+                  final m = d.data() as Map<String, dynamic>;
+                  final uid = (m['uid'] ?? d.id).toString();
+                  return <String, dynamic>{
+                    'id': uid,
+                    'username': (m['username'] ?? m['displayName'] ?? 'Unknown')
+                        .toString(),
+                    'profilePicture': (m['profilePicture'] ?? '').toString(),
+                    'isAdmin': adminIds.contains(uid) || (creatorId == uid),
+                  };
+                }).toList();
+
+                Navigator.of(context).push(
+                  MaterialPageRoute(
                     builder: (_) => ChangeAdminStatusScreen(
                       members: membersData,
                       currentUserId: _auth.currentUser!.uid,
                       creatorId: creatorId,
-                      onAddMember: () {
-                        // reuse existing add flow
-                        if (_selectedSpaceId != null) {
-                          Navigator.of(context).push(MaterialPageRoute(
-                            builder: (_) => VerificationCodeScreen(
-                                spaceId: _selectedSpaceId!,
-                                spaceName: _selectedSpaceName),
-                          ));
+                      spaceId: _selectedSpaceId,
+                      autoLoadMembers: false,
+                      onToggleAdmin: (memberId, makeAdmin) async {
+                        final performedBy = _auth.currentUser!.uid;
+                        if (makeAdmin) {
+                          await _spaceService.promoteToAdmin(
+                            spaceId: _selectedSpaceId!,
+                            userId: memberId,
+                            performedBy: performedBy,
+                          );
+                        } else {
+                          await _spaceService.demoteAdmin(
+                            spaceId: _selectedSpaceId!,
+                            userId: memberId,
+                            performedBy: performedBy,
+                          );
                         }
                       },
-                      onToggleAdmin: (memberId, makeAdmin) async {
-                        try {
-                          final performedBy = _auth.currentUser!.uid;
-                          if (makeAdmin) {
-                            await _spaceService.promoteToAdmin(
-                                spaceId: _selectedSpaceId!,
-                                userId: memberId,
-                                performedBy: performedBy);
-                          } else {
-                            await _spaceService.demoteAdmin(
-                                spaceId: _selectedSpaceId!,
-                                userId: memberId,
-                                performedBy: performedBy);
-                          }
-                        } catch (e) {
-                          debugPrint('Error toggling admin: $e');
-                          rethrow;
-                        }
+                      onTransferOwnership: (newOwnerId) async {
+                        final performedBy = _auth.currentUser!.uid;
+                        await _spaceService.transferOwnership(
+                          spaceId: _selectedSpaceId!,
+                          newOwnerId: newOwnerId,
+                          performedBy: performedBy,
+                        );
                       },
                     ),
-                  ));
-                } catch (e) {
-                  Navigator.of(context).pop(); // remove loader
-                  ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('errorLoadingMembers'.tr())));
-                }
+                  ),
+                );
               },
-
               onAddPeople: () {
                 if (_selectedSpaceId == null ||
                     (_selectedSpaceId ?? '').trim().isEmpty) {

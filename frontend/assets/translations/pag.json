@@ -246,5 +246,11 @@
   "inviteCode": "Kodigo na Paanyaya",
   "roleMember": "Kamiyembro",
   "roleOwner": "Agmaymaysa ya agtagikua",
-  "roleAdmin": "Admin"
+  "roleAdmin": "Admin",
+  "removePeopleFromSpace": "Ialis so saray tawo ed Space",
+  "noOtherMembersInSpace": "Awan so sayan membro ed sikato a Space.",
+  "removedMembers": "Naalis so {count} na membro",
+  "remove": "Ialis",
+  "selected": "napili",
+  "spaceManagement": "Pamamahala na Space"
 }

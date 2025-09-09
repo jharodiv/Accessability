@@ -597,7 +597,7 @@ class _GpsScreenState extends State<GpsScreen> {
       _cachedPwdLocations = locations;
 
       final markers = await _markerHandler.createMarkers(
-          locations, _locationHandler.currentLocation);
+          context, locations, _locationHandler.currentLocation);
 
       final pwdMarkers = markers.map((marker) {
         if (marker.markerId.value.startsWith('pwd_')) {
@@ -1421,7 +1421,7 @@ class _GpsScreenState extends State<GpsScreen> {
       _cachedPwdLocations = locations;
 
       _markerHandler
-          .createMarkers(locations, _locationHandler.currentLocation)
+          .createMarkers(context, locations, _locationHandler.currentLocation)
           .then((markers) {
         final pwdMarkers = markers.map((marker) {
           if (marker.markerId.value.startsWith('pwd_')) {

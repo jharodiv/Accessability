@@ -74,7 +74,6 @@ class _CreateSpaceScreenState extends State<CreateSpaceScreen> {
       // Mark navigation as completed
       _navigationCompleted = true;
 
-      // Use a microtask to ensure safe navigation
       Future.microtask(() {
         if (!_isDisposed && Navigator.canPop(context)) {
           Navigator.of(context).pop({'success': true, 'spaceId': spaceRef.id});
@@ -107,10 +106,8 @@ class _CreateSpaceScreenState extends State<CreateSpaceScreen> {
         _navigationCompleted ||
         !Navigator.canPop(context)) return;
 
-    // Mark navigation as completed
     _navigationCompleted = true;
 
-    // Use a microtask to ensure safe navigation
     Future.microtask(() {
       if (!_isDisposed) {
         Navigator.of(context).pop({'success': false});
@@ -125,12 +122,39 @@ class _CreateSpaceScreenState extends State<CreateSpaceScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Create Space').tr(),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: _safePop,
+      appBar: PreferredSize(
+        preferredSize: const Size.fromHeight(65),
+        child: Container(
+          decoration: BoxDecoration(
+            color: isDarkMode ? Colors.grey[900] : Colors.white,
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.1),
+                offset: const Offset(0, 1),
+                blurRadius: 2,
+              ),
+            ],
+          ),
+          child: AppBar(
+            elevation: 0,
+            leading: IconButton(
+              onPressed: _safePop,
+              icon: const Icon(Icons.arrow_back),
+              color: const Color(0xFF6750A4), // Purple arrow
+            ),
+            title: Text(
+              'Create Space',
+              style: const TextStyle(
+                fontWeight: FontWeight.bold,
+                color: Colors.black, // Title black
+              ),
+            ).tr(),
+            centerTitle: true,
+            backgroundColor: Colors.transparent,
+          ),
         ),
       ),
       body: Padding(
@@ -148,14 +172,24 @@ class _CreateSpaceScreenState extends State<CreateSpaceScreen> {
               focusNode: _nameFocusNode,
               decoration: InputDecoration(
                 labelText: 'Space Name'.tr(),
-                border: const OutlineInputBorder(),
+                labelStyle: const TextStyle(color: Color(0xFF6750A4)),
+                border: OutlineInputBorder(
+                  borderSide: const BorderSide(color: Color(0xFF6750A4)),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderSide: const BorderSide(color: Color(0xFF6750A4)),
+                  borderRadius: BorderRadius.circular(8),
+                ),
                 focusedBorder: OutlineInputBorder(
-                  borderSide: BorderSide(
-                    color: Theme.of(context).colorScheme.primary,
+                  borderSide: const BorderSide(
+                    color: Color(0xFF6750A4),
                     width: 2,
                   ),
+                  borderRadius: BorderRadius.circular(8),
                 ),
               ),
+              cursorColor: const Color(0xFF6750A4),
               textInputAction: TextInputAction.done,
               onSubmitted: (_) => _createSpace(),
             ),

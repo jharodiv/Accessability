@@ -3,8 +3,8 @@ import express from "express";
 import { createClient } from "redis";
 import dotenv from "dotenv";
 
-// Load environment variables
-dotenv.config();
+// Load environment variables from root .env
+dotenv.config({ path: ".env" });
 console.log("✅ Environment variables loaded");
 
 // Create Express app

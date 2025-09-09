@@ -1251,7 +1251,19 @@ class _GpsScreenState extends State<GpsScreen> {
               zIndex: 100,
               infoWindow: InfoWindow(
                 title: marker.infoWindow.title,
-                snippet: 'Tap to show details and rate',
+                snippet: 'Tap to show route', // Changed from rating text
+                onTap: () {
+                  // Add route functionality when info window is tapped
+                  if (_locationHandler.currentLocation != null) {
+                    routeController.createRoute(
+                      _locationHandler.currentLocation!,
+                      marker.position,
+                    );
+                    routeController.startFollowingUser(
+                      () => _locationHandler.currentLocation,
+                    );
+                  }
+                },
               ),
               onTap: () async {
                 try {

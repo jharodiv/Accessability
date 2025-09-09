@@ -5,6 +5,8 @@ import 'dart:math';
 import 'package:accessability/accessability/backgroundServices/deep_link_service.dart';
 import 'package:accessability/accessability/data/model/place.dart';
 import 'package:accessability/accessability/firebaseServices/place/geocoding_service.dart';
+import 'package:accessability/accessability/presentation/widgets/dialog/confirm_dialog_widget.dart';
+import 'package:accessability/accessability/presentation/widgets/dialog/ok_dialog_widget.dart';
 import 'package:accessability/accessability/presentation/widgets/gpsWidgets/map_perspective.dart';
 import 'package:accessability/accessability/presentation/widgets/gpsWidgets/navigation_controls.dart';
 import 'package:accessability/accessability/presentation/widgets/gpsWidgets/navigation_panel.dart';
@@ -277,23 +279,20 @@ class _GpsScreenState extends State<GpsScreen> {
       context: context,
       barrierDismissible: false,
       builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Destination Reached'),
-          content: const Text(
-              'You have arrived at your destination. Navigation will now stop.'),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-                // Additional cleanup if needed
-                setState(() {
-                  _isRouteActive = false;
-                  _polylines.clear();
-                });
-              },
-              child: const Text('OK'),
-            ),
-          ],
+        return OkDialogWidget(
+          title:
+              'destination_reached'.tr(), // Make sure to add this translation
+          message:
+              'you_have_arrived_at_destination'.tr(), // Add this translation
+          onConfirm: () {
+            // Additional cleanup if needed
+            setState(() {
+              _isRouteActive = false;
+              _polylines.clear();
+              _routeDestination = null;
+              _routePoints.clear();
+            });
+          },
         );
       },
     );

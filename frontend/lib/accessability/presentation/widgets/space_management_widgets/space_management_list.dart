@@ -43,6 +43,8 @@ class SpaceManagementList extends StatelessWidget {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     final bool isDarkMode = Provider.of<ThemeProvider>(context).isDarkMode;
+    final bool canRemove =
+        (currentUserRole == 'owner' || currentUserRole == 'admin');
 
     final headerStyle = (theme.textTheme.titleMedium ??
             const TextStyle(fontSize: 16.0, fontWeight: FontWeight.w600))
@@ -268,112 +270,115 @@ class SpaceManagementList extends StatelessWidget {
                 ),
                 Divider(height: 1, thickness: 1, color: dividerColor),
                 // Remove people tile
-                _buildTile(
-                  context,
-                  title: 'Remove people from Space'.tr(),
-                  titleStyle: rowTitleStyle,
-                  onTap: () async {
-                    if (spaceId == null || spaceId!.trim().isEmpty) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Please select a space'.tr())),
-                      );
-                      return;
-                    }
-
-                    final firestore = FirebaseFirestore.instance;
-                    final auth = FirebaseAuth.instance;
-                    final currentUser = auth.currentUser;
-                    if (currentUser == null) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Please sign in'.tr())),
-                      );
-                      return;
-                    }
-
-                    // fetch space document
-                    final doc = await firestore
-                        .collection('Spaces')
-                        .doc(spaceId!)
-                        .get();
-                    if (!doc.exists) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('spaceNotFound'.tr())),
-                      );
-                      return;
-                    }
-
-                    final data = (doc.data() as Map<String, dynamic>?) ?? {};
-                    final List<String> memberIds =
-                        List<String>.from(data['members'] ?? <dynamic>[]);
-                    final List<String> adminIds =
-                        List<String>.from(data['admins'] ?? <dynamic>[])
-                            .map((e) => e.toString())
-                            .toList();
-                    final String creatorId = (data['creator'] ?? '').toString();
-
-                    if (memberIds.isEmpty) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text('noMembersFound'.tr())));
-                      return;
-                    }
-
-                    // fetch Users docs (note: whereIn has a 10-limit; chunk in real usage if needed)
-                    List<QueryDocumentSnapshot> usersDocs = [];
-                    try {
-                      final q = await firestore
-                          .collection('Users')
-                          .where('uid', whereIn: memberIds)
-                          .get();
-                      usersDocs = q.docs;
-                    } catch (_) {
-                      // fallback to individual reads (safer for large lists)
-                      usersDocs = [];
-                      for (final id in memberIds) {
-                        final ud =
-                            await firestore.collection('Users').doc(id).get();
-                        if (ud.exists)
-                          usersDocs.add(ud as QueryDocumentSnapshot<Object?>);
+                if (canRemove) ...[
+                  _buildTile(
+                    context,
+                    title: 'Remove people from Space'.tr(),
+                    titleStyle: rowTitleStyle,
+                    onTap: () async {
+                      if (spaceId == null || spaceId!.trim().isEmpty) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('Please select a space'.tr())),
+                        );
+                        return;
                       }
-                    }
 
-                    final membersList = usersDocs.map((d) {
-                      final m = d.data() as Map<String, dynamic>;
-                      final uid = (m['uid'] ?? d.id).toString();
-                      return SimpleMember(
-                        id: uid,
-                        username:
-                            (m['username'] ?? m['displayName'] ?? 'Unknown')
-                                .toString(),
-                        profilePicture: (m['profilePicture'] ?? '').toString(),
-                        subtitle: null,
-                        isAdmin: adminIds.contains(uid) || (creatorId == uid),
-                      );
-                    }).toList();
+                      final firestore = FirebaseFirestore.instance;
+                      final auth = FirebaseAuth.instance;
+                      final currentUser = auth.currentUser;
+                      if (currentUser == null) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('Please sign in'.tr())),
+                        );
+                        return;
+                      }
 
-                    // PASS the parent removal callback into the RemoveMembersScreen so it can execute removal
-                    // and show the notification inside that screen.
-                    final removed =
-                        await Navigator.of(context).push<List<String>>(
-                      MaterialPageRoute(
-                        builder: (_) => RemoveMembersScreen(
-                          members: membersList,
-                          creatorId: creatorId,
-                          adminIds: adminIds,
-                          currentUserId: currentUser.uid,
-                          onRemove: onRemoveMembers, // <-- pass it here
+                      // fetch space document
+                      final doc = await firestore
+                          .collection('Spaces')
+                          .doc(spaceId!)
+                          .get();
+                      if (!doc.exists) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('spaceNotFound'.tr())),
+                        );
+                        return;
+                      }
+
+                      final data = (doc.data() as Map<String, dynamic>?) ?? {};
+                      final List<String> memberIds =
+                          List<String>.from(data['members'] ?? <dynamic>[]);
+                      final List<String> adminIds =
+                          List<String>.from(data['admins'] ?? <dynamic>[])
+                              .map((e) => e.toString())
+                              .toList();
+                      final String creatorId =
+                          (data['creator'] ?? '').toString();
+
+                      if (memberIds.isEmpty) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('noMembersFound'.tr())));
+                        return;
+                      }
+
+                      // fetch Users docs (note: whereIn has a 10-limit; chunk in real usage if needed)
+                      List<QueryDocumentSnapshot> usersDocs = [];
+                      try {
+                        final q = await firestore
+                            .collection('Users')
+                            .where('uid', whereIn: memberIds)
+                            .get();
+                        usersDocs = q.docs;
+                      } catch (_) {
+                        // fallback to individual reads (safer for large lists)
+                        usersDocs = [];
+                        for (final id in memberIds) {
+                          final ud =
+                              await firestore.collection('Users').doc(id).get();
+                          if (ud.exists)
+                            usersDocs.add(ud as QueryDocumentSnapshot<Object?>);
+                        }
+                      }
+
+                      final membersList = usersDocs.map((d) {
+                        final m = d.data() as Map<String, dynamic>;
+                        final uid = (m['uid'] ?? d.id).toString();
+                        return SimpleMember(
+                          id: uid,
+                          username:
+                              (m['username'] ?? m['displayName'] ?? 'Unknown')
+                                  .toString(),
+                          profilePicture:
+                              (m['profilePicture'] ?? '').toString(),
+                          subtitle: null,
+                          isAdmin: adminIds.contains(uid) || (creatorId == uid),
+                        );
+                      }).toList();
+
+                      // PASS the parent removal callback into the RemoveMembersScreen so it can execute removal
+                      // and show the notification inside that screen.
+                      final removed =
+                          await Navigator.of(context).push<List<String>>(
+                        MaterialPageRoute(
+                          builder: (_) => RemoveMembersScreen(
+                            members: membersList,
+                            creatorId: creatorId,
+                            adminIds: adminIds,
+                            currentUserId: currentUser.uid,
+                            onRemove:
+                                onRemoveMembers, // <-- parent removal handler
+                          ),
                         ),
-                      ),
-                    );
+                      );
 
-                    // Do not call onRemoveMembers again here — the RemoveMembersScreen already invoked it (if provided)
-                    // If removed != null you can optionally refresh UI here, but avoid showing the removal SnackBar here.
-                    if (removed != null && removed.isNotEmpty) {
-                      // optional: trigger any local UI refresh or logs — avoid duplicate Snackbar
-                    }
-                  },
-                ),
-                Divider(height: 1, thickness: 1, color: dividerColor),
-
+                      // RemoveMembersScreen shows snack / pops when done — no duplicate actions here.
+                      if (removed != null && removed.isNotEmpty) {
+                        // optional: refresh UI or logs
+                      }
+                    },
+                  ),
+                  Divider(height: 1, thickness: 1, color: dividerColor),
+                ],
                 // Leave Space
                 _buildTile(
                   context,

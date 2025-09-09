@@ -29,7 +29,7 @@
   <script>
     async function saveDeepLink(deviceId, code) {
       try {
-        await fetch("http://your-server.com/save-deeplink", {
+        await fetch("https://3-y2-aapwd-xqeh-nlz2d5lcu-cdmr007s-projects.vercel.app/api/save-deeplink", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ deviceId, inviteCode: code })

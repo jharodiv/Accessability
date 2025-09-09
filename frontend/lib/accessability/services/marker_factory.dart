@@ -19,7 +19,6 @@ class MarkerFactory {
   static final Map<String, BitmapDescriptor> _badgeCache = {};
 
   /// Generate (or return cached) favorite/place marker bitmap.
-  /// `cacheKey` should be unique per place + parameters (same pattern you had previously).
   static Future<BitmapDescriptor> ensureFavoriteBitmap({
     required BuildContext ctx,
     required String cacheKey,
@@ -92,8 +91,7 @@ class MarkerFactory {
     }
   }
 
-  /// Convenience: create a Marker for a Place (keeps the same infoWindow/onTap contract).
-  /// Note: this method does not add the marker to the map; it just returns it.
+  /// Convenience: create a Marker for a Place.
   static Future<Marker> createPlaceMarker({
     required BuildContext ctx,
     required Place place,
@@ -124,15 +122,38 @@ class MarkerFactory {
     );
   }
 
+  /// Decide which icon to use for each place type.
   static IconData _iconForPlaceType(String type) {
     final t = type.toLowerCase();
+
     if (t.contains('bus')) return Icons.directions_bus;
-    if (t.contains('restaurant') || t.contains('restawran'))
+
+    if (t.contains('restaurant') || t.contains('restawran')) {
       return Icons.restaurant;
-    if (t.contains('grocery') || t.contains('grocer'))
+    }
+
+    if (t.contains('grocery') || t.contains('grocer')) {
       return Icons.local_grocery_store;
+    }
+
     if (t.contains('hotel')) return Icons.hotel;
-    return Icons.place;
+
+    // 🛍️ Shopping
+    if (t.contains('shop') ||
+        t.contains('store') ||
+        t.contains('pamimili') ||
+        t.contains('shopping')) {
+      return Icons.storefront;
+    }
+
+    // 🏥 Hospital
+    if (t.contains('hospital') ||
+        t.contains('ospital') ||
+        t.contains('ospit')) {
+      return Icons.local_hospital;
+    }
+
+    return Icons.place; // fallback
   }
 
   static void clearCaches() {

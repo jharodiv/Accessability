@@ -310,7 +310,7 @@ class TopwidgetsState extends State<Topwidgets> {
                     ),
                     CategoryItem(
                       title: 'shopping'.tr(),
-                      icon: Icons.shop_2,
+                      icon: Icons.storefront,
                       onCategorySelected: _handleCategorySelection,
                       isSelected:
                           ['Shopping', 'Pamimili'].contains(_selectedCategory),

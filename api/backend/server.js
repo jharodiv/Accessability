@@ -26,8 +26,6 @@ client.on("connect", () => console.log("🔌 Connecting to Redis..."));
 client.on("ready", () => console.log("✅ Redis is ready!"));
 client.on("end", () => console.log("🔒 Redis connection closed"));
 
-await client.connect();
-
 // --- API endpoint to save invite code ---
 app.post("/api/save-deeplink", async (req, res) => {
   const { deviceId, inviteCode } = req.body;
@@ -66,6 +64,18 @@ app.get("/api", (req, res) => {
   res.json({ status: "ok" });
 });
 
-// Start server
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
+// --- Start server only after Redis connects ---
+async function startServer() {
+  try {
+    await client.connect();
+    const PORT = process.env.PORT || 3000;
+    app.listen(PORT, () =>
+      console.log(`🚀 Server running on port ${PORT}`)
+    );
+  } catch (err) {
+    console.error("❌ Failed to connect to Redis:", err);
+    process.exit(1);
+  }
+}
+
+startServer();

@@ -306,6 +306,12 @@ class _SearchBarWithAutocompleteState extends State<SearchBarWithAutocomplete> {
     }
 
     _searchController.clear();
+
+    setState(() {
+      _isListening = false;
+      _isProcessingWakeWord = false;
+      _isWakeWordListening = false;
+    });
   }
 
   void _stopListening() {
@@ -377,9 +383,9 @@ class _SearchBarWithAutocompleteState extends State<SearchBarWithAutocomplete> {
               IconButton(
                 icon: Icon(
                   _isListening
-                      ? Icons.mic
+                      ? Icons.mic_rounded
                       : (_isWakeWordListening
-                          ? Icons.mic_external_on
+                          ? Icons.mic_rounded
                           : Icons.mic_none),
                   color: _isListening
                       ? Colors.green
@@ -389,7 +395,6 @@ class _SearchBarWithAutocompleteState extends State<SearchBarWithAutocomplete> {
                 ),
                 onPressed: () {
                   if (_isListening) {
-                    // Stop current listening
                     _stopListening();
                   } else if (_isWakeWordListening) {
                     // Stop wake word listening

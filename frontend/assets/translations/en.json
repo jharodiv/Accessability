@@ -103,7 +103,7 @@
   "invalidCode": "Invalid verification code",
   "addressUnavailable": "Address unavailable",
   "joinMySpaceMessage": "Join My Space! \n Your verification code is: {code} (Expires in 10 minutes)",
-  "searchLocationHint": "Search for a location",
+  "searchLocationHint": "Say Hi to Melody",
   "speechNotAvailable": "Speech recognition not available",
   "searchLocationPrompt": "Please enter a location to search.",
   "addNewPlaceTitle": "Add a new Place",

@@ -1,10 +1,12 @@
-// change_admin_status_screen.dart
 import 'package:accessability/accessability/firebaseServices/space/space_service.dart';
 import 'package:accessability/accessability/firebaseServices/space/user_service.dart';
 import 'package:accessability/accessability/themes/theme_provider.dart';
+import 'package:accessability/accessability/presentation/widgets/shimmer/shimmer_change_admin_status.dart';
 import 'package:flutter/material.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:provider/provider.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 typedef VoidAdminToggle = Future<void> Function(
     String memberId, bool makeAdmin);
@@ -14,6 +16,8 @@ class ChangeAdminStatusScreen extends StatefulWidget {
   final List<Map<String, dynamic>> members;
   final String currentUserId;
   final String creatorId;
+  final String? spaceId; // optional - allow screen to load members by space
+  final bool autoLoadMembers; // set true to auto-load members from spaceId
   final VoidCallback? onAddMember;
   final VoidAdminToggle? onToggleAdmin;
   final VoidTransferOwnership? onTransferOwnership;
@@ -23,6 +27,8 @@ class ChangeAdminStatusScreen extends StatefulWidget {
     this.members = const [],
     required this.currentUserId,
     required this.creatorId,
+    this.spaceId,
+    this.autoLoadMembers = false,
     this.onAddMember,
     this.onToggleAdmin,
     this.onTransferOwnership,
@@ -38,8 +44,16 @@ class _ChangeAdminStatusScreenState extends State<ChangeAdminStatusScreen> {
 
   late List<Map<String, dynamic>> _membersLocal;
   final Set<String> _pendingToggleIds = {};
+  final SpaceService _spaceService = SpaceService();
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirebaseAuth _auth = FirebaseAuth.instance;
 
-  bool get _isCreator => widget.currentUserId == widget.creatorId;
+  bool _isLoadingMembers = false;
+  String?
+      _creatorIdLocal; // resolved creator id (may be from widget or fetched)
+
+  bool get _isCreator =>
+      widget.currentUserId == (_creatorIdLocal ?? widget.creatorId);
 
   bool get _currentUserIsAdmin {
     final m = _findMember(widget.currentUserId);
@@ -53,6 +67,68 @@ class _ChangeAdminStatusScreenState extends State<ChangeAdminStatusScreen> {
     super.initState();
     _membersLocal = _deepCopyMembers(widget.members);
     _ensureOwnerFirst();
+    _creatorIdLocal = widget.creatorId;
+
+    // If parent asked us to auto-load members by spaceId, do it now
+    if (widget.autoLoadMembers && (widget.spaceId != null)) {
+      _loadMembersFromSpace(widget.spaceId!);
+    }
+  }
+
+  Future<void> _loadMembersFromSpace(String spaceId) async {
+    setState(() => _isLoadingMembers = true);
+    try {
+      final doc = await _spaceService.getSpace(spaceId);
+      final data = (doc.data() as Map<String, dynamic>?) ?? {};
+      final List<dynamic> memberIdsDynamic = data['members'] ?? <dynamic>[];
+      final List<String> memberIds =
+          memberIdsDynamic.map((e) => e.toString()).toList();
+      final List<dynamic> adminsDynamic = data['admins'] ?? <dynamic>[];
+      final List<String> adminIds =
+          adminsDynamic.map((e) => e.toString()).toList();
+      final String creatorId = (data['creator'] ?? '') as String;
+      _creatorIdLocal = creatorId;
+
+      if (memberIds.isEmpty) {
+        setState(() {
+          _membersLocal = [];
+          _isLoadingMembers = false;
+        });
+        return;
+      }
+
+      // NOTE: whereIn has 10 limit in Firestore; if you're expecting >10 you should chunk.
+      final q = await _firestore
+          .collection('Users')
+          .where('uid', whereIn: memberIds)
+          .get();
+
+      final membersData = q.docs.map((d) {
+        final m = d.data() as Map<String, dynamic>;
+        final uid = (m['uid'] ?? d.id).toString();
+        return <String, dynamic>{
+          'id': uid,
+          'uid': uid,
+          'username':
+              (m['username'] ?? m['displayName'] ?? 'Unknown').toString(),
+          'profilePicture': (m['profilePicture'] ?? '').toString(),
+          'isAdmin': adminIds.contains(uid) || (creatorId == uid),
+        };
+      }).toList();
+
+      setState(() {
+        _membersLocal = membersData;
+        _ensureOwnerFirst();
+        _isLoadingMembers = false;
+      });
+    } catch (e, st) {
+      debugPrint('[_loadMembersFromSpace] ERROR: $e\n$st');
+      if (mounted) {
+        setState(() => _isLoadingMembers = false);
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('errorLoadingMembers'.tr())));
+      }
+    }
   }
 
   @override
@@ -68,9 +144,8 @@ class _ChangeAdminStatusScreenState extends State<ChangeAdminStatusScreen> {
   }
 
   void _ensureOwnerFirst() {
-    // Find the creator row and move it to the front if present.
-    final ownerIndex =
-        _membersLocal.indexWhere((m) => m['id'] == widget.creatorId);
+    final ownerIndex = _membersLocal.indexWhere(
+        (m) => m['id'] == (widget.creatorId ?? _creatorIdLocal ?? ''));
     if (ownerIndex > 0) {
       final owner = _membersLocal.removeAt(ownerIndex);
       _membersLocal.insert(0, owner);
@@ -81,7 +156,7 @@ class _ChangeAdminStatusScreenState extends State<ChangeAdminStatusScreen> {
     return src
         .map((m) => {
               'id': (m['id'] ?? '') as String,
-              'uid': (m['uid'] ?? m['id'] ?? '') as String, // <-- added
+              'uid': (m['uid'] ?? m['id'] ?? '') as String,
               'username': (m['username'] ?? 'Unknown') as String,
               'profilePicture': (m['profilePicture'] ?? '') as String,
               'isAdmin': (m['isAdmin'] ?? false) as bool,
@@ -102,7 +177,8 @@ class _ChangeAdminStatusScreenState extends State<ChangeAdminStatusScreen> {
         '[_toggleAdmin] start: memberId=$memberId, index=$index, member=$member');
 
     // guard: don't touch the creator row
-    if ((member['id'] ?? '') == widget.creatorId) {
+    final creatorId = (_creatorIdLocal ?? widget.creatorId) ?? '';
+    if ((member['id'] ?? '') == creatorId) {
       debugPrint('[_toggleAdmin] abort: member is creator');
       return;
     }
@@ -128,20 +204,15 @@ class _ChangeAdminStatusScreenState extends State<ChangeAdminStatusScreen> {
         setState(() {
           _membersLocal[index]['isAdmin'] = !makeAdmin;
         });
-        debugPrint('[_toggleAdmin] no parent callback provided');
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('implementToggleAdminCallback'.tr())),
         );
         return;
       }
 
-      // Try to resolve a friendly name
       final userService = UserService();
       final fullName = await userService.getFullName(memberId);
-      debugPrint(
-          '[_toggleAdmin] getFullName returned: "$fullName" for $memberId');
 
-      // fallback chain: first fullName, then member.username, then member.uid, then memberId
       final displayName = (fullName.isNotEmpty)
           ? fullName
           : ((member['username'] as String?)?.trim().isNotEmpty == true
@@ -150,9 +221,6 @@ class _ChangeAdminStatusScreenState extends State<ChangeAdminStatusScreen> {
                   ? (member['uid'] as String)
                   : memberId));
 
-      debugPrint('[_toggleAdmin] final displayName="$displayName"');
-
-      // show snack: purple for promote, neutral for demote
       final msg = makeAdmin
           ? 'adminPromoted'.tr(namedArgs: {'name': displayName})
           : 'adminDemoted'.tr(namedArgs: {'name': displayName});
@@ -186,11 +254,14 @@ class _ChangeAdminStatusScreenState extends State<ChangeAdminStatusScreen> {
     }
   }
 
+  // reuse your existing _promptTransferOwnershipIfCreatorLeaves (copy/paste from your earlier file)
+  // ----------------------------------------------------------------
   Future<void> _promptTransferOwnershipIfCreatorLeaves() async {
     if (!_isCreator) return;
 
-    final candidates =
-        _membersLocal.where((m) => m['id'] != widget.creatorId).toList();
+    final candidates = _membersLocal
+        .where((m) => m['id'] != (widget.creatorId ?? _creatorIdLocal))
+        .toList();
 
     if (candidates.isEmpty) {
       await showDialog(
@@ -269,6 +340,7 @@ class _ChangeAdminStatusScreenState extends State<ChangeAdminStatusScreen> {
       }
     }
   }
+  // ----------------------------------------------------------------
 
   @override
   Widget build(BuildContext context) {
@@ -334,118 +406,145 @@ class _ChangeAdminStatusScreenState extends State<ChangeAdminStatusScreen> {
             ),
           ),
           Expanded(
-            child: _membersLocal.isEmpty
-                ? _NoMembersPlaceholder(onAddPressed: () {
-                    if (widget.onAddMember != null) widget.onAddMember!();
-                  })
-                : ListView.separated(
-                    itemCount: _membersLocal.length,
-                    separatorBuilder: (_, __) =>
-                        Divider(height: 1, thickness: 1.2, color: dividerColor),
-                    itemBuilder: (context, index) {
-                      final m = _membersLocal[index];
-                      final memberId = m['id'] as String;
-                      final username = m['username'] as String;
-                      final profilePicture = m['profilePicture'] as String;
-                      final isAdmin = (m['isAdmin'] ?? false) as bool;
-                      final isCreatorRow = memberId == widget.creatorId;
-                      final isCurrentUser = memberId == widget.currentUserId;
-                      final isPending = _pendingToggleIds.contains(memberId);
-
-                      Widget trailing;
-
-                      if (isCreatorRow) {
-                        // Owner chip (always shown and should be first row due to sorting)
-                        trailing = Container(
-                          padding: const EdgeInsets.symmetric(
-                              vertical: 8, horizontal: 14),
-                          decoration: const BoxDecoration(
-                            color: purple,
-                            borderRadius: BorderRadius.all(Radius.circular(20)),
-                          ),
-                          child: Text('Owner'.tr(),
-                              style: const TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.w700)),
-                        );
-                      } else if (_isPrivileged) {
-                        // show toggle (or loading spinner) for privileged users
-                        trailing = isPending
-                            ? SizedBox(
-                                width: 46,
-                                height: 26,
-                                child: Center(
-                                  child: SizedBox(
-                                      width: 18,
-                                      height: 18,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                        valueColor:
-                                            AlwaysStoppedAnimation(purple),
-                                      )),
-                                ),
-                              )
-                            : _AestheticToggle(
-                                value: isAdmin,
-                                onChanged: (v) {
-                                  _toggleAdmin(memberId, v, index);
-                                },
-                                activeColor: purple,
-                              );
-                      } else {
-                        // non-privileged members see an admin chip or nothing
-                        if (isAdmin) {
-                          trailing = Container(
-                            padding: const EdgeInsets.symmetric(
-                                vertical: 8, horizontal: 12),
-                            decoration: BoxDecoration(
-                              color: purple.withOpacity(0.12),
-                              borderRadius:
-                                  const BorderRadius.all(Radius.circular(16)),
-                            ),
-                            child: Text('admin'.tr(),
-                                style: TextStyle(
-                                    color: purple,
-                                    fontWeight: FontWeight.w700)),
-                          );
-                        } else {
-                          trailing = const SizedBox.shrink();
-                        }
-                      }
-
-                      return ListTile(
-                        key: ValueKey(memberId),
-                        contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 16, vertical: 6),
-                        leading: CircleAvatar(
-                          radius: 22,
-                          backgroundImage: profilePicture.isNotEmpty
-                              ? NetworkImage(profilePicture)
-                              : null,
-                          child: profilePicture.isEmpty
-                              ? Text(username.isNotEmpty
-                                  ? username[0].toUpperCase()
-                                  : '?')
-                              : null,
-                        ),
-                        title: Text(
-                          username,
-                          style: const TextStyle(
-                              fontWeight: FontWeight.w700,
-                              color: purple,
-                              fontSize: 14),
-                        ),
-                        subtitle: isCurrentUser
-                            ? Text('you'.tr(), style: TextStyle(fontSize: 12))
-                            : null,
-                        trailing: trailing,
-                        onTap: () {},
-                      );
-                    },
-                  ),
+            child: _buildBody(dividerColor!),
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildBody(Color dividerColor) {
+    // show shimmer while loading members
+    if (_isLoadingMembers) {
+      // use your existing shimmer component pieces (ShimmerMemberRow) so we don't nest scaffolds
+      return ListView.separated(
+        padding: EdgeInsets.zero,
+        itemBuilder: (c, i) {
+          if (i == 0) {
+            // owner-like row placeholder
+            return Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              child: Row(
+                children: [
+                  Expanded(child: ShimmerBlock(height: 14, radius: 6)),
+                  const SizedBox(width: 12),
+                  Container(
+                      padding: const EdgeInsets.symmetric(
+                          vertical: 8, horizontal: 12),
+                      child: const ShimmerBlock(
+                          height: 14, width: 48, radius: 12)),
+                ],
+              ),
+            );
+          }
+          return const ShimmerMemberRow();
+        },
+        separatorBuilder: (_, __) =>
+            Divider(height: 1, color: Colors.transparent),
+        itemCount: 6,
+      );
+    }
+
+    // If not loading and no members: show placeholder
+    if (_membersLocal.isEmpty) {
+      return _NoMembersPlaceholder(onAddPressed: () {
+        if (widget.onAddMember != null) widget.onAddMember!();
+      });
+    }
+
+    // normal members list
+    return ListView.separated(
+      itemCount: _membersLocal.length,
+      separatorBuilder: (_, __) =>
+          Divider(height: 1, thickness: 1.2, color: dividerColor),
+      itemBuilder: (context, index) {
+        final m = _membersLocal[index];
+        final memberId = m['id'] as String;
+        final username = m['username'] as String;
+        final profilePicture = m['profilePicture'] as String;
+        final isAdmin = (m['isAdmin'] ?? false) as bool;
+        final isCreatorRow = memberId == (widget.creatorId ?? _creatorIdLocal);
+        final isCurrentUser = memberId == widget.currentUserId;
+        final isPending = _pendingToggleIds.contains(memberId);
+
+        Widget trailing;
+
+        if (isCreatorRow) {
+          // Owner chip (always shown and should be first row due to sorting)
+          trailing = Container(
+            padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 14),
+            decoration: const BoxDecoration(
+              color: purple,
+              borderRadius: BorderRadius.all(Radius.circular(20)),
+            ),
+            child: Text('Owner'.tr(),
+                style: const TextStyle(
+                    color: Colors.white, fontWeight: FontWeight.w700)),
+          );
+        } else if (_isPrivileged) {
+          // show toggle (or loading spinner) for privileged users
+          trailing = isPending
+              ? SizedBox(
+                  width: 46,
+                  height: 26,
+                  child: Center(
+                    child: SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor: AlwaysStoppedAnimation(purple),
+                        )),
+                  ),
+                )
+              : _AestheticToggle(
+                  value: isAdmin,
+                  onChanged: (v) {
+                    _toggleAdmin(memberId, v, index);
+                  },
+                  activeColor: purple,
+                );
+        } else {
+          // non-privileged members see an admin chip or nothing
+          if (isAdmin) {
+            trailing = Container(
+              padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+              decoration: BoxDecoration(
+                color: purple.withOpacity(0.12),
+                borderRadius: const BorderRadius.all(Radius.circular(16)),
+              ),
+              child: Text('admin'.tr(),
+                  style: TextStyle(color: purple, fontWeight: FontWeight.w700)),
+            );
+          } else {
+            trailing = const SizedBox.shrink();
+          }
+        }
+
+        return ListTile(
+          key: ValueKey(memberId),
+          contentPadding:
+              const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+          leading: CircleAvatar(
+            radius: 22,
+            backgroundImage:
+                profilePicture.isNotEmpty ? NetworkImage(profilePicture) : null,
+            child: profilePicture.isEmpty
+                ? Text(username.isNotEmpty ? username[0].toUpperCase() : '?')
+                : null,
+          ),
+          title: Text(
+            username,
+            style: const TextStyle(
+                fontWeight: FontWeight.w700, color: purple, fontSize: 14),
+          ),
+          subtitle: isCurrentUser
+              ? Text('you'.tr(), style: TextStyle(fontSize: 12))
+              : null,
+          trailing: trailing,
+          onTap: () {},
+        );
+      },
     );
   }
 }

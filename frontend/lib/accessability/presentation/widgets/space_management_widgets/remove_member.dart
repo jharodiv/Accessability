@@ -1,5 +1,8 @@
+// lib/presentation/widgets/space_management_widgets/remove_member.dart
 import 'package:accessability/accessability/presentation/widgets/space_management_widgets/remove_confirm_dialog.dart';
+import 'package:accessability/accessability/presentation/widgets/space_management_widgets/shimmer_remove_members.dart';
 import 'package:flutter/material.dart';
+import 'package:easy_localization/easy_localization.dart';
 
 const Color _purple = Color(0xFF6750A4);
 
@@ -10,6 +13,7 @@ class SimpleMember {
   final String profilePicture;
   final String? subtitle;
   final bool isAdmin;
+
   SimpleMember({
     required this.id,
     required this.username,
@@ -19,7 +23,7 @@ class SimpleMember {
   });
 }
 
-/// Tile used in the list (avatar, bold purple name, subtitle, circular check)
+/// Tile used in the list (avatar, bold black name, subtitle, circular check)
 class RemoveMemberListTile extends StatelessWidget {
   final SimpleMember member;
   final bool selected;
@@ -36,13 +40,11 @@ class RemoveMemberListTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // NAME: now black and smaller
     final nameStyle = const TextStyle(
       fontWeight: FontWeight.w700,
-      color: Colors.black, // changed from purple to black
-      fontSize: 16, // reduced from 18
+      color: Colors.black,
+      fontSize: 16,
     );
-
     final subtitleStyle = TextStyle(
       fontSize: 13,
       color: Colors.grey[600],
@@ -56,9 +58,8 @@ class RemoveMemberListTile extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 14.0),
           child: Row(
             children: [
-              // slightly smaller avatar
               CircleAvatar(
-                radius: 22, // was 26
+                radius: 22,
                 backgroundImage: (member.profilePicture.isNotEmpty)
                     ? NetworkImage(member.profilePicture)
                     : null,
@@ -74,10 +75,7 @@ class RemoveMemberListTile extends StatelessWidget {
                       )
                     : null,
               ),
-
-              const SizedBox(width: 12), // slightly reduced spacing
-
-              // Title & subtitle
+              const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -90,28 +88,25 @@ class RemoveMemberListTile extends StatelessWidget {
                   ],
                 ),
               ),
-
-              // smaller circular check indicator (right)
               Container(
-                width: 28, // was 40
-                height: 28, // was 40
+                width: 28,
+                height: 28,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   border: Border.all(
                     color: Colors.grey.shade300.withOpacity(0.9),
-                    width: 1.5, // thinner border
+                    width: 1.5,
                   ),
                 ),
                 child: selected
                     ? Container(
-                        // fully filled smaller purple circle
                         decoration: const BoxDecoration(
                           color: _purple,
                           shape: BoxShape.circle,
                         ),
                         child: const Center(
-                          child: Icon(Icons.check,
-                              color: Colors.white, size: 14), // smaller icon
+                          child:
+                              Icon(Icons.check, color: Colors.white, size: 14),
                         ),
                       )
                     : (disabled
@@ -127,17 +122,17 @@ class RemoveMemberListTile extends StatelessWidget {
   }
 }
 
-/// Screen that lists members with multi-select and returns selected ids on confirm.
-///
-/// Notes:
-/// - The owner is excluded from the list entirely (owner cannot be removed).
-/// - The current user is excluded from selecting themself (can't remove themself here).
-/// - If the current user is the owner, they can select admins (owner may remove admins).
+/// RemoveMembersScreen
 class RemoveMembersScreen extends StatefulWidget {
   final List<SimpleMember> members;
   final String currentUserId;
   final String creatorId;
   final List<String> adminIds;
+  final bool isLoading;
+
+  /// Optional server-side removal handler. If provided, the screen will call it and await it
+  /// while showing an inline progress indicator and showing the notification here.
+  final Future<void> Function(List<String> ids)? onRemove;
 
   const RemoveMembersScreen({
     Key? key,
@@ -145,6 +140,8 @@ class RemoveMembersScreen extends StatefulWidget {
     required this.currentUserId,
     required this.creatorId,
     this.adminIds = const [],
+    this.isLoading = false,
+    this.onRemove,
   }) : super(key: key);
 
   @override
@@ -153,6 +150,7 @@ class RemoveMembersScreen extends StatefulWidget {
 
 class _RemoveMembersScreenState extends State<RemoveMembersScreen> {
   final Set<String> _selected = {};
+  bool _processing = false;
 
   bool get _hasSelection => _selected.isNotEmpty;
 
@@ -174,100 +172,170 @@ class _RemoveMembersScreenState extends State<RemoveMembersScreen> {
       builder: (_) => RemoveConfirmDialogWidget(count: _selected.length),
     );
 
-    if (confirmed == true) {
-      Navigator.of(context).pop(_selected.toList());
+    if (confirmed != true) return;
+
+    final selectedIds = _selected.toList();
+
+    // If there is an onRemove callback, call it and show an inline progress indicator inside this screen.
+    // The screen is responsible for showing the notification (SnackBar) here.
+    if (widget.onRemove != null) {
+      setState(() => _processing = true);
+      try {
+        await widget.onRemove!(selectedIds);
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                // uses translation key and replaces {count}
+                'removedMembers'
+                    .tr()
+                    .replaceFirst('{count}', selectedIds.length.toString()),
+              ),
+              backgroundColor: _purple,
+            ),
+          );
+          Navigator.of(context).pop(selectedIds);
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('errorRemovingMember'.tr())),
+          );
+        }
+      } finally {
+        if (mounted) setState(() => _processing = false);
+      }
+    } else {
+      // No server removal here — return selected ids to parent and show a small snackbar inside screen
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('${selectedIds.length} ${'selected'.tr()}')),
+        );
+        Navigator.of(context).pop(selectedIds);
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    // Filter out the owner/creator from the displayed list (owner is not included in remove)
     final filteredMembers =
         widget.members.where((m) => m.id != widget.creatorId).toList();
 
-    return Scaffold(
-      backgroundColor: Colors.grey[50],
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        centerTitle: false, // left-align title
-        titleSpacing: 0, // align title near leading icon like screenshot
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: _purple),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-        title: const Text(
-          'Remove people from Circle',
-          // smaller and black as requested
-          style: TextStyle(
-            color: Colors.black,
-            fontWeight: FontWeight.w600,
-            fontSize: 16,
+    // Prevent popping while processing
+    return WillPopScope(
+      onWillPop: () async => !_processing,
+      child: Scaffold(
+        backgroundColor: Colors.grey[50],
+        appBar: AppBar(
+          backgroundColor: Colors.white,
+          elevation: 0,
+          centerTitle: false,
+          titleSpacing: 0,
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back, color: _purple),
+            onPressed: _processing ? null : () => Navigator.of(context).pop(),
           ),
-        ),
-        actions: [
-          // "Remove(n)" small (~13px) and purple when enabled
-          Padding(
-            padding: const EdgeInsets.only(right: 8.0),
-            child: TextButton(
-              onPressed: _hasSelection ? _confirmAndReturn : null,
-              child: Text(
-                'Remove(${_selected.length})',
-                style: TextStyle(
-                  color: _hasSelection ? _purple : Colors.grey,
-                  fontWeight: FontWeight.w700,
-                  fontSize: 13, // made smaller per request
+          // localized title: Remove people from Space
+          title: Text(
+            'removePeopleFromSpace'.tr(),
+            style: const TextStyle(
+              color: Colors.black,
+              fontWeight: FontWeight.w600,
+              fontSize: 16,
+            ),
+          ),
+          actions: [
+            Padding(
+              padding: const EdgeInsets.only(right: 8.0),
+              child: TextButton(
+                onPressed:
+                    _hasSelection && !_processing ? _confirmAndReturn : null,
+                child: Text(
+                  '${'remove'.tr()}(${_selected.length})',
+                  style: TextStyle(
+                    color: _hasSelection ? _purple : Colors.grey,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 13,
+                  ),
                 ),
               ),
             ),
-          ),
-        ],
-      ),
-
-      // body: small section header then the list (matches provided image)
-      body: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // section header "Circle Management"
-          Container(
-            width: double.infinity,
-            color: Colors.grey[200],
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-            child: Text(
-              'Circle Management',
-              style: TextStyle(
-                color: Colors.grey[600],
-                fontWeight: FontWeight.w700,
-                fontSize: 14,
+          ],
+        ),
+        body: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // section header "Space Management"
+            Container(
+              width: double.infinity,
+              color: Colors.grey[200],
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              child: Text(
+                'spaceManagement'.tr(),
+                style: TextStyle(
+                  color: Colors.grey[600],
+                  fontWeight: FontWeight.w700,
+                  fontSize: 14,
+                ),
               ),
             ),
-          ),
 
-          // list
-          Expanded(
-            child: ListView.separated(
-              itemCount: filteredMembers.length,
-              separatorBuilder: (_, __) =>
-                  Divider(height: 1, color: Colors.grey[200]),
-              itemBuilder: (context, i) {
-                final m = filteredMembers[i];
+            // body area:
+            Expanded(
+              child: Builder(builder: (context) {
+                // Show the *shimmer* when either:
+                // - the screen was constructed with isLoading == true (initial load)
+                // - OR the remove operation is currently processing (_processing == true)
+                if (widget.isLoading || _processing) {
+                  return const ShimmerRemoveMembers(rows: 6);
+                }
 
-                // disabled if it's the current user (can't remove themself).
-                // Owner already filtered out above.
-                final disabled = (m.id == widget.currentUserId);
+                // Empty state after owner is filtered out
+                if (filteredMembers.isEmpty) {
+                  return Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        // Purple icon per request
+                        Icon(Icons.group_off, size: 72, color: _purple),
+                        const SizedBox(height: 12),
+                        Text(
+                          'noOtherMembersInSpace'.tr(),
+                          style: TextStyle(
+                            color: Colors.grey[600],
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
+                    ),
+                  );
+                }
 
-                return RemoveMemberListTile(
-                  member: m,
-                  disabled: disabled,
-                  selected: _selected.contains(m.id),
-                  onTap: () {
-                    if (!disabled) _toggle(m.id);
+                // Normal list
+                return ListView.separated(
+                  itemCount: filteredMembers.length,
+                  separatorBuilder: (_, __) =>
+                      Divider(height: 1, color: Colors.grey[200]),
+                  itemBuilder: (context, i) {
+                    final m = filteredMembers[i];
+                    final disabled = (m.id == widget.currentUserId);
+                    return RemoveMemberListTile(
+                      member: m,
+                      disabled: disabled,
+                      selected: _selected.contains(m.id),
+                      onTap: () {
+                        if (!disabled) _toggle(m.id);
+                      },
+                    );
                   },
                 );
-              },
+              }),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

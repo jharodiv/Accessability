@@ -530,30 +530,22 @@ class _SpaceManagementScreenState extends State<SpaceManagementScreen> {
                   return;
 
                 final currentUser = _auth.currentUser;
-                if (currentUser == null) return;
+                if (currentUser == null) throw Exception('not_signed_in');
 
                 final spaceService = _spaceService;
                 final chatService = ChatService();
                 int success = 0;
 
-                // show a progress indicator while removals occur
-                showDialog(
-                  context: context,
-                  barrierDismissible: false,
-                  builder: (_) =>
-                      const Center(child: CircularProgressIndicator()),
-                );
-
                 for (final rid in removedIds) {
                   try {
-                    // server-side permission checked remove
+                    // server-side removal (permission checks should be done in service)
                     await spaceService.removeMember(
                       spaceId: _selectedSpaceId!,
                       userId: rid,
                       performedBy: currentUser.uid,
                     );
 
-                    // remove from chat room (best-effort)
+                    // best-effort: remove from space chat room
                     try {
                       await chatService.removeMemberFromSpaceChatRoom(
                           _selectedSpaceId!, rid);
@@ -565,31 +557,16 @@ class _SpaceManagementScreenState extends State<SpaceManagementScreen> {
                     success++;
                   } catch (e) {
                     debugPrint('Error removing $rid : $e');
-                    // continue removing others
+                    // continue trying other removals
                   }
                 }
 
-                // hide progress dialog
-                Navigator.of(context).pop();
-
-                // show a subtle purple snackbar if any were removed, otherwise an error snackbar
-                if (success > 0) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('$success member(s) removed'),
-                      backgroundColor: const Color(0xFF6750A4),
-                      behavior: SnackBarBehavior.floating,
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8)),
-                      margin: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 12),
-                    ),
-                  );
-                } else {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('errorRemovingMember'.tr())),
-                  );
+                // If nothing was removed, throw so the caller (RemoveMembersScreen) shows an error.
+                if (success <= 0) {
+                  throw Exception('no_members_removed');
                 }
+
+                // otherwise return silently — RemoveMembersScreen shows success snackbar and pops.
               },
 
               onEditName: (newName) async {
@@ -599,7 +576,7 @@ class _SpaceManagementScreenState extends State<SpaceManagementScreen> {
                   // maybe prompt user to pick a space first
                 }
               },
-              onViewAdmin: () async {
+              onViewAdmin: () {
                 if (_selectedSpaceId == null) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(content: Text('Please select a space'.tr())),
@@ -607,82 +584,23 @@ class _SpaceManagementScreenState extends State<SpaceManagementScreen> {
                   return;
                 }
 
-                // show loading indicator
-                showDialog(
-                  context: context,
-                  barrierDismissible: false,
-                  builder: (_) =>
-                      const Center(child: CircularProgressIndicator()),
-                );
-
-                try {
-                  // fetch space doc to read members/admins/creator
-                  final doc = await _spaceService.getSpace(_selectedSpaceId!);
-                  final data = (doc.data() as Map<String, dynamic>?) ?? {};
-                  final List<dynamic> memberIdsDynamic =
-                      data['members'] ?? <dynamic>[];
-                  final List<String> memberIds =
-                      memberIdsDynamic.map((e) => e.toString()).toList();
-                  final List<dynamic> adminsDynamic =
-                      data['admins'] ?? <dynamic>[];
-                  final List<String> adminIds =
-                      adminsDynamic.map((e) => e.toString()).toList();
-                  final String creatorId = (data['creator'] ?? '') as String;
-
-                  // If no members (shouldn't happen since current user is a member) show placeholder screen:
-                  if (memberIds.isEmpty) {
-                    Navigator.of(context).pop(); // remove loader
-                    Navigator.of(context).push(MaterialPageRoute(
-                      builder: (_) => ChangeAdminStatusScreen(
-                        members: const [],
-                        currentUserId: _auth.currentUser!.uid,
-                        creatorId: creatorId,
-                        onAddMember: () {
-                          // reuse existing add flow
-                          if (_selectedSpaceId != null) {
-                            Navigator.of(context).push(MaterialPageRoute(
-                              builder: (_) => VerificationCodeScreen(
-                                  spaceId: _selectedSpaceId!,
-                                  spaceName: _selectedSpaceName),
-                            ));
-                          }
-                        },
-                      ),
-                    ));
-                    return;
-                  }
-
-                  // fetch users data for the memberIds (batch query whereIn; keep chunking if >10 in production)
-                  final usersQuery = await _firestore
-                      .collection('Users')
-                      .where('uid', whereIn: memberIds)
-                      .get();
-                  final membersData = usersQuery.docs.map((d) {
-                    final m = d.data() as Map<String, dynamic>;
-                    final uid = (m['uid'] ?? d.id).toString();
-                    return <String, dynamic>{
-                      'id': uid,
-                      'username':
-                          (m['username'] ?? m['displayName'] ?? 'Unknown')
-                              .toString(),
-                      'profilePicture': (m['profilePicture'] ?? '').toString(),
-                      'isAdmin': adminIds.contains(uid) || (creatorId == uid),
-                    };
-                  }).toList();
-
-                  Navigator.of(context).pop(); // remove loader
-                  Navigator.of(context).push(MaterialPageRoute(
+                Navigator.of(context).push(
+                  MaterialPageRoute(
                     builder: (_) => ChangeAdminStatusScreen(
-                      members: membersData,
                       currentUserId: _auth.currentUser!.uid,
-                      creatorId: creatorId,
+                      creatorId: _selectedSpaceId == null
+                          ? ''
+                          : _selectedSpaceName ??
+                              '', // keep existing creatorId usage if you want; not required if autoLoadMembers true
+                      spaceId: _selectedSpaceId,
+                      autoLoadMembers: true,
                       onAddMember: () {
-                        // reuse existing add flow
                         if (_selectedSpaceId != null) {
                           Navigator.of(context).push(MaterialPageRoute(
                             builder: (_) => VerificationCodeScreen(
-                                spaceId: _selectedSpaceId!,
-                                spaceName: _selectedSpaceName),
+                              spaceId: _selectedSpaceId!,
+                              spaceName: _selectedSpaceName,
+                            ),
                           ));
                         }
                       },
@@ -706,14 +624,9 @@ class _SpaceManagementScreenState extends State<SpaceManagementScreen> {
                         }
                       },
                     ),
-                  ));
-                } catch (e) {
-                  Navigator.of(context).pop(); // remove loader
-                  ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('errorLoadingMembers'.tr())));
-                }
+                  ),
+                );
               },
-
               onAddPeople: () {
                 if (_selectedSpaceId == null ||
                     (_selectedSpaceId ?? '').trim().isEmpty) {

@@ -350,6 +350,8 @@ class SpaceManagementList extends StatelessWidget {
                       );
                     }).toList();
 
+                    // PASS the parent removal callback into the RemoveMembersScreen so it can execute removal
+                    // and show the notification inside that screen.
                     final removed =
                         await Navigator.of(context).push<List<String>>(
                       MaterialPageRoute(
@@ -358,22 +360,15 @@ class SpaceManagementList extends StatelessWidget {
                           creatorId: creatorId,
                           adminIds: adminIds,
                           currentUserId: currentUser.uid,
+                          onRemove: onRemoveMembers, // <-- pass it here
                         ),
                       ),
                     );
 
+                    // Do not call onRemoveMembers again here — the RemoveMembersScreen already invoked it (if provided)
+                    // If removed != null you can optionally refresh UI here, but avoid showing the removal SnackBar here.
                     if (removed != null && removed.isNotEmpty) {
-                      // forward to parent via callback so the parent (SpaceManagementScreen) can perform server removals
-                      if (onRemoveMembers != null) {
-                        await onRemoveMembers!(removed);
-                      } else {
-                        // fallback: show a snackbar
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                              content:
-                                  Text('${removed.length} member(s) selected')),
-                        );
-                      }
+                      // optional: trigger any local UI refresh or logs — avoid duplicate Snackbar
                     }
                   },
                 ),

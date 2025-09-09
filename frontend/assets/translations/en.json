@@ -273,5 +273,9 @@
   "adminDemoted": "Demoted {name}",
   "destination_reached": "Destination Reached",
   "you_have_arrived_at_destination": "You have arrived at your destination. Navigation will now stop.",
-  "pwd": "PWD"
+  "pwd": "PWD",
+  "removePeopleFromSpace": "Remove people from Space",
+  "noOtherMembersInSpace": "There are no other members in this space.",
+  "removedMembers": "{count} member(s) removed",
+  "selected": "selected"
 }

@@ -101,94 +101,211 @@ class _ChatConvoScreenState extends State<ChatConvoScreen> {
     showDialog(
       context: context,
       builder: (context) {
-        return AlertDialog(
-          title: Text('Edit Message'),
-          content: TextField(
-            controller: editController,
-            maxLines: 3,
-            decoration: InputDecoration(hintText: 'Edit your message...'),
+        final bool isDarkMode = Provider.of<ThemeProvider>(context).isDarkMode;
+
+        return Dialog(
+          backgroundColor: isDarkMode ? Colors.grey[900] : Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
           ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.pop(context);
-                setState(() {
-                  editingMessageId = null;
-                });
-              },
-              child: Text('Cancel'),
-            ),
-            TextButton(
-              onPressed: () async {
-                if (editController.text.trim().isNotEmpty) {
-                  try {
-                    final chatRoomId = chatService.getChatRoomId(
-                      _auth.currentUser!.uid,
-                      widget.receiverID,
-                    );
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Edit Message',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: isDarkMode ? Colors.white : Colors.black,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Container(
+                  decoration: BoxDecoration(
+                    color: isDarkMode ? Colors.grey[800] : Colors.grey[100],
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: TextField(
+                    controller: editController,
+                    maxLines: 3,
+                    style: TextStyle(
+                      color: isDarkMode ? Colors.white : Colors.black,
+                    ),
+                    decoration: InputDecoration(
+                      hintText: 'Edit your message...',
+                      hintStyle: TextStyle(
+                        color: isDarkMode ? Colors.white60 : Colors.grey[600],
+                      ),
+                      border: InputBorder.none,
+                      contentPadding: const EdgeInsets.all(16),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    TextButton(
+                      onPressed: () {
+                        Navigator.pop(context);
+                        setState(() {
+                          editingMessageId = null;
+                        });
+                      },
+                      child: Text(
+                        'Cancel',
+                        style: TextStyle(
+                          color: isDarkMode ? Colors.white70 : Colors.grey[700],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Container(
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF6750A4),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: TextButton(
+                        onPressed: () async {
+                          if (editController.text.trim().isNotEmpty) {
+                            try {
+                              final chatRoomId = chatService.getChatRoomId(
+                                _auth.currentUser!.uid,
+                                widget.receiverID,
+                              );
 
-                    await chatService.editMessage(
-                      chatRoomId: chatRoomId,
-                      messageId: messageId,
-                      newMessage: editController.text.trim(),
-                      isSpaceChat: widget.isSpaceChat,
-                    );
+                              await chatService.editMessage(
+                                chatRoomId: chatRoomId,
+                                messageId: messageId,
+                                newMessage: editController.text.trim(),
+                                isSpaceChat: widget.isSpaceChat,
+                              );
 
-                    Navigator.pop(context);
-                    setState(() {
-                      editingMessageId = null;
-                    });
-                  } catch (e) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Failed to edit message: $e')),
-                    );
-                  }
-                }
-              },
-              child: Text('Save'),
+                              Navigator.pop(context);
+                              setState(() {
+                                editingMessageId = null;
+                              });
+                            } catch (e) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('Failed to edit message: $e'),
+                                  backgroundColor: Colors.red,
+                                ),
+                              );
+                            }
+                          }
+                        },
+                        child: const Text(
+                          'Save',
+                          style: TextStyle(color: Colors.white),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ),
-          ],
+          ),
         );
       },
     );
   }
 
   void _deleteMessage(String messageId) {
+    final bool isDarkMode = Provider.of<ThemeProvider>(context).isDarkMode;
+
     showDialog(
       context: context,
       builder: (context) {
-        return AlertDialog(
-          title: Text('Delete Message'),
-          content: Text('Are you sure you want to delete this message?'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: Text('Cancel'),
-            ),
-            TextButton(
-              onPressed: () async {
-                try {
-                  final chatRoomId = chatService.getChatRoomId(
-                    _auth.currentUser!.uid,
-                    widget.receiverID,
-                  );
+        return Dialog(
+          backgroundColor: isDarkMode ? Colors.grey[900] : Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.warning,
+                  color: Colors.orange,
+                  size: 40,
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'Delete Message',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: isDarkMode ? Colors.white : Colors.black,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Are you sure you want to delete this message?',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: isDarkMode ? Colors.white70 : Colors.grey[700],
+                  ),
+                ),
+                const SizedBox(height: 20),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: Text(
+                        'Cancel',
+                        style: TextStyle(
+                          color: isDarkMode ? Colors.white70 : Colors.grey[700],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Container(
+                      decoration: BoxDecoration(
+                        color: Colors.red,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: TextButton(
+                        onPressed: () async {
+                          try {
+                            final chatRoomId = chatService.getChatRoomId(
+                              _auth.currentUser!.uid,
+                              widget.receiverID,
+                            );
 
-                  await chatService.deleteMessage(
-                    chatRoomId: chatRoomId,
-                    messageId: messageId,
-                    isSpaceChat: widget.isSpaceChat,
-                  );
+                            await chatService.deleteMessage(
+                              chatRoomId: chatRoomId,
+                              messageId: messageId,
+                              isSpaceChat: widget.isSpaceChat,
+                            );
 
-                  Navigator.pop(context);
-                } catch (e) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Failed to delete message: $e')),
-                  );
-                }
-              },
-              child: Text('Delete', style: TextStyle(color: Colors.red)),
+                            Navigator.pop(context);
+                          } catch (e) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('Failed to delete message: $e'),
+                                backgroundColor: Colors.red,
+                              ),
+                            );
+                          }
+                        },
+                        child: const Text(
+                          'Delete',
+                          style: TextStyle(color: Colors.white),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ),
-          ],
+          ),
         );
       },
     );

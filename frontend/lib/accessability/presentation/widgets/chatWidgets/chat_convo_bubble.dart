@@ -18,11 +18,11 @@ class ChatConvoBubble extends StatefulWidget {
   final Function(String emoji)? onReact;
   final bool isSystemMessage;
   final Map<String, dynamic>? metadata;
-  final bool edited; // Add this
-  final bool deleted; // Add this
-  final String messageId; // Add this to identify the message
-  final String chatRoomId; // Add this to identify the chat room
-  final bool isSpaceChat; // Add this
+  final bool edited;
+  final bool deleted;
+  final String messageId;
+  final String chatRoomId;
+  final bool isSpaceChat;
 
   const ChatConvoBubble({
     super.key,
@@ -35,11 +35,11 @@ class ChatConvoBubble extends StatefulWidget {
     this.onReact,
     this.isSystemMessage = false,
     this.metadata,
-    this.edited = false, // Initialize
-    this.deleted = false, // Initialize
-    required this.messageId, // Required
-    required this.chatRoomId, // Required
-    this.isSpaceChat = false, // Initialize
+    this.edited = false,
+    this.deleted = false,
+    required this.messageId,
+    required this.chatRoomId,
+    this.isSpaceChat = false,
   });
 
   @override
@@ -163,11 +163,6 @@ class _ChatConvoBubbleState extends State<ChatConvoBubble> {
     bool isDarkMode =
         Provider.of<ThemeProvider>(context, listen: false).isDarkMode;
 
-    // Handle deleted messages
-    if (widget.deleted) {
-      return _buildDeletedMessage(context, isDarkMode);
-    }
-
     final isVerificationCode = widget.metadata != null &&
         widget.metadata!['type'] == 'verification_code';
 
@@ -181,184 +176,13 @@ class _ChatConvoBubbleState extends State<ChatConvoBubble> {
       return _buildSystemMessage(context, isDarkMode);
     }
 
-    final DateTime messageDate = widget.timestamp.toDate();
-    final DateTime now = DateTime.now();
-    final bool isThisWeek = now.difference(messageDate).inDays <= 7;
+    // Handle deleted messages
+    if (widget.deleted) {
+      return _buildDeletedMessage(context, isDarkMode);
+    }
 
-    String formattedTime = isThisWeek
-        ? DateFormat('E hh:mm a').format(messageDate)
-        : DateFormat('MMM d, yyyy hh:mm a').format(messageDate);
-
-    return Row(
-      mainAxisAlignment: widget.isCurrentUser
-          ? MainAxisAlignment.end
-          : MainAxisAlignment.start,
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        if (!widget.isCurrentUser)
-          CircleAvatar(
-            backgroundImage: NetworkImage(widget.profilePicture),
-          ),
-        const SizedBox(width: 8),
-        Flexible(
-          child: InkWell(
-            onTap: () {
-              setState(() {
-                _showTimestamp = !_showTimestamp;
-              });
-            },
-            onLongPress: () => _showOptionsMenu(context),
-            borderRadius: BorderRadius.circular(12),
-            child: Container(
-              constraints: BoxConstraints(
-                maxWidth: MediaQuery.of(context).size.width * 0.7,
-              ),
-              decoration: BoxDecoration(
-                color: widget.isCurrentUser
-                    ? const Color(0xFF6750A4)
-                    : (isDarkMode
-                        ? const Color.fromARGB(255, 65, 63, 71)
-                        : const Color.fromARGB(255, 145, 141, 141)),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              padding: const EdgeInsets.all(12),
-              margin: const EdgeInsets.symmetric(vertical: 5, horizontal: 8),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  if (_location != null) _buildMapPreview(_location!),
-                  Text(
-                    widget.message,
-                    style: TextStyle(
-                      color: widget.isCurrentUser
-                          ? Colors.white
-                          : (isDarkMode ? Colors.white : Colors.black),
-                      fontSize: 14,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  if (_showTimestamp)
-                    Text(
-                      formattedTime,
-                      style: TextStyle(
-                        color: widget.isCurrentUser
-                            ? Colors.white70
-                            : Colors.black54,
-                        fontSize: 10,
-                      ),
-                    ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildDeletedMessage(BuildContext context, bool isDarkMode) {
-    return Row(
-      mainAxisAlignment: widget.isCurrentUser
-          ? MainAxisAlignment.end
-          : MainAxisAlignment.start,
-      children: [
-        Container(
-          padding: const EdgeInsets.all(12),
-          margin: const EdgeInsets.symmetric(vertical: 5, horizontal: 8),
-          decoration: BoxDecoration(
-            color: isDarkMode ? Colors.grey[800] : Colors.grey[300],
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Text(
-            'This message was deleted',
-            style: TextStyle(
-              color: isDarkMode ? Colors.white70 : Colors.grey[600],
-              fontStyle: FontStyle.italic,
-              fontSize: 14,
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildNormalMessage(BuildContext context, bool isDarkMode) {
-    return Row(
-      mainAxisAlignment: widget.isCurrentUser
-          ? MainAxisAlignment.end
-          : MainAxisAlignment.start,
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        if (!widget.isCurrentUser)
-          CircleAvatar(
-            backgroundImage: NetworkImage(widget.profilePicture),
-          ),
-        const SizedBox(width: 8),
-        Flexible(
-          child: InkWell(
-            onTap: () {
-              setState(() {
-                _showTimestamp = !_showTimestamp;
-              });
-            },
-            onLongPress: () => _showOptionsMenu(context),
-            borderRadius: BorderRadius.circular(12),
-            child: Container(
-              constraints: BoxConstraints(
-                maxWidth: MediaQuery.of(context).size.width * 0.7,
-              ),
-              decoration: BoxDecoration(
-                color: widget.isCurrentUser
-                    ? const Color(0xFF6750A4)
-                    : (isDarkMode
-                        ? const Color.fromARGB(255, 65, 63, 71)
-                        : const Color.fromARGB(255, 145, 141, 141)),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              padding: const EdgeInsets.all(12),
-              margin: const EdgeInsets.symmetric(vertical: 5, horizontal: 8),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  if (_location != null) _buildMapPreview(_location!),
-                  Text(
-                    widget.message,
-                    style: TextStyle(
-                      color: widget.isCurrentUser
-                          ? Colors.white
-                          : (isDarkMode ? Colors.white : Colors.black),
-                      fontSize: 14,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  if (widget.edited)
-                    Text(
-                      'edited',
-                      style: TextStyle(
-                        color: widget.isCurrentUser
-                            ? Colors.white70
-                            : Colors.black54,
-                        fontSize: 10,
-                        fontStyle: FontStyle.italic,
-                      ),
-                    ),
-                  if (_showTimestamp)
-                    Text(
-                      _formatTimestamp(widget.timestamp),
-                      style: TextStyle(
-                        color: widget.isCurrentUser
-                            ? Colors.white70
-                            : Colors.black54,
-                        fontSize: 10,
-                      ),
-                    ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
+    // Use the normal message builder
+    return _buildNormalMessage(context, isDarkMode);
   }
 
   Widget _buildVerificationCodeBubble(BuildContext context, bool isDarkMode) {
@@ -372,12 +196,10 @@ class _ChatConvoBubbleState extends State<ChatConvoBubble> {
       verificationCode: verificationCode,
       codeTimestamp: codeTimestamp,
       expiresAt: expiresAt,
-      isSpaceMember:
-          false, // This will be checked in the VerificationCodeBubble itself
+      isSpaceMember: false,
     );
   }
 
-  // Build system message widget
   Widget _buildSystemMessage(BuildContext context, bool isDarkMode) {
     final DateTime messageDate = widget.timestamp.toDate();
     final DateTime now = DateTime.now();
@@ -422,6 +244,122 @@ class _ChatConvoBubbleState extends State<ChatConvoBubble> {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildDeletedMessage(BuildContext context, bool isDarkMode) {
+    return Row(
+      mainAxisAlignment: widget.isCurrentUser
+          ? MainAxisAlignment.end
+          : MainAxisAlignment.start,
+      children: [
+        Container(
+          padding: const EdgeInsets.all(12),
+          margin: const EdgeInsets.symmetric(vertical: 5, horizontal: 8),
+          decoration: BoxDecoration(
+            color: isDarkMode ? Colors.grey[800] : Colors.grey[300],
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Text(
+            'This message was deleted',
+            style: TextStyle(
+              color: isDarkMode ? Colors.white70 : Colors.grey[600],
+              fontStyle: FontStyle.italic,
+              fontSize: 14,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildNormalMessage(BuildContext context, bool isDarkMode) {
+    return Row(
+      mainAxisAlignment: widget.isCurrentUser
+          ? MainAxisAlignment.end
+          : MainAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        if (!widget.isCurrentUser)
+          CircleAvatar(
+            backgroundImage: NetworkImage(widget.profilePicture),
+            radius: 16,
+          ),
+        const SizedBox(width: 8),
+        Flexible(
+          child: Column(
+            crossAxisAlignment: widget.isCurrentUser
+                ? CrossAxisAlignment.end
+                : CrossAxisAlignment.start,
+            children: [
+              // "Edited" label above the message bubble
+              if (widget.edited)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 2),
+                  child: Text(
+                    'edited',
+                    style: TextStyle(
+                      color: isDarkMode ? Colors.white54 : Colors.grey[600],
+                      fontSize: 10,
+                      fontStyle: FontStyle.italic,
+                    ),
+                  ),
+                ),
+              InkWell(
+                onTap: () {
+                  setState(() {
+                    _showTimestamp = !_showTimestamp;
+                  });
+                },
+                onLongPress: () => _showOptionsMenu(context),
+                borderRadius: BorderRadius.circular(12),
+                child: Container(
+                  constraints: BoxConstraints(
+                    maxWidth: MediaQuery.of(context).size.width * 0.7,
+                  ),
+                  decoration: BoxDecoration(
+                    color: widget.isCurrentUser
+                        ? const Color(0xFF6750A4)
+                        : (isDarkMode
+                            ? const Color.fromARGB(255, 65, 63, 71)
+                            : const Color.fromARGB(255, 145, 141, 141)),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  padding: const EdgeInsets.all(12),
+                  margin: const EdgeInsets.symmetric(vertical: 2),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (_location != null) _buildMapPreview(_location!),
+                      Text(
+                        widget.message,
+                        style: TextStyle(
+                          color: widget.isCurrentUser
+                              ? Colors.white
+                              : (isDarkMode ? Colors.white : Colors.black),
+                          fontSize: 14,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              // Timestamp below the message bubble
+              if (_showTimestamp)
+                Padding(
+                  padding: const EdgeInsets.only(top: 2),
+                  child: Text(
+                    _formatTimestamp(widget.timestamp),
+                    style: TextStyle(
+                      color: isDarkMode ? Colors.white54 : Colors.grey[600],
+                      fontSize: 10,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 

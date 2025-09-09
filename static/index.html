@@ -4,70 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Open App</title>
-  <style>
-    body {
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      height: 100vh;
-      font-family: sans-serif;
-      margin: 0;
-      background-color: #f9f9f9;
-      text-align: center;
-    }
-    .download-btn {
-      display: inline-block;
-      margin-top: 20px;
-      padding: 12px 24px;
-      background: #6750A4;
-      color: white;
-      text-decoration: none;
-      border-radius: 8px;
-      font-weight: bold;
-    }
-  </style>
-  <script>
-    async function saveDeepLink(deviceId, code) {
-      try {
-        await fetch("https://3-y2-aapwd-xqeh-nlz2d5lcu-cdmr007s-projects.vercel.app/api/save-deeplink", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ deviceId, inviteCode: code })
-        });
-      } catch (err) {
-        console.error("❌ Failed to save deeplink:", err);
-      }
-    }
-
-    window.onload = async function() {
-      const start = Date.now();
-
-      // Get invite code from query params
-      const params = new URLSearchParams(window.location.search);
-      const code = params.get("code");
-
-      // Generate temporary deviceId
-      const deviceId = crypto.randomUUID();
-
-      // Save inviteCode → Redis via API
-      if (code) {
-        await saveDeepLink(deviceId, code);
-      }
-
-      // Build deep link with deviceId (not the raw code!)
-      let deepLink = "accessability://open/joinspace?deviceId=" + encodeURIComponent(deviceId);
-
-      // Try to open app
-      window.location = deepLink;
-
-      // Fallback → if not installed, redirect to APK
-      setTimeout(() => {
-        if (Date.now() - start >= 1500) {
-          window.location = "https://github.com/Montilla007/3Y2AAPWD/releases/latest/download/app-release.apk";
-        }
-      }, 1500);
-    };
-  </script>
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <div>
@@ -77,5 +14,7 @@
       Download APK
     </a>
   </div>
+
+  <script src="app.js"></script>
 </body>
 </html>

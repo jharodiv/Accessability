@@ -32,7 +32,7 @@ import 'package:accessability/accessability/presentation/screens/gpsscreen/pwd_f
 import 'package:accessability/accessability/presentation/widgets/accessability_footer.dart'
     show Accessabilityfooter;
 import 'package:accessability/accessability/presentation/widgets/google_helper/map_view_screen.dart'
-    show MapViewScreen;
+    show MapViewScreen, MapPerspectivePicker;
 import 'package:accessability/accessability/presentation/widgets/google_helper/openstreetmap_helper.dart'
     show OpenStreetMapHelper;
 import 'package:accessability/accessability/presentation/widgets/gpsWidgets/circle_manager.dart';
@@ -134,6 +134,8 @@ class _GpsScreenState extends State<GpsScreen> {
   LatLng? _routeDestination;
   List<LatLng> _routePoints = [];
   bool _isWheelchairFriendlyRoute = false;
+  bool _isApplyingPerspective = false;
+
   Timer?
       _routeUpdateTimer; // used only to decide icon state (kept for minimal changes)
 
@@ -1261,76 +1263,201 @@ class _GpsScreenState extends State<GpsScreen> {
     _locationHandler.updateActiveSpaceId('');
   }
 
-  void applyMapPerspective(MapPerspective perspective) {
+  Future<void> applyMapPerspective(MapPerspective perspective) async {
+    if (_isApplyingPerspective) {
+      debugPrint('[GpsScreen] applyMapPerspective ignored — already applying');
+      return;
+    }
+    _isApplyingPerspective = true;
+
     debugPrint('[GpsScreen] applyMapPerspective called with -> $perspective');
+
     final currentLatLng =
         _locationHandler.currentLocation ?? const LatLng(16.0430, 120.3333);
-
     final newMapType = MapPerspectiveUtils.mapTypeFor(perspective);
     final newPosition =
         MapPerspectiveUtils.cameraPositionFor(perspective, currentLatLng);
 
-    // debug info
     debugPrint(
-        '[GpsScreen] old mapType=$_currentMapType -> new mapType=$newMapType');
+        '[GpsScreen] will set mapType=$_currentMapType -> newMapType=$newMapType');
     debugPrint(
         '[GpsScreen] newCameraPosition: zoom=${newPosition.zoom}, tilt=${newPosition.tilt}, bearing=${newPosition.bearing}');
 
+    // Update mapType immediately (no key recreation)
     setState(() {
       _currentMapType = newMapType;
     });
 
-    // force a full rebuild of the GpsMap by nudging its key (see below)
-    _mapKey = ValueKey(
-        'map_${_currentMapType.toString()}_${DateTime.now().millisecondsSinceEpoch}');
+    // Try immediate camera update if controller is available
+    final controller = _locationHandler.mapController;
+    if (controller != null) {
+      try {
+        // Use moveCamera for instant jump; switch to animateCamera if you prefer animation
+        await controller
+            .moveCamera(CameraUpdate.newCameraPosition(newPosition));
+        debugPrint('[GpsScreen] camera moved to perspective $perspective');
+      } catch (e, st) {
+        debugPrint('[GpsScreen] moveCamera error: $e\n$st');
+      } finally {
+        _isApplyingPerspective = false;
+      }
+      return;
+    }
 
-    if (_locationHandler.mapController != null) {
-      debugPrint('[GpsScreen] animateCamera -> controller present, animating');
-      _locationHandler.mapController!
-          .animateCamera(
-        CameraUpdate.newCameraPosition(newPosition),
-      )
-          .catchError((e) {
-        debugPrint('[GpsScreen] animateCamera error: $e');
-      });
+    // If controller is null, store the pending perspective so _onMapCreated can apply it later.
+    debugPrint(
+        '[GpsScreen] mapController is null — saving pending perspective for later');
+    _pendingPerspective = perspective;
+
+    // Optional: wait a short time for controller then try again (non-blocking)
+    // (we attempt a short poll so users who quickly open settings then return still see it)
+    const waitTimeout = Duration(seconds: 3);
+    final deadline = DateTime.now().add(waitTimeout);
+    while (_locationHandler.mapController == null &&
+        DateTime.now().isBefore(deadline)) {
+      await Future.delayed(const Duration(milliseconds: 50));
+    }
+
+    final lateController = _locationHandler.mapController;
+    if (lateController != null) {
+      try {
+        await lateController
+            .moveCamera(CameraUpdate.newCameraPosition(newPosition));
+        debugPrint(
+            '[GpsScreen] late camera move applied after controller became ready');
+        _pendingPerspective = null;
+      } catch (e, st) {
+        debugPrint('[GpsScreen] late moveCamera error: $e\n$st');
+      }
     } else {
-      debugPrint('[GpsScreen] mapController is null — camera animate skipped');
+      debugPrint(
+          '[GpsScreen] controller still null after waiting — pending kept');
+    }
+
+    _isApplyingPerspective = false;
+  }
+
+  String _mapTypeName(MapPerspective p) {
+    switch (p) {
+      case MapPerspective.aerial:
+        return 'satellite';
+      case MapPerspective.terrain:
+        return 'terrain';
+      case MapPerspective.street:
+        return 'hybrid';
+      case MapPerspective.perspective:
+        // static maps can't tilt — satellite is the closest
+        return 'satellite';
+      case MapPerspective.classic:
+      default:
+        return 'roadmap';
     }
   }
 
-  Future<void> _openMapSettings() async {
-    debugPrint(
-        '[GpsScreen] _openMapSettings -> attempting push (rootNavigator)');
-    try {
-      final route = MaterialPageRoute(builder: (_) => const MapViewScreen());
-      final result =
-          await Navigator.of(context, rootNavigator: true).push(route);
-      debugPrint('[GpsScreen] _openMapSettings returned -> $result');
+  String? _staticMapUrlFor(MapPerspective p) {
+    // use the API key already in your state
+    if (_googleAPIKey.isEmpty) return null;
 
+    final lat = _locationHandler.currentLocation?.latitude ?? 16.0430;
+    final lng = _locationHandler.currentLocation?.longitude ?? 120.3333;
+    final center = '$lat,$lng';
+    final mapType = _mapTypeName(p);
+    final size = '300x300';
+    final zoom = (p == MapPerspective.street || p == MapPerspective.perspective)
+        ? '17'
+        : '14';
+
+    return 'https://maps.googleapis.com/maps/api/staticmap'
+        '?center=$center&zoom=$zoom&size=$size&scale=2&maptype=$mapType&key=$_googleAPIKey';
+  }
+
+  Future<void> _openMapSettings() async {
+    debugPrint('[GpsScreen] _openMapSettings -> showing bottom sheet');
+    final urls = [
+      _staticMapUrlFor(MapPerspective.classic),
+      _staticMapUrlFor(MapPerspective.aerial),
+      _staticMapUrlFor(MapPerspective.street),
+      _staticMapUrlFor(MapPerspective.perspective),
+    ].whereType<String>().toList();
+
+// prefetch (fire-and-forget)
+    for (final url in urls) {
+      try {
+        precacheImage(NetworkImage(url), context);
+      } catch (e) {
+        debugPrint('precache failed: $e');
+      }
+    }
+    try {
+      final result = await showModalBottomSheet<Map<String, dynamic>>(
+        context: context,
+        useRootNavigator: true, // <- add this
+
+        isScrollControlled: true,
+        backgroundColor: Colors.transparent,
+        builder: (ctx) {
+          return Container(
+            decoration: BoxDecoration(
+              color:
+                  Provider.of<ThemeProvider>(context, listen: false).isDarkMode
+                      ? Colors.grey[900]
+                      : Colors.white,
+              borderRadius:
+                  const BorderRadius.vertical(top: Radius.circular(16)),
+            ),
+            // pass the currently pending or default perspective if you want initial highlight
+            child: MapPerspectivePicker(
+              initialPerspective: _pendingPerspective ?? MapPerspective.classic,
+              currentLocation: _locationHandler.currentLocation,
+            ),
+          );
+        },
+      );
+
+      debugPrint('[GpsScreen] bottom sheet returned -> $result');
+
+      // `MapPerspectivePicker` returns {'perspectiveName': 'classic'} (string)
       dynamic dyn = result;
       if (result is Map<String, dynamic>) {
         dyn = result['perspective'] ??
             result['perspectiveIndex'] ??
             result['perspectiveName'];
       }
+
       final perspective = _mapPerspectiveFromDynamic(dyn);
       if (perspective != null) {
         debugPrint('[GpsScreen] parsed perspective -> $perspective');
-        applyMapPerspective(perspective);
+        await applyMapPerspective(perspective);
       } else {
-        debugPrint('[GpsScreen] no valid perspective extracted from result');
+        debugPrint(
+            '[GpsScreen] no valid perspective returned from bottom sheet');
       }
     } catch (e, st) {
-      debugPrint('[GpsScreen] _openMapSettings push failed: $e\n$st');
+      debugPrint('[GpsScreen] _openMapSettings bottom sheet error: $e\n$st');
     }
   }
 
   void _onMapCreated(GoogleMapController controller, bool isDarkMode) {
     _locationHandler.onMapCreated(controller, isDarkMode);
+
     if (_isLocationFetched && _locationHandler.currentLocation != null) {
       controller.animateCamera(
         CameraUpdate.newLatLng(_locationHandler.currentLocation!),
       );
+    }
+
+    // If a perspective was requested earlier while the controller was unavailable,
+    // apply it now.
+    if (_pendingPerspective != null) {
+      // apply without awaiting so map creation finishes and UI stays responsive
+      final pending = _pendingPerspective;
+      _pendingPerspective = null;
+      if (pending != null) {
+        debugPrint(
+            '[GpsScreen] applying pending perspective from _onMapCreated -> $pending');
+        // call but don't await — applyMapPerspective will check controller existence
+        applyMapPerspective(pending);
+      }
     }
   }
 
@@ -1497,7 +1624,6 @@ class _GpsScreenState extends State<GpsScreen> {
   @override
   Widget build(BuildContext context) {
     final bool isDarkMode = Provider.of<ThemeProvider>(context).isDarkMode;
-    _mapKey = ValueKey(isDarkMode);
     final screenHeight = MediaQuery.of(context).size.height;
 
     return BlocListener<PlaceBloc, place_state.PlaceState>(

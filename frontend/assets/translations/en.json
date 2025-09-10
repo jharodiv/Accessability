@@ -278,5 +278,6 @@
   "noOtherMembersInSpace": "There are no other members in this space.",
   "removedMembers": "{count} member(s) removed",
   "selected": "selected",
-  "hospital": "Hospital"
+  "hospital": "Hospital",
+  "map_types": "Map Types"
 }

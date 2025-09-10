@@ -92,7 +92,6 @@ class _FovOverlayState extends State<FovOverlay> {
   int? _lastZoomBucket; // 0=large,1=mid,2=small
 
   // current radius in meters (static per bucket until bucket changes)
-  double _currentRadiusMeters = 0.0;
 
   // debug prints toggle
   final bool _debug = false;
@@ -100,6 +99,13 @@ class _FovOverlayState extends State<FovOverlay> {
   // Throttle zoom-triggered recomputes so super-fast pinch updates don't blow CPU.
   final int _zoomRecomputeThrottleMs = 50;
   int _lastZoomRecomputeMs = 0;
+  // current radius in meters (static per bucket until bucket changes)
+  double _currentRadiusMeters = 0.0;
+
+  // Once true we will NOT update radius from zoom changes (fixed-beam mode).
+  bool _beamLocked = false;
+
+  double _maxRadiusMeters = double.infinity;
 
   @override
   void initState() {
@@ -214,6 +220,7 @@ class _FovOverlayState extends State<FovOverlay> {
       _lastSeenZoom = z;
 
       // Recompute radius by converting px->meters using current zoom (so it scales smoothly)
+// Recompute radius by converting px->meters using current zoom (so it scales smoothly)
       final LatLng? center = _lastLocation ?? widget.getCurrentLocation();
       if (center != null) {
         // choose px from the current bucket for visual consistency
@@ -226,16 +233,30 @@ class _FovOverlayState extends State<FovOverlay> {
           px = widget.smallBeamPx;
 
         final double mpp = _metersPerPixel(center.latitude, z);
-        final double meters = (px * mpp).clamp(10.0, 350000.0);
-        _currentRadiusMeters = meters;
+        final double computedMeters = (px * mpp).clamp(10.0, 350000.0);
+
+        // initialize max if unset (first meaningful measurement)
+        if (_maxRadiusMeters == double.infinity) {
+          _maxRadiusMeters = computedMeters;
+        }
+
+        // allow shrink (computed < max) but never grow above _maxRadiusMeters
+        _currentRadiusMeters = math.min(computedMeters, _maxRadiusMeters);
+
         _buildGradientCone(_currentRadiusMeters);
       } else {
-        // if no center yet, force a recompute via maybeRecompute
         _maybeRecompute(force: true);
       }
     } catch (e) {
       if (_debug) debugPrint('FOV external zoom error: $e');
     }
+  }
+
+  void resetBeamSizing() {
+    _maxRadiusMeters = double.infinity;
+    _currentRadiusMeters = 0.0;
+    _lastZoomBucket = null;
+    _maybeRecompute(force: true);
   }
 
   // ---- simplified zoom handling: only react when zoom bucket changes ----
@@ -297,23 +318,40 @@ class _FovOverlayState extends State<FovOverlay> {
   /// This is done only when bucket changes so we avoid per-frame work.
   void _updateRadiusForBucket(int bucket) {
     final LatLng? center = _lastLocation ?? widget.getCurrentLocation();
-    if (center == null) return;
+    if (center == null) {
+      _maybeRecompute(force: true);
+      return;
+    }
+
+    // use lastSeenZoom or midpoint if unknown
     final double zoom =
         _lastSeenZoom ?? (widget.zoomCutLarge + widget.zoomCutSmall) / 2.0;
+
     double px;
-    if (bucket == 0) {
+    if (bucket == 0)
       px = widget.largeBeamPx;
-    } else if (bucket == 1) {
+    else if (bucket == 1)
       px = widget.mediumBeamPx;
-    } else {
+    else
       px = widget.smallBeamPx;
-    }
+
     final double mpp = _metersPerPixel(center.latitude, zoom);
-    final double meters = (px * mpp).clamp(10.0, 350000.0);
-    _currentRadiusMeters = meters;
+    final double computedMeters = (px * mpp).clamp(10.0, 350000.0);
+
+    // If max hasn't been set yet, initialize it from this bucket,
+    // otherwise keep the existing _maxRadiusMeters.
+    if (_maxRadiusMeters == double.infinity) {
+      _maxRadiusMeters = computedMeters;
+    }
+
+    // Current radius follows computedMeters but never exceeds the stored max.
+    _currentRadiusMeters = math.min(computedMeters, _maxRadiusMeters);
+
     if (_debug)
       debugPrint(
-          'FOV bucket $bucket -> px:$px mpp:${mpp.toStringAsFixed(2)} m:$meters');
+          'FOV bucket $bucket -> px:$px mpp:${mpp.toStringAsFixed(2)} computed:${computedMeters.toStringAsFixed(2)} max:$_maxRadiusMeters current:$_currentRadiusMeters');
+
+    _buildGradientCone(_currentRadiusMeters);
   }
 
   void _maybeRecompute(

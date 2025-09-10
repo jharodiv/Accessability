@@ -295,7 +295,7 @@ class _VerificationCodeBubbleState extends State<VerificationCodeBubble> {
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 720),
           child: Material(
-            color: Colors.white, // white background as requested
+            color: Colors.grey.shade100, // white background as requested
             elevation: 6,
             borderRadius: BorderRadius.circular(14),
             shadowColor: Colors.black.withOpacity(0.08),
@@ -502,8 +502,8 @@ class _VerificationCodeBubbleState extends State<VerificationCodeBubble> {
                               style: TextStyle(
                                   fontSize: 14,
                                   color: isExpired
-                                      ? Colors.red.shade600
-                                      : Colors.grey.shade700,
+                                      ? Colors.grey.shade600
+                                      : Colors.grey.shade800,
                                   fontWeight: FontWeight.w600),
                             ),
                           ),

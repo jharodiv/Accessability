@@ -1,4 +1,5 @@
 import 'package:accessability/accessability/presentation/widgets/chatWidgets/verification_code_bubble.dart';
+import 'package:accessability/accessability/presentation/widgets/shimmer/shimmer_chat_center_empty.dart';
 import 'package:accessability/accessability/themes/theme_provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -37,6 +38,7 @@ class _ChatConvoScreenState extends State<ChatConvoScreen> {
   bool _isRequestPending = true;
   final FirebaseAuth _auth = FirebaseAuth.instance;
   String? editingMessageId;
+  final Map<String, Map<String, dynamic>> _userCache = {};
 
   @override
   void initState() {
@@ -48,6 +50,19 @@ class _ChatConvoScreenState extends State<ChatConvoScreen> {
       }
     });
     WidgetsBinding.instance.addPostFrameCallback((_) => scrollDown());
+  }
+
+  Future<Map<String, dynamic>> _getUserData(String userId) async {
+    if (_userCache.containsKey(userId)) {
+      return _userCache[userId]!;
+    }
+
+    final snapshot =
+        await FirebaseFirestore.instance.collection('Users').doc(userId).get();
+
+    final data = snapshot.data() ?? {};
+    _userCache[userId] = data;
+    return data;
   }
 
   Future<void> _checkChatRequest() async {
@@ -322,7 +337,7 @@ class _ChatConvoScreenState extends State<ChatConvoScreen> {
   void scrollDown() {
     if (scrollController.hasClients) {
       scrollController.animateTo(
-        scrollController.position.maxScrollExtent,
+        scrollController.position.minScrollExtent, // ✅ with reverse:true
         duration: const Duration(milliseconds: 300),
         curve: Curves.easeOut,
       );
@@ -353,22 +368,50 @@ class _ChatConvoScreenState extends State<ChatConvoScreen> {
             : 'https://firebasestorage.googleapis.com/v0/b/accessability-71ef7.appspot.com/o/profile_pictures%2Fdefault_profile.png?alt=media&token=bc7a75a7-a78e-4460-b816-026a8fc341ba');
 
     return Scaffold(
-      appBar: AppBar(
-        title: Row(
-          children: [
-            CircleAvatar(
-              backgroundImage: NetworkImage(receiverProfilePicture),
+      appBar: PreferredSize(
+        preferredSize: const Size.fromHeight(65),
+        child: Container(
+          decoration: BoxDecoration(
+            color: isDarkMode ? Colors.grey[900] : Colors.white,
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.1),
+                offset: const Offset(0, 1),
+                blurRadius: 2,
+              ),
+            ],
+          ),
+          child: AppBar(
+            elevation: 0,
+            backgroundColor: Colors.transparent,
+            leading: IconButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              icon: const Icon(Icons.arrow_back),
+              color: const Color(0xFF6750A4), // purple theme
             ),
-            const SizedBox(width: 10),
-            Text(receiverUsername),
-          ],
+            title: Row(
+              children: [
+                CircleAvatar(
+                  backgroundImage: NetworkImage(receiverProfilePicture),
+                ),
+                const SizedBox(width: 10),
+                Text(
+                  receiverUsername,
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+              ],
+            ),
+            centerTitle: false, // keep avatar + name aligned to left
+          ),
         ),
-        elevation: 0,
       ),
       body: Container(
         color: isDarkMode
             ? const Color(0xFF121212)
-            : const Color(0xFFF5F5F5), // Dark or light background
+            : const Color.fromARGB(
+                255, 255, 255, 255), // Dark or light background
         child: SafeArea(
           child: Column(
             children: [
@@ -392,25 +435,17 @@ class _ChatConvoScreenState extends State<ChatConvoScreen> {
           return const Center(child: Text('Error loading messages.'));
         }
 
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
+        if (!snapshot.hasData) {
+          return const ChatCenterEmpty(); // only the first time, before data arrives
         }
 
-        // Extract messages from the snapshot
         final messages = snapshot.data!.docs;
 
-        // Scroll to the bottom after messages are loaded
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (scrollController.hasClients) {
-            scrollController.animateTo(
-              scrollController.position.maxScrollExtent,
-              duration: const Duration(milliseconds: 300),
-              curve: Curves.easeOut,
-            );
-          }
-        });
+        if (messages.isEmpty) {
+          return const Center(child: Text('No messages yet'));
+        }
 
-        // Group messages by time intervals and add dividers
+        // Build list with dividers
         List<Widget> messageWidgets = [];
         DateTime? previousMessageTime;
 
@@ -418,7 +453,6 @@ class _ChatConvoScreenState extends State<ChatConvoScreen> {
           final data = doc.data() as Map<String, dynamic>;
           final messageTime = (data['timestamp'] as Timestamp).toDate();
 
-          // Add a divider if the time difference is more than 10 minutes
           if (previousMessageTime != null &&
               messageTime.difference(previousMessageTime).inMinutes > 10) {
             messageWidgets.add(_buildTimeDivider(messageTime));
@@ -430,6 +464,7 @@ class _ChatConvoScreenState extends State<ChatConvoScreen> {
 
         return ListView(
           controller: scrollController,
+          reverse: true,
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           children: messageWidgets,
         );
@@ -463,37 +498,11 @@ class _ChatConvoScreenState extends State<ChatConvoScreen> {
       return _buildVerificationCodeBubble(data);
     }
 
-    // Handle normal messages
-    return FutureBuilder<DocumentSnapshot>(
-      future: FirebaseFirestore.instance
-          .collection('Users')
-          .doc(data['senderID'])
-          .get(),
+    // ✅ Use cached user lookup instead of refetching every time
+    return FutureBuilder<Map<String, dynamic>>(
+      future: _getUserData(data['senderID']),
       builder: (context, snapshot) {
-        if (snapshot.hasError || !snapshot.hasData || !snapshot.data!.exists) {
-          return ChatConvoBubble(
-            isCurrentUser: isCurrentUser,
-            message: isDeleted ? 'This message was deleted' : data['message'],
-            timestamp: data['timestamp'],
-            profilePicture: 'https://.../default_profile.png',
-            metadata: data['metadata'] != null
-                ? Map<String, dynamic>.from(data['metadata'])
-                : null,
-            edited: isEdited,
-            deleted: isDeleted,
-            messageId: doc.id, // Pass message ID
-            chatRoomId: chatRoomId, // Pass chat room ID
-            isSpaceChat: widget.isSpaceChat,
-            onEdit: isCurrentUser && !isDeleted
-                ? () => _editMessage(doc.id, data['message'])
-                : null,
-            onDelete: isCurrentUser && !isDeleted
-                ? () => _deleteMessage(doc.id)
-                : null,
-          );
-        }
-
-        final userData = snapshot.data!.data() as Map<String, dynamic>;
+        final userData = snapshot.data ?? {};
         final profilePicture =
             userData['profilePicture'] ?? 'https://.../default_profile.png';
 
@@ -613,12 +622,31 @@ class _ChatConvoScreenState extends State<ChatConvoScreen> {
       child: Row(
         children: [
           Expanded(
-            child: CustomTextField(
-              focusNode: focusNode,
+            child: TextField(
               controller: messageController,
-              hintText: 'Type a message...',
-              obscureText: false,
-              isDarkMode: isDarkMode, // Pass dark mode flag
+              focusNode: focusNode,
+              style: TextStyle(
+                color: isDarkMode ? Colors.white : Colors.black,
+              ),
+              decoration: InputDecoration(
+                hintText: "Type a message...",
+                hintStyle: TextStyle(
+                  color: isDarkMode ? Colors.white70 : Colors.grey[600],
+                ),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(25),
+                  borderSide: BorderSide.none,
+                ),
+                filled: true,
+                fillColor: isDarkMode ? Colors.grey[800] : Colors.grey[200],
+                contentPadding: const EdgeInsets.symmetric(
+                  vertical: 10,
+                  horizontal: 16,
+                ),
+              ),
+              onChanged: (_) {
+                setState(() {}); // rebuild to check if text is empty or not
+              },
             ),
           ),
           const SizedBox(width: 8),
@@ -628,8 +656,21 @@ class _ChatConvoScreenState extends State<ChatConvoScreen> {
               shape: BoxShape.circle,
             ),
             child: IconButton(
-              onPressed: sendMessage,
-              icon: const Icon(Icons.arrow_upward),
+              onPressed: messageController.text.trim().isNotEmpty
+                  ? sendMessage
+                  : () {
+                      // Example: send a like/emoji
+                      chatService.sendMessage(
+                        widget.receiverID,
+                        "👍",
+                        isSpaceChat: widget.isSpaceChat,
+                      );
+                    },
+              icon: Icon(
+                messageController.text.trim().isNotEmpty
+                    ? Icons.arrow_upward // send
+                    : Icons.thumb_up_alt_outlined, // like/emoji
+              ),
               color: Colors.white,
             ),
           ),

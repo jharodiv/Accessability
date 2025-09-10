@@ -93,23 +93,20 @@ class _FavoriteWidgetState extends State<FavoriteWidget> {
             const SizedBox(height: 8),
 
             // --- OUTSIDE ServiceButtons (above the main container) ---
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0),
-              child: ServiceButtons(
-                onButtonPressed: widget.onServiceButtonPressed ?? (label) {},
-                currentLocation: widget.currentLocation,
-                onMapViewPressed: widget.onMapViewPressed,
-                onCenterPressed: widget.onCenterPressed ??
-                    () {
-                      if (widget.currentLocation == null) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text('locationNotAvailable'.tr())),
-                        );
-                        return;
-                      }
-                      // If you want automatic pan-to behavior, pass a center handler from parent
-                    },
-              ),
+            ServiceButtons(
+              onButtonPressed: widget.onServiceButtonPressed ?? (label) {},
+              currentLocation: widget.currentLocation,
+              onMapViewPressed: widget.onMapViewPressed,
+              onCenterPressed: widget.onCenterPressed ??
+                  () {
+                    if (widget.currentLocation == null) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('locationNotAvailable'.tr())),
+                      );
+                      return;
+                    }
+                    // If you want automatic pan-to behavior, pass a center handler from parent
+                  },
             ),
 
             const SizedBox(height: 10),

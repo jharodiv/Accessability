@@ -219,7 +219,7 @@ class ChatService {
         .where('receiverID', isEqualTo: receiverID)
         .where('status', isEqualTo: 'pending')
         .where('metadata.type', isEqualTo: 'verification_code')
-        .orderBy('timestamp', descending: true)
+        .orderBy('timestamp', descending: true) // 👈 HERE
         .snapshots()
         .asyncMap((snapshot) {
       return snapshot.docs.map((doc) {
@@ -401,7 +401,7 @@ class ChatService {
           .collection('space_chat_rooms')
           .doc(receiverID) // Use the spaceId as the document ID
           .collection('messages')
-          .orderBy('timestamp', descending: false)
+          .orderBy('timestamp', descending: true)
           .snapshots();
     } else {
       // Fetch messages for a private chat room
@@ -414,7 +414,7 @@ class ChatService {
           .collection('chat_rooms')
           .doc(chatRoomID)
           .collection('messages')
-          .orderBy('timestamp', descending: false)
+          .orderBy('timestamp', descending: true)
           .snapshots();
     }
   }

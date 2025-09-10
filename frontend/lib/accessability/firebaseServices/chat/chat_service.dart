@@ -171,63 +171,69 @@ class ChatService {
 
   // Accept a chat request and create a chat room with the last message
   Future<void> acceptChatRequest(String requestID) async {
-    print('Accepting chat request with ID: $requestID'); // Add debug print
+    if (requestID.isEmpty) throw Exception('Request ID cannot be empty');
 
-    if (requestID.isEmpty) {
-      print('Error: Request ID is empty');
-      throw Exception('Request ID cannot be empty');
-    }
+    final requestRef =
+        firebaseFirestore.collection('chat_requests').doc(requestID);
+    final requestSnapshot = await requestRef.get();
+    if (!requestSnapshot.exists) return;
 
-    final requestSnapshot = await firebaseFirestore
-        .collection('chat_requests')
-        .doc(requestID)
-        .get();
-
-    print('Request snapshot exists: ${requestSnapshot.exists}'); // Debug
-
-    if (!requestSnapshot.exists) {
-      print('Error: Chat request document does not exist');
-      return;
-    }
-
-    final requestData = requestSnapshot.data() as Map<String, dynamic>;
+    final requestData = requestSnapshot.data()!;
     final senderID = requestData['senderID'];
     final receiverID = requestData['receiverID'];
-    final message = requestData['message'];
-    final timestamp = requestData['timestamp'];
-    final metadata = requestData['metadata']; // Preserve metadata
+    final metadata = requestData['metadata'] as Map<String, dynamic>?;
 
-    print('Sender: $senderID, Receiver: $receiverID'); // Debug
+    // If metadata contains spaceId, prefer to join user to that space
+    final String? spaceId = metadata?['spaceId'] as String?;
 
-    // Create a chat room if it doesn't exist
+    final batch = firebaseFirestore.batch();
+
+    // 1) update request status
+    batch.update(requestRef, {'status': 'accepted'});
+
+    // 2) create chat_room if needed
     List<String> ids = [senderID, receiverID];
     ids.sort();
-    String chatRoomID = ids.join('_');
+    final chatRoomID = ids.join('_');
+    final chatRoomRef =
+        firebaseFirestore.collection('chat_rooms').doc(chatRoomID);
+    batch.set(
+        chatRoomRef,
+        {
+          'participants': [senderID, receiverID],
+          'createdAt': requestData['timestamp'] ?? FieldValue.serverTimestamp(),
+        },
+        SetOptions(merge: true));
 
-    await firebaseFirestore.collection('chat_rooms').doc(chatRoomID).set({
-      'participants': [senderID, receiverID],
-      'createdAt': timestamp,
-    });
-
-    // Add the message with preserved metadata
-    await firebaseFirestore
-        .collection('chat_rooms')
-        .doc(chatRoomID)
-        .collection('messages')
-        .add({
+    // 3) add a message record in that chat room (optional)
+    final messageRef = chatRoomRef.collection('messages').doc();
+    batch.set(messageRef, {
       'senderID': senderID,
       'receiverID': receiverID,
-      'message': message,
-      'timestamp': timestamp,
-      'metadata': metadata, // Preserve metadata
+      'message': requestData['message'],
+      'timestamp': requestData['timestamp'] ?? FieldValue.serverTimestamp(),
+      'metadata': metadata,
     });
 
-    // Mark the chat request as accepted
-    await firebaseFirestore.collection('chat_requests').doc(requestID).update({
-      'status': 'accepted',
-    });
+    // 4) if spaceId exists, add the receiver as a member of that Space and space_chat_rooms members
+    if (spaceId != null && spaceId.isNotEmpty) {
+      final spacesRef = firebaseFirestore.collection('Spaces').doc(spaceId);
+      batch.update(spacesRef, {
+        'members': FieldValue.arrayUnion([receiverID]),
+      });
 
-    print('Chat request accepted successfully');
+      final spaceChatRef =
+          firebaseFirestore.collection('space_chat_rooms').doc(spaceId);
+      batch.set(
+          spaceChatRef,
+          {
+            'members': FieldValue.arrayUnion([receiverID]),
+          },
+          SetOptions(merge: true));
+    }
+
+    // commit all
+    await batch.commit();
   }
 
   // Reject a chat request

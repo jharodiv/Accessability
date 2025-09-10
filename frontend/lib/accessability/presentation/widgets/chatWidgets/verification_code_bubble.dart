@@ -214,42 +214,62 @@ class _VerificationCodeBubbleState extends State<VerificationCodeBubble> {
 
   @override
   Widget build(BuildContext context) {
-    final bool isExpired = _isExpired;
     final bool isMember = widget.isSpaceMember || _hasJoined;
     final bool requestExists =
         widget.requestId != null && widget.requestId!.isNotEmpty;
 
-    // if request exists, treat pending only when _requestStatus == 'pending'
-    // otherwise fallback to widget.isPending (if provided) or assume pending
-    final bool requestPending = requestExists
-        ? (_requestStatus == 'pending')
-        : (widget.isPending ?? true);
+    // Request status from live subscription (may be null until loaded)
+    final String? rawReqStatus = _requestStatus?.toLowerCase();
+    final bool reqStatusKnown = rawReqStatus != null;
 
+    final bool isPending = requestExists
+        ? (!reqStatusKnown ? true : rawReqStatus == 'pending')
+        : (widget.isPending == true);
+    final bool isAccepted = requestExists && rawReqStatus == 'accepted';
+    final bool isRejected = requestExists && rawReqStatus == 'rejected';
+
+    // determine expired (timer-driven)
+    final bool isExpired = _isExpired;
+
+    // STATUS TEXT logic - prioritize explicit request status (accepted/rejected)
+    String statusText;
+    if (requestExists) {
+      if (isAccepted) {
+        statusText = 'Invitation accepted';
+      } else if (isRejected) {
+        statusText = 'Invitation declined';
+      } else {
+        // pending or unknown (treat unknown as pending until known)
+        statusText = 'Invitation pending';
+      }
+    } else {
+      // no request doc -> fallback to membership / passed isPending
+      if (isMember) {
+        statusText = 'Already joined this space';
+      } else {
+        statusText = (widget.isPending == true)
+            ? 'Invitation pending'
+            : 'Invitation pending';
+      }
+    }
+
+    // show expired only if not accepted/rejected (i.e. accepted/rejected override expired display)
+    final bool showExpiredText =
+        isExpired && !isAccepted && !isRejected && !isMember;
+
+    // Button visibility:
+    // allow Join when:
+    //  - not expired
+    //  - user is NOT a member
+    //  - and (there is no request doc OR the request doc is pending)
     final bool canJoin =
-        !isExpired && !isMember && (!requestExists || requestPending);
+        !isExpired && !isMember && (!requestExists || isPending);
     final bool showTimer = !isExpired && !isMember;
 
-    // status string
-    String statusText;
-    if (isExpired) {
-      statusText = 'Expired';
-    } else if (isMember) {
-      statusText = 'Already joined this space';
-    } else if (requestExists && _requestStatus != null) {
-      if (_requestStatus == 'pending')
-        statusText = 'Invitation pending';
-      else if (_requestStatus == 'accepted')
-        statusText = 'Invitation accepted';
-      else if (_requestStatus == 'rejected')
-        statusText = 'Invitation declined';
-      else
-        statusText = 'Invitation: ${_requestStatus}';
-    } else {
-      // no request doc; rely on passed isPending or assume pending
-      statusText = (widget.isPending == false)
-          ? 'No active invitation'
-          : 'Invitation pending';
-    }
+    // border color: accepted => green strong, expired => grey, otherwise green accent
+    final Color borderColor = isAccepted
+        ? Colors.green.shade700
+        : (isExpired ? Colors.grey : Colors.green);
 
     return Container(
       margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
@@ -258,31 +278,16 @@ class _VerificationCodeBubbleState extends State<VerificationCodeBubble> {
         color: Colors.grey[100],
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: isExpired ? Colors.grey : Colors.green,
+          color: borderColor,
           width: 1,
         ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            margin: const EdgeInsets.only(bottom: 8),
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: Colors.black12,
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Text(
-              'DBG: requestId=${widget.requestId ?? 'null'} status=${_requestStatus ?? (widget.isPending == true ? 'pending(fallback)' : 'null')} '
-              'isSpaceMember=${widget.isSpaceMember} hasJoined=${_hasJoined} expires=${widget.expiresAt.toIso8601String()}',
-              style: const TextStyle(fontSize: 10),
-            ),
-          ),
           const Text(
             'Space Invitation',
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-            ),
+            style: TextStyle(fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 8),
           Text(
@@ -302,7 +307,7 @@ class _VerificationCodeBubbleState extends State<VerificationCodeBubble> {
                 fontWeight: FontWeight.w500,
               ),
             ),
-          if (isExpired)
+          if (showExpiredText)
             const Text(
               'Expired',
               style: TextStyle(
@@ -310,29 +315,19 @@ class _VerificationCodeBubbleState extends State<VerificationCodeBubble> {
                 fontWeight: FontWeight.w500,
               ),
             ),
-          if (isMember)
-            const Text(
-              'Already joined this space',
+          // status (accepted/pending/rejected/member)
+          Padding(
+            padding: const EdgeInsets.only(top: 8.0),
+            child: Text(
+              statusText,
               style: TextStyle(
-                color: Colors.green,
-                fontWeight: FontWeight.w500,
+                color: isRejected
+                    ? Colors.red
+                    : (isAccepted || isMember ? Colors.green : Colors.black87),
+                fontWeight: FontWeight.w600,
               ),
             ),
-          if (!isMember && !isExpired)
-            Padding(
-              padding: const EdgeInsets.only(top: 8.0),
-              child: Text(
-                statusText,
-                style: TextStyle(
-                  color: (_requestStatus == 'rejected')
-                      ? Colors.red
-                      : (_requestStatus == 'accepted' || isMember)
-                          ? Colors.green
-                          : Colors.black87,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
+          ),
           const SizedBox(height: 12),
           if (canJoin)
             ElevatedButton(
@@ -347,18 +342,9 @@ class _VerificationCodeBubbleState extends State<VerificationCodeBubble> {
                       width: 20,
                       height: 20,
                       child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: Colors.white,
-                      ),
+                          strokeWidth: 2, color: Colors.white),
                     )
-                  : Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: const [
-                        Icon(Icons.check, size: 18),
-                        SizedBox(width: 8),
-                        Text('Join Space'),
-                      ],
-                    ),
+                  : const Text('Join Space'),
             ),
         ],
       ),

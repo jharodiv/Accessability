@@ -46,10 +46,35 @@ class MapUtils {
 
   static Color colorForPlaceType(String? type) {
     final t = (type ?? '').toLowerCase();
+
     if (t.contains('bus')) return Colors.blue;
-    if (t.contains('restaurant') || t.contains('restawran')) return Colors.red;
-    if (t.contains('grocery') || t.contains('grocer')) return Colors.green;
+
+    if (t.contains('restaurant') || t.contains('restawran')) {
+      return Colors.red;
+    }
+
+    if (t.contains('grocery') || t.contains('grocer')) {
+      return Colors.green;
+    }
+
     if (t.contains('hotel')) return Colors.teal;
+
+    // 🛍️ Shopping
+    if (t.contains('shop') ||
+        t.contains('store') ||
+        t.contains('pamimili') ||
+        t.contains('shopping')) {
+      return Colors.orange; // pick your shade (example: amber/orange)
+    }
+
+    // 🏥 Hospital
+    if (t.contains('hospital') ||
+        t.contains('ospital') ||
+        t.contains('ospit')) {
+      return Colors.redAccent; // brighter red for hospitals
+    }
+
+    // Default fallback (your old purple)
     return const Color(0xFF6750A4);
   }
 

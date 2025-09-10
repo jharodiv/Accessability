@@ -277,5 +277,6 @@
   "removePeopleFromSpace": "Remove people from Space",
   "noOtherMembersInSpace": "There are no other members in this space.",
   "removedMembers": "{count} member(s) removed",
-  "selected": "selected"
+  "selected": "selected",
+  "hospital": "Hospital"
 }

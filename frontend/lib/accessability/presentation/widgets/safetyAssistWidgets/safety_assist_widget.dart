@@ -406,15 +406,11 @@ class _SafetyAssistWidgetState extends State<SafetyAssistWidget> {
               child: AnimatedOpacity(
                 duration: const Duration(milliseconds: 250),
                 opacity: (_isExpanded || _showHelper) ? 0.0 : 1.0,
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                  child: ServiceButtons(
-                    onButtonPressed:
-                        widget.onServiceButtonPressed ?? (label) {},
-                    currentLocation: widget.currentLocation,
-                    onMapViewPressed: widget.onMapViewPressed,
-                    onCenterPressed: _handleCenterPressed,
-                  ),
+                child: ServiceButtons(
+                  onButtonPressed: widget.onServiceButtonPressed ?? (label) {},
+                  currentLocation: widget.currentLocation,
+                  onMapViewPressed: widget.onMapViewPressed,
+                  onCenterPressed: _handleCenterPressed,
                 ),
               ),
             ),

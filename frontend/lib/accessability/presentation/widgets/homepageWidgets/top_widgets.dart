@@ -76,6 +76,10 @@ class TopwidgetsState extends State<Topwidgets> {
       'Restawran': 'Restaurant',
       'Pamimili': 'Shopping',
       'Grocery': 'Groceries',
+      // Add hospital mapping (localized label -> internal type)
+      'Ospital': 'Hospital', // for Tagalog label 'Ospital'
+      'Hospital':
+          'Hospital', // just in case the translation is already 'Hospital'
     };
     final mapped = map[cat] ?? cat;
     setState(() {
@@ -306,7 +310,7 @@ class TopwidgetsState extends State<Topwidgets> {
                     ),
                     CategoryItem(
                       title: 'shopping'.tr(),
-                      icon: Icons.shop_2,
+                      icon: Icons.storefront,
                       onCategorySelected: _handleCategorySelection,
                       isSelected:
                           ['Shopping', 'Pamimili'].contains(_selectedCategory),
@@ -317,6 +321,14 @@ class TopwidgetsState extends State<Topwidgets> {
                       onCategorySelected: _handleCategorySelection,
                       isSelected:
                           ['Groceries', 'Grocery'].contains(_selectedCategory),
+                    ),
+                    CategoryItem(
+                      title: 'hospital'
+                          .tr(), // make sure you have a translation key 'hospital'
+                      icon: Icons.local_hospital,
+                      onCategorySelected: _handleCategorySelection,
+                      isSelected: _selectedCategory ==
+                          'Hospital', // or 'hospital' if you mapped to lowercase
                     ),
                   ],
                 ),

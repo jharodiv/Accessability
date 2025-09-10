@@ -1,17 +1,17 @@
 // lib/presentation/screens/gpsscreen/gps_screen.dart
 import 'dart:async';
-import 'dart:convert'; // For JSON decoding.
 import 'dart:math';
 import 'package:accessability/accessability/backgroundServices/deep_link_service.dart';
 import 'package:accessability/accessability/data/model/place.dart';
 import 'package:accessability/accessability/firebaseServices/place/geocoding_service.dart';
-import 'package:accessability/accessability/presentation/widgets/dialog/confirm_dialog_widget.dart';
 import 'package:accessability/accessability/presentation/widgets/dialog/ok_dialog_widget.dart';
 import 'package:accessability/accessability/presentation/widgets/gpsWidgets/map_perspective.dart';
 import 'package:accessability/accessability/presentation/widgets/gpsWidgets/navigation_controls.dart';
 import 'package:accessability/accessability/presentation/widgets/gpsWidgets/navigation_panel.dart';
 import 'package:accessability/accessability/presentation/widgets/gpsWidgets/rerouting_banner.dart';
 import 'package:accessability/accessability/presentation/widgets/gpsWidgets/user_marker_info_card.dart';
+import 'package:url_launcher/url_launcher.dart';
+
 import 'package:firebase_auth/firebase_auth.dart';
 
 import 'package:accessability/accessability/logic/bloc/place/bloc/place_event.dart'
@@ -48,9 +48,7 @@ import 'package:accessability/accessability/services/route_controller.dart'
     show RouteController;
 import 'package:accessability/accessability/themes/theme_provider.dart'
     show ThemeProvider;
-import 'package:accessability/accessability/utils/badge_icon.dart';
 import 'package:accessability/accessability/utils/map_utils.dart' show MapUtils;
-import 'package:http/http.dart' as http;
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
@@ -296,6 +294,32 @@ class _GpsScreenState extends State<GpsScreen> {
     );
   }
 
+  Future<void> _launchCaller(String number) async {
+    if (number.trim().isEmpty) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('no_number_available'.tr())),
+      );
+      return;
+    }
+
+    final uri = Uri(scheme: 'tel', path: number);
+    try {
+      final launched = await launchUrl(uri);
+      if (!launched) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('cannot_launch_phone'.tr())),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error launching dialer: $e')),
+      );
+    }
+  }
+
   void _removeUserOverlay() {
     _userOverlayEntry?.remove();
     _userOverlayEntry = null;
@@ -486,31 +510,6 @@ class _GpsScreenState extends State<GpsScreen> {
     return MapUtils.colorForPlaceType(type);
   }
 
-  // --- Favorite/fallback marker using MarkerFactory (delegated) ---
-  Future<BitmapDescriptor> _ensureFavoriteBitmap(
-    BuildContext ctx,
-    Place place, {
-    double outerSize = 88,
-    double innerSize = 45,
-    double pixelRatio = 0,
-  }) async {
-    final Color placeColor = _colorForPlaceType(place.category);
-    final cacheKey =
-        'place_${place.id}_v2_c${placeColor.value}_s${outerSize.toInt()}_is${innerSize.toInt()}';
-
-    // delegate to MarkerFactory; pass pixelRatio in a sane way
-    return await MarkerFactory.ensureFavoriteBitmap(
-      ctx: ctx,
-      cacheKey: cacheKey,
-      placeColor: placeColor,
-      outerSize: outerSize,
-      innerSize: innerSize,
-      pixelRatio:
-          pixelRatio <= 0 ? MediaQuery.of(ctx).devicePixelRatio : pixelRatio,
-      outerOpacity: 0.45,
-    );
-  }
-
   Future<void> _saveActiveSpaceToPrefs(String id) async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -542,8 +541,8 @@ class _GpsScreenState extends State<GpsScreen> {
         ctx: context,
         cacheKey: cacheKey,
         placeColor: _colorForPlaceType(place.category),
-        outerSize: 88,
-        innerSize: 40,
+        outerSize: 64,
+        innerSize: 30,
         pixelRatio: MediaQuery.of(context).devicePixelRatio,
       ),
       onInfoTap: () {
@@ -789,23 +788,6 @@ class _GpsScreenState extends State<GpsScreen> {
           ),
         ),
       );
-    }
-  }
-
-  void _togglePwdMarkers() {
-    if (_showingPwdMarkers) {
-      // Clear PWD markers and circles
-      setState(() {
-        _markers
-            .removeWhere((marker) => marker.markerId.value.startsWith('pwd_'));
-        _circles
-            .removeWhere((circle) => circle.circleId.value.startsWith('pwd_'));
-        _showingPwdMarkers = false;
-      });
-    } else {
-      // Show PWD markers
-      _getPwdLocationsAndCreateMarkers();
-      _showingPwdMarkers = true;
     }
   }
 
@@ -1761,18 +1743,94 @@ class _GpsScreenState extends State<GpsScreen> {
                       ),
                     if (_locationHandler.currentIndex == 1)
                       FavoriteWidget(
+                        currentLocation: _locationHandler.currentLocation,
+                        onMapViewPressed: () async {
+                          // open map settings (reuse your existing helper)
+                          await _openMapSettings();
+                        },
+                        onCenterPressed: () {
+                          // pan/center the map on the user's location
+                          final loc = _locationHandler.currentLocation;
+                          if (loc != null) {
+                            // either use handler pan helper...
+                            _locationHandler.panCameraToLocation(loc);
+                            // ...or animate via controller:
+                            // _locationHandler.mapController?.animateCamera(CameraUpdate.newLatLng(loc));
+                          } else {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                  content: Text('locationNotAvailable'.tr())),
+                            );
+                          }
+                        },
+                        onServiceButtonPressed: (label) {
+                          // forward service button presses (e.g. category string) to your nearby search
+                          _fetchNearbyPlaces(label);
+                        },
                         onShowPlace: (Place place) {
                           if (_locationHandler.mapController != null) {
                             _locationHandler.mapController!.animateCamera(
                               CameraUpdate.newLatLng(
-                                LatLng(place.latitude, place.longitude),
-                              ),
+                                  LatLng(place.latitude, place.longitude)),
                             );
                           }
                         },
+                        onPlaceAdded: () {
+                          // optional: refresh UI or re-fetch places
+                          context
+                              .read<PlaceBloc>()
+                              .add(const GetAllPlacesEvent());
+                        },
                       ),
+// inside GpsScreen build where you show the sheet
                     if (_locationHandler.currentIndex == 2)
-                      SafetyAssistWidget(uid: userState.user.uid),
+                      SafetyAssistWidget(
+                        uid: userState.user.uid,
+                        // give it the current location so ServiceButtons shows enabled state & can use it
+                        currentLocation: _locationHandler.currentLocation,
+                        // pass the LocationHandler instance so the widget can call panCameraToLocation directly
+                        locationHandler: _locationHandler,
+                        // optional: allow SafetyAssist to open map settings via your existing helper
+                        onMapViewPressed: () async {
+                          await _openMapSettings();
+                        },
+                        // explicit center handler — safer because you control null-check and any animation
+                        onCenterPressed: () {
+                          final loc = _locationHandler.currentLocation;
+                          if (loc != null) {
+                            try {
+                              _locationHandler.panCameraToLocation(loc);
+                              debugPrint(
+                                  '[GpsScreen] SafetyAssist center pressed -> panned to $loc');
+                            } catch (e, st) {
+                              debugPrint(
+                                  '[GpsScreen] panCameraToLocation failed: $e\n$st');
+                            }
+                          } else {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                  content: Text('locationNotAvailable'.tr())),
+                            );
+                          }
+                        },
+                        // forward service button presses to your nearby search (optional, useful)
+                        onServiceButtonPressed: (label) {
+                          debugPrint(
+                              '[GpsScreen] SafetyAssist service button: $label');
+                          _fetchNearbyPlaces(label);
+                        },
+                        // optional: override emergency action (if you want custom behavior)
+                        onEmergencyServicePressed: (label, number) {
+                          if (number != null && number.isNotEmpty) {
+                            // reuse your existing phone launcher logic
+                            _launchCaller(
+                                number); // make this helper available in GpsScreen or call directly
+                          } else {
+                            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                                content: Text('no_number_available'.tr())));
+                          }
+                        },
+                      ),
                   ],
                 ),
                 bottomNavigationBar: Accessabilityfooter(

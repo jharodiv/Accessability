@@ -90,7 +90,7 @@ class _InboxScreenState extends State<InboxScreen> {
                 }
 
                 final requests = snapshot.data ?? [];
-// remove expired ones immediately so UI never shows them
+                // remove expired ones immediately so UI never shows them
                 final activeRequests = _removeExpiredRequests(requests);
 
                 if (activeRequests.isEmpty) {
@@ -442,16 +442,19 @@ class _InboxScreenState extends State<InboxScreen> {
         .where('members', arrayContains: currentUserID)
         .get();
 
-    final Set<String> spaceMemberIds = {};
+    final Set<String> allMembersInUserSpaces = {};
 
     for (final spaceDoc in spacesSnapshot.docs) {
       final members = List<String>.from(spaceDoc['members'] ?? []);
-      spaceMemberIds.addAll(members);
+      allMembersInUserSpaces.addAll(members);
     }
 
     return requests.where((request) {
       final senderID = request['senderID'];
-      return !spaceMemberIds.contains(senderID);
+      final isPending = request['status'] == 'pending';
+      final senderAlreadyMember = allMembersInUserSpaces.contains(senderID);
+
+      return isPending && !senderAlreadyMember;
     }).toList();
   }
 }

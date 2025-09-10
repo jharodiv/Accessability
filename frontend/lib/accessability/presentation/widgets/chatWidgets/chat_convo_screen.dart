@@ -554,28 +554,48 @@ class _ChatConvoScreenState extends State<ChatConvoScreen> {
     );
   }
 
+// ChatConvoScreen: replace _buildVerificationCodeBubble with this
   Widget _buildVerificationCodeBubble(Map<String, dynamic> data) {
-    final metadata = Map<String, dynamic>.from(data['metadata']);
-    final spaceId = metadata['spaceId'];
-    final verificationCode = metadata['verificationCode'];
-    final spaceName = metadata['spaceName'];
-    final expiresAt = DateTime.parse(metadata['expiresAt']);
-    final codeTimestamp = data['timestamp'].toDate();
-    return FutureBuilder(
-      future: chatService.isUserSpaceMember(spaceId, _auth.currentUser!.uid),
-      builder: (context, membershipSnapshot) {
-        if (membershipSnapshot.connectionState == ConnectionState.waiting) {
+    final metadata = Map<String, dynamic>.from(data['metadata'] as Map);
+    final spaceId = metadata['spaceId'] as String;
+    final verificationCode = metadata['verificationCode'] as String;
+    final spaceName = metadata['spaceName'] as String;
+    final expiresAt = DateTime.parse(metadata['expiresAt'] as String);
+    final codeTimestamp = (data['timestamp'] as Timestamp).toDate();
+    final requestId = (metadata['requestId'] as String?) ?? '';
+
+    // Wait for both membership and request status
+    return FutureBuilder<List<dynamic>>(
+      future: Future.wait<dynamic>([
+        chatService.isUserSpaceMember(spaceId, _auth.currentUser!.uid),
+        if (requestId.isNotEmpty)
+          chatService.getChatRequestStatus(requestId)
+        else
+          Future.value(null),
+      ]),
+      builder: (context, snap) {
+        if (snap.connectionState == ConnectionState.waiting) {
           return _buildLoadingBubble();
         }
 
-        final isSpaceMember = membershipSnapshot.data ?? false;
+        final bool isSpaceMember =
+            (snap.data?.isNotEmpty ?? false) ? (snap.data![0] as bool) : false;
+        final String? requestStatus =
+            (snap.data != null && snap.data!.length > 1)
+                ? snap.data![1] as String?
+                : null;
 
+        final bool isPending = (requestStatus == 'pending') && !isSpaceMember;
+
+        // Pass both flags to the UI (see next step — update the VerificationCodeBubble widget).
         return VerificationCodeBubble(
           spaceId: spaceId,
           verificationCode: verificationCode,
           codeTimestamp: codeTimestamp,
           expiresAt: expiresAt,
           isSpaceMember: isSpaceMember,
+          isPending: isPending,
+          requestId: requestId,
         );
       },
     );

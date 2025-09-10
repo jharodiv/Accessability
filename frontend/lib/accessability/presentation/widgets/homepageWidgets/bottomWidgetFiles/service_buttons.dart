@@ -12,8 +12,8 @@ import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 class ServiceButtons extends StatelessWidget {
   final Function(String) onButtonPressed;
   final LatLng? currentLocation;
-  final VoidCallback? onMapViewPressed; // Callback for Map View
   final VoidCallback? onCenterPressed; // Callback for center-on-me / GPS
+  final Future<void> Function()? onMapViewPressed; // instead of VoidCallback?
 
   const ServiceButtons({
     super.key,
@@ -117,38 +117,25 @@ class ServiceButtons extends StatelessWidget {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    GestureDetector(
-                      behavior: HitTestBehavior.opaque,
-                      onTap: () {
-                        debugPrint(
-                            'mapView icon tapped; scheduling parent callback or route');
-                        WidgetsBinding.instance.addPostFrameCallback((_) {
-                          if (onMapViewPressed != null) {
-                            try {
-                              onMapViewPressed!();
-                            } catch (e, st) {
-                              debugPrint('onMapViewPressed threw: $e\n$st');
-                            }
-                          } else {
-                            try {
-                              Navigator.pushNamed(context, '/mapviewsettings');
-                            } catch (e, st) {
-                              debugPrint(
-                                  'Navigator.pushNamed(/mapviewsettings) threw: $e\n$st');
-                            }
+                    _buildCircularIcon(
+                      context,
+                      icon: Icons.layers,
+                      tooltip: 'mapView'.tr(),
+                      background: circleBg,
+                      iconColor: _purple,
+                      onTap: () async {
+                        if (onMapViewPressed != null) {
+                          try {
+                            await onMapViewPressed!();
+                          } catch (e, st) {
+                            debugPrint('onMapViewPressed threw: $e\n$st');
                           }
-                        });
+                        } else {
+                          Navigator.pushNamed(context, '/mapviewsettings');
+                        }
                       },
-                      child: _buildCircularIcon(
-                        context,
-                        icon: Icons.layers,
-                        tooltip: 'mapView'.tr(),
-                        background: circleBg,
-                        iconColor: _purple,
-                        onTap: null,
-                        size: _smallCircleSize,
-                        iconSize: _smallIconSize,
-                      ),
+                      size: _smallCircleSize,
+                      iconSize: _smallIconSize,
                     ),
                     const SizedBox(height: _rightIconsGap),
                     _buildCircularIcon(

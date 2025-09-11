@@ -37,18 +37,12 @@ class MarkerHandler {
         distanceText = '${distance.toStringAsFixed(1)} km';
       }
 
-      // safe marker id
-      final rawName = (location['name']?.toString() ?? 'unknown');
-      final safeName = rawName.replaceAll(RegExp(r'\s+'), '_');
-
       return Marker(
-        markerId: MarkerId('pwd_$safeName'),
+        markerId: MarkerId("pwd_${location["name"]}"),
         position: LatLng(latitude, longitude),
         infoWindow: InfoWindow(
           title: location['name']?.toString() ?? 'Unnamed',
-          snippet: distanceText.isNotEmpty
-              ? distanceText
-              : (location['details']?.toString() ?? ''),
+          snippet: distanceText.isNotEmpty ? distanceText : location['details'],
         ),
         icon: customIcon,
         // Anchor the icon center (0.5, 0.5). If you want the "tip" to point at the location, change y to 1.0.

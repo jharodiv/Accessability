@@ -32,6 +32,8 @@ class SafetyAssistWidget extends StatefulWidget {
   // (label, phoneNumber)
   final void Function(String label, String? number)? onEmergencyServicePressed;
 
+  final Future<void> Function()? onShowMyInfoPressed;
+
   const SafetyAssistWidget({
     Key? key,
     required this.uid,
@@ -42,6 +44,7 @@ class SafetyAssistWidget extends StatefulWidget {
     this.locationHandler,
     this.onEmergencyServicePressed,
     this.controller, // <- add this
+    this.onShowMyInfoPressed, // <- add this
   }) : super(key: key);
 
   @override
@@ -155,12 +158,15 @@ class _SafetyAssistWidgetState extends State<SafetyAssistWidget> {
   }
 
   // default center action: prefer explicit callback, then LocationHandler, else snackbar
-  void _handleCenterPressed() {
+  // default center action: prefer explicit callback, then LocationHandler, else snackbar
+  Future<void> _handleCenterPressed() async {
     if (widget.onCenterPressed != null) {
-      widget.onCenterPressed!();
-      return;
-    }
-    if (widget.locationHandler != null &&
+      try {
+        widget.onCenterPressed!();
+      } catch (e, st) {
+        debugPrint('onCenterPressed threw: $e\n$st');
+      }
+    } else if (widget.locationHandler != null &&
         widget.locationHandler!.currentLocation != null) {
       try {
         widget.locationHandler!
@@ -170,11 +176,20 @@ class _SafetyAssistWidgetState extends State<SafetyAssistWidget> {
         ScaffoldMessenger.of(context)
             .showSnackBar(SnackBar(content: Text(e.toString())));
       }
-      return;
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('locationNotAvailable'.tr())),
+      );
     }
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('locationNotAvailable'.tr())),
-    );
+
+    // AFTER centering, ask the host to show my-info overlay if provided
+    if (widget.onShowMyInfoPressed != null) {
+      try {
+        await widget.onShowMyInfoPressed!();
+      } catch (e, st) {
+        debugPrint('onShowMyInfoPressed threw: $e\n$st');
+      }
+    }
   }
 
   // Launch phone dialer using url_launcher
@@ -411,7 +426,10 @@ class _SafetyAssistWidgetState extends State<SafetyAssistWidget> {
                   onButtonPressed: widget.onServiceButtonPressed ?? (label) {},
                   currentLocation: widget.currentLocation,
                   onMapViewPressed: widget.onMapViewPressed,
-                  onCenterPressed: widget.onCenterPressed ?? () {},
+                  onCenterPressed: () {
+                    // fire-and-forget, _handleCenterPressed is async
+                    _handleCenterPressed();
+                  },
                 ),
               ),
             ),

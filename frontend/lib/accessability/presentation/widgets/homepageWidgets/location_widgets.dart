@@ -41,6 +41,8 @@ class LocationWidgets extends StatefulWidget {
   final LocationHandler locationHandler;
   final bool isRouteActive;
   final DraggableScrollableController? controller;
+  final Future<void> Function()? onShowMyInfoPressed;
+  final ValueNotifier<bool>? overlayVisibleNotifier;
 
   const LocationWidgets({
     super.key,
@@ -58,6 +60,8 @@ class LocationWidgets extends StatefulWidget {
     required this.onJoinStateChanged,
     required this.isRouteActive, // required now
     this.controller, // <-- add here
+    this.onShowMyInfoPressed, // <- add here
+    this.overlayVisibleNotifier, // <-- add here
   });
 
   @override
@@ -100,6 +104,7 @@ class _LocationWidgetsState extends State<LocationWidgets> {
   Duration _pendingAnimateDuration = const Duration(milliseconds: 300);
   Curve _pendingAnimateCurve = Curves.easeOut;
   bool _createdControllerLocally = false;
+  VoidCallback? _overlayNotifierListener;
 
   @override
   void initState() {
@@ -111,6 +116,28 @@ class _LocationWidgetsState extends State<LocationWidgets> {
     _listenToMembers();
     _initializeLocation();
     _initializeTts();
+
+    if (widget.overlayVisibleNotifier != null) {
+      _overlayNotifierListener = () {
+        try {
+          final visible = widget.overlayVisibleNotifier!.value;
+          if (visible) {
+            // when overlay appears, collapse to min
+            _safeAnimateSheetTo(_sheetMinChildSize,
+                duration: const Duration(milliseconds: 260));
+          } else {
+            // optional: when overlay hides, restore preferred size if route not active
+            if (!widget.isRouteActive) {
+              _safeAnimateSheetTo(_preferredInitialSize,
+                  duration: const Duration(milliseconds: 250));
+            }
+          }
+        } catch (e) {
+          debugPrint('[LocationWidgets] overlayNotifier listener error: $e');
+        }
+      };
+      widget.overlayVisibleNotifier!.addListener(_overlayNotifierListener!);
+    }
 
     // IMPORTANT: initialize the controller before using it
     if (widget.controller != null) {
@@ -278,11 +305,24 @@ class _LocationWidgetsState extends State<LocationWidgets> {
       // restart listening for the new space
       _listenToMembers();
     }
+    if (oldWidget.overlayVisibleNotifier != widget.overlayVisibleNotifier) {
+      try {
+        if (oldWidget.overlayVisibleNotifier != null &&
+            _overlayNotifierListener != null) {
+          oldWidget.overlayVisibleNotifier!
+              .removeListener(_overlayNotifierListener!);
+        }
+      } catch (_) {}
+      if (widget.overlayVisibleNotifier != null) {
+        widget.overlayVisibleNotifier!.addListener(_overlayNotifierListener!);
+      }
+    }
   }
 
   @override
   void dispose() {
     // remove controller listener if added
+
     if (_controllerListener != null) {
       try {
         _draggableController.removeListener(_controllerListener!);
@@ -319,6 +359,14 @@ class _LocationWidgetsState extends State<LocationWidgets> {
     }
 
     _sheetAttached = false;
+
+    if (_overlayNotifierListener != null) {
+      try {
+        widget.overlayVisibleNotifier
+            ?.removeListener(_overlayNotifierListener!);
+      } catch (_) {}
+      _overlayNotifierListener = null;
+    }
     super.dispose();
   }
 
@@ -838,12 +886,12 @@ class _LocationWidgetsState extends State<LocationWidgets> {
                                     _mapSheetOpening = false;
                                   }
                                 },
-                                onCenterPressed: () {
-                                  debugPrint('GPS button pressed');
+                                onCenterPressed: () async {
                                   debugPrint(
-                                      'locationHandler.currentLocation: ${widget.locationHandler.currentLocation}');
-                                  if (widget.locationHandler.currentLocation ==
-                                      null) {
+                                      'GPS button pressed (center/reset)');
+                                  final currentLoc =
+                                      widget.locationHandler.currentLocation;
+                                  if (currentLoc == null) {
                                     ScaffoldMessenger.of(context).showSnackBar(
                                       SnackBar(
                                           content: Text(
@@ -851,14 +899,53 @@ class _LocationWidgetsState extends State<LocationWidgets> {
                                     );
                                     return;
                                   }
+
+                                  // mark local selection so UI highlights "You"
+                                  final id = _auth.currentUser?.uid;
+                                  if (id != null) {
+                                    setState(() {
+                                      _selectedMemberId = id;
+                                    });
+                                  }
+
+                                  // collapse sheet to min first so the overlay will position correctly
                                   try {
-                                    widget.locationHandler.panCameraToLocation(
-                                        widget
-                                            .locationHandler.currentLocation!);
-                                    debugPrint('Called panCameraToLocation()');
+                                    await _safeAnimateSheetTo(
+                                      _sheetMinChildSize,
+                                      duration:
+                                          const Duration(milliseconds: 260),
+                                    );
+                                  } catch (e, st) {
+                                    debugPrint(
+                                        '[LocationWidgets] safeAnimateSheetTo failed: $e\n$st');
+                                  }
+
+                                  // pan camera to current location
+                                  try {
+                                    widget.locationHandler
+                                        .panCameraToLocation(currentLoc);
                                   } catch (e, st) {
                                     debugPrint(
                                         'panCameraToLocation threw: $e\n$st');
+                                  }
+
+                                  // then ask the host (GpsScreen) to show the "my info" overlay
+                                  if (widget.onShowMyInfoPressed != null) {
+                                    try {
+                                      await widget.onShowMyInfoPressed!.call();
+                                    } catch (e, st) {
+                                      debugPrint(
+                                          '[LocationWidgets] onShowMyInfoPressed threw: $e\n$st');
+                                      // fallback: call the older onMemberPressed behavior if provided
+                                      if (id != null) {
+                                        widget.onMemberPressed(currentLoc, id);
+                                      }
+                                    }
+                                  } else {
+                                    // fallback if no host handler provided
+                                    if (id != null) {
+                                      widget.onMemberPressed(currentLoc, id);
+                                    }
                                   }
                                 },
                               )
@@ -1022,13 +1109,49 @@ class _LocationWidgetsState extends State<LocationWidgets> {
                                               ),
                                             ],
                                           ),
-                                          onTap: () {
+                                          onTap: () async {
                                             final id = _auth.currentUser?.uid;
                                             if (id != null) {
                                               setState(() {
                                                 _selectedMemberId = id;
                                               });
                                             }
+
+                                            // collapse sheet first
+                                            try {
+                                              await _safeAnimateSheetTo(
+                                                  _sheetMinChildSize,
+                                                  duration: const Duration(
+                                                      milliseconds: 260));
+                                            } catch (e, st) {
+                                              debugPrint(
+                                                  '[LocationWidgets] safeAnimateSheetTo failed: $e\n$st');
+                                            }
+
+                                            // call host overlay handler
+                                            if (widget.onShowMyInfoPressed !=
+                                                null) {
+                                              try {
+                                                await widget
+                                                    .onShowMyInfoPressed!
+                                                    .call();
+                                              } catch (e, st) {
+                                                debugPrint(
+                                                    '[LocationWidgets] onShowMyInfoPressed threw: $e\n$st');
+                                                // fallback to existing behavior if desired
+                                                if (widget.locationHandler
+                                                        .currentLocation !=
+                                                    null) {
+                                                  widget.onMemberPressed(
+                                                      widget.locationHandler
+                                                          .currentLocation!,
+                                                      _auth.currentUser!.uid);
+                                                }
+                                              }
+                                              return;
+                                            }
+
+                                            // fallback existing behavior
                                             if (widget.locationHandler
                                                     .currentLocation !=
                                                 null) {
@@ -1112,14 +1235,59 @@ class _LocationWidgetsState extends State<LocationWidgets> {
                                           ),
                                         );
                                       },
+                                      onShowMyInfoPressed: () async {
+                                        final uid = FirebaseAuth
+                                            .instance.currentUser?.uid;
+                                        if (uid != null) {
+                                          setState(() {
+                                            _selectedMemberId = uid;
+                                          });
+                                        }
+
+                                        // collapse sheet to min immediately (or queued if detached)
+                                        try {
+                                          await _safeAnimateSheetTo(
+                                              _sheetMinChildSize,
+                                              duration: const Duration(
+                                                  milliseconds: 260));
+                                        } catch (e, st) {
+                                          debugPrint(
+                                              '[LocationWidgets] safeAnimateSheetTo failed: $e\n$st');
+                                        }
+
+                                        // then call the host-provided handler (GpsScreen) that shows the overlay
+                                        if (widget.onShowMyInfoPressed !=
+                                            null) {
+                                          try {
+                                            await widget.onShowMyInfoPressed!
+                                                .call();
+                                          } catch (e, st) {
+                                            debugPrint(
+                                                '[LocationWidgets] host onShowMyInfoPressed threw: $e\n$st');
+                                          }
+                                        }
+                                      },
                                       isLoading: _isLoading,
                                       onMemberPressed:
-                                          (LatLng loc, String uid) {
+                                          (LatLng loc, String uid) async {
+                                        // update local selection so the list highlights the tapped member
                                         setState(() {
                                           _selectedMemberId = uid;
-                                        }); // update parent UI state
-                                        widget.onMemberPressed(
-                                            loc, uid); // forward to GpsScreen
+                                        });
+
+                                        // collapse sheet to min so overlay will position correctly
+                                        try {
+                                          await _safeAnimateSheetTo(
+                                              _sheetMinChildSize,
+                                              duration: const Duration(
+                                                  milliseconds: 260));
+                                        } catch (e, st) {
+                                          debugPrint(
+                                              '[LocationWidgets] safeAnimateSheetTo failed: $e\n$st');
+                                        }
+
+                                        // forward to GpsScreen (or whatever parent handler) to show overlay / pan camera
+                                        widget.onMemberPressed(loc, uid);
                                       },
                                     ),
                                   ],

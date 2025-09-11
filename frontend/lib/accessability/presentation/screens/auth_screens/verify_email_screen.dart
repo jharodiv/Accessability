@@ -10,48 +10,22 @@ class VerifyEmailScreen extends StatefulWidget {
   const VerifyEmailScreen({super.key, required this.user});
 
   @override
-  _VerifyEmailScreenState createState() => _VerifyEmailScreenState();
+  State<VerifyEmailScreen> createState() => _VerifyEmailScreenState();
 }
 
 class _VerifyEmailScreenState extends State<VerifyEmailScreen> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final GlobalKey<ScaffoldMessengerState> _messengerKey =
+      GlobalKey<ScaffoldMessengerState>();
+
   Timer? _timer;
   Timer? _resendTimer;
+
   bool _isResendDisabled = true;
   int _resendCountdown = 60;
-  Future<void> _checkEmailVerification() async {
-    await widget.user.reload();
-    final updatedUser = FirebaseAuth.instance.currentUser;
-    if (updatedUser != null && updatedUser.emailVerified) {
-      await _firestore.collection('Users').doc(updatedUser.uid).update({
-        'emailVerified': true,
-      });
+  bool _navigated = false;
 
-      _timer?.cancel();
-
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => const LoginScreen()),
-        );
-      });
-    }
-  }
-
-  void _startResendTimer() {
-    _isResendDisabled = true;
-    _resendCountdown = 60;
-    _resendTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      setState(() {
-        if (_resendCountdown > 0) {
-          _resendCountdown--;
-        } else {
-          _isResendDisabled = false;
-          _resendTimer?.cancel();
-        }
-      });
-    });
-  }
+  DocumentSnapshot? _cachedSnapshot; // cache to prevent spinner flicker
 
   @override
   void initState() {
@@ -59,7 +33,7 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> {
     _checkEmailVerification();
     _startResendTimer();
 
-    _timer = Timer.periodic(const Duration(seconds: 3), (timer) {
+    _timer = Timer.periodic(const Duration(seconds: 3), (_) {
       _checkEmailVerification();
     });
   }
@@ -71,82 +45,135 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> {
     super.dispose();
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      body: Center(
-        child: StreamBuilder<DocumentSnapshot>(
-          stream:
-              _firestore.collection('Users').doc(widget.user.uid).snapshots(),
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return const CircularProgressIndicator();
-            }
+  Future<void> _checkEmailVerification() async {
+    await widget.user.reload();
+    final updatedUser = FirebaseAuth.instance.currentUser;
 
-            if (!snapshot.hasData || !snapshot.data!.exists) {
-              return const Text('User data not found.');
-            }
+    if (updatedUser != null && updatedUser.emailVerified && !_navigated) {
+      _navigated = true;
 
-            final userData = snapshot.data!.data() as Map<String, dynamic>;
-            final isEmailVerified = userData['emailVerified'] ?? false;
+      await _firestore.collection('Users').doc(updatedUser.uid).update({
+        'emailVerified': true,
+      });
 
-            if (isEmailVerified) {
-              WidgetsBinding.instance.addPostFrameCallback((_) {
-                Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(builder: (context) => const LoginScreen()),
-                );
-              });
+      _timer?.cancel();
 
-              return const Text(
-                'Email verified! Redirecting to login...',
-                style: TextStyle(fontSize: 18, color: Colors.green),
-              );
-            }
+      if (mounted) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (context) => const LoginScreen()),
+          );
+        });
+      }
+    }
+  }
 
-            return Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Text(
-                  'Please verify your email address',
-                  style: TextStyle(fontSize: 18),
-                ),
-                const SizedBox(height: 20),
-                ElevatedButton(
-                  onPressed: _isResendDisabled
-                      ? null
-                      : () async {
-                          await _checkEmailVerification();
-                          _resendVerificationEmail();
-                          _startResendTimer();
-                        },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF6750A4),
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 30, vertical: 15),
-                  ),
-                  child: Text(
-                    _isResendDisabled
-                        ? 'Resend in $_resendCountdown seconds'
-                        : 'Resend Verification Email',
-                  ),
-                ),
-              ],
-            );
-          },
-        ),
-      ),
-    );
+  void _startResendTimer() {
+    setState(() {
+      _isResendDisabled = true;
+      _resendCountdown = 60;
+    });
+
+    _resendTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted) return;
+      setState(() {
+        if (_resendCountdown > 0) {
+          _resendCountdown--;
+        } else {
+          _isResendDisabled = false;
+          _resendTimer?.cancel();
+        }
+      });
+    });
   }
 
   Future<void> _resendVerificationEmail() async {
     await widget.user.sendEmailVerification();
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Verification email sent!')),
+    _messengerKey.currentState?.showSnackBar(
+      SnackBar(
+        content: const Text('Verification email sent!'),
+        backgroundColor: const Color(0xFF6750A4),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ScaffoldMessenger(
+      key: _messengerKey,
+      child: Scaffold(
+        body: Center(
+          child: StreamBuilder<DocumentSnapshot>(
+            stream:
+                _firestore.collection('Users').doc(widget.user.uid).snapshots(),
+            builder: (context, snapshot) {
+              // Cache first successful snapshot to avoid flicker
+              if (snapshot.hasData && snapshot.data != null) {
+                _cachedSnapshot = snapshot.data;
+              }
+
+              // Use cached snapshot if available, even if waiting
+              final effectiveSnapshot = snapshot.hasData
+                  ? snapshot
+                  : (_cachedSnapshot != null
+                      ? AsyncSnapshot.withData(
+                          ConnectionState.active, _cachedSnapshot!)
+                      : snapshot);
+
+              if (!effectiveSnapshot.hasData ||
+                  !(effectiveSnapshot.data!.exists)) {
+                return const Text('User data not found.');
+              }
+
+              final userData =
+                  effectiveSnapshot.data!.data() as Map<String, dynamic>;
+              final isEmailVerified = userData['emailVerified'] ?? false;
+
+              if (isEmailVerified) {
+                return const Text(
+                  'Email verified! Redirecting to login...',
+                  style: TextStyle(fontSize: 18, color: Colors.green),
+                );
+              }
+
+              return Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Text(
+                    'Please verify your email address',
+                    style: TextStyle(fontSize: 18),
+                  ),
+                  const SizedBox(height: 20),
+                  ElevatedButton(
+                    onPressed: _isResendDisabled
+                        ? null
+                        : () async {
+                            await _resendVerificationEmail();
+                            _startResendTimer();
+                          },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF6750A4),
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 30, vertical: 15),
+                    ),
+                    child: Text(
+                      _isResendDisabled
+                          ? 'Resend in $_resendCountdown seconds'
+                          : 'Resend Verification Email',
+                    ),
+                  ),
+                ],
+              );
+            },
+          ),
+        ),
+      ),
     );
   }
 }

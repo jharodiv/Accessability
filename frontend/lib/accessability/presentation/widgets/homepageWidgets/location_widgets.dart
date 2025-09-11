@@ -93,6 +93,8 @@ class _LocationWidgetsState extends State<LocationWidgets> {
   // late VoidCallback _sheetListener;
   late final double _expandThreshold = 0.8;
   late final double _collapseThreshold = 0.3;
+  bool _mapSheetOpening = false;
+
   @override
   void initState() {
     super.initState();
@@ -690,11 +692,23 @@ class _LocationWidgetsState extends State<LocationWidgets> {
                               currentLocation:
                                   widget.locationHandler.currentLocation,
                               // WRAP the map view callback with logging so we can see if it fires
-                              onMapViewPressed: () {
-                                debugPrint(
-                                    '[LocationWidgets] onMapViewPressed wrapper fired. widget.onMapViewPressed != null? ${widget.onMapViewPressed != null}');
-                                // call the parent callback (if provided)
-                                widget.onMapViewPressed?.call();
+                              onMapViewPressed: () async {
+                                if (_mapSheetOpening) {
+                                  debugPrint(
+                                      '[LocationWidgets] map sheet already opening - ignoring tap');
+                                  return;
+                                }
+                                _mapSheetOpening = true;
+                                try {
+                                  debugPrint(
+                                      '[LocationWidgets] onMapViewPressed wrapper fired.');
+                                  await widget.onMapViewPressed?.call();
+                                } finally {
+                                  // small delay to avoid immediate re-open
+                                  await Future.delayed(
+                                      const Duration(milliseconds: 200));
+                                  _mapSheetOpening = false;
+                                }
                               },
                               onCenterPressed: () {
                                 debugPrint('GPS button pressed');

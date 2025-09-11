@@ -14,6 +14,7 @@ class MemberListWidget extends StatefulWidget {
   final List<Map<String, dynamic>> members;
   final String? selectedMemberId;
   final DateTime? yourLastUpdate;
+  final Future<void> Function()? onShowMyInfoPressed;
 
   /// Your own location + label
   final LatLng? yourLocation;
@@ -36,6 +37,7 @@ class MemberListWidget extends StatefulWidget {
     this.yourAddressLabel,
     this.yourLastUpdate,
     this.isLoading = false, // default false
+    this.onShowMyInfoPressed, // <-- add here
   });
 
   @override
@@ -214,10 +216,21 @@ class _MemberListWidgetState extends State<MemberListWidget> {
                   ),
               ],
             ),
-            onTap: () => widget.onMemberPressed(
-              widget.yourLocation!,
-              _auth.currentUser!.uid,
-            ),
+            onTap: () async {
+              if (widget.onShowMyInfoPressed != null) {
+                try {
+                  await widget.onShowMyInfoPressed!();
+                } catch (e, st) {
+                  debugPrint('onShowMyInfoPressed threw: $e\n$st');
+                  // fallback
+                  widget.onMemberPressed(
+                      widget.yourLocation!, _auth.currentUser!.uid);
+                }
+                return;
+              }
+              widget.onMemberPressed(
+                  widget.yourLocation!, _auth.currentUser!.uid);
+            },
           ),
           // Add-person CTA still useful even if no members
           const SizedBox(height: 8),
@@ -268,11 +281,24 @@ class _MemberListWidgetState extends State<MemberListWidget> {
               // visible ripple + pressed highlight
               splashColor: purple.withOpacity(0.28),
               highlightColor: purple.withOpacity(0.12),
-              onTap: () {
+              onTap: () async {
                 if (currentId.isNotEmpty) _blink(currentId);
                 setState(() => _selectedId = currentId);
+
+                if (widget.onShowMyInfoPressed != null) {
+                  try {
+                    await widget.onShowMyInfoPressed!();
+                  } catch (e, st) {
+                    debugPrint('onShowMyInfoPressed threw: $e\n$st');
+                    // fallback to older behavior
+                    widget.onMemberPressed(widget.yourLocation!, currentId);
+                  }
+                  return;
+                }
+
                 widget.onMemberPressed(widget.yourLocation!, currentId);
               },
+
               child: ListTile(
                 leading: CircleAvatar(
                   backgroundImage: currentUser?.photoURL != null

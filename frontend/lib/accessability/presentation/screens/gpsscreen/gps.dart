@@ -138,6 +138,9 @@ class _GpsScreenState extends State<GpsScreen> {
   bool _isApplyingPerspective = false;
   late final DraggableScrollableController _locationSheetController;
   late final DraggableScrollableController _safetySheetController;
+  bool _suppressMapTapCollapse = false;
+  Timer? _suppressMapTapCollapseTimer;
+  final ValueNotifier<bool> _userOverlayVisible = ValueNotifier<bool>(false);
 
   Timer?
       _routeUpdateTimer; // used only to decide icon state (kept for minimal changes)
@@ -338,6 +341,14 @@ class _GpsScreenState extends State<GpsScreen> {
   void _removeUserOverlay() {
     _userOverlayEntry?.remove();
     _userOverlayEntry = null;
+
+    // notify LocationWidgets overlay is gone
+    _userOverlayVisible.value = false;
+
+    // allow map taps to collapse again
+    _suppressMapTapCollapse = false;
+    _suppressMapTapCollapseTimer?.cancel();
+    _suppressMapTapCollapseTimer = null;
   }
 
   Future<void> _showUserOverlay({
@@ -351,91 +362,165 @@ class _GpsScreenState extends State<GpsScreen> {
     double? speedKmh,
     DateTime? timestamp,
   }) async {
-    // remove existing
+    // remove any existing overlay first
     _removeUserOverlay();
 
+    // Suppress the usual map-onTap collapse while we prepare/show the overlay.
+    _userOverlayVisible.value = true;
+    _suppressMapTapCollapse = true;
+    _suppressMapTapCollapseTimer?.cancel();
+    _suppressMapTapCollapseTimer = Timer(
+        const Duration(seconds: 4), () => _suppressMapTapCollapse = false);
+
+    // --- IMPORTANT: collapse relevant DraggableScrollableSheets so LocationWidgets
+    // will go to its min height when the user overlay is shown.
+    // We try all three controllers (favorite, location, safety). Each animateTo is
+    // guarded and non-fatal so we don't crash if controller isn't attached.
+    const double favoriteMin = 0.10; // matches FavoriteWidget minChildSize
+    const double locationMin =
+        0.20; // matches LocationWidgets._sheetMinChildSize
+    const double safetyMin = 0.10; // matches SafetyAssistWidget minChildSize
+
+    Future<void> tryCollapse(
+        DraggableScrollableController? controller, double target) async {
+      if (controller == null) return;
+      try {
+        // Only attempt if noticeably larger than target to avoid redundant calls
+        final cur = controller.size;
+        if (cur > target + 0.01) {
+          if (controller.isAttached) {
+            await controller.animateTo(
+              target,
+              duration: const Duration(milliseconds: 260),
+              curve: Curves.easeOut,
+            );
+          } else {
+            // If not attached yet, try a short delay then attempt again.
+            await Future.delayed(const Duration(milliseconds: 120));
+            if (controller.isAttached) {
+              await controller.animateTo(
+                target,
+                duration: const Duration(milliseconds: 260),
+                curve: Curves.easeOut,
+              );
+            } // otherwise ignore — it will be collapsed when sheet attaches
+          }
+        }
+      } catch (e) {
+        debugPrint('[GpsScreen] collapse attempt failed for controller: $e');
+      }
+    }
+
+    // Fire-and-await collapses so the UI has settled before we position overlay.
+    await tryCollapse(_favoriteSheetController, favoriteMin);
+    await tryCollapse(_locationSheetController, locationMin);
+    await tryCollapse(_safetySheetController, safetyMin);
+
     final controller = _locationHandler.mapController;
-    if (controller == null) return;
+    if (controller == null) {
+      // can't proceed — clear suppression and exit
+      _suppressMapTapCollapse = false;
+      _suppressMapTapCollapseTimer?.cancel();
+      _suppressMapTapCollapseTimer = null;
+      return;
+    }
 
     try {
-      // card size used for positioning (matches old design)
+      // card size used for positioning (matches card design)
       const double cardWidth = 260.0;
       const double cardHeight = 112.0;
-
-      // offsets you requested
-      const double topOffsetFromProfile =
-          20.0; // 20 px above the profile picture
-      const double leftNudge =
-          8.0; // nudges overlay 5-10 px to the left (8 chosen)
+      const double topOffsetFromProfile = 20.0;
+      const double leftNudge = 8.0;
 
       final screenW = MediaQuery.of(context).size.width;
       final screenH = MediaQuery.of(context).size.height;
 
-      // detect current user
       final currentUid = FirebaseAuth.instance.currentUser?.uid;
       final bool isCurrentUser = currentUid != null && currentUid == userId;
 
-      double left;
-      double top;
+      // conservative fallback position (center-ish)
+      double left = ((screenW - cardWidth) / 2 - leftNudge)
+          .clamp(8.0, screenW - cardWidth - 8.0);
+      double top = ((screenH / 2) - cardHeight - topOffsetFromProfile)
+          .clamp(8.0, screenH - cardHeight - 8.0);
 
-      if (isCurrentUser) {
-        // center the map on the user's location first (so profile is visible)
-        try {
-          await controller.animateCamera(CameraUpdate.newLatLng(location));
-        } catch (e) {
-          debugPrint('animateCamera failed: $e');
-        }
-
-        // wait a bit for the camera to settle
-        await Future.delayed(const Duration(milliseconds: 300));
-
-        // horizontally center the card, then nudge left a bit
-        left = ((screenW - cardWidth) / 2 - leftNudge)
-            .clamp(8.0, screenW - cardWidth - 8.0);
-
-        // place the card above vertical center by the requested top offset
-        final double centerY = screenH / 2;
-        top = (centerY - cardHeight - topOffsetFromProfile)
-            .clamp(8.0, screenH - cardHeight - 8.0);
-      } else {
-        // non-current user: position relative to the marker/profile screen coordinate
-        final screenCoord = await controller.getScreenCoordinate(location);
-        final devicePixelRatio = MediaQuery.of(context).devicePixelRatio;
-
-        // convert device pixels -> logical pixels
-        final dx = screenCoord.x.toDouble() / devicePixelRatio;
-        final dy = screenCoord.y.toDouble() / devicePixelRatio;
-
-        // center the card on the marker's x, then nudge left
-        left = (dx - cardWidth / 2 - leftNudge)
-            .clamp(8.0, screenW - cardWidth - 8.0);
-
-        // put the card above the profile/marker by the requested top offset
-        top = (dy - cardHeight - topOffsetFromProfile)
-            .clamp(8.0, screenH - cardHeight - 8.0);
-      }
-
-      // insert overlay (still using the widget's original size/design)
+      // Insert overlay immediately with a barrier to avoid tap-through.
       _userOverlayEntry = OverlayEntry(builder: (ctx) {
-        return Positioned(
-          left: left,
-          top: top,
-          child: UserMarkerInfoCard(
-            username: username,
-            address: address,
-            distanceKm: distanceMeters / 1000.0,
-            profileUrl: profileUrl,
-            batteryPercent: batteryPercent,
-            speedKmh: speedKmh,
-            timestamp: timestamp,
-            onClose: () => _removeUserOverlay(),
-          ),
+        return Stack(
+          children: [
+            const ModalBarrier(color: Colors.transparent, dismissible: false),
+            Positioned(
+              left: left,
+              top: top,
+              child: Material(
+                color: Colors.transparent,
+                child: UserMarkerInfoCard(
+                  username: username,
+                  address: address,
+                  distanceKm: distanceMeters / 1000.0,
+                  profileUrl: profileUrl,
+                  batteryPercent: batteryPercent,
+                  speedKmh: speedKmh,
+                  timestamp: timestamp,
+                  onClose: () => _removeUserOverlay(),
+                ),
+              ),
+            ),
+          ],
         );
       });
 
       Overlay.of(context)!.insert(_userOverlayEntry!);
-    } catch (e) {
-      debugPrint('Error creating overlay: $e');
+
+      // Compute precise position: center-based for current user (after camera move),
+      // or marker-screen-coordinate for other users.
+      if (isCurrentUser) {
+        try {
+          await controller.animateCamera(CameraUpdate.newLatLng(location));
+        } catch (e) {
+          debugPrint('[GpsScreen] animateCamera failed for current user: $e');
+        }
+        // brief wait for camera/layout to stabilise
+        await Future.delayed(const Duration(milliseconds: 250));
+
+        final double centerY = screenH / 2;
+        left = ((screenW - cardWidth) / 2 - leftNudge)
+            .clamp(8.0, screenW - cardWidth - 8.0);
+        top = (centerY - cardHeight - topOffsetFromProfile)
+            .clamp(8.0, screenH - cardHeight - 8.0);
+      } else {
+        try {
+          final screenCoord = await controller.getScreenCoordinate(location);
+          final devicePixelRatio = MediaQuery.of(context).devicePixelRatio;
+          final dx = screenCoord.x.toDouble() / devicePixelRatio;
+          final dy = screenCoord.y.toDouble() / devicePixelRatio;
+
+          left = (dx - cardWidth / 2 - leftNudge)
+              .clamp(8.0, screenW - cardWidth - 8.0);
+          top = (dy - cardHeight - topOffsetFromProfile)
+              .clamp(8.0, screenH - cardHeight - 8.0);
+        } catch (e) {
+          debugPrint(
+              '[GpsScreen] getScreenCoordinate failed, using fallback: $e');
+        }
+      }
+
+      // Rebuild overlay so the card moves to the computed coordinates.
+      try {
+        _userOverlayEntry?.markNeedsBuild();
+      } catch (e) {
+        debugPrint('[GpsScreen] markNeedsBuild failed: $e');
+      }
+
+      // Keep suppression active while the overlay is present; _removeUserOverlay()
+      // clears `_suppressMapTapCollapse` and cancels the timer.
+    } catch (e, st) {
+      debugPrint('[GpsScreen] Error creating overlay: $e\n$st');
+      // cleanup on error
+      _suppressMapTapCollapse = false;
+      _suppressMapTapCollapseTimer?.cancel();
+      _suppressMapTapCollapseTimer = null;
+      _removeUserOverlay();
     }
   }
 
@@ -1257,13 +1342,117 @@ class _GpsScreenState extends State<GpsScreen> {
     }
   }
 
-  void _onMemberPressed(LatLng location, String userId) {
+  void _onMemberPressed(LatLng location, String userId) async {
+    // 1) Pan/center the map and prepare LocationHandler as before
     if (_locationHandler.mapController != null) {
-      _locationHandler.mapController!.animateCamera(
-        CameraUpdate.newLatLng(location),
-      );
+      try {
+        await _locationHandler.mapController!.animateCamera(
+          CameraUpdate.newLatLng(location),
+        );
+      } catch (e) {
+        debugPrint('_onMemberPressed animateCamera error: $e');
+      }
+
       _locationHandler.selectedUserId = userId;
       _locationHandler.listenForLocationUpdates();
+    }
+
+    // 2) Fetch display info for the member (Users collection)
+    String username = 'User';
+    String profileUrl = '';
+    try {
+      // Prefer querying by uid field (your Users docs use 'uid' per earlier code)
+      final q = await _firestore
+          .collection('Users')
+          .where('uid', isEqualTo: userId)
+          .limit(1)
+          .get();
+      if (q.docs.isNotEmpty) {
+        final data = q.docs.first.data();
+        final first = (data['firstName'] ?? '').toString().trim();
+        final last = (data['lastName'] ?? '').toString().trim();
+        username = (first.isNotEmpty || last.isNotEmpty)
+            ? ('$first${first.isNotEmpty && last.isNotEmpty ? ' ' : ''}$last')
+                .trim()
+            : (data['username']?.toString() ?? 'User');
+        profileUrl = data['profilePicture']?.toString() ?? '';
+      }
+    } catch (e, st) {
+      debugPrint('_onMemberPressed: failed to fetch Users doc: $e\n$st');
+    }
+
+    // 3) Try to fetch telemetry from UserLocations (battery, speed, timestamp)
+    int? batteryPercent;
+    double? speedKmh;
+    DateTime? timestamp;
+    try {
+      final locSnap =
+          await _firestore.collection('UserLocations').doc(userId).get();
+      if (locSnap.exists) {
+        final ld = locSnap.data();
+        if (ld != null) {
+          // batteryPercent may be stored as int or string — try both
+          final bp = ld['batteryPercent'];
+          if (bp is int)
+            batteryPercent = bp;
+          else if (bp is String)
+            batteryPercent = int.tryParse(bp) ?? batteryPercent;
+
+          // speed may be stored as number or string
+          try {
+            speedKmh = MapUtils.parseDouble(ld['speedKmh']);
+          } catch (_) {}
+
+          final rawTs = ld['timestamp'];
+          if (rawTs is Timestamp)
+            timestamp = rawTs.toDate();
+          else if (rawTs is int)
+            timestamp = DateTime.fromMillisecondsSinceEpoch(rawTs);
+          else if (rawTs is String) {
+            final ms = int.tryParse(rawTs);
+            if (ms != null) timestamp = DateTime.fromMillisecondsSinceEpoch(ms);
+          }
+        }
+      }
+    } catch (e, st) {
+      debugPrint('_onMemberPressed: failed to fetch UserLocations: $e\n$st');
+    }
+
+    // 4) Resolve a friendly address for the tapped location (best-effort)
+    String address = 'Location';
+    try {
+      address = await _getLocationName(location);
+    } catch (e) {
+      debugPrint('_onMemberPressed: _getLocationName failed: $e');
+    }
+
+    // 5) Compute distance in meters relative to current user location (if available)
+    double distanceMeters = 0.0;
+    try {
+      if (_locationHandler.currentLocation != null) {
+        distanceMeters = MapUtils.calculateDistanceKm(
+                _locationHandler.currentLocation!, location) *
+            1000.0;
+      }
+    } catch (e) {
+      debugPrint('_onMemberPressed: distance calc failed: $e');
+    }
+
+    // 6) Finally show the overlay
+    try {
+      await _showUserOverlay(
+        userId: userId,
+        username: username,
+        location: location,
+        address: address,
+        profileUrl: profileUrl,
+        distanceMeters: distanceMeters,
+        batteryPercent: batteryPercent,
+        speedKmh: speedKmh,
+        timestamp: timestamp,
+      );
+    } catch (e, st) {
+      debugPrint('_onMemberPressed: _showUserOverlay failed: $e\n$st');
     }
   }
 
@@ -1732,6 +1921,12 @@ class _GpsScreenState extends State<GpsScreen> {
                       onMapCreated: (controller) =>
                           _onMapCreated(controller, isDarkMode),
                       onTap: (latlng) async {
+                        if (_suppressMapTapCollapse) {
+                          debugPrint(
+                              '[GpsScreen] map onTap suppressed because overlay is visible');
+                          // optional: still clear selectedPlace / remove overlay? we keep overlay until user closes it
+                          return;
+                        }
                         setState(() => _selectedPlace = null);
                         _removeUserOverlay(); // hide card when map tapped
 
@@ -1910,6 +2105,9 @@ class _GpsScreenState extends State<GpsScreen> {
                       LocationWidgets(
                         key: ValueKey(_activeSpaceId),
                         activeSpaceId: _activeSpaceId,
+                        overlayVisibleNotifier:
+                            _userOverlayVisible, // <-- ADD THIS
+
                         onCategorySelected: (LatLng location) {
                           _locationHandler.panCameraToLocation(location);
                         },
@@ -1932,6 +2130,53 @@ class _GpsScreenState extends State<GpsScreen> {
                         // NEW: tell LocationWidgets whether a route is active
                         isRouteActive: _isRouteActive,
                         controller: _locationSheetController, // <-- add this
+                        onShowMyInfoPressed: () async {
+                          final currentUid = userState.user.uid;
+                          final username = [
+                            userState.user.firstName,
+                            userState.user.lastName
+                          ]
+                              .where((s) => s != null && s!.trim().isNotEmpty)
+                              .join(' ')
+                              .trim();
+                          final displayName = username.isNotEmpty
+                              ? username
+                              : (userState.user.username ?? 'You');
+                          final profileUrl =
+                              userState.user.profilePicture ?? '';
+                          final location = _locationHandler.currentLocation;
+
+                          if (location == null) {
+                            // Nothing we can show — optionally center map or show snackbar
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                  content: Text('locationNotAvailable'.tr())),
+                            );
+                            return;
+                          }
+
+                          // Optionally fetch a friendly address for the user's location
+                          String address = 'Current Location';
+                          try {
+                            address = await _getLocationName(location);
+                          } catch (e) {
+                            debugPrint(
+                                'Failed to fetch address for overlay: $e');
+                          }
+
+                          // distance = 0 for self; telemetry fields optional
+                          await _showUserOverlay(
+                            userId: currentUid,
+                            username: displayName,
+                            location: location,
+                            address: address,
+                            profileUrl: profileUrl,
+                            distanceMeters: 0.0,
+                            batteryPercent: null,
+                            speedKmh: null,
+                            timestamp: DateTime.now(),
+                          );
+                        },
                       ),
                     if (_locationHandler.currentIndex == 1)
                       FavoriteWidget(

@@ -395,7 +395,7 @@ class _SafetyAssistWidgetState extends State<SafetyAssistWidget> {
       controller: _draggableController,
       // Use different initial sizes based on whether the helper is showing.
       initialChildSize: _showHelper ? 0.8 : 0.5,
-      minChildSize: 0.5,
+      minChildSize: 0.3,
       maxChildSize: 1.0, // <- allow dragging to utmost top
       builder: (BuildContext context, ScrollController scrollController) {
         return Column(

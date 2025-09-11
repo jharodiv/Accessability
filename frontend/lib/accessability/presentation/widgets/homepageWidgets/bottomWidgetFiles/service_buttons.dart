@@ -110,48 +110,50 @@ class ServiceButtons extends StatelessWidget {
 
             // RIGHT group: vertically centered but slightly lifted to align with SOS
             Transform.translate(
-              // negative Y to lift the column up; tweak _rightColumnLift to suit
               offset: const Offset(0, -_rightColumnLift),
-              child: SizedBox(
-                height: contentHeight,
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    _buildCircularIcon(
-                      context,
-                      icon: Icons.layers,
-                      tooltip: 'mapView'.tr(),
-                      background: circleBg,
-                      iconColor: _purple,
-                      onTap: () async {
-                        if (onMapViewPressed != null) {
-                          try {
-                            await onMapViewPressed!();
-                          } catch (e, st) {
-                            debugPrint('onMapViewPressed threw: $e\n$st');
+              child: Container(
+                padding: const EdgeInsets.only(left: 12), // Added left padding
+                child: SizedBox(
+                  height: contentHeight,
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      _buildCircularIcon(
+                        context,
+                        icon: Icons.layers,
+                        tooltip: 'mapView'.tr(),
+                        background: circleBg,
+                        iconColor: _purple,
+                        onTap: () async {
+                          if (onMapViewPressed != null) {
+                            try {
+                              await onMapViewPressed!();
+                            } catch (e, st) {
+                              debugPrint('onMapViewPressed threw: $e\n$st');
+                            }
+                          } else {
+                            Navigator.pushNamed(context, '/mapviewsettings');
                           }
-                        } else {
-                          Navigator.pushNamed(context, '/mapviewsettings');
-                        }
-                      },
-                      size: _smallCircleSize,
-                      iconSize: _smallIconSize,
-                    ),
-                    const SizedBox(height: _rightIconsGap),
-                    _buildCircularIcon(
-                      context,
-                      icon: Icons.gps_fixed,
-                      tooltip: 'centerOnMe'.tr(),
-                      background: circleBg,
-                      iconColor: _purple,
-                      onTap: () {
-                        debugPrint('center pressed');
-                        if (onCenterPressed != null) onCenterPressed!();
-                      },
-                      size: _smallCircleSize,
-                      iconSize: _smallIconSize,
-                    ),
-                  ],
+                        },
+                        size: _smallCircleSize,
+                        iconSize: _smallIconSize,
+                      ),
+                      const SizedBox(height: _rightIconsGap),
+                      _buildCircularIcon(
+                        context,
+                        icon: Icons.gps_fixed,
+                        tooltip: 'centerOnMe'.tr(),
+                        background: circleBg,
+                        iconColor: _purple,
+                        onTap: () {
+                          debugPrint('center pressed');
+                          if (onCenterPressed != null) onCenterPressed!();
+                        },
+                        size: _smallCircleSize,
+                        iconSize: _smallIconSize,
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -283,11 +285,9 @@ class ServiceButtons extends StatelessWidget {
   }) {
     return Material(
       color: Colors.transparent,
-      child: InkResponse(
+      child: InkWell(
         onTap: onTap,
-        radius: (size / 2) + 6,
-        containedInkWell: true,
-        highlightShape: BoxShape.circle,
+        borderRadius: BorderRadius.circular(size / 2),
         child: Container(
           width: size,
           height: size,

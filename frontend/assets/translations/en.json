@@ -309,5 +309,18 @@
   "go_to_settings_instruction": "Go to App Settings > Permissions > enable Contacts access",
   "contacts_permission_denied_explanation": "Contacts permission is required to import emergency contacts",
   "try_again": "Try Again",
-  "contacts_access_restricted": "Contacts access is restricted on this device"
+  "pick_a_contact_to_add_as_emergency": "Pick a contact to add as an emergency contact.",
+  "search_contacts": "Search contacts",
+
+  "add_emergency_contact_title": "Add Emergency Contact",
+  "add_emergency_contact_subtitle": "Save someone we can reach when it matters most.",
+
+  "phone_number": "Phone Number",
+  "address": "Address",
+  "relationship": "Relationship",
+
+  "contacts_access_restricted": "Contact access is restricted",
+  "tip_add_emergency_contact": "Tip: keep this contact up-to-date so help can arrive quickly.",
+  "no_results": "No results",
+  "select": "Select"
 }

@@ -1,3 +1,5 @@
+import 'package:accessability/accessability/presentation/widgets/dialog/permission_required_dialog_widget.dart';
+import 'package:accessability/accessability/presentation/widgets/dialog/try_again_dialog_widget.dart';
 import 'package:accessability/accessability/themes/theme_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -105,19 +107,9 @@ class _AddEmergencyContactScreenState extends State<AddEmergencyContactScreen> {
     } else if (status.isPermanentlyDenied) {
       final shouldOpenSettings = await showDialog<bool>(
         context: context,
-        builder: (context) => AlertDialog(
-          title: Text('permission_required'.tr()),
-          content: Text('contacts_permission_permanently_denied'.tr()),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: Text('cancel'.tr()),
-            ),
-            TextButton(
-              onPressed: () => Navigator.pop(context, true),
-              child: Text('open_settings'.tr()),
-            ),
-          ],
+        builder: (context) => PermissionRequiredDialog(
+          onOpenSettings: () => Navigator.pop(context, true),
+          onCancel: () => Navigator.pop(context, false),
         ),
       );
 
@@ -134,25 +126,19 @@ class _AddEmergencyContactScreenState extends State<AddEmergencyContactScreen> {
       // Show explanation and offer to try again
       final shouldRetry = await showDialog<bool>(
         context: context,
-        builder: (context) => AlertDialog(
-          title: Text('permission_required'.tr()),
-          content: Text('contacts_permission_denied_explanation'.tr()),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: Text('cancel'.tr()),
-            ),
-            TextButton(
-              onPressed: () => Navigator.pop(context, true),
-              child: Text('try_again'.tr()),
-            ),
-          ],
+        builder: (context) => TryAgainDialog(
+          onTryAgain: () => Navigator.pop(context, true),
+          onCancel: () => Navigator.pop(context, false),
         ),
       );
 
       if (shouldRetry == true) {
         _onPickContactPressed(); // Recursive call to try again
       }
+    } else if (status.isRestricted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('contacts_access_restricted'.tr())),
+      );
     }
   }
 

@@ -2017,7 +2017,7 @@ class _GpsScreenState extends State<GpsScreen> {
 
                     if (_isRerouting)
                       Positioned(
-                        top: screenHeight * 0.15,
+                        top: screenHeight * 0.17,
                         left: 0,
                         right: 0,
                         child: const Center(child: ReroutingBanner()),

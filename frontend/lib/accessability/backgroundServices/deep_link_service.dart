@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:app_links/app_links.dart';
+import 'package:webview_flutter/webview_flutter.dart';
 
 class DeepLinkService {
   static final DeepLinkService _instance = DeepLinkService._internal();
@@ -33,6 +34,36 @@ class DeepLinkService {
     _sub = _appLinks.uriLinkStream.listen((uri) {
       _handleLink(uri, false);
     });
+  }
+
+  Future<void> checkWebStoredDeepLink() async {
+    try {
+      final controller = WebViewController()
+        ..setJavaScriptMode(JavaScriptMode.unrestricted)
+        ..loadRequest(Uri.parse("https://deep-link-test-red.vercel.app"));
+
+      // Wait until page loads
+      await controller.setNavigationDelegate(NavigationDelegate(
+        onPageFinished: (_) async {
+          final result = await controller.runJavaScriptReturningResult(
+              "localStorage.getItem('pending_deeplink');");
+
+          if (result != null && result != "null") {
+            final link = (result as String).replaceAll('"', '');
+            debugPrint("🌐 [AUTO CHECK] Found stored deep link: $link");
+            _handleLink(Uri.parse(link), true);
+
+            // Clear so it doesn't trigger again
+            await controller
+                .runJavaScript("localStorage.removeItem('pending_deeplink');");
+          } else {
+            debugPrint("🌐 [AUTO CHECK] No pending deep link found");
+          }
+        },
+      ));
+    } catch (e) {
+      debugPrint("⚠️ Failed to check web stored deep link: $e");
+    }
   }
 
   void _handleLink(Uri uri, bool isColdStart) {

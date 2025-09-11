@@ -44,3 +44,15 @@ class DisableBiometricLogin extends UserEvent {
   @override
   List<Object> get props => [uid];
 }
+
+class UpdateUserName extends UserEvent {
+  final String uid;
+  final String firstName;
+  final String lastName;
+
+  UpdateUserName({
+    required this.uid,
+    required this.firstName,
+    required this.lastName,
+  });
+}

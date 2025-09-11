@@ -53,15 +53,12 @@ class _AddEmergencyContactScreenState extends State<AddEmergencyContactScreen> {
   }
 
   Future<void> _onPickContactPressed() async {
-    final status = await Permission.contacts.request();
-
-    if (status.isGranted) {
+    // Function to handle the actual contact picking after permission is granted
+    Future<void> _pickContacts() async {
       setState(() => _loadingContacts = true);
 
       try {
         final contacts = await ContactService.getContacts();
-
-        debugPrint('Found ${contacts.length} contacts');
 
         if (contacts.isEmpty) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -70,7 +67,6 @@ class _AddEmergencyContactScreenState extends State<AddEmergencyContactScreen> {
           return;
         }
 
-        // Show simple dialog with contacts
         final Map<String, String>? selectedContact =
             await showDialog<Map<String, String>>(
           context: context,
@@ -90,29 +86,73 @@ class _AddEmergencyContactScreenState extends State<AddEmergencyContactScreen> {
       } finally {
         setState(() => _loadingContacts = false);
       }
+    }
+
+    // Check current status first
+    var status = await Permission.contacts.status;
+
+    // If already granted, proceed directly
+    if (status.isGranted) {
+      await _pickContacts();
+      return;
+    }
+
+    // Always request permission
+    status = await Permission.contacts.request();
+
+    if (status.isGranted) {
+      await _pickContacts();
     } else if (status.isPermanentlyDenied) {
-      // Show dialog to guide user to app settings
-      showDialog(
+      final shouldOpenSettings = await showDialog<bool>(
         context: context,
         builder: (context) => AlertDialog(
           title: Text('permission_required'.tr()),
           content: Text('contacts_permission_permanently_denied'.tr()),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(context),
+              onPressed: () => Navigator.pop(context, false),
               child: Text('cancel'.tr()),
             ),
             TextButton(
-              onPressed: () => openAppSettings(),
+              onPressed: () => Navigator.pop(context, true),
               child: Text('open_settings'.tr()),
             ),
           ],
         ),
       );
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('contacts_permission_denied'.tr())),
+
+      if (shouldOpenSettings == true) {
+        await openAppSettings();
+        // After returning from settings, check if permission was granted
+        await Future.delayed(const Duration(milliseconds: 500));
+        status = await Permission.contacts.status;
+        if (status.isGranted) {
+          await _pickContacts();
+        }
+      }
+    } else if (status.isDenied) {
+      // Show explanation and offer to try again
+      final shouldRetry = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: Text('permission_required'.tr()),
+          content: Text('contacts_permission_denied_explanation'.tr()),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: Text('cancel'.tr()),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: Text('try_again'.tr()),
+            ),
+          ],
+        ),
       );
+
+      if (shouldRetry == true) {
+        _onPickContactPressed(); // Recursive call to try again
+      }
     }
   }
 
@@ -280,7 +320,7 @@ class _AddEmergencyContactScreenState extends State<AddEmergencyContactScreen> {
                   const SizedBox(height: 18),
 
                   // Optional arrival/info field
-                  Text('arrival'.tr(),
+                  Text('Relationship'.tr(),
                       style: const TextStyle(
                           fontWeight: FontWeight.w600, fontSize: 14)),
                   const SizedBox(height: 8),
@@ -288,7 +328,7 @@ class _AddEmergencyContactScreenState extends State<AddEmergencyContactScreen> {
                     controller: _arrivalCtrl,
                     textInputAction: TextInputAction.done,
                     decoration: InputDecoration(
-                      hintText: 'enter_arrival_info'.tr(),
+                      hintText: 'enter_relationship_info'.tr(),
                       border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(6)),
                       contentPadding: const EdgeInsets.symmetric(

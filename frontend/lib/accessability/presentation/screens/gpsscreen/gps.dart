@@ -2219,6 +2219,50 @@ class _GpsScreenState extends State<GpsScreen> {
                               .read<PlaceBloc>()
                               .add(const GetAllPlacesEvent());
                         },
+                        onShowMyInfoPressed: () async {
+                          final currentUid = userState.user.uid;
+                          final username = [
+                            userState.user.firstName,
+                            userState.user.lastName
+                          ]
+                              .where((s) => s != null && s!.trim().isNotEmpty)
+                              .join(' ')
+                              .trim();
+                          final displayName = username.isNotEmpty
+                              ? username
+                              : (userState.user.username ?? 'You');
+                          final profileUrl =
+                              userState.user.profilePicture ?? '';
+                          final location = _locationHandler.currentLocation;
+
+                          if (location == null) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                  content: Text('locationNotAvailable'.tr())),
+                            );
+                            return;
+                          }
+
+                          String address = 'Current Location';
+                          try {
+                            address = await _getLocationName(location);
+                          } catch (e) {
+                            debugPrint(
+                                'Failed to fetch address for overlay: $e');
+                          }
+
+                          await _showUserOverlay(
+                            userId: currentUid,
+                            username: displayName,
+                            location: location,
+                            address: address,
+                            profileUrl: profileUrl,
+                            distanceMeters: 0.0,
+                            batteryPercent: null,
+                            speedKmh: null,
+                            timestamp: DateTime.now(),
+                          );
+                        },
                       ),
 // inside GpsScreen build where you show the sheet
                     if (_locationHandler.currentIndex == 2)
@@ -2231,6 +2275,51 @@ class _GpsScreenState extends State<GpsScreen> {
                         // optional: allow SafetyAssist to open map settings via your existing helper
                         onMapViewPressed: () async {
                           await _openMapSettings();
+                        },
+                        onShowMyInfoPressed: () async {
+                          final currentUid = userState.user.uid;
+                          final username = [
+                            userState.user.firstName,
+                            userState.user.lastName
+                          ]
+                              .where((s) => s != null && s!.trim().isNotEmpty)
+                              .join(' ')
+                              .trim();
+                          final displayName = username.isNotEmpty
+                              ? username
+                              : (userState.user.username ?? 'You');
+                          final profileUrl =
+                              userState.user.profilePicture ?? '';
+                          final location = _locationHandler.currentLocation;
+
+                          if (location == null) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                  content: Text('locationNotAvailable'.tr())),
+                            );
+                            return;
+                          }
+
+                          // Optionally fetch a friendly address for the user's location
+                          String address = 'Current Location';
+                          try {
+                            address = await _getLocationName(location);
+                          } catch (e) {
+                            debugPrint(
+                                'Failed to fetch address for overlay: $e');
+                          }
+
+                          await _showUserOverlay(
+                            userId: currentUid,
+                            username: displayName,
+                            location: location,
+                            address: address,
+                            profileUrl: profileUrl,
+                            distanceMeters: 0.0,
+                            batteryPercent: null,
+                            speedKmh: null,
+                            timestamp: DateTime.now(),
+                          );
                         },
                         // explicit center handler — safer because you control null-check and any animation
                         onCenterPressed: () {

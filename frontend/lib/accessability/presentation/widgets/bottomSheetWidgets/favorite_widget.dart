@@ -25,6 +25,7 @@ class FavoriteWidget extends StatefulWidget {
   final Future<void> Function()? onMapViewPressed;
   final VoidCallback? onCenterPressed;
   final void Function(String)? onServiceButtonPressed;
+  final Future<void> Function()? onShowMyInfoPressed;
 
   const FavoriteWidget({
     Key? key,
@@ -36,6 +37,7 @@ class FavoriteWidget extends StatefulWidget {
     this.onMapViewPressed,
     this.onCenterPressed,
     this.onServiceButtonPressed,
+    this.onShowMyInfoPressed, // <- add this
   }) : super(key: key);
 
   @override
@@ -163,17 +165,34 @@ class _FavoriteWidgetState extends State<FavoriteWidget> {
                                 widget.onServiceButtonPressed ?? (label) {},
                             currentLocation: widget.currentLocation,
                             onMapViewPressed: widget.onMapViewPressed,
-                            onCenterPressed: widget.onCenterPressed ??
-                                () {
-                                  if (widget.currentLocation == null) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(
-                                          content: Text(
-                                              'locationNotAvailable'.tr())),
-                                    );
-                                    return;
-                                  }
-                                },
+                            // wrap center so we both center the map and then show my-info overlay
+                            onCenterPressed: () async {
+                              // if no location, show same snackbar as before
+                              if (widget.currentLocation == null) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                      content:
+                                          Text('locationNotAvailable'.tr())),
+                                );
+                                return;
+                              }
+
+                              // first call any provided center-handling callback (pan/animate etc.)
+                              try {
+                                widget.onCenterPressed?.call();
+                              } catch (e, st) {
+                                debugPrint(
+                                    'FavoriteWidget onCenterPressed threw: $e\n$st');
+                              }
+
+                              // then call onShowMyInfoPressed (if provided) to show the overlay
+                              try {
+                                await widget.onShowMyInfoPressed?.call();
+                              } catch (e, st) {
+                                debugPrint(
+                                    'FavoriteWidget onShowMyInfoPressed threw: $e\n$st');
+                              }
+                            },
                           )
                         : const SizedBox.shrink(),
                   ),

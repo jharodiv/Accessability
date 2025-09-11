@@ -886,12 +886,12 @@ class _LocationWidgetsState extends State<LocationWidgets> {
                                     _mapSheetOpening = false;
                                   }
                                 },
-                                onCenterPressed: () {
-                                  debugPrint('GPS button pressed');
+                                onCenterPressed: () async {
                                   debugPrint(
-                                      'locationHandler.currentLocation: ${widget.locationHandler.currentLocation}');
-                                  if (widget.locationHandler.currentLocation ==
-                                      null) {
+                                      'GPS button pressed (center/reset)');
+                                  final currentLoc =
+                                      widget.locationHandler.currentLocation;
+                                  if (currentLoc == null) {
                                     ScaffoldMessenger.of(context).showSnackBar(
                                       SnackBar(
                                           content: Text(
@@ -899,14 +899,53 @@ class _LocationWidgetsState extends State<LocationWidgets> {
                                     );
                                     return;
                                   }
+
+                                  // mark local selection so UI highlights "You"
+                                  final id = _auth.currentUser?.uid;
+                                  if (id != null) {
+                                    setState(() {
+                                      _selectedMemberId = id;
+                                    });
+                                  }
+
+                                  // collapse sheet to min first so the overlay will position correctly
                                   try {
-                                    widget.locationHandler.panCameraToLocation(
-                                        widget
-                                            .locationHandler.currentLocation!);
-                                    debugPrint('Called panCameraToLocation()');
+                                    await _safeAnimateSheetTo(
+                                      _sheetMinChildSize,
+                                      duration:
+                                          const Duration(milliseconds: 260),
+                                    );
+                                  } catch (e, st) {
+                                    debugPrint(
+                                        '[LocationWidgets] safeAnimateSheetTo failed: $e\n$st');
+                                  }
+
+                                  // pan camera to current location
+                                  try {
+                                    widget.locationHandler
+                                        .panCameraToLocation(currentLoc);
                                   } catch (e, st) {
                                     debugPrint(
                                         'panCameraToLocation threw: $e\n$st');
+                                  }
+
+                                  // then ask the host (GpsScreen) to show the "my info" overlay
+                                  if (widget.onShowMyInfoPressed != null) {
+                                    try {
+                                      await widget.onShowMyInfoPressed!.call();
+                                    } catch (e, st) {
+                                      debugPrint(
+                                          '[LocationWidgets] onShowMyInfoPressed threw: $e\n$st');
+                                      // fallback: call the older onMemberPressed behavior if provided
+                                      if (id != null) {
+                                        widget.onMemberPressed(currentLoc, id);
+                                      }
+                                    }
+                                  } else {
+                                    // fallback if no host handler provided
+                                    if (id != null) {
+                                      widget.onMemberPressed(currentLoc, id);
+                                    }
                                   }
                                 },
                               )

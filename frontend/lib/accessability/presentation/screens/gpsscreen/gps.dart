@@ -242,12 +242,65 @@ class _GpsScreenState extends State<GpsScreen> {
           }
         });
       },
+// REPLACE your existing onReroutingChanged callback with this:
       onReroutingChanged: (rerouting) {
         if (!mounted) return;
+
         setState(() {
           _isRerouting = rerouting;
         });
+
+        // When rerouting starts collapse relevant sheets to their min sizes.
+        if (rerouting) {
+          const double favoriteMin = 0.10; // FavoriteWidget minChildSize
+          const double locationMin = 0.10; // LocationWidgets minChildSize
+          const double safetyMin = 0.10; // SafetyAssistWidget minChildSize
+
+          // Run asynchronously so we don't block the route callback / UI thread.
+          Future.microtask(() async {
+            // Favorite
+            try {
+              // guard if controller isn't attached yet (safe-check)
+              if (_favoriteSheetController.isAttached) {
+                await _favoriteSheetController.animateTo(
+                  favoriteMin,
+                  duration: const Duration(milliseconds: 260),
+                  curve: Curves.easeOut,
+                );
+              }
+            } catch (e) {
+              debugPrint('fav collapse error: $e');
+            }
+
+            // Location
+            try {
+              if (_locationSheetController.isAttached) {
+                await _locationSheetController.animateTo(
+                  locationMin,
+                  duration: const Duration(milliseconds: 260),
+                  curve: Curves.easeOut,
+                );
+              }
+            } catch (e) {
+              debugPrint('location collapse error: $e');
+            }
+
+            // Safety
+            try {
+              if (_safetySheetController.isAttached) {
+                await _safetySheetController.animateTo(
+                  safetyMin,
+                  duration: const Duration(milliseconds: 260),
+                  curve: Curves.easeOut,
+                );
+              }
+            } catch (e) {
+              debugPrint('safety collapse error: $e');
+            }
+          });
+        }
       },
+
       // NEW: Add destination reached callback
       onDestinationReached: _showDestinationReachedDialog,
     );
@@ -2180,6 +2233,7 @@ class _GpsScreenState extends State<GpsScreen> {
                       ),
                     if (_locationHandler.currentIndex == 1)
                       FavoriteWidget(
+                        isRerouting: _isRerouting,
                         controller: _favoriteSheetController, // << add this
                         currentLocation: _locationHandler.currentLocation,
                         onMapViewPressed: () async {
@@ -2267,6 +2321,8 @@ class _GpsScreenState extends State<GpsScreen> {
 // inside GpsScreen build where you show the sheet
                     if (_locationHandler.currentIndex == 2)
                       SafetyAssistWidget(
+                        key: const ValueKey('safety_assist'),
+
                         uid: userState.user.uid,
                         // give it the current location so ServiceButtons shows enabled state & can use it
                         currentLocation: _locationHandler.currentLocation,
@@ -2359,6 +2415,8 @@ class _GpsScreenState extends State<GpsScreen> {
                         },
                         controller:
                             _safetySheetController, // <-- pass controller
+                        isRerouting:
+                            _isRouteActive, // or _isRerouting — whichever variable you use in your GpsScreen
                       ),
                   ],
                 ),

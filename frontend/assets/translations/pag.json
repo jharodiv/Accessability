@@ -254,5 +254,21 @@
   "selected": "napili",
   "spaceManagement": "Pamamahala na Space",
   "hospital": "Ospital",
-  "map_types": "Sari-sari na Klase na Mapa"
+  "map_types": "Sari-sari na Klase na Mapa",
+  "reviews": "Mga review",
+  "add_your_review": "I-add so review mo",
+  "write_feedback_hint": "Isurat so opinyon/komento mo...",
+  "clear": "I-clear",
+  "no_reviews_yet": "Awan so review ed sayo. Agin-unong ka ya ag-review!",
+  "more_reviews": "Ad-adung review",
+  "ratings_collected": "Naala so ratings tan tan-ol ya bisita ya beripikado.",
+  "cleanliness": "Kalinisán",
+  "all_reviews": "Amin na review",
+  "details": "Detalye",
+  "please_select_rating": "Paki pili-an so rating",
+  "review_submitted": "Naisumite nen matagumpay so review",
+  "error_submitting": "Boli: Error ed panang-isumite: {0}",
+  "share_experience_short": "Ibahagi so mapaliit a experyensya",
+  "chars_left": "{} a karakter bilay",
+  "keep_review_short_tip": "Papaliwanagan so review; ipaka-maikling tan makapablos"
 }

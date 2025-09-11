@@ -1,7 +1,8 @@
 import 'dart:io';
 
-import 'package:accessability/accessability/presentation/screens/settings/settingsScreens/change_password_screen.dart';
-import 'package:accessability/accessability/presentation/screens/settings/settingsScreens/delete_account.dart';
+import 'package:accessability/accessability/presentation/widgets/account_setting/change_password_screen.dart';
+import 'package:accessability/accessability/presentation/widgets/account_setting/delete_account.dart';
+import 'package:accessability/accessability/presentation/widgets/account_setting/edit_single_name_screen.dart';
 import 'package:accessability/accessability/themes/theme_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -66,23 +67,27 @@ class _AccountScreenState extends State<AccountScreen> {
           setState(() {
             _isUpdatingProfilePicture = false;
           });
-
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('profilePictureUpdated'.tr()),
-              backgroundColor: Colors.green,
-            ),
+                content: Text('profilePictureUpdated'.tr()),
+                backgroundColor: Colors.green),
+          );
+        } else if (state is UserUpdateSuccess) {
+          // update was successful — refresh cached user and show purple snackbar
+          context.read<UserBloc>().add(FetchUserData());
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+                content: Text('profilePictureUpdated'.tr()),
+                backgroundColor: const Color(0xFF6750A4)),
           );
         } else if (state is UserError) {
           setState(() {
             _isUpdatingProfilePicture = false;
           });
-
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('${'error'.tr()}: ${state.message}'),
-              backgroundColor: Colors.red,
-            ),
+                content: Text('${'error'.tr()}: ${state.message}'),
+                backgroundColor: Colors.red),
           );
         }
       },
@@ -203,36 +208,78 @@ class _AccountScreenState extends State<AccountScreen> {
                         ),
                       ),
                     ),
-                    // First Name
                     ListTile(
                       leading: const Icon(Icons.person_outline,
                           color: Color(0xFF6750A4)),
-                      title: Text(
-                        'firstName'.tr(),
-                        style: const TextStyle(fontWeight: FontWeight.bold),
-                      ),
+                      title: Text('firstName'.tr(),
+                          style: const TextStyle(fontWeight: FontWeight.bold)),
                       subtitle: Text(
-                        user.firstName.isNotEmpty
-                            ? user.firstName
-                            : 'notProvided'.tr(),
-                        style: const TextStyle(fontWeight: FontWeight.bold),
-                      ),
+                          user.firstName.isNotEmpty
+                              ? user.firstName
+                              : 'notProvided'.tr(),
+                          style: const TextStyle(fontWeight: FontWeight.bold)),
+                      onTap: () async {
+                        final changed = await Navigator.push<bool>(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => EditSingleNameScreen(
+                              uid: user.uid,
+                              fieldToEdit: NameField.first, // or last
+                              initialValue: user.firstName,
+                            ),
+                          ),
+                        );
+
+                        if (changed == true) {
+                          // show purple success snackbar
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('profileUpdated'
+                                  .tr()), // use your translation key
+                              backgroundColor: const Color(0xFF6750A4),
+                            ),
+                          );
+
+                          // refresh the cached user in UI by asking bloc to re-fetch cached user (or refetch from backend)
+                          context.read<UserBloc>().add(FetchUserData());
+                        }
+                      },
                     ),
                     const Divider(),
-                    // Last Name
+
+// Last Name
                     ListTile(
                       leading: const Icon(Icons.person_outline,
                           color: Color(0xFF6750A4)),
-                      title: Text(
-                        'lastName'.tr(),
-                        style: const TextStyle(fontWeight: FontWeight.bold),
-                      ),
+                      title: Text('lastName'.tr(),
+                          style: const TextStyle(fontWeight: FontWeight.bold)),
                       subtitle: Text(
-                        user.lastName.isNotEmpty
-                            ? user.lastName
-                            : 'notProvided'.tr(),
-                        style: const TextStyle(fontWeight: FontWeight.bold),
-                      ),
+                          user.lastName.isNotEmpty
+                              ? user.lastName
+                              : 'notProvided'.tr(),
+                          style: const TextStyle(fontWeight: FontWeight.bold)),
+                      onTap: () async {
+                        final changed = await Navigator.push<bool>(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => EditSingleNameScreen(
+                              uid: user.uid,
+                              fieldToEdit: NameField.last,
+                              initialValue: user.lastName,
+                            ),
+                          ),
+                        );
+
+                        if (changed == true) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('profileUpdated'.tr()),
+                              backgroundColor: const Color(0xFF6750A4),
+                            ),
+                          );
+                          context.read<UserBloc>().add(FetchUserData());
+                        }
+                      },
                     ),
                     const Divider(),
 
@@ -327,37 +374,37 @@ class _AccountScreenState extends State<AccountScreen> {
                     ),
                     const SizedBox(height: 20),
                     // Cancel & Save Buttons
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                      children: [
-                        OutlinedButton(
-                          onPressed: () {},
-                          style: OutlinedButton.styleFrom(
-                            side: const BorderSide(color: Color(0xFF6750A4)),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(50),
-                            ),
-                          ),
-                          child: Text(
-                            'cancel'.tr(),
-                            style: const TextStyle(color: Color(0xFF6750A4)),
-                          ),
-                        ),
-                        ElevatedButton(
-                          onPressed: () {},
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF6750A4),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(50),
-                            ),
-                          ),
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 16),
-                            child: Text('save'.tr()),
-                          ),
-                        ),
-                      ],
-                    ),
+                    // Row(
+                    //   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    //   children: [
+                    //     OutlinedButton(
+                    //       onPressed: () {},
+                    //       style: OutlinedButton.styleFrom(
+                    //         side: const BorderSide(color: Color(0xFF6750A4)),
+                    //         shape: RoundedRectangleBorder(
+                    //           borderRadius: BorderRadius.circular(50),
+                    //         ),
+                    //       ),
+                    //       child: Text(
+                    //         'cancel'.tr(),
+                    //         style: const TextStyle(color: Color(0xFF6750A4)),
+                    //       ),
+                    //     ),
+                    //     ElevatedButton(
+                    //       onPressed: () {},
+                    //       style: ElevatedButton.styleFrom(
+                    //         backgroundColor: const Color(0xFF6750A4),
+                    //         shape: RoundedRectangleBorder(
+                    //           borderRadius: BorderRadius.circular(50),
+                    //         ),
+                    //       ),
+                    //       child: Padding(
+                    //         padding: const EdgeInsets.symmetric(horizontal: 16),
+                    //         child: Text('save'.tr()),
+                    //       ),
+                    //     ),
+                    //   ],
+                    // ),
                   ],
                 ),
               ),

@@ -254,5 +254,21 @@
   "selected": "napili",
   "spaceManagement": "Pamamahala ng Space",
   "hospital": "Ospital",
-  "map_types": "Mga Uri ng Mapa"
+  "map_types": "Mga Uri ng Mapa",
+  "reviews": "Mga Review",
+  "add_your_review": "Magdagdag ng iyong review",
+  "write_feedback_hint": "Isulat ang iyong puna...",
+  "clear": "I-clear",
+  "no_reviews_yet": "Wala pang review. Maging una na mag-review!",
+  "more_reviews": "Higit pang mga review",
+  "ratings_collected": "Ang mga rating ay kinakalap mula sa mga beripikadong bisita.",
+  "cleanliness": "Kalinisán",
+  "all_reviews": "Lahat ng review",
+  "details": "Detalye",
+  "please_select_rating": "Pakitang pili ng rating",
+  "review_submitted": "Matagumpay na naisumite ang review",
+  "error_submitting": "Error sa pagsusumite ng review: {0}",
+  "share_experience_short": "Ibahagi ang maikling karanasan",
+  "chars_left": "{} na karakter natitira",
+  "keep_review_short_tip": "Panatilihing maikli at kapaki-pakinabang ang iyong review"
 }

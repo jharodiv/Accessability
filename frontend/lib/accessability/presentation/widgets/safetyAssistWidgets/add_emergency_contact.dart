@@ -177,7 +177,7 @@ class _AddEmergencyContactScreenState extends State<AddEmergencyContactScreen>
     }
   }
 
-  void _onSavePressed() {
+  void _onSavePressed() async {
     if (!_formKey.currentState!.validate()) return;
 
     setState(() {
@@ -189,20 +189,25 @@ class _AddEmergencyContactScreenState extends State<AddEmergencyContactScreen>
     final phone = _phoneCtrl.text.trim();
     final address = _addressCtrl.text.trim();
     final relation = _relationCtrl.text.trim();
-
     final fullPhone = '$_countryCode$phone';
 
-    Navigator.of(context).pop({
-      'name': name,
-      'phone': fullPhone,
-      'location': address,
-      'relation': relation,
-    });
+    // stop spinner & animation before popping; guard with mounted
+    if (mounted) {
+      setState(() {
+        _saving = false;
+      });
 
-    setState(() {
-      _saving = false;
-      _buttonAnim.reverse();
-    });
+      // reverse returns a TickerFuture; await it so the animation finishes cleanly
+      await _buttonAnim.reverse();
+
+      // IMPORTANT: use the key your model/ui expects — here I use "relationship"
+      Navigator.of(context).pop({
+        'name': name,
+        'phone': fullPhone,
+        'location': address,
+        'relationship': relation,
+      });
+    }
   }
 
   InputDecoration _decoration({

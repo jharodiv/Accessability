@@ -1,6 +1,7 @@
 // lib/presentation/widgets/bottomSheetWidgets/safety_assist_widget.dart
 
 import 'package:accessability/accessability/presentation/widgets/safetyAssistWidgets/add_emergency_contact.dart';
+import 'package:accessability/accessability/presentation/widgets/safetyAssistWidgets/emergency_contact_list.dart';
 import 'package:accessability/accessability/presentation/widgets/safetyAssistWidgets/safety_assist_emergency_services.dart';
 import 'package:accessability/accessability/presentation/widgets/safetyAssistWidgets/safety_assist_helper_widget.dart';
 import 'package:accessability/accessability/presentation/widgets/homepageWidgets/bottomWidgetFiles/service_buttons.dart';
@@ -201,30 +202,6 @@ class _SafetyAssistWidgetState extends State<SafetyAssistWidget> {
     );
   }
 
-  // void _showEmergencyServicesWidget() {
-  //   showModalBottomSheet(
-  //     context: context,
-  //     isScrollControlled: true,
-  //     shape: const RoundedRectangleBorder(
-  //       borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-  //     ),
-  //     builder: (context) {
-  //       return SafeArea(
-  //         child: Padding(
-  //           padding: EdgeInsets.only(
-  //             bottom: MediaQuery.of(context).viewInsets.bottom,
-  //           ),
-  //           // Wrap in SizedBox to control height inside your DraggableScrollableSheet
-  //           child: SizedBox(
-  //             height: MediaQuery.of(context).size.height * 0.85,
-  //             child: const SafetyAssistEmergencyServices(),
-  //           ),
-  //         ),
-  //       );
-  //     },
-  //   );
-  // }
-
   void _showAddEmergencyContactDialog() {
     Navigator.of(context)
         .push(
@@ -307,191 +284,6 @@ class _SafetyAssistWidgetState extends State<SafetyAssistWidget> {
     {'label': 'Fire Department', 'number': '911'},
     // Add more if you want, eg local hotline
   ];
-
-  void _openEmergencyContactsSheet() {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
-      builder: (context) {
-        return SafeArea(
-          child: Padding(
-            padding: EdgeInsets.only(
-                bottom: MediaQuery.of(context).viewInsets.bottom),
-            child: SizedBox(
-              // limit height so list fits above keyboard if needed
-              height: MediaQuery.of(context).size.height * 0.6,
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  children: [
-                    Container(
-                      width: 40,
-                      height: 4,
-                      decoration: BoxDecoration(
-                        color: Colors.grey[400],
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      margin: const EdgeInsets.only(bottom: 12),
-                    ),
-                    Text(
-                      'emergency_services'.tr(),
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    const Divider(),
-                    Expanded(
-                      child: BlocBuilder<EmergencyBloc, EmergencyState>(
-                        builder: (context, state) {
-                          final List<Widget> tiles = [];
-
-                          if (state is EmergencyContactsLoaded &&
-                              state.contacts.isNotEmpty) {
-                            tiles.add(
-                              Padding(
-                                padding:
-                                    const EdgeInsets.symmetric(vertical: 6.0),
-                                child: Text(
-                                  'my_contacts'.tr(),
-                                  style: const TextStyle(
-                                      fontWeight: FontWeight.w600),
-                                ),
-                              ),
-                            );
-
-                            for (final contact in state.contacts) {
-                              tiles.add(
-                                ListTile(
-                                  leading: const CircleAvatar(
-                                      child: Icon(Icons.person)),
-                                  title: Text(contact.name),
-                                  subtitle: Text(contact.location),
-                                  trailing: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      IconButton(
-                                        icon: const Icon(Icons.call),
-                                        onPressed: () {
-                                          final number =
-                                              contact.update?.isNotEmpty == true
-                                                  ? contact.update
-                                                  : null;
-                                          if (widget
-                                                  .onEmergencyServicePressed !=
-                                              null) {
-                                            widget.onEmergencyServicePressed!(
-                                                contact.name, number);
-                                          } else if (number != null) {
-                                            _launchCaller(number);
-                                          } else {
-                                            ScaffoldMessenger.of(context)
-                                                .showSnackBar(SnackBar(
-                                              content: Text(
-                                                  'no_number_available'.tr()),
-                                            ));
-                                          }
-                                        },
-                                      ),
-                                      IconButton(
-                                        icon: const Icon(Icons.message),
-                                        onPressed: () {
-                                          ScaffoldMessenger.of(context)
-                                              .showSnackBar(SnackBar(
-                                            content: Text(
-                                                'implement_message_action'
-                                                    .tr()),
-                                          ));
-                                        },
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              );
-                              tiles.add(const Divider());
-                            }
-                          }
-
-                          // Common services header
-                          tiles.add(
-                            Padding(
-                              padding:
-                                  const EdgeInsets.symmetric(vertical: 6.0),
-                              child: Text(
-                                'common_services'.tr(),
-                                style: const TextStyle(
-                                    fontWeight: FontWeight.w600),
-                              ),
-                            ),
-                          );
-
-                          for (final svc in _defaultServices) {
-                            tiles.add(
-                              ListTile(
-                                leading: const CircleAvatar(
-                                    child: Icon(Icons.local_hospital)),
-                                title: Text(svc['label'] ?? ''),
-                                subtitle: Text(
-                                    svc['number'] ?? 'no_number_added'.tr()),
-                                trailing: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    IconButton(
-                                      icon: const Icon(Icons.call),
-                                      onPressed: () {
-                                        if (widget.onEmergencyServicePressed !=
-                                            null) {
-                                          widget.onEmergencyServicePressed!(
-                                              svc['label']!, svc['number']);
-                                        } else if (svc['number'] != null &&
-                                            svc['number']!.isNotEmpty) {
-                                          _launchCaller(svc['number']!);
-                                        } else {
-                                          ScaffoldMessenger.of(context)
-                                              .showSnackBar(SnackBar(
-                                            content: Text(
-                                                'no_number_available'.tr()),
-                                          ));
-                                        }
-                                      },
-                                    ),
-                                    IconButton(
-                                      icon: const Icon(Icons.info_outline),
-                                      onPressed: () {
-                                        ScaffoldMessenger.of(context)
-                                            .showSnackBar(
-                                          SnackBar(
-                                              content: Text('${svc['label']}')),
-                                        );
-                                      },
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            );
-                            tiles.add(const Divider());
-                          }
-
-                          return ListView(
-                            padding: EdgeInsets.zero,
-                            children: tiles,
-                          );
-                        },
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        );
-      },
-    );
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -706,159 +498,47 @@ class _SafetyAssistWidgetState extends State<SafetyAssistWidget> {
                                     return const Center(
                                         child: CircularProgressIndicator());
                                   } else if (state is EmergencyContactsLoaded) {
-                                    final contacts = state.contacts;
-                                    if (contacts.isEmpty) {
-                                      return Padding(
-                                        padding: const EdgeInsets.only(top: 10),
-                                        child: Text(
-                                          "no_emergency_contacts".tr(),
-                                          style: TextStyle(
-                                            color: isDarkMode
-                                                ? Colors.white
-                                                : Colors.black,
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        ),
-                                      );
-                                    }
-                                    return Column(
-                                      children: contacts.map((contact) {
-                                        return Column(
-                                          children: [
-                                            // Updated tile design to match emergency services
-                                            Container(
-                                              margin:
-                                                  const EdgeInsets.symmetric(
-                                                      vertical: 4),
-                                              decoration: BoxDecoration(
-                                                color: isDarkMode
-                                                    ? Colors.grey[800]
-                                                    : Colors.grey[50],
-                                                borderRadius:
-                                                    BorderRadius.circular(12),
-                                              ),
-                                              child: ListTile(
-                                                leading: CircleAvatar(
-                                                  backgroundColor:
-                                                      const Color(0xFF6750A4),
-                                                  child: Text(
-                                                    contact.name.isNotEmpty
-                                                        ? contact.name[0]
-                                                            .toUpperCase()
-                                                        : '?',
-                                                    style: const TextStyle(
-                                                        color: Colors.white),
-                                                  ),
-                                                ),
-                                                title: Text(
-                                                  contact.name,
-                                                  style: TextStyle(
-                                                    fontWeight: FontWeight.bold,
-                                                    color: isDarkMode
-                                                        ? Colors.white
-                                                        : Colors.black,
-                                                  ),
-                                                ),
-                                                subtitle: Column(
-                                                  crossAxisAlignment:
-                                                      CrossAxisAlignment.start,
-                                                  children: [
-                                                    if (contact
-                                                        .location.isNotEmpty)
-                                                      Text(
-                                                        contact.location,
-                                                        style: TextStyle(
-                                                          color: isDarkMode
-                                                              ? Colors.grey[400]
-                                                              : Colors
-                                                                  .grey[600],
-                                                          fontSize: 12,
-                                                        ),
-                                                      ),
-                                                    if (contact
-                                                        .arrival.isNotEmpty)
-                                                      Text(
-                                                        contact.arrival,
-                                                        style: TextStyle(
-                                                          color: isDarkMode
-                                                              ? Colors.grey[400]
-                                                              : Colors
-                                                                  .grey[600],
-                                                          fontSize: 12,
-                                                        ),
-                                                      ),
-                                                    Text(
-                                                      contact.update,
-                                                      style: TextStyle(
-                                                        color: isDarkMode
-                                                            ? Colors.grey[400]
-                                                            : Colors.grey[600],
-                                                        fontSize: 12,
-                                                        fontWeight:
-                                                            FontWeight.w600,
-                                                      ),
-                                                    ),
-                                                  ],
-                                                ),
-                                                trailing: Row(
-                                                  mainAxisSize:
-                                                      MainAxisSize.min,
-                                                  children: [
-                                                    IconButton(
-                                                      icon: Icon(Icons.call,
-                                                          color: isDarkMode
-                                                              ? Colors.white
-                                                              : const Color(
-                                                                  0xFF6750A4),
-                                                          size: 20),
-                                                      onPressed: () {
-                                                        final number = contact
-                                                                .update
-                                                                .isNotEmpty
-                                                            ? contact.update
-                                                            : null;
-                                                        if (number != null) {
-                                                          _launchCaller(number);
-                                                        } else {
-                                                          ScaffoldMessenger.of(
-                                                                  context)
-                                                              .showSnackBar(
-                                                            SnackBar(
-                                                                content: Text(
-                                                                    'no_number_available'
-                                                                        .tr())),
-                                                          );
-                                                        }
-                                                      },
-                                                    ),
-                                                    IconButton(
-                                                      icon: Icon(Icons.delete,
-                                                          color: Colors.red,
-                                                          size: 20),
-                                                      onPressed: () {
-                                                        if (contact.id !=
-                                                            null) {
-                                                          BlocProvider.of<
-                                                                      EmergencyBloc>(
-                                                                  context)
-                                                              .add(
-                                                            DeleteEmergencyContactEvent(
-                                                              uid: widget.uid,
-                                                              contactId:
-                                                                  contact.id!,
-                                                            ),
-                                                          );
-                                                        }
-                                                      },
-                                                    ),
-                                                  ],
-                                                ),
-                                              ),
-                                            ),
-                                            const Divider(height: 1),
-                                          ],
+                                    return EmergencyContactsList(
+                                      contacts: state.contacts,
+                                      isDarkMode: isDarkMode,
+                                      uid: widget.uid,
+                                      onAddPressed:
+                                          _showAddEmergencyContactDialog,
+                                      onCallPressed: (number) {
+                                        if (number != null &&
+                                            number.isNotEmpty) {
+                                          _launchCaller(number);
+                                        } else {
+                                          ScaffoldMessenger.of(context)
+                                              .showSnackBar(
+                                            SnackBar(
+                                                content: Text(
+                                                    'no_number_available'
+                                                        .tr())),
+                                          );
+                                        }
+                                      },
+                                      onMessagePressed: (contact) {
+                                        ScaffoldMessenger.of(context)
+                                            .showSnackBar(
+                                          SnackBar(
+                                              content: Text(
+                                                  'implement_message_action'
+                                                      .tr())),
                                         );
-                                      }).toList(),
+                                      },
+                                      onDeletePressed: (contactId) {
+                                        if (contactId != null &&
+                                            contactId.isNotEmpty) {
+                                          BlocProvider.of<EmergencyBloc>(
+                                                  context)
+                                              .add(
+                                            DeleteEmergencyContactEvent(
+                                                uid: widget.uid,
+                                                contactId: contactId),
+                                          );
+                                        }
+                                      },
                                     );
                                   } else if (state is EmergencyOperationError) {
                                     return Text(

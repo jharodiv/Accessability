@@ -277,6 +277,12 @@ class _GpsScreenState extends State<GpsScreen> {
     });
 
     _restoreOrAutoSelectSpace();
+
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      debugPrint("🛰️ GPS mounted, checking for pending deep links...");
+      await Future.delayed(const Duration(seconds: 2));
+      DeepLinkService().consumePendingLinkIfAny();
+    });
   }
 
   void _showDestinationReachedDialog() {
@@ -506,12 +512,6 @@ class _GpsScreenState extends State<GpsScreen> {
       debugPrint('[GpsScreen] restoreOrAutoSelectSpace error: $e\n$st');
       _autoSelectAttempted = true;
     }
-
-    WidgetsBinding.instance.addPostFrameCallback((_) async {
-      debugPrint("🛰️ GPS mounted, checking for pending deep links...");
-      await Future.delayed(const Duration(seconds: 2));
-      DeepLinkService().consumePendingLinkIfAny();
-    });
   }
 
   // --- Helper: small place-type color mapping (kept local for quick tweak) ---

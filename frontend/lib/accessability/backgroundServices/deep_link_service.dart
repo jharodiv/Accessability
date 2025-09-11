@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:app_links/app_links.dart';
+import 'package:webview_flutter/webview_flutter.dart';
 
 class DeepLinkService {
   static final DeepLinkService _instance = DeepLinkService._internal();
@@ -9,75 +10,111 @@ class DeepLinkService {
 
   final AppLinks _appLinks = AppLinks();
   StreamSubscription<Uri>? _sub;
-  Uri? _pendingUri;
-
   late GlobalKey<NavigatorState> navigatorKey;
-  bool _deepLinkHandled = false; // prevent double navigation
+  Uri? _pendingUri;
+  bool _deepLinkHandled = false; // prevents double handling
 
+  /// Callback when a deep link is detected
+  void Function(Uri uri, bool isColdStart)? onLinkDetected;
+
+  /// Initialize the service
   Future<void> initialize(GlobalKey<NavigatorState> key) async {
     navigatorKey = key;
-    debugPrint("🔗 DeepLinkService initialized with navigatorKey");
+    debugPrint("🔗 DeepLinkService initialized");
 
-    // Cold start
+    // Cold start: app launched via deep link
     final initialUri = await _appLinks.getInitialLink();
     if (initialUri != null) {
-      debugPrint("❄️ [COLD START] Deep link detected: $initialUri");
-      _pendingUri = initialUri;
+      _handleLink(initialUri, true);
     } else {
       debugPrint("❄️ [COLD START] No deep link found");
     }
 
-    // Hot links while running
+    // Hot start: app is running and receives a deep link
     _sub = _appLinks.uriLinkStream.listen((uri) {
-      debugPrint("📡 [HOT] Runtime deep link received: $uri");
-      _handleLink(uri);
+      _handleLink(uri, false);
     });
   }
 
-  void _handleLink(Uri uri) {
-    if (_deepLinkHandled) return; // already handled
-    if (navigatorKey.currentState == null) {
-      debugPrint("⏳ Navigator not ready, queuing URI: $uri");
-      _pendingUri = uri;
+  Future<void> checkWebStoredDeepLink() async {
+    try {
+      final controller = WebViewController()
+        ..setJavaScriptMode(JavaScriptMode.unrestricted)
+        ..loadRequest(Uri.parse("https://deep-link-test-red.vercel.app"));
+
+      // Wait until page loads
+      await controller.setNavigationDelegate(NavigationDelegate(
+        onPageFinished: (_) async {
+          final result = await controller.runJavaScriptReturningResult(
+              "localStorage.getItem('pending_deeplink');");
+
+          if (result != null && result != "null") {
+            final link = (result as String).replaceAll('"', '');
+            debugPrint("🌐 [AUTO CHECK] Found stored deep link: $link");
+            _handleLink(Uri.parse(link), true);
+
+            // Clear so it doesn't trigger again
+            await controller
+                .runJavaScript("localStorage.removeItem('pending_deeplink');");
+          } else {
+            debugPrint("🌐 [AUTO CHECK] No pending deep link found");
+          }
+        },
+      ));
+    } catch (e) {
+      debugPrint("⚠️ Failed to check web stored deep link: $e");
+    }
+  }
+
+  void _handleLink(Uri uri, bool isColdStart) {
+    if (_deepLinkHandled) {
+      debugPrint("⚠️ Link already handled, ignoring: $uri");
       return;
     }
 
     _deepLinkHandled = true;
-    debugPrint("➡️ Handling deep link now: $uri");
+    debugPrint(
+        "${isColdStart ? '❄️ [COLD START]' : '📡 [HOT]'} Handling deep link: $uri");
 
-    // Small delay to allow UI to settle
-    Future.delayed(const Duration(milliseconds: 300), () => _navigate(uri));
-  }
+    // Call the optional callback
+    onLinkDetected?.call(uri, isColdStart);
 
-  void consumePendingLinkIfAny() {
-    if (_pendingUri != null &&
-        navigatorKey.currentState != null &&
-        !_deepLinkHandled) {
-      debugPrint("🚀 Consuming pending deep link (cold start): $_pendingUri");
-      final uriToNavigate = _pendingUri!;
-      _pendingUri = null;
-      _deepLinkHandled = true;
-      Future.delayed(
-          const Duration(milliseconds: 300), () => _navigate(uriToNavigate));
-    } else {
-      debugPrint("ℹ️ No pending link to consume or navigator not ready");
-    }
+    // For now, just log instead of navigating
+    _navigate(uri);
   }
 
   void _navigate(Uri uri) {
-    if (navigatorKey.currentState == null) return;
+    final nav = navigatorKey.currentState;
+
+    if (nav == null) {
+      // Navigator not ready yet, store URI for later
+      _pendingUri = uri;
+      debugPrint("⏳ Navigator not ready, storing pending URI: $uri");
+      return;
+    }
 
     debugPrint("➡️ Navigating based on URI: $uri");
 
     if (uri.pathSegments.isNotEmpty &&
         uri.pathSegments.first.toLowerCase() == "joinspace") {
       final code = uri.queryParameters['code'];
-      navigatorKey.currentState!.pushNamed(
+      debugPrint("📝 Detected joinspace link. Invite code: ${code ?? 'none'}");
+      nav.pushNamed(
         '/joinSpace',
         arguments: code != null ? {'inviteCode': code} : null,
       );
     } else {
-      navigatorKey.currentState!.pushNamed('/home');
+      debugPrint("📝 Detected other link, navigating to /home");
+      nav.pushNamed('/home');
+    }
+  }
+
+  void consumePendingLinkIfAny() {
+    if (_pendingUri != null && navigatorKey.currentState != null) {
+      debugPrint("🚀 Consuming pending deep link: $_pendingUri");
+      final uriToNavigate = _pendingUri!;
+      _pendingUri = null;
+      _navigate(uriToNavigate); // actually navigate now
     }
   }
 

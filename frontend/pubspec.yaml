@@ -58,6 +58,7 @@ dependencies:
   app_links: ^6.4.1
   qr_flutter: ^4.1.0
   battery_plus: ^4.0.0
+  webview_flutter: ^4.13.0
 
   #ForVoiceCommandDependencies
   http: ^1.2.1

@@ -82,6 +82,7 @@ class _GpsScreenState extends State<GpsScreen> {
   final MarkerHandler _markerHandler = MarkerHandler();
   final NearbyPlacesHandler _nearbyPlacesHandler = NearbyPlacesHandler();
   late TutorialWidget _tutorialWidget;
+  late final DraggableScrollableController _favoriteSheetController;
 
   // --- Keys/UI state ---
   bool _isTutorialShown = false;
@@ -135,6 +136,8 @@ class _GpsScreenState extends State<GpsScreen> {
   List<LatLng> _routePoints = [];
   bool _isWheelchairFriendlyRoute = false;
   bool _isApplyingPerspective = false;
+  late final DraggableScrollableController _locationSheetController;
+  late final DraggableScrollableController _safetySheetController;
 
   Timer?
       _routeUpdateTimer; // used only to decide icon state (kept for minimal changes)
@@ -151,6 +154,10 @@ class _GpsScreenState extends State<GpsScreen> {
   @override
   void initState() {
     super.initState();
+
+    _favoriteSheetController = DraggableScrollableController();
+    _locationSheetController = DraggableScrollableController();
+    _safetySheetController = DraggableScrollableController();
 
     print("Using API Key: $_googleAPIKey");
     _mapKey = UniqueKey();
@@ -776,6 +783,10 @@ class _GpsScreenState extends State<GpsScreen> {
     _spaceMemberNotificationService.stopMemberMonitoring();
     _zoomDebounceTimer?.cancel();
     _mapZoomNotifier.dispose();
+    _favoriteSheetController.dispose();
+    _locationSheetController.dispose();
+    _safetySheetController.dispose();
+
     _removeUserOverlay();
     super.dispose();
   }
@@ -1720,9 +1731,63 @@ class _GpsScreenState extends State<GpsScreen> {
                       },
                       onMapCreated: (controller) =>
                           _onMapCreated(controller, isDarkMode),
-                      onTap: (latlng) {
+                      onTap: (latlng) async {
                         setState(() => _selectedPlace = null);
                         _removeUserOverlay(); // hide card when map tapped
+
+                        // collapse all relevant sheets safely
+                        try {
+                          const double favoriteMin =
+                              0.10; // FavoriteWidget minChildSize
+                          const double locationMin =
+                              0.10; // LocationWidgets minChildSize
+                          const double safetyMin =
+                              0.10; // SafetyAssistWidget minChildSize
+
+                          // Fav
+                          try {
+                            final favCur = _favoriteSheetController.size;
+                            if (favCur > favoriteMin + 0.01) {
+                              await _favoriteSheetController.animateTo(
+                                favoriteMin,
+                                duration: const Duration(milliseconds: 260),
+                                curve: Curves.easeOut,
+                              );
+                            }
+                          } catch (e) {
+                            debugPrint('fav collapse error: $e');
+                          }
+
+                          // Location
+                          try {
+                            final locCur = _locationSheetController.size;
+                            if (locCur > locationMin + 0.01) {
+                              await _locationSheetController.animateTo(
+                                locationMin,
+                                duration: const Duration(milliseconds: 260),
+                                curve: Curves.easeOut,
+                              );
+                            }
+                          } catch (e) {
+                            debugPrint('location collapse error: $e');
+                          }
+
+                          // Safety
+                          try {
+                            final safetyCur = _safetySheetController.size;
+                            if (safetyCur > safetyMin + 0.01) {
+                              await _safetySheetController.animateTo(
+                                safetyMin,
+                                duration: const Duration(milliseconds: 260),
+                                curve: Curves.easeOut,
+                              );
+                            }
+                          } catch (e) {
+                            debugPrint('safety collapse error: $e');
+                          }
+                        } catch (e) {
+                          debugPrint('Error collapsing sheets: $e');
+                        }
                       },
                     ),
                     FovOverlay(
@@ -1866,9 +1931,11 @@ class _GpsScreenState extends State<GpsScreen> {
                         onJoinStateChanged: (bool value) {},
                         // NEW: tell LocationWidgets whether a route is active
                         isRouteActive: _isRouteActive,
+                        controller: _locationSheetController, // <-- add this
                       ),
                     if (_locationHandler.currentIndex == 1)
                       FavoriteWidget(
+                        controller: _favoriteSheetController, // << add this
                         currentLocation: _locationHandler.currentLocation,
                         onMapViewPressed: () async {
                           // open map settings (reuse your existing helper)
@@ -1956,6 +2023,8 @@ class _GpsScreenState extends State<GpsScreen> {
                                 content: Text('no_number_available'.tr())));
                           }
                         },
+                        controller:
+                            _safetySheetController, // <-- pass controller
                       ),
                   ],
                 ),

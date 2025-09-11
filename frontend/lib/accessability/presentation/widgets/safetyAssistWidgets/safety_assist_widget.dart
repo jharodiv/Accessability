@@ -26,6 +26,7 @@ class SafetyAssistWidget extends StatefulWidget {
   final VoidCallback? onCenterPressed;
   final void Function(String)? onServiceButtonPressed;
   final LocationHandler? locationHandler;
+  final DraggableScrollableController? controller;
 
   // New optional callback to override emergency service action.
   // (label, phoneNumber)
@@ -40,6 +41,7 @@ class SafetyAssistWidget extends StatefulWidget {
     this.onServiceButtonPressed,
     this.locationHandler,
     this.onEmergencyServicePressed,
+    this.controller, // <- add this
   }) : super(key: key);
 
   @override
@@ -51,8 +53,7 @@ class _SafetyAssistWidgetState extends State<SafetyAssistWidget> {
   bool _showHelper = false;
 
   // Add a controller for the DraggableScrollableSheet.
-  final DraggableScrollableController _draggableController =
-      DraggableScrollableController();
+  late final DraggableScrollableController _draggableController;
 
   // Tracks whether sheet is expanded so we can fade/disable service buttons
   bool _isExpanded = false;
@@ -69,7 +70,9 @@ class _SafetyAssistWidgetState extends State<SafetyAssistWidget> {
     BlocProvider.of<EmergencyBloc>(context)
         .add(FetchEmergencyContactsEvent(uid: widget.uid));
 
-    // attach listener to draggable controller to update _isExpanded
+    _draggableController = widget.controller ?? DraggableScrollableController();
+
+    // attach listener to draggable controller to update _isExpanded/_isAtTop
     _controllerListener = () {
       try {
         final size = _draggableController.size;
@@ -87,6 +90,10 @@ class _SafetyAssistWidgetState extends State<SafetyAssistWidget> {
   void dispose() {
     if (_controllerListener != null) {
       _draggableController.removeListener(_controllerListener!);
+    }
+    // only dispose when we created the controller locally
+    if (widget.controller == null) {
+      _draggableController.dispose();
     }
     super.dispose();
   }

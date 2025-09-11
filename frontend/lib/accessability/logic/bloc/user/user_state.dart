@@ -54,3 +54,15 @@ class EmergencyContactOperationError extends UserState {
 
   EmergencyContactOperationError(this.message);
 }
+
+class UserUpdating extends UserState {}
+
+class UserUpdateSuccess extends UserState {
+  final UserModel user; // replace with your actual user model type
+  UserUpdateSuccess(this.user);
+}
+
+class UserUpdateFailure extends UserState {
+  final String message;
+  UserUpdateFailure(this.message);
+}

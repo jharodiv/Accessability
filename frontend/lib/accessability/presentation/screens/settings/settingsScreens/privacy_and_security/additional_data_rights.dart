@@ -1,4 +1,4 @@
-import 'package:accessability/accessability/presentation/screens/settings/settingsScreens/delete_account.dart';
+import 'package:accessability/accessability/presentation/widgets/account_setting/delete_account.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:accessability/accessability/themes/theme_provider.dart';

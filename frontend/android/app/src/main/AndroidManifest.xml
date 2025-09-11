@@ -56,6 +56,17 @@
                 <category android:name="android.intent.category.BROWSABLE"/>
                 <data android:scheme="accessability" android:host="open"/>
             </intent-filter>
+
+            <!-- ✅ NEW: APK Installation Intent: https://github.com/.../app-release.apk?session=abc123 -->
+    <intent-filter>
+        <action android:name="android.intent.action.VIEW"/>
+        <category android:name="android.intent.category.DEFAULT"/>
+        <category android:name="android.intent.category.BROWSABLE"/>
+        <data 
+            android:scheme="https"
+            android:host="github.com"
+            android:pathPattern=".*Montilla007.*3Y2AAPWD.*app-release.apk"/>
+    </intent-filter>
         </activity>
 
         <!-- Firebase Messaging Service -->

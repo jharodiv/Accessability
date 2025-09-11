@@ -133,8 +133,10 @@ class _FavoriteWidgetState extends State<FavoriteWidget> {
     return DraggableScrollableSheet(
       controller: _draggableController,
       expand: true,
-      initialChildSize: 0.5,
-      minChildSize: 0.5,
+      initialChildSize:
+          0.5, // <- the "default" height where it should sit initially
+      minChildSize:
+          0.3, // <- allow user to drag it further down (smaller = lower)
       maxChildSize: 1.0, // allow it to reach the utmost top
       builder: (BuildContext context, ScrollController scrollController) {
         // NOTE: ServiceButtons is placed OUTSIDE the white container below (same visual position as LocationWidgets)

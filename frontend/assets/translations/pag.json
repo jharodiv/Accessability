@@ -270,5 +270,23 @@
   "error_submitting": "Boli: Error ed panang-isumite: {0}",
   "share_experience_short": "Ibahagi so mapaliit a experyensya",
   "chars_left": "{} a karakter bilay",
-  "keep_review_short_tip": "Papaliwanagan so review; ipaka-maikling tan makapablos"
+  "keep_review_short_tip": "Papaliwanagan so review; ipaka-maikling tan makapablos",
+  "select_contact": "Pipili ya contact",
+  "pick_a_contact_to_add_as_emergency": "Pipili ka so contact ya ilalagay bilang emergency contact.",
+  "search_contacts": "Agsagaysay ed contact",
+
+  "add_emergency_contact_title": "Ibilay Emergency Contact",
+  "add_emergency_contact_subtitle": "I-save so tao ya maaabot tan sakey-sakey laan tan kailangan.",
+
+  "phone_number": "Numero na Telepono",
+  "address": "Address",
+  "relationship": "Relasyon",
+  "enter_relationship_info": "Ibutang so impormasyon na relasyon",
+  "no_contacts_found": "Awan so contact na naalipas",
+  "error_reading_contacts": "Error ed panagbasa na contacts",
+  "contacts_access_restricted": "Na-limit so access na contacts",
+  "tip_add_emergency_contact": "Tip: siguradoan yo na updated so contact tapno madali so tulong na makakararating.",
+  "no_phone_number": "Awan numero",
+  "no_results": "Awan resulta",
+  "select": "Pipili"
 }

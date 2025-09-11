@@ -26,13 +26,14 @@ class SafetyAssistWidget extends StatefulWidget {
   final VoidCallback? onCenterPressed;
   final void Function(String)? onServiceButtonPressed;
   final LocationHandler? locationHandler;
-  final DraggableScrollableController? controller;
+  final Future<void> Function()? onShowMyInfoPressed;
+  final DraggableScrollableController? controller; // <-- ADD
 
   // New optional callback to override emergency service action.
   // (label, phoneNumber)
   final void Function(String label, String? number)? onEmergencyServicePressed;
 
-  final Future<void> Function()? onShowMyInfoPressed;
+  final bool isRerouting; // <-- ADD
 
   const SafetyAssistWidget({
     Key? key,
@@ -45,6 +46,7 @@ class SafetyAssistWidget extends StatefulWidget {
     this.onEmergencyServicePressed,
     this.controller, // <- add this
     this.onShowMyInfoPressed, // <- add this
+    this.isRerouting = false, // <- add this default
   }) : super(key: key);
 
   @override
@@ -64,6 +66,17 @@ class _SafetyAssistWidgetState extends State<SafetyAssistWidget> {
 
   // store listener so we can remove it on dispose
   VoidCallback? _controllerListener;
+  bool _createdControllerLocally = false;
+  bool _sheetAttached = false;
+  double? _pendingAnimateTarget;
+  Duration _pendingAnimateDuration = const Duration(milliseconds: 300);
+  Curve _pendingAnimateCurve = Curves.easeOut;
+
+// sizing constants (keep consistent with build)
+  final double _sheetMinChildSize = 0.3;
+  final double _sheetHelperExpandedSize = 0.8;
+  final double _sheetDefaultInitial = 0.5;
+  final double _expandThreshold = 0.8;
 
   @override
   void initState() {
@@ -73,13 +86,31 @@ class _SafetyAssistWidgetState extends State<SafetyAssistWidget> {
     BlocProvider.of<EmergencyBloc>(context)
         .add(FetchEmergencyContactsEvent(uid: widget.uid));
 
-    _draggableController = widget.controller ?? DraggableScrollableController();
+    // choose whether to reuse passed controller or create our own (safe if already attached)
+    if (widget.controller != null) {
+      try {
+        if (widget.controller!.isAttached) {
+          _draggableController = DraggableScrollableController();
+          _createdControllerLocally = true;
+        } else {
+          _draggableController = widget.controller!;
+          _createdControllerLocally = false;
+        }
+      } catch (_) {
+        _draggableController = DraggableScrollableController();
+        _createdControllerLocally = true;
+      }
+    } else {
+      _draggableController = DraggableScrollableController();
+      _createdControllerLocally = true;
+    }
 
     // attach listener to draggable controller to update _isExpanded/_isAtTop
     _controllerListener = () {
       try {
         final size = _draggableController.size;
-        final expanded = size >= 0.8;
+        final expanded =
+            size >= _expandThreshold; // same threshold used previously
         final atTop = size >= 0.995; // treat ~1.0 as 'at top'
         if (expanded != _isExpanded) setState(() => _isExpanded = expanded);
         if (atTop != _isAtTop) setState(() => _isAtTop = atTop);
@@ -87,16 +118,76 @@ class _SafetyAssistWidgetState extends State<SafetyAssistWidget> {
     };
 
     _draggableController.addListener(_controllerListener!);
+
+    // If rerouting already true on init, queue collapse safely once frame rendered
+    if (widget.isRerouting) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        try {
+          _safeAnimateSheetTo(
+            _sheetMinChildSize,
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeOut,
+          );
+        } catch (_) {
+          // ignore if animateTo not available yet or controller not attached
+        }
+      });
+    }
+  }
+
+  Future<void> _safeAnimateSheetTo(double target,
+      {Duration duration = const Duration(milliseconds: 300),
+      Curve curve = Curves.easeOut}) async {
+    if (!mounted) return;
+
+    // If sheet is attached, animate immediately (guarded)
+    if (_sheetAttached) {
+      try {
+        await _draggableController.animateTo(target,
+            duration: duration, curve: curve);
+      } catch (e, st) {
+        debugPrint('[SafetyAssistWidget] animateTo failed: $e\n$st');
+      }
+      return;
+    }
+
+    // queue it to run once sheet attaches
+    _pendingAnimateTarget = target;
+    _pendingAnimateDuration = duration;
+    _pendingAnimateCurve = curve;
+    debugPrint(
+        '[SafetyAssistWidget] queued animateTo($target) — sheet not attached yet');
+  }
+
+  @override
+  void didUpdateWidget(covariant SafetyAssistWidget oldWidget) {
+    super.didUpdateWidget(oldWidget);
+
+    // If rerouting started, collapse sheet to min. If stopped, restore preferred size.
+    if (oldWidget.isRerouting != widget.isRerouting) {
+      if (widget.isRerouting) {
+        _safeAnimateSheetTo(_sheetMinChildSize,
+            duration: const Duration(milliseconds: 300));
+      } else {
+        _safeAnimateSheetTo(_sheetDefaultInitial,
+            duration: const Duration(milliseconds: 250));
+      }
+    }
   }
 
   @override
   void dispose() {
     if (_controllerListener != null) {
-      _draggableController.removeListener(_controllerListener!);
+      try {
+        _draggableController.removeListener(_controllerListener!);
+      } catch (_) {}
+      _controllerListener = null;
     }
     // only dispose when we created the controller locally
-    if (widget.controller == null) {
-      _draggableController.dispose();
+    if (_createdControllerLocally) {
+      try {
+        _draggableController.dispose();
+      } catch (_) {}
     }
     super.dispose();
   }
@@ -414,14 +505,42 @@ class _SafetyAssistWidgetState extends State<SafetyAssistWidget> {
       minChildSize: 0.3,
       maxChildSize: 1.0, // <- allow dragging to utmost top
       builder: (BuildContext context, ScrollController scrollController) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted && !_sheetAttached) {
+            _sheetAttached = true;
+
+            // if there is a pending animation, run it once now
+            if (_pendingAnimateTarget != null) {
+              final t = _pendingAnimateTarget!;
+              final d = _pendingAnimateDuration;
+              final c = _pendingAnimateCurve;
+              _pendingAnimateTarget = null;
+              Future.microtask(() async {
+                if (!mounted) return;
+                try {
+                  await _draggableController.animateTo(t,
+                      duration: d, curve: c);
+                  debugPrint(
+                      '[SafetyAssistWidget] applied pending animateTo($t)');
+                } catch (e, st) {
+                  debugPrint(
+                      '[SafetyAssistWidget] pending animate failed: $e\n$st');
+                }
+              });
+            }
+          }
+        });
+
         return Column(
           children: [
             const SizedBox(height: 8),
             IgnorePointer(
-              ignoring: _isExpanded || _showHelper,
+              ignoring: _isExpanded || _showHelper || widget.isRerouting,
               child: AnimatedOpacity(
                 duration: const Duration(milliseconds: 250),
-                opacity: (_isExpanded || _showHelper) ? 0.0 : 1.0,
+                opacity: (_isExpanded || _showHelper || widget.isRerouting)
+                    ? 0.0
+                    : 1.0,
                 child: ServiceButtons(
                   onButtonPressed: widget.onServiceButtonPressed ?? (label) {},
                   currentLocation: widget.currentLocation,

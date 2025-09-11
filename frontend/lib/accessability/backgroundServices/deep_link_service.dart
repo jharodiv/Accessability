@@ -1,7 +1,10 @@
 import 'dart:async';
+import 'dart:io'; // Add this import for Platform
 import 'package:flutter/material.dart';
 import 'package:app_links/app_links.dart';
-import 'package:webview_flutter/webview_flutter.dart';
+import 'package:flutter/services.dart'; // For Platform and MethodChannel
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 
 class DeepLinkService {
   static final DeepLinkService _instance = DeepLinkService._internal();
@@ -10,111 +13,199 @@ class DeepLinkService {
 
   final AppLinks _appLinks = AppLinks();
   StreamSubscription<Uri>? _sub;
-  late GlobalKey<NavigatorState> navigatorKey;
   Uri? _pendingUri;
-  bool _deepLinkHandled = false; // prevents double handling
+  String? _pendingSessionCode;
 
-  /// Callback when a deep link is detected
-  void Function(Uri uri, bool isColdStart)? onLinkDetected;
+  late GlobalKey<NavigatorState> navigatorKey;
+  bool _deepLinkHandled = false;
 
-  /// Initialize the service
   Future<void> initialize(GlobalKey<NavigatorState> key) async {
     navigatorKey = key;
-    debugPrint("🔗 DeepLinkService initialized");
+    debugPrint("🔗 DeepLinkService initialized with navigatorKey");
 
-    // Cold start: app launched via deep link
-    final initialUri = await _appLinks.getInitialLink();
-    if (initialUri != null) {
-      _handleLink(initialUri, true);
-    } else {
-      debugPrint("❄️ [COLD START] No deep link found");
-    }
+    // Handle both types of cold starts
+    await _handleSessionColdStart(); // APK installation intent
+    await _handleDeepLinkColdStart(); // Traditional deep link
 
-    // Hot start: app is running and receives a deep link
+    // Hot links while running
     _sub = _appLinks.uriLinkStream.listen((uri) {
-      _handleLink(uri, false);
+      debugPrint("📡 [HOT] Runtime deep link received: $uri");
+      _handleLink(uri);
     });
   }
 
-  Future<void> checkWebStoredDeepLink() async {
+  // Handle traditional deep link cold start (accessability://)
+  Future<void> _handleDeepLinkColdStart() async {
     try {
-      final controller = WebViewController()
-        ..setJavaScriptMode(JavaScriptMode.unrestricted)
-        ..loadRequest(Uri.parse("https://deep-link-test-red.vercel.app"));
-
-      // Wait until page loads
-      await controller.setNavigationDelegate(NavigationDelegate(
-        onPageFinished: (_) async {
-          final result = await controller.runJavaScriptReturningResult(
-              "localStorage.getItem('pending_deeplink');");
-
-          if (result != null && result != "null") {
-            final link = (result as String).replaceAll('"', '');
-            debugPrint("🌐 [AUTO CHECK] Found stored deep link: $link");
-            _handleLink(Uri.parse(link), true);
-
-            // Clear so it doesn't trigger again
-            await controller
-                .runJavaScript("localStorage.removeItem('pending_deeplink');");
-          } else {
-            debugPrint("🌐 [AUTO CHECK] No pending deep link found");
-          }
-        },
-      ));
+      final initialUri = await _appLinks.getInitialLink();
+      if (initialUri != null) {
+        debugPrint("❄️ [DEEP LINK COLD START] Detected: $initialUri");
+        _pendingUri = initialUri;
+      } else {
+        debugPrint("❄️ [DEEP LINK COLD START] No deep link found");
+      }
     } catch (e) {
-      debugPrint("⚠️ Failed to check web stored deep link: $e");
+      debugPrint("❌ Error in deep link cold start: $e");
     }
   }
 
-  void _handleLink(Uri uri, bool isColdStart) {
-    if (_deepLinkHandled) {
-      debugPrint("⚠️ Link already handled, ignoring: $uri");
+  // CORRECTED: Handle session-based cold start from APK installation
+  Future<void> _handleSessionColdStart() async {
+    try {
+      if (!Platform.isAndroid) return; // Now Platform is imported
+
+      debugPrint("📱 Checking for APK installation intent...");
+
+      // Method 1: First try using app_links (simpler)
+      final initialUri = await _appLinks.getInitialLink();
+      if (initialUri != null && _isGitHubApkUrl(initialUri)) {
+        _processSessionFromUri(initialUri);
+        return;
+      }
+
+      // Method 2: Use MethodChannel for direct intent access
+      try {
+        const platform = MethodChannel('flutter_deeplink');
+        final dynamic intentData =
+            await platform.invokeMethod('getInitialIntentData');
+
+        if (intentData != null && intentData is String) {
+          debugPrint("📦 Raw intent data: $intentData");
+          final Uri data = Uri.parse(intentData);
+          if (_isGitHubApkUrl(data)) {
+            _processSessionFromUri(data);
+          }
+        }
+      } catch (e) {
+        debugPrint("⚠️ MethodChannel failed: $e");
+      }
+    } catch (e) {
+      debugPrint("❌ Error checking session cold start: $e");
+    }
+  }
+
+  // Helper method to process session from URI
+  void _processSessionFromUri(Uri uri) {
+    final sessionId = uri.queryParameters['session'];
+    if (sessionId != null && sessionId.startsWith('session_')) {
+      debugPrint("🔍 Found session ID from APK install: $sessionId");
+      // Store session ID for later retrieval
+      _pendingSessionCode = sessionId;
+    }
+  }
+
+  // Check if URL is a GitHub APK download URL
+  bool _isGitHubApkUrl(Uri uri) {
+    return uri.scheme == 'https' &&
+        uri.host == 'github.com' &&
+        uri.path.contains('Montilla007') &&
+        uri.path.contains('3Y2AAPWD') &&
+        uri.path.contains('app-release.apk');
+  }
+
+  // NEW: Method to retrieve code from session (call this when needed)
+  Future<String?> retrieveCodeFromPendingSession() async {
+    if (_pendingSessionCode == null) return null;
+
+    final sessionId = _pendingSessionCode!;
+    debugPrint("🔐 Retrieving code for session: $sessionId");
+
+    try {
+      final code = await _getCodeFromSession(sessionId);
+      if (code != null) {
+        debugPrint("✅ Retrieved code from session: $code");
+        _pendingSessionCode = null; // Clear after successful retrieval
+        return code;
+      }
+    } catch (e) {
+      debugPrint("❌ Error retrieving code: $e");
+    }
+    return null;
+  }
+
+  Future<String?> _getCodeFromSession(String sessionId) async {
+    try {
+      final response = await http.get(
+        Uri.parse('https://3-y2-aapwd-xqeh.vercel.app/api/get-code/$sessionId'),
+        headers: {'Accept': 'application/json'},
+      );
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        if (data['success'] == true) {
+          return data['code'];
+        }
+      } else if (response.statusCode == 404) {
+        debugPrint("❌ Session expired or not found");
+      }
+      return null;
+    } catch (e) {
+      debugPrint('Error getting code from session: $e');
+      return null;
+    }
+  }
+
+  void _handleLink(Uri uri) {
+    if (_deepLinkHandled) return;
+    if (navigatorKey.currentState == null) {
+      debugPrint("⏳ Navigator not ready, queuing URI: $uri");
+      _pendingUri = uri;
       return;
     }
 
     _deepLinkHandled = true;
-    debugPrint(
-        "${isColdStart ? '❄️ [COLD START]' : '📡 [HOT]'} Handling deep link: $uri");
-
-    // Call the optional callback
-    onLinkDetected?.call(uri, isColdStart);
-
-    // For now, just log instead of navigating
-    _navigate(uri);
+    debugPrint("➡️ Handling deep link now: $uri");
+    Future.delayed(const Duration(milliseconds: 300), () => _navigate(uri));
   }
 
-  void _navigate(Uri uri) {
-    final nav = navigatorKey.currentState;
-
-    if (nav == null) {
-      // Navigator not ready yet, store URI for later
-      _pendingUri = uri;
-      debugPrint("⏳ Navigator not ready, storing pending URI: $uri");
+  void consumePendingLinkIfAny() {
+    // For session-based cold start, we need to retrieve the code first
+    if (_pendingSessionCode != null && navigatorKey.currentState != null) {
+      debugPrint("🚀 Consuming pending session: $_pendingSessionCode");
+      // We'll retrieve the code when needed, not here
       return;
     }
 
+    // Traditional deep link handling
+    if (_pendingUri != null &&
+        navigatorKey.currentState != null &&
+        !_deepLinkHandled) {
+      debugPrint("🚀 Consuming pending deep link: $_pendingUri");
+      final uriToNavigate = _pendingUri!;
+      _pendingUri = null;
+      _deepLinkHandled = true;
+      Future.delayed(
+          const Duration(milliseconds: 300), () => _navigate(uriToNavigate));
+    } else {
+      debugPrint("ℹ️ No pending link to consume");
+    }
+  }
+
+  void _navigate(Uri uri) {
+    if (navigatorKey.currentState == null) return;
     debugPrint("➡️ Navigating based on URI: $uri");
 
     if (uri.pathSegments.isNotEmpty &&
         uri.pathSegments.first.toLowerCase() == "joinspace") {
       final code = uri.queryParameters['code'];
-      debugPrint("📝 Detected joinspace link. Invite code: ${code ?? 'none'}");
-      nav.pushNamed(
-        '/joinSpace',
-        arguments: code != null ? {'inviteCode': code} : null,
-      );
+      _navigateToJoinSpace(code);
     } else {
-      debugPrint("📝 Detected other link, navigating to /home");
-      nav.pushNamed('/home');
+      navigatorKey.currentState!.pushNamed('/home');
     }
   }
 
-  void consumePendingLinkIfAny() {
-    if (_pendingUri != null && navigatorKey.currentState != null) {
-      debugPrint("🚀 Consuming pending deep link: $_pendingUri");
-      final uriToNavigate = _pendingUri!;
-      _pendingUri = null;
-      _navigate(uriToNavigate); // actually navigate now
+  void _navigateToJoinSpace(String? code) {
+    if (navigatorKey.currentState == null) return;
+
+    if (code != null) {
+      debugPrint("🎯 Navigating to join space with code: $code");
+      navigatorKey.currentState!.pushNamed(
+        '/joinSpace',
+        arguments: {'inviteCode': code},
+      );
+    } else {
+      debugPrint("🎯 Navigating to join space without code");
+      navigatorKey.currentState!.pushNamed('/joinSpace');
     }
   }
 

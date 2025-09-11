@@ -395,6 +395,7 @@ class _SafetyAssistWidgetState extends State<SafetyAssistWidget> {
       controller: _draggableController,
       // Use different initial sizes based on whether the helper is showing.
       initialChildSize: _showHelper ? 0.8 : 0.5,
+      expand: true,
       minChildSize: 0.3,
       maxChildSize: 1.0, // <- allow dragging to utmost top
       builder: (BuildContext context, ScrollController scrollController) {
@@ -553,7 +554,16 @@ class _SafetyAssistWidgetState extends State<SafetyAssistWidget> {
                                 ),
                               ),
                               const Divider(),
-                              BlocBuilder<EmergencyBloc, EmergencyState>(
+                              BlocConsumer<EmergencyBloc, EmergencyState>(
+                                listener: (context, state) {
+                                  if (state is EmergencyOperationSuccess) {
+                                    // Refresh contacts after any operation
+                                    BlocProvider.of<EmergencyBloc>(context).add(
+                                      FetchEmergencyContactsEvent(
+                                          uid: widget.uid),
+                                    );
+                                  }
+                                },
                                 builder: (context, state) {
                                   if (state is EmergencyLoading) {
                                     return const Center(
@@ -569,6 +579,7 @@ class _SafetyAssistWidgetState extends State<SafetyAssistWidget> {
                                             color: isDarkMode
                                                 ? Colors.white
                                                 : Colors.black,
+                                            fontWeight: FontWeight.bold,
                                           ),
                                         ),
                                       );
@@ -577,127 +588,137 @@ class _SafetyAssistWidgetState extends State<SafetyAssistWidget> {
                                       children: contacts.map((contact) {
                                         return Column(
                                           children: [
-                                            ListTile(
-                                              leading: CircleAvatar(
-                                                backgroundColor: Colors.grey,
-                                                child: Icon(Icons.person,
-                                                    color: Colors.white),
+                                            // Updated tile design to match emergency services
+                                            Container(
+                                              margin:
+                                                  const EdgeInsets.symmetric(
+                                                      vertical: 4),
+                                              decoration: BoxDecoration(
+                                                color: isDarkMode
+                                                    ? Colors.grey[800]
+                                                    : Colors.grey[50],
+                                                borderRadius:
+                                                    BorderRadius.circular(12),
                                               ),
-                                              title: Text(
-                                                contact.name,
-                                                style: TextStyle(
-                                                  fontWeight: FontWeight.bold,
-                                                  color: isDarkMode
-                                                      ? Colors.white
-                                                      : Colors.black,
+                                              child: ListTile(
+                                                leading: CircleAvatar(
+                                                  backgroundColor:
+                                                      const Color(0xFF6750A4),
+                                                  child: Text(
+                                                    contact.name.isNotEmpty
+                                                        ? contact.name[0]
+                                                            .toUpperCase()
+                                                        : '?',
+                                                    style: const TextStyle(
+                                                        color: Colors.white),
+                                                  ),
+                                                ),
+                                                title: Text(
+                                                  contact.name,
+                                                  style: TextStyle(
+                                                    fontWeight: FontWeight.bold,
+                                                    color: isDarkMode
+                                                        ? Colors.white
+                                                        : Colors.black,
+                                                  ),
+                                                ),
+                                                subtitle: Column(
+                                                  crossAxisAlignment:
+                                                      CrossAxisAlignment.start,
+                                                  children: [
+                                                    if (contact
+                                                        .location.isNotEmpty)
+                                                      Text(
+                                                        contact.location,
+                                                        style: TextStyle(
+                                                          color: isDarkMode
+                                                              ? Colors.grey[400]
+                                                              : Colors
+                                                                  .grey[600],
+                                                          fontSize: 12,
+                                                        ),
+                                                      ),
+                                                    if (contact
+                                                        .arrival.isNotEmpty)
+                                                      Text(
+                                                        contact.arrival,
+                                                        style: TextStyle(
+                                                          color: isDarkMode
+                                                              ? Colors.grey[400]
+                                                              : Colors
+                                                                  .grey[600],
+                                                          fontSize: 12,
+                                                        ),
+                                                      ),
+                                                    Text(
+                                                      contact.update,
+                                                      style: TextStyle(
+                                                        color: isDarkMode
+                                                            ? Colors.grey[400]
+                                                            : Colors.grey[600],
+                                                        fontSize: 12,
+                                                        fontWeight:
+                                                            FontWeight.w600,
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                                trailing: Row(
+                                                  mainAxisSize:
+                                                      MainAxisSize.min,
+                                                  children: [
+                                                    IconButton(
+                                                      icon: Icon(Icons.call,
+                                                          color: isDarkMode
+                                                              ? Colors.white
+                                                              : const Color(
+                                                                  0xFF6750A4),
+                                                          size: 20),
+                                                      onPressed: () {
+                                                        final number = contact
+                                                                .update
+                                                                .isNotEmpty
+                                                            ? contact.update
+                                                            : null;
+                                                        if (number != null) {
+                                                          _launchCaller(number);
+                                                        } else {
+                                                          ScaffoldMessenger.of(
+                                                                  context)
+                                                              .showSnackBar(
+                                                            SnackBar(
+                                                                content: Text(
+                                                                    'no_number_available'
+                                                                        .tr())),
+                                                          );
+                                                        }
+                                                      },
+                                                    ),
+                                                    IconButton(
+                                                      icon: Icon(Icons.delete,
+                                                          color: Colors.red,
+                                                          size: 20),
+                                                      onPressed: () {
+                                                        if (contact.id !=
+                                                            null) {
+                                                          BlocProvider.of<
+                                                                      EmergencyBloc>(
+                                                                  context)
+                                                              .add(
+                                                            DeleteEmergencyContactEvent(
+                                                              uid: widget.uid,
+                                                              contactId:
+                                                                  contact.id!,
+                                                            ),
+                                                          );
+                                                        }
+                                                      },
+                                                    ),
+                                                  ],
                                                 ),
                                               ),
-                                              subtitle: Column(
-                                                crossAxisAlignment:
-                                                    CrossAxisAlignment.start,
-                                                children: [
-                                                  Text(
-                                                    contact.location,
-                                                    style: TextStyle(
-                                                      color: isDarkMode
-                                                          ? Colors.white
-                                                          : Colors.grey,
-                                                    ),
-                                                  ),
-                                                  Text(
-                                                    contact.arrival,
-                                                    style: TextStyle(
-                                                      color: isDarkMode
-                                                          ? Colors.white
-                                                          : Colors.grey,
-                                                    ),
-                                                  ),
-                                                  Text(
-                                                    contact.update,
-                                                    style: TextStyle(
-                                                      color: isDarkMode
-                                                          ? Colors.white
-                                                          : Colors.grey,
-                                                    ),
-                                                  ),
-                                                ],
-                                              ),
-                                              trailing: Row(
-                                                mainAxisSize: MainAxisSize.min,
-                                                children: [
-                                                  IconButton(
-                                                    icon: Icon(Icons.call,
-                                                        color: isDarkMode
-                                                            ? Colors.white
-                                                            : const Color(
-                                                                0xFF6750A4)),
-                                                    onPressed: () {
-                                                      final number = contact
-                                                                  .update
-                                                                  ?.isNotEmpty ==
-                                                              true
-                                                          ? contact.update
-                                                          : null;
-                                                      if (widget
-                                                              .onEmergencyServicePressed !=
-                                                          null) {
-                                                        widget.onEmergencyServicePressed!(
-                                                            contact.name,
-                                                            number);
-                                                      } else if (number !=
-                                                          null) {
-                                                        _launchCaller(number);
-                                                      } else {
-                                                        ScaffoldMessenger.of(
-                                                                context)
-                                                            .showSnackBar(
-                                                          SnackBar(
-                                                              content: Text(
-                                                                  'no_number_available'
-                                                                      .tr())),
-                                                        );
-                                                      }
-                                                    },
-                                                  ),
-                                                  IconButton(
-                                                    icon: Icon(Icons.message,
-                                                        color: isDarkMode
-                                                            ? Colors.white
-                                                            : const Color(
-                                                                0xFF6750A4)),
-                                                    onPressed: () {
-                                                      ScaffoldMessenger.of(
-                                                              context)
-                                                          .showSnackBar(
-                                                        SnackBar(
-                                                            content: Text(
-                                                                'implement_message_action'
-                                                                    .tr())),
-                                                      );
-                                                    },
-                                                  ),
-                                                  IconButton(
-                                                    icon: const Icon(
-                                                        Icons.delete,
-                                                        color: Colors.red),
-                                                    onPressed: () {
-                                                      if (contact.id != null) {
-                                                        BlocProvider.of<
-                                                                    EmergencyBloc>(
-                                                                context)
-                                                            .add(
-                                                                DeleteEmergencyContactEvent(
-                                                          uid: widget.uid,
-                                                          contactId:
-                                                              contact.id!,
-                                                        ));
-                                                      }
-                                                    },
-                                                  ),
-                                                ],
-                                              ),
                                             ),
-                                            const Divider(),
+                                            const Divider(height: 1),
                                           ],
                                         );
                                       }).toList(),

@@ -15,6 +15,8 @@ import 'package:accessability/accessability/presentation/widgets/homepageWidgets
 
 class FavoriteWidget extends StatefulWidget {
   final VoidCallback? onPlaceAdded;
+  final DraggableScrollableController? controller;
+
   final void Function(Place)?
       onShowPlace; // Callback to show a place on the map
 
@@ -26,6 +28,8 @@ class FavoriteWidget extends StatefulWidget {
 
   const FavoriteWidget({
     Key? key,
+    this.controller, // <- add this
+
     this.onShowPlace,
     this.onPlaceAdded,
     this.currentLocation,
@@ -88,7 +92,7 @@ class _FavoriteWidgetState extends State<FavoriteWidget> {
   void initState() {
     super.initState();
 
-    _draggableController = DraggableScrollableController();
+    _draggableController = widget.controller ?? DraggableScrollableController();
 
     // attach listener to keep _isExpanded in sync with controller.size
     _controllerListener = () {
@@ -115,7 +119,10 @@ class _FavoriteWidgetState extends State<FavoriteWidget> {
     if (_controllerListener != null) {
       _draggableController.removeListener(_controllerListener!);
     }
-    _draggableController.dispose();
+    // Only dispose when we created it locally:
+    if (widget.controller == null) {
+      _draggableController.dispose();
+    }
     super.dispose();
   }
 

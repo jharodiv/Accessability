@@ -40,6 +40,7 @@ class LocationWidgets extends StatefulWidget {
   final ValueChanged<bool> onJoinStateChanged; // new
   final LocationHandler locationHandler;
   final bool isRouteActive;
+  final DraggableScrollableController? controller;
 
   const LocationWidgets({
     super.key,
@@ -56,6 +57,7 @@ class LocationWidgets extends StatefulWidget {
     required this.isJoining,
     required this.onJoinStateChanged,
     required this.isRouteActive, // required now
+    this.controller, // <-- add here
   });
 
   @override
@@ -84,8 +86,6 @@ class _LocationWidgetsState extends State<LocationWidgets> {
   final TextEditingController _spaceNameController = TextEditingController();
   final FlutterTts flutterTts = FlutterTts();
   bool _isLoading = false;
-  // final DraggableScrollableController _draggableController =
-  //     DraggableScrollableController();
 
   StreamSubscription<DocumentSnapshot>? _membersListener;
   final List<StreamSubscription<DocumentSnapshot>> _locationListeners = [];
@@ -95,28 +95,62 @@ class _LocationWidgetsState extends State<LocationWidgets> {
   late final double _collapseThreshold = 0.3;
   bool _mapSheetOpening = false;
   VoidCallback? _controllerListener;
+  bool _sheetAttached = false;
+  double? _pendingAnimateTarget;
+  Duration _pendingAnimateDuration = const Duration(milliseconds: 300);
+  Curve _pendingAnimateCurve = Curves.easeOut;
+  bool _createdControllerLocally = false;
 
   @override
   void initState() {
     super.initState();
     debugPrint(
         '[LocationWidgets] initState: activeSpaceId=${widget.activeSpaceId}');
+
+    // Start background init tasks
     _listenToMembers();
     _initializeLocation();
     _initializeTts();
 
-    _draggableController = DraggableScrollableController();
+    // IMPORTANT: initialize the controller before using it
+    if (widget.controller != null) {
+      // If the provided controller is already attached to a sheet, don't reuse it:
+      try {
+        if (widget.controller!.isAttached) {
+          debugPrint(
+              '[LocationWidgets] passed controller is already attached — creating local controller instead');
+          _draggableController = DraggableScrollableController();
+          _createdControllerLocally = true;
+        } else {
+          _draggableController = widget.controller!;
+          _createdControllerLocally = false;
+        }
+      } catch (e, st) {
+        // defensive fallback
+        debugPrint(
+            '[LocationWidgets] error checking passed controller.isAttached: $e\n$st — using local controller');
+        _draggableController = DraggableScrollableController();
+        _createdControllerLocally = true;
+      }
+    } else {
+      _draggableController = DraggableScrollableController();
+      _createdControllerLocally = true;
+    }
 
-// attach a safe listener to update _isExpanded based on controller.size
+    // attach a safe listener to update _isExpanded based on controller.size
     _controllerListener = () {
       try {
         final size = _draggableController.size;
         final expanded = size >= _expandThreshold;
         if (expanded != _isExpanded) {
-          setState(() => _isExpanded = expanded);
+          // Defer the setState to avoid mutating during layout
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (!mounted) return;
+            if (expanded != _isExpanded) setState(() => _isExpanded = expanded);
+          });
         }
       } catch (_) {
-        // some Flutter versions may throw if size isn't available yet - ignore safely
+        // ignore if controller not ready yet
       }
     };
     _draggableController.addListener(_controllerListener!);
@@ -124,20 +158,38 @@ class _LocationWidgetsState extends State<LocationWidgets> {
     // Ensure sheet is at min if a route is already active on open.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (widget.isRouteActive) {
-        _draggableController.animateTo(
-          _sheetMinChildSize,
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.easeOut,
-        );
+        _safeAnimateSheetTo(_sheetMinChildSize,
+            duration: const Duration(milliseconds: 300));
       } else {
-        // ensure it opens to preferred initial if not in route
-        _draggableController.animateTo(
-          _preferredInitialSize,
-          duration: const Duration(milliseconds: 250),
-          curve: Curves.easeOut,
-        );
+        _safeAnimateSheetTo(_preferredInitialSize,
+            duration: const Duration(milliseconds: 250));
       }
     });
+  }
+
+  Future<void> _safeAnimateSheetTo(double target,
+      {Duration duration = const Duration(milliseconds: 300),
+      Curve curve = Curves.easeOut}) async {
+    if (!mounted) return;
+
+    // If sheet is attached, animate immediately (guarded)
+    if (_sheetAttached) {
+      try {
+        await _draggableController.animateTo(target,
+            duration: duration, curve: curve);
+      } catch (e, st) {
+        debugPrint(
+            '[LocationWidgets] animateTo failed (detached mid-call): $e\n$st');
+      }
+      return;
+    }
+
+    // Otherwise queue the animation and it will run when the sheet attaches
+    _pendingAnimateTarget = target;
+    _pendingAnimateDuration = duration;
+    _pendingAnimateCurve = curve;
+    debugPrint(
+        '[LocationWidgets] queued animateTo($target) — sheet not attached yet');
   }
 
   String _timeDiff(DateTime dt) {
@@ -179,19 +231,11 @@ class _LocationWidgetsState extends State<LocationWidgets> {
 
     if (oldWidget.isRouteActive != widget.isRouteActive) {
       if (widget.isRouteActive) {
-        // push sheet down (to minimum)
-        _draggableController.animateTo(
-          _sheetMinChildSize,
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.easeOut,
-        );
+        _safeAnimateSheetTo(_sheetMinChildSize,
+            duration: const Duration(milliseconds: 300));
       } else {
-        // bring sheet back to preferred initial size
-        _draggableController.animateTo(
-          _preferredInitialSize,
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.easeOut,
-        );
+        _safeAnimateSheetTo(_preferredInitialSize,
+            duration: const Duration(milliseconds: 300));
       }
     }
 
@@ -200,11 +244,8 @@ class _LocationWidgetsState extends State<LocationWidgets> {
         oldWidget.isJoining != widget.isJoining) {
       // only animate back if route not active
       if (!widget.isRouteActive) {
-        _draggableController.animateTo(
-          _preferredInitialSize,
-          duration: const Duration(milliseconds: 250),
-          curve: Curves.easeOut,
-        );
+        _safeAnimateSheetTo(_preferredInitialSize,
+            duration: const Duration(milliseconds: 250));
       }
     }
 
@@ -241,20 +282,53 @@ class _LocationWidgetsState extends State<LocationWidgets> {
 
   @override
   void dispose() {
-    // _draggableController.removeListener(_sheetListener);
+    // remove controller listener if added
     if (_controllerListener != null) {
-      _draggableController.removeListener(_controllerListener!);
+      try {
+        _draggableController.removeListener(_controllerListener!);
+      } catch (_) {}
+      _controllerListener = null;
     }
+
+    // cancel all listeners
     _membersListener?.cancel();
-    _locationListeners.forEach((listener) => listener.cancel());
+    for (final listener in _locationListeners) {
+      try {
+        listener.cancel();
+      } catch (_) {}
+    }
     _locationListeners.clear();
-    _yourLocationListener?.cancel();
+    try {
+      _yourLocationListener?.cancel();
+    } catch (_) {}
 
-    flutterTts.stop();
-    _spaceNameController.dispose();
-    _draggableController.dispose();
+    // stop services and dispose controllers you own
+    try {
+      flutterTts.stop();
+    } catch (_) {}
 
+    try {
+      _spaceNameController.dispose();
+    } catch (_) {}
+
+    // Only dispose the draggable controller if we created it locally
+    if (_createdControllerLocally) {
+      try {
+        _draggableController.dispose();
+      } catch (_) {}
+    }
+
+    _sheetAttached = false;
     super.dispose();
+  }
+
+  void _safeSetState(VoidCallback fn) {
+    if (!mounted) return;
+    try {
+      setState(fn);
+    } catch (e, st) {
+      debugPrint('[LocationWidgets] _safeSetState caught: $e\n$st');
+    }
   }
 
   void _handleMemberPressed(LatLng loc, String uid) {
@@ -416,6 +490,8 @@ class _LocationWidgetsState extends State<LocationWidgets> {
             final lat = locationData['latitude'];
             final lng = locationData['longitude'];
             final address = await _getAddressFromLatLng(LatLng(lat, lng));
+            // <-- BEFORE setState, ensure mounted
+            if (!mounted) return;
             setState(() {
               final index = _members.indexWhere((m) => m['uid'] == member);
               if (index != -1) {
@@ -633,6 +709,37 @@ class _LocationWidgetsState extends State<LocationWidgets> {
       minChildSize: _sheetMinChildSize,
       maxChildSize: _sheetMaxChildSize,
       builder: (context, scrollController) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted && !_sheetAttached) {
+            _sheetAttached = true;
+            debugPrint('[LocationWidgets] sheet attached');
+
+            // if there is a pending animation, run it once now
+            if (_pendingAnimateTarget != null) {
+              final t = _pendingAnimateTarget!;
+              final d = _pendingAnimateDuration;
+              final c = _pendingAnimateCurve;
+              // clear pending before calling to avoid re-entrancy loops
+              _pendingAnimateTarget = null;
+              Future.microtask(() async {
+                if (!mounted) {
+                  debugPrint(
+                      '[LocationWidgets] skipping pending animate — widget not mounted');
+                  return;
+                }
+                try {
+                  await _draggableController.animateTo(t,
+                      duration: d, curve: c);
+                  debugPrint('[LocationWidgets] applied pending animateTo($t)');
+                } catch (e, st) {
+                  debugPrint(
+                      '[LocationWidgets] pending animate failed: $e\n$st');
+                }
+              });
+            }
+          }
+        });
+
         return BlocBuilder<UserBloc, UserState>(
           builder: (context, userState) {
             final currentUser = _auth.currentUser;

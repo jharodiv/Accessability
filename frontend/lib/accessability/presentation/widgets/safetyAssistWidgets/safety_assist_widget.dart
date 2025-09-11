@@ -461,8 +461,11 @@ class _SafetyAssistWidgetState extends State<SafetyAssistWidget> {
                             children: [
                               Container(
                                 width: 100,
-                                height: 2,
-                                color: Colors.grey.shade700,
+                                height: 4,
+                                decoration: BoxDecoration(
+                                  color: Colors.grey.shade400,
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
                                 margin: const EdgeInsets.only(bottom: 8),
                               ),
                               const SizedBox(height: 15),

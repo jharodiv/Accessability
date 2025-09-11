@@ -279,5 +279,21 @@
   "removedMembers": "{count} member(s) removed",
   "selected": "selected",
   "hospital": "Hospital",
-  "map_types": "Map Types"
+  "map_types": "Map Types",
+  "reviews": "Reviews",
+  "add_your_review": "Add your review",
+  "write_feedback_hint": "Write your feedback...",
+  "clear": "Clear",
+  "no_reviews_yet": "No reviews yet. Be the first to review!",
+  "more_reviews": "More reviews",
+  "ratings_collected": "Ratings are collected from verified visitors.",
+  "cleanliness": "Cleanliness",
+  "all_reviews": "All reviews",
+  "details": "Details",
+  "please_select_rating": "Please select a rating",
+  "review_submitted": "Review submitted successfully",
+  "error_submitting": "Error submitting review: {0}",
+  "share_experience_short": "Share a short experience",
+  "chars_left": "{} chars left",
+  "keep_review_short_tip": "Keep your review short and helpful"
 }

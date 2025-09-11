@@ -389,18 +389,13 @@ class _SafetyAssistWidgetState extends State<SafetyAssistWidget> {
 
     return DraggableScrollableSheet(
       controller: _draggableController,
-      // Use different initial sizes based on whether the helper is showing.
       initialChildSize: _showHelper ? 0.8 : 0.5,
       minChildSize: 0.5,
       maxChildSize: 0.9,
       builder: (BuildContext context, ScrollController scrollController) {
-        // NOTE: ServiceButtons placed OUTSIDE the main white container (above it),
-        // and wrapped with IgnorePointer + AnimatedOpacity so they fade/disable when expanded/helper shown.
         return Column(
           children: [
             const SizedBox(height: 8),
-
-            // OUTSIDE ServiceButtons
             IgnorePointer(
               ignoring: _isExpanded || _showHelper,
               child: AnimatedOpacity(
@@ -410,14 +405,11 @@ class _SafetyAssistWidgetState extends State<SafetyAssistWidget> {
                   onButtonPressed: widget.onServiceButtonPressed ?? (label) {},
                   currentLocation: widget.currentLocation,
                   onMapViewPressed: widget.onMapViewPressed,
-                  onCenterPressed: _handleCenterPressed,
+                  onCenterPressed: widget.onCenterPressed ?? () {},
                 ),
               ),
             ),
-
             const SizedBox(height: 10),
-
-            // MAIN container (white/dark) - same contents as before
             Expanded(
               child: Container(
                 decoration: BoxDecoration(
@@ -438,22 +430,15 @@ class _SafetyAssistWidgetState extends State<SafetyAssistWidget> {
                   controller: scrollController,
                   child: Padding(
                     padding: const EdgeInsets.all(16.0),
-                    // Toggle between the helper widget and the main design.
                     child: _showHelper
                         ? SafetyAssistHelperWidget(
                             onBack: () {
-                              setState(() {
-                                _showHelper = false;
-                              });
-                              try {
-                                _draggableController.animateTo(
-                                  0.8, // Collapse back to 80% of the screen.
-                                  duration: const Duration(milliseconds: 300),
-                                  curve: Curves.easeInOut,
-                                );
-                              } catch (_) {
-                                // ignore if animateTo not available on older Flutter
-                              }
+                              setState(() => _showHelper = false);
+                              _draggableController.animateTo(
+                                0.8,
+                                duration: const Duration(milliseconds: 300),
+                                curve: Curves.easeInOut,
+                              );
                             },
                           )
                         : Column(
@@ -481,11 +466,16 @@ class _SafetyAssistWidgetState extends State<SafetyAssistWidget> {
                                     ),
                                   ),
                                   Row(
-                                    // contains emergency button + help icon
                                     children: [
-                                      // Emergency services button (police / ambulance / fire)
                                       GestureDetector(
-                                        onTap: _showEmergencyServicesWidget,
+                                        onTap: () => Navigator.push(
+                                          context,
+                                          MaterialPageRoute(
+                                            fullscreenDialog: true,
+                                            builder: (_) =>
+                                                const SafetyAssistEmergencyServices(),
+                                          ),
+                                        ),
                                         child: Padding(
                                           padding: const EdgeInsets.symmetric(
                                               horizontal: 8.0),
@@ -497,22 +487,15 @@ class _SafetyAssistWidgetState extends State<SafetyAssistWidget> {
                                           ),
                                         ),
                                       ),
-                                      // Help icon toggles the helper widget.
                                       GestureDetector(
                                         onTap: () {
-                                          setState(() {
-                                            _showHelper = true;
-                                          });
-                                          try {
-                                            _draggableController.animateTo(
-                                              0.8, // Expand the sheet to 80% of the screen.
-                                              duration: const Duration(
-                                                  milliseconds: 300),
-                                              curve: Curves.easeInOut,
-                                            );
-                                          } catch (_) {
-                                            // ignore on older Flutter versions
-                                          }
+                                          setState(() => _showHelper = true);
+                                          _draggableController.animateTo(
+                                            0.8,
+                                            duration: const Duration(
+                                                milliseconds: 300),
+                                            curve: Curves.easeInOut,
+                                          );
                                         },
                                         child: Icon(
                                           Icons.help_outline,
@@ -527,7 +510,27 @@ class _SafetyAssistWidgetState extends State<SafetyAssistWidget> {
                               ),
                               const SizedBox(height: 20),
                               InkWell(
-                                onTap: _showAddEmergencyContactDialog,
+                                onTap: () => Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => AddEmergencyContactScreen(
+                                        uid: widget.uid),
+                                    fullscreenDialog: true,
+                                  ),
+                                ).then((result) {
+                                  if (result is Map<String, String?>) {
+                                    final contact = EmergencyContact(
+                                      name: result['name'] ?? '',
+                                      location: result['location'] ?? '',
+                                      arrival: result['arrival'] ?? '',
+                                      update: result['phone'] ?? '',
+                                    );
+                                    BlocProvider.of<EmergencyBloc>(context).add(
+                                      AddEmergencyContactEvent(
+                                          uid: widget.uid, contact: contact),
+                                    );
+                                  }
+                                }),
                                 child: Padding(
                                   padding: const EdgeInsets.symmetric(
                                       horizontal: 12),
@@ -556,7 +559,16 @@ class _SafetyAssistWidgetState extends State<SafetyAssistWidget> {
                                 ),
                               ),
                               const Divider(),
-                              BlocBuilder<EmergencyBloc, EmergencyState>(
+                              BlocConsumer<EmergencyBloc, EmergencyState>(
+                                listener: (context, state) {
+                                  if (state is EmergencyOperationSuccess) {
+                                    // Refresh contacts after any operation
+                                    BlocProvider.of<EmergencyBloc>(context).add(
+                                      FetchEmergencyContactsEvent(
+                                          uid: widget.uid),
+                                    );
+                                  }
+                                },
                                 builder: (context, state) {
                                   if (state is EmergencyLoading) {
                                     return const Center(
@@ -580,127 +592,137 @@ class _SafetyAssistWidgetState extends State<SafetyAssistWidget> {
                                       children: contacts.map((contact) {
                                         return Column(
                                           children: [
-                                            ListTile(
-                                              leading: CircleAvatar(
-                                                backgroundColor: Colors.grey,
-                                                child: Icon(Icons.person,
-                                                    color: Colors.white),
+                                            // Updated tile design to match emergency services
+                                            Container(
+                                              margin:
+                                                  const EdgeInsets.symmetric(
+                                                      vertical: 4),
+                                              decoration: BoxDecoration(
+                                                color: isDarkMode
+                                                    ? Colors.grey[800]
+                                                    : Colors.grey[50],
+                                                borderRadius:
+                                                    BorderRadius.circular(12),
                                               ),
-                                              title: Text(
-                                                contact.name,
-                                                style: TextStyle(
-                                                  fontWeight: FontWeight.bold,
-                                                  color: isDarkMode
-                                                      ? Colors.white
-                                                      : Colors.black,
+                                              child: ListTile(
+                                                leading: CircleAvatar(
+                                                  backgroundColor:
+                                                      const Color(0xFF6750A4),
+                                                  child: Text(
+                                                    contact.name.isNotEmpty
+                                                        ? contact.name[0]
+                                                            .toUpperCase()
+                                                        : '?',
+                                                    style: const TextStyle(
+                                                        color: Colors.white),
+                                                  ),
+                                                ),
+                                                title: Text(
+                                                  contact.name,
+                                                  style: TextStyle(
+                                                    fontWeight: FontWeight.bold,
+                                                    color: isDarkMode
+                                                        ? Colors.white
+                                                        : Colors.black,
+                                                  ),
+                                                ),
+                                                subtitle: Column(
+                                                  crossAxisAlignment:
+                                                      CrossAxisAlignment.start,
+                                                  children: [
+                                                    if (contact
+                                                        .location.isNotEmpty)
+                                                      Text(
+                                                        contact.location,
+                                                        style: TextStyle(
+                                                          color: isDarkMode
+                                                              ? Colors.grey[400]
+                                                              : Colors
+                                                                  .grey[600],
+                                                          fontSize: 12,
+                                                        ),
+                                                      ),
+                                                    if (contact
+                                                        .arrival.isNotEmpty)
+                                                      Text(
+                                                        contact.arrival,
+                                                        style: TextStyle(
+                                                          color: isDarkMode
+                                                              ? Colors.grey[400]
+                                                              : Colors
+                                                                  .grey[600],
+                                                          fontSize: 12,
+                                                        ),
+                                                      ),
+                                                    Text(
+                                                      contact.update,
+                                                      style: TextStyle(
+                                                        color: isDarkMode
+                                                            ? Colors.grey[400]
+                                                            : Colors.grey[600],
+                                                        fontSize: 12,
+                                                        fontWeight:
+                                                            FontWeight.w600,
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                                trailing: Row(
+                                                  mainAxisSize:
+                                                      MainAxisSize.min,
+                                                  children: [
+                                                    IconButton(
+                                                      icon: Icon(Icons.call,
+                                                          color: isDarkMode
+                                                              ? Colors.white
+                                                              : const Color(
+                                                                  0xFF6750A4),
+                                                          size: 20),
+                                                      onPressed: () {
+                                                        final number = contact
+                                                                .update
+                                                                .isNotEmpty
+                                                            ? contact.update
+                                                            : null;
+                                                        if (number != null) {
+                                                          _launchCaller(number);
+                                                        } else {
+                                                          ScaffoldMessenger.of(
+                                                                  context)
+                                                              .showSnackBar(
+                                                            SnackBar(
+                                                                content: Text(
+                                                                    'no_number_available'
+                                                                        .tr())),
+                                                          );
+                                                        }
+                                                      },
+                                                    ),
+                                                    IconButton(
+                                                      icon: Icon(Icons.delete,
+                                                          color: Colors.red,
+                                                          size: 20),
+                                                      onPressed: () {
+                                                        if (contact.id !=
+                                                            null) {
+                                                          BlocProvider.of<
+                                                                      EmergencyBloc>(
+                                                                  context)
+                                                              .add(
+                                                            DeleteEmergencyContactEvent(
+                                                              uid: widget.uid,
+                                                              contactId:
+                                                                  contact.id!,
+                                                            ),
+                                                          );
+                                                        }
+                                                      },
+                                                    ),
+                                                  ],
                                                 ),
                                               ),
-                                              subtitle: Column(
-                                                crossAxisAlignment:
-                                                    CrossAxisAlignment.start,
-                                                children: [
-                                                  Text(
-                                                    contact.location,
-                                                    style: TextStyle(
-                                                      color: isDarkMode
-                                                          ? Colors.white
-                                                          : Colors.grey,
-                                                    ),
-                                                  ),
-                                                  Text(
-                                                    contact.arrival,
-                                                    style: TextStyle(
-                                                      color: isDarkMode
-                                                          ? Colors.white
-                                                          : Colors.grey,
-                                                    ),
-                                                  ),
-                                                  Text(
-                                                    contact.update,
-                                                    style: TextStyle(
-                                                      color: isDarkMode
-                                                          ? Colors.white
-                                                          : Colors.grey,
-                                                    ),
-                                                  ),
-                                                ],
-                                              ),
-                                              trailing: Row(
-                                                mainAxisSize: MainAxisSize.min,
-                                                children: [
-                                                  IconButton(
-                                                    icon: Icon(Icons.call,
-                                                        color: isDarkMode
-                                                            ? Colors.white
-                                                            : const Color(
-                                                                0xFF6750A4)),
-                                                    onPressed: () {
-                                                      final number = contact
-                                                                  .update
-                                                                  ?.isNotEmpty ==
-                                                              true
-                                                          ? contact.update
-                                                          : null;
-                                                      if (widget
-                                                              .onEmergencyServicePressed !=
-                                                          null) {
-                                                        widget.onEmergencyServicePressed!(
-                                                            contact.name,
-                                                            number);
-                                                      } else if (number !=
-                                                          null) {
-                                                        _launchCaller(number);
-                                                      } else {
-                                                        ScaffoldMessenger.of(
-                                                                context)
-                                                            .showSnackBar(
-                                                          SnackBar(
-                                                              content: Text(
-                                                                  'no_number_available'
-                                                                      .tr())),
-                                                        );
-                                                      }
-                                                    },
-                                                  ),
-                                                  IconButton(
-                                                    icon: Icon(Icons.message,
-                                                        color: isDarkMode
-                                                            ? Colors.white
-                                                            : const Color(
-                                                                0xFF6750A4)),
-                                                    onPressed: () {
-                                                      ScaffoldMessenger.of(
-                                                              context)
-                                                          .showSnackBar(
-                                                        SnackBar(
-                                                            content: Text(
-                                                                'implement_message_action'
-                                                                    .tr())),
-                                                      );
-                                                    },
-                                                  ),
-                                                  IconButton(
-                                                    icon: const Icon(
-                                                        Icons.delete,
-                                                        color: Colors.red),
-                                                    onPressed: () {
-                                                      if (contact.id != null) {
-                                                        BlocProvider.of<
-                                                                    EmergencyBloc>(
-                                                                context)
-                                                            .add(
-                                                                DeleteEmergencyContactEvent(
-                                                          uid: widget.uid,
-                                                          contactId:
-                                                              contact.id!,
-                                                        ));
-                                                      }
-                                                    },
-                                                  ),
-                                                ],
-                                              ),
                                             ),
-                                            const Divider(),
+                                            const Divider(height: 1),
                                           ],
                                         );
                                       }).toList(),

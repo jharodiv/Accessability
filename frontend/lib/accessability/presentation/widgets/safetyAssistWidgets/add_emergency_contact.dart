@@ -1,9 +1,9 @@
-// lib/presentation/widgets/bottomSheetWidgets/add_emergency_contact_screen.dart
-
 import 'package:accessability/accessability/themes/theme_provider.dart';
 import 'package:flutter/material.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:provider/provider.dart';
 import 'package:easy_localization/easy_localization.dart';
+import 'package:accessability/accessability/utils/contact_service.dart';
 
 class AddEmergencyContactScreen extends StatefulWidget {
   final String uid;
@@ -24,6 +24,7 @@ class _AddEmergencyContactScreenState extends State<AddEmergencyContactScreen> {
 
   bool _saving = false;
   bool _isButtonEnabled = false;
+  bool _loadingContacts = false;
 
   void _updateButtonState() {
     final enabled =
@@ -51,11 +52,68 @@ class _AddEmergencyContactScreenState extends State<AddEmergencyContactScreen> {
     super.dispose();
   }
 
-  void _onPickContactPressed() {
-    // Placeholder for picking from device contacts.
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('contact_picker_not_implemented'.tr())),
-    );
+  Future<void> _onPickContactPressed() async {
+    final status = await Permission.contacts.request();
+
+    if (status.isGranted) {
+      setState(() => _loadingContacts = true);
+
+      try {
+        final contacts = await ContactService.getContacts();
+
+        debugPrint('Found ${contacts.length} contacts');
+
+        if (contacts.isEmpty) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('no_contacts_found'.tr())),
+          );
+          return;
+        }
+
+        // Show simple dialog with contacts
+        final Map<String, String>? selectedContact =
+            await showDialog<Map<String, String>>(
+          context: context,
+          builder: (context) => SimpleContactDialog(contacts: contacts),
+        );
+
+        if (selectedContact != null) {
+          _nameCtrl.text = selectedContact['name'] ?? '';
+          _phoneCtrl.text = selectedContact['phone'] ?? '';
+          _updateButtonState();
+        }
+      } catch (e) {
+        debugPrint('Error getting contacts: $e');
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('error_reading_contacts'.tr())),
+        );
+      } finally {
+        setState(() => _loadingContacts = false);
+      }
+    } else if (status.isPermanentlyDenied) {
+      // Show dialog to guide user to app settings
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: Text('permission_required'.tr()),
+          content: Text('contacts_permission_permanently_denied'.tr()),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text('cancel'.tr()),
+            ),
+            TextButton(
+              onPressed: () => openAppSettings(),
+              child: Text('open_settings'.tr()),
+            ),
+          ],
+        ),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('contacts_permission_denied'.tr())),
+      );
+    }
   }
 
   void _onSavePressed() {
@@ -68,7 +126,6 @@ class _AddEmergencyContactScreenState extends State<AddEmergencyContactScreen> {
     final address = _addressCtrl.text.trim();
     final arrival = _arrivalCtrl.text.trim();
 
-    // Return values to caller; parent will dispatch the bloc event
     Navigator.of(context).pop({
       'name': name,
       'phone': phone,
@@ -107,8 +164,7 @@ class _AddEmergencyContactScreenState extends State<AddEmergencyContactScreen> {
                 color: const Color(0xFF6750A4),
               ),
               title: Text(
-                'add_emergency_number'
-                    .tr(), // or 'settings'.tr() depending on screen
+                'add_emergency_number'.tr(),
                 style: const TextStyle(fontWeight: FontWeight.bold),
               ),
               centerTitle: true,
@@ -183,11 +239,21 @@ class _AddEmergencyContactScreenState extends State<AddEmergencyContactScreen> {
                           borderRadius: BorderRadius.circular(6),
                           border: Border.all(color: Colors.grey.shade300),
                         ),
-                        child: IconButton(
-                          icon: const Icon(Icons.contact_phone),
-                          onPressed: _onPickContactPressed,
-                          tooltip: 'pick_from_contacts'.tr(),
-                        ),
+                        child: _loadingContacts
+                            ? const Padding(
+                                padding: EdgeInsets.all(8.0),
+                                child: SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child:
+                                      CircularProgressIndicator(strokeWidth: 2),
+                                ),
+                              )
+                            : IconButton(
+                                icon: const Icon(Icons.contact_phone),
+                                onPressed: _onPickContactPressed,
+                                tooltip: 'pick_from_contacts'.tr(),
+                              ),
                       )
                     ],
                   ),
@@ -200,7 +266,7 @@ class _AddEmergencyContactScreenState extends State<AddEmergencyContactScreen> {
                   const SizedBox(height: 8),
                   TextFormField(
                     controller: _addressCtrl,
-                    maxLines: 5,
+                    maxLines: 3,
                     textInputAction: TextInputAction.newline,
                     decoration: InputDecoration(
                       hintText: 'enter_contact_address'.tr(),
@@ -244,28 +310,130 @@ class _AddEmergencyContactScreenState extends State<AddEmergencyContactScreen> {
             child: ElevatedButton(
               onPressed: (_isButtonEnabled && !_saving) ? _onSavePressed : null,
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFE0E0E0),
+                backgroundColor: const Color(0xFF6750A4),
                 disabledBackgroundColor: const Color(0xFFDFDFDF),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(6),
                 ),
                 elevation: 0,
               ),
-              child: Text(
-                'save'.tr().toUpperCase(),
-                style: TextStyle(
-                  color: (_isButtonEnabled && !_saving)
-                      ? Colors.black
-                      : Colors.grey.shade700,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
-                ),
-              ),
+              child: _saving
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : Text(
+                      'save'.tr().toUpperCase(),
+                      style: TextStyle(
+                        color: (_isButtonEnabled && !_saving)
+                            ? const Color.fromARGB(255, 255, 255, 255)
+                            : Colors.grey.shade700,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
+                    ),
             ),
           ),
         ),
       ),
       backgroundColor: isDarkMode ? Colors.grey[900] : Colors.white,
+    );
+  }
+}
+
+class SimpleContactDialog extends StatelessWidget {
+  final List<Map<String, String>> contacts;
+
+  const SimpleContactDialog({Key? key, required this.contacts})
+      : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    final bool isDarkMode =
+        Provider.of<ThemeProvider>(context, listen: false).isDarkMode;
+
+    return Dialog(
+      backgroundColor: isDarkMode ? Colors.grey[900] : Colors.white,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: Container(
+        constraints: const BoxConstraints(maxHeight: 500),
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Text(
+                'select_contact'.tr(),
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: isDarkMode ? Colors.white : Colors.black,
+                ),
+              ),
+            ),
+            const Divider(height: 1),
+            Expanded(
+              child: contacts.isEmpty
+                  ? Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: Text(
+                          'no_contacts_found'.tr(),
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: isDarkMode
+                                ? Colors.grey[400]
+                                : Colors.grey[600],
+                          ),
+                        ),
+                      ),
+                    )
+                  : ListView.builder(
+                      itemCount: contacts.length,
+                      itemBuilder: (context, index) {
+                        final contact = contacts[index];
+                        final phoneNumber = contact['phone'];
+
+                        return ListTile(
+                          leading: CircleAvatar(
+                            backgroundColor: const Color(0xFF6750A4),
+                            child: Text(
+                              contact['name']?.isNotEmpty == true
+                                  ? contact['name']![0].toUpperCase()
+                                  : '?',
+                              style: const TextStyle(color: Colors.white),
+                            ),
+                          ),
+                          title: Text(
+                            contact['name'] ?? '',
+                            style: TextStyle(
+                              color: isDarkMode ? Colors.white : Colors.black,
+                            ),
+                          ),
+                          subtitle: Text(
+                            phoneNumber ?? 'no_phone_number'.tr(),
+                            style: TextStyle(
+                              color: isDarkMode
+                                  ? Colors.grey[400]
+                                  : Colors.grey[600],
+                            ),
+                          ),
+                          onTap: () => Navigator.of(context).pop(contact),
+                        );
+                      },
+                    ),
+            ),
+            const Divider(height: 1),
+            Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: Text('cancel'.tr()),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

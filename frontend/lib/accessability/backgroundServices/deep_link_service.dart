@@ -52,32 +52,25 @@ class DeepLinkService {
   // CORRECTED: Handle session-based cold start from APK installation
   Future<void> _handleSessionColdStart() async {
     try {
-      if (!Platform.isAndroid) return; // Now Platform is imported
+      if (!Platform.isAndroid) return;
 
       debugPrint("📱 Checking for APK installation intent...");
 
-      // Method 1: First try using app_links (simpler)
+      // Use app_links to get the initial link
       final initialUri = await _appLinks.getInitialLink();
-      if (initialUri != null && _isGitHubApkUrl(initialUri)) {
-        _processSessionFromUri(initialUri);
-        return;
-      }
+      if (initialUri != null) {
+        debugPrint("📦 Initial URI: $initialUri");
 
-      // Method 2: Use MethodChannel for direct intent access
-      try {
-        const platform = MethodChannel('flutter_deeplink');
-        final dynamic intentData =
-            await platform.invokeMethod('getInitialIntentData');
-
-        if (intentData != null && intentData is String) {
-          debugPrint("📦 Raw intent data: $intentData");
-          final Uri data = Uri.parse(intentData);
-          if (_isGitHubApkUrl(data)) {
-            _processSessionFromUri(data);
+        // Check if this is a GitHub APK URL with session parameter
+        if (_isGitHubApkUrl(initialUri)) {
+          final sessionId = initialUri.queryParameters['session'];
+          if (sessionId != null && sessionId.startsWith('session_')) {
+            debugPrint("🔍 Found session ID from APK install: $sessionId");
+            _pendingSessionCode = sessionId;
           }
         }
-      } catch (e) {
-        debugPrint("⚠️ MethodChannel failed: $e");
+      } else {
+        debugPrint("ℹ️ No initial URI found for session cold start");
       }
     } catch (e) {
       debugPrint("❌ Error checking session cold start: $e");

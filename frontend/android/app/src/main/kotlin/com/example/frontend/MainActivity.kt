@@ -8,18 +8,50 @@ import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
 import org.json.JSONArray
 import org.json.JSONObject
+import androidx.annotation.NonNull
 
 class MainActivity: FlutterFragmentActivity() {
-    private val CHANNEL = "com.example.frontend/contacts"
+    private val CONTACTS_CHANNEL = "com.example.frontend/contacts"
+    private val DEEPLINK_CHANNEL = "flutter_deeplink" // ← ADD THIS CHANNEL
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
         
         setupContactChannel(flutterEngine)
+        setupDeepLinkChannel(flutterEngine) // ← ADD THIS METHOD
     }
 
+    // ✅ NEW: Setup deep link channel
+    private fun setupDeepLinkChannel(flutterEngine: FlutterEngine) {
+        val methodChannel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, DEEPLINK_CHANNEL)
+        methodChannel.setMethodCallHandler { call, result ->
+            when (call.method) {
+                "getInitialIntentData" -> {
+                    try {
+                        val intent = intent
+                        val data = intent.data
+                        if (data != null) {
+                            result.success(data.toString())
+                            println("✅ Sent intent data to Flutter: $data")
+                        } else {
+                            result.success(null)
+                            println("ℹ️ No intent data found")
+                        }
+                    } catch (e: Exception) {
+                        result.error("ERROR", "Failed to get intent data", e.toString())
+                        println("❌ Error getting intent data: $e")
+                    }
+                }
+                else -> {
+                    result.notImplemented()
+                }
+            }
+        }
+    }
+
+    // Your existing contact code remains the same
     private fun setupContactChannel(flutterEngine: FlutterEngine) {
-        val methodChannel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL)
+        val methodChannel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CONTACTS_CHANNEL)
         methodChannel.setMethodCallHandler { call, result ->
             when (call.method) {
                 "getContacts" -> {

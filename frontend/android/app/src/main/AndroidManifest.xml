@@ -44,12 +44,14 @@
             <meta-data
                 android:name="io.flutter.embedding.android.NormalTheme"
                 android:resource="@style/NormalTheme" />
+            
+            <!-- ✅ Default Launcher Intent -->
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
 
-            <!-- ✅ Custom deep link intent -->
+            <!-- ✅ Custom deep link intent: accessability://open/joinspace?code=123456 -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW"/>
                 <category android:name="android.intent.category.DEFAULT"/>
@@ -57,7 +59,7 @@
                 <data android:scheme="accessability" android:host="open"/>
             </intent-filter>
 
-            <!-- ✅ NEW: APK Installation Intent for GitHub URLs -->
+            <!-- ✅ FIXED: APK Installation Intent for GitHub URLs -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW"/>
                 <category android:name="android.intent.category.DEFAULT"/>
@@ -65,13 +67,15 @@
                 <data 
                     android:scheme="https"
                     android:host="github.com"
-                    android:pathPrefix="/Montilla007/3Y2AAPWD/releases/download/"/>
+                    android:pathPrefix="/Montilla007/3Y2AAPWD/releases/"/>
             </intent-filter>
 
-            <!-- ✅ Default Launcher Intent -->
+            <!-- ✅ ADD THIS: Catch ALL https URLs (fallback) -->
             <intent-filter>
-                <action android:name="android.intent.action.MAIN"/>
-                <category android:name="android.intent.category.LAUNCHER"/>
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+                <data android:scheme="https"/>
             </intent-filter>
         </activity>
 

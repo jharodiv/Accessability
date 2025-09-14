@@ -105,6 +105,8 @@ class _LocationWidgetsState extends State<LocationWidgets> {
   Curve _pendingAnimateCurve = Curves.easeOut;
   bool _createdControllerLocally = false;
   VoidCallback? _overlayNotifierListener;
+  double _serviceAreaFactor = 1.0; // 1.0 = fully visible, 0.0 = hidden
+  bool _isAtTop = false; // track if sheet is at the very top (for safe padding)
 
   @override
   void initState() {
@@ -168,18 +170,46 @@ class _LocationWidgetsState extends State<LocationWidgets> {
     _controllerListener = () {
       try {
         final size = _draggableController.size;
-        final expanded = size >= _expandThreshold;
-        if (expanded != _isExpanded) {
-          // Defer the setState to avoid mutating during layout
+
+        // compute top state (avoid status bar overlap when at very top)
+        final bool atTop = size >= 0.995;
+
+        // decide fade start from current preferred initial (dynamic)
+        final double _fadeStart = _preferredInitialSize;
+        const double _hideThreshold = 0.55;
+        const double _factorDirtyThreshold = 0.02;
+
+        // Map size -> factor in a smooth linear ramp between _fadeStart.._hideThreshold
+        double factor;
+        if (size <= _fadeStart) {
+          factor = 1.0;
+        } else if (size >= _hideThreshold) {
+          factor = 0.0;
+        } else {
+          factor = 1.0 - (size - _fadeStart) / (_hideThreshold - _fadeStart);
+        }
+        factor = factor.clamp(0.0, 1.0);
+
+        final bool expanded = size >= _expandThreshold;
+
+        // only update when something meaningful changed to avoid excessive rebuilds
+        final bool factorChanged =
+            (factor - _serviceAreaFactor).abs() > _factorDirtyThreshold;
+        if (factorChanged || atTop != _isAtTop || expanded != _isExpanded) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
             if (!mounted) return;
-            if (expanded != _isExpanded) setState(() => _isExpanded = expanded);
+            setState(() {
+              _serviceAreaFactor = factor;
+              _isAtTop = atTop;
+              _isExpanded = expanded;
+            });
           });
         }
       } catch (_) {
-        // ignore if controller not ready yet
+        // ignore if controller not ready or removed
       }
     };
+
     _draggableController.addListener(_controllerListener!);
 
     // Ensure sheet is at min if a route is already active on open.
@@ -840,129 +870,130 @@ class _LocationWidgetsState extends State<LocationWidgets> {
             }
             return Column(
               children: [
-                IgnorePointer(
-                  // now also ignore if a route is active
-                  ignoring:
-                      _isExpanded || widget.isJoining || widget.isRouteActive,
-                  child: Builder(builder: (ctx) {
-                    // debug info to confirm whether button area is shown or hidden
-                    debugPrint(
-                        '[LocationWidgets] ServiceButtons: _isExpanded=$_isExpanded, isJoining=${widget.isJoining}, isRouteActive=${widget.isRouteActive}');
-                    final showButtons = !(_isExpanded ||
-                        widget.isJoining ||
-                        widget.isRouteActive);
-                    debugPrint('[LocationWidgets] showButtons = $showButtons');
-
-                    return AnimatedSize(
-                      duration: const Duration(milliseconds: 220),
-                      curve: Curves.easeInOut,
-                      child: AnimatedOpacity(
-                        duration: const Duration(milliseconds: 220),
-                        curve: Curves.easeOut,
-                        opacity: showButtons ? 1.0 : 0.0,
-                        // keep the same children so callbacks remain unchanged; use SizedBox.shrink when hidden so size collapses
-                        child: showButtons
-                            ? ServiceButtons(
-                                key: const ValueKey('service_buttons'),
-                                onButtonPressed: (label) {/* … */},
-                                currentLocation:
-                                    widget.locationHandler.currentLocation,
-                                // WRAP the map view callback with logging so we can see if it fires
-                                onMapViewPressed: () async {
-                                  if (_mapSheetOpening) {
-                                    debugPrint(
-                                        '[LocationWidgets] map sheet already opening - ignoring tap');
-                                    return;
-                                  }
-                                  _mapSheetOpening = true;
-                                  try {
-                                    debugPrint(
-                                        '[LocationWidgets] onMapViewPressed wrapper fired.');
-                                    await widget.onMapViewPressed?.call();
-                                  } finally {
-                                    // small delay to avoid immediate re-open
-                                    await Future.delayed(
-                                        const Duration(milliseconds: 200));
-                                    _mapSheetOpening = false;
-                                  }
-                                },
-                                onCenterPressed: () async {
-                                  debugPrint(
-                                      'GPS button pressed (center/reset)');
-                                  final currentLoc =
-                                      widget.locationHandler.currentLocation;
-                                  if (currentLoc == null) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(
-                                          content: Text(
-                                              'locationNotAvailable'.tr())),
-                                    );
-                                    return;
-                                  }
-
-                                  // mark local selection so UI highlights "You"
-                                  final id = _auth.currentUser?.uid;
-                                  if (id != null) {
-                                    setState(() {
-                                      _selectedMemberId = id;
-                                    });
-                                  }
-
-                                  // collapse sheet to min first so the overlay will position correctly
-                                  try {
-                                    await _safeAnimateSheetTo(
-                                      _sheetMinChildSize,
-                                      duration:
-                                          const Duration(milliseconds: 260),
-                                    );
-                                  } catch (e, st) {
-                                    debugPrint(
-                                        '[LocationWidgets] safeAnimateSheetTo failed: $e\n$st');
-                                  }
-
-                                  // pan camera to current location
-                                  try {
-                                    widget.locationHandler
-                                        .panCameraToLocation(currentLoc);
-                                  } catch (e, st) {
-                                    debugPrint(
-                                        'panCameraToLocation threw: $e\n$st');
-                                  }
-
-                                  // then ask the host (GpsScreen) to show the "my info" overlay
-                                  if (widget.onShowMyInfoPressed != null) {
+                // --- SERVICE AREA: copied structure from SafetyAssistWidget ---
+                RepaintBoundary(
+                  child: ClipRect(
+                    child: Align(
+                      alignment: Alignment.topCenter,
+                      heightFactor: _serviceAreaFactor,
+                      child: Opacity(
+                        opacity: _serviceAreaFactor,
+                        child: Transform.translate(
+                          offset: Offset(0, (1 - _serviceAreaFactor) * 20),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const SizedBox(height: 8),
+                              // ignore pointer when almost hidden OR route/joining active
+                              IgnorePointer(
+                                ignoring: _serviceAreaFactor < 0.05 ||
+                                    widget.isJoining ||
+                                    widget.isRouteActive,
+                                child: ServiceButtons(
+                                  key: const ValueKey('service_buttons'),
+                                  onButtonPressed: (label) {
+                                    /* … keep your handler if any */
+                                  },
+                                  currentLocation:
+                                      widget.locationHandler.currentLocation,
+                                  onMapViewPressed: () async {
+                                    if (_mapSheetOpening) {
+                                      debugPrint(
+                                          '[LocationWidgets] map sheet already opening - ignoring tap');
+                                      return;
+                                    }
+                                    _mapSheetOpening = true;
                                     try {
-                                      await widget.onShowMyInfoPressed!.call();
+                                      debugPrint(
+                                          '[LocationWidgets] onMapViewPressed wrapper fired.');
+                                      await widget.onMapViewPressed?.call();
+                                    } finally {
+                                      await Future.delayed(
+                                          const Duration(milliseconds: 200));
+                                      _mapSheetOpening = false;
+                                    }
+                                  },
+                                  onCenterPressed: () async {
+                                    debugPrint(
+                                        'GPS button pressed (center/reset)');
+                                    final currentLoc =
+                                        widget.locationHandler.currentLocation;
+                                    if (currentLoc == null) {
+                                      ScaffoldMessenger.of(context)
+                                          .showSnackBar(
+                                        SnackBar(
+                                            content: Text(
+                                                'locationNotAvailable'.tr())),
+                                      );
+                                      return;
+                                    }
+
+                                    // mark local selection so UI highlights "You"
+                                    final id = _auth.currentUser?.uid;
+                                    if (id != null) {
+                                      setState(() {
+                                        _selectedMemberId = id;
+                                      });
+                                    }
+
+                                    // collapse sheet to min first so the overlay will position correctly
+                                    try {
+                                      await _safeAnimateSheetTo(
+                                        _sheetMinChildSize,
+                                        duration:
+                                            const Duration(milliseconds: 260),
+                                      );
                                     } catch (e, st) {
                                       debugPrint(
-                                          '[LocationWidgets] onShowMyInfoPressed threw: $e\n$st');
-                                      // fallback: call the older onMemberPressed behavior if provided
+                                          '[LocationWidgets] safeAnimateSheetTo failed: $e\n$st');
+                                    }
+
+                                    // pan camera to current location
+                                    try {
+                                      widget.locationHandler
+                                          .panCameraToLocation(currentLoc);
+                                    } catch (e, st) {
+                                      debugPrint(
+                                          'panCameraToLocation threw: $e\n$st');
+                                    }
+
+                                    // then ask the host (GpsScreen) to show the "my info" overlay
+                                    if (widget.onShowMyInfoPressed != null) {
+                                      try {
+                                        await widget.onShowMyInfoPressed!
+                                            .call();
+                                      } catch (e, st) {
+                                        debugPrint(
+                                            '[LocationWidgets] onShowMyInfoPressed threw: $e\n$st');
+                                        // fallback: call the older onMemberPressed behavior if provided
+                                        if (id != null) {
+                                          widget.onMemberPressed(
+                                              currentLoc, id);
+                                        }
+                                      }
+                                    } else {
+                                      // fallback if no host handler provided
                                       if (id != null) {
                                         widget.onMemberPressed(currentLoc, id);
                                       }
                                     }
-                                  } else {
-                                    // fallback if no host handler provided
-                                    if (id != null) {
-                                      widget.onMemberPressed(currentLoc, id);
-                                    }
-                                  }
-                                },
-                              )
-                            : const SizedBox.shrink(
-                                key: ValueKey('empty_service_buttons')),
+                                  },
+                                ),
+                              ),
+                              const SizedBox(height: 10),
+                            ],
+                          ),
+                        ),
                       ),
-                    );
-                  }),
+                    ),
+                  ),
                 ),
+
                 const SizedBox(height: 10),
                 Expanded(
-                  child: SafeArea(
-                    top:
-                        _isExpanded, // only add top safe inset when sheet is expanded
-                    bottom:
-                        false, // keep existing bottom behavior (sheet handles its own bottom)
-
+                  child: Padding(
+                    padding: EdgeInsets.only(
+                        top: _isAtTop ? MediaQuery.of(context).padding.top : 0),
                     child: Container(
                       decoration: BoxDecoration(
                         color: isDarkMode ? Colors.grey[900] : Colors.white,

@@ -63,6 +63,8 @@
 	<key>NSSpeechRecognitionUsageDescription</key>
 	<string>We need access to speech recognition for voice search.</string>
 	</array>
+	<key>NSContactsUsageDescription</key>
+	<string>This app needs access to your contacts to import emergency contacts</string>
 	<key>CFBundleLocalizations</key>
 	<array>
 		<string>en</string>

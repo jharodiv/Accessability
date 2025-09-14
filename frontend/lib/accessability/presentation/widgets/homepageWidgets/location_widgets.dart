@@ -40,6 +40,9 @@ class LocationWidgets extends StatefulWidget {
   final ValueChanged<bool> onJoinStateChanged; // new
   final LocationHandler locationHandler;
   final bool isRouteActive;
+  final DraggableScrollableController? controller;
+  final Future<void> Function()? onShowMyInfoPressed;
+  final ValueNotifier<bool>? overlayVisibleNotifier;
 
   const LocationWidgets({
     super.key,
@@ -56,6 +59,9 @@ class LocationWidgets extends StatefulWidget {
     required this.isJoining,
     required this.onJoinStateChanged,
     required this.isRouteActive, // required now
+    this.controller, // <-- add here
+    this.onShowMyInfoPressed, // <- add here
+    this.overlayVisibleNotifier, // <-- add here
   });
 
   @override
@@ -84,8 +90,6 @@ class _LocationWidgetsState extends State<LocationWidgets> {
   final TextEditingController _spaceNameController = TextEditingController();
   final FlutterTts flutterTts = FlutterTts();
   bool _isLoading = false;
-  // final DraggableScrollableController _draggableController =
-  //     DraggableScrollableController();
 
   StreamSubscription<DocumentSnapshot>? _membersListener;
   final List<StreamSubscription<DocumentSnapshot>> _locationListeners = [];
@@ -94,35 +98,125 @@ class _LocationWidgetsState extends State<LocationWidgets> {
   late final double _expandThreshold = 0.8;
   late final double _collapseThreshold = 0.3;
   bool _mapSheetOpening = false;
+  VoidCallback? _controllerListener;
+  bool _sheetAttached = false;
+  double? _pendingAnimateTarget;
+  Duration _pendingAnimateDuration = const Duration(milliseconds: 300);
+  Curve _pendingAnimateCurve = Curves.easeOut;
+  bool _createdControllerLocally = false;
+  VoidCallback? _overlayNotifierListener;
 
   @override
   void initState() {
     super.initState();
     debugPrint(
         '[LocationWidgets] initState: activeSpaceId=${widget.activeSpaceId}');
+
+    // Start background init tasks
     _listenToMembers();
     _initializeLocation();
     _initializeTts();
 
-    _draggableController = DraggableScrollableController();
+    if (widget.overlayVisibleNotifier != null) {
+      _overlayNotifierListener = () {
+        try {
+          final visible = widget.overlayVisibleNotifier!.value;
+          if (visible) {
+            // when overlay appears, collapse to min
+            _safeAnimateSheetTo(_sheetMinChildSize,
+                duration: const Duration(milliseconds: 260));
+          } else {
+            // optional: when overlay hides, restore preferred size if route not active
+            if (!widget.isRouteActive) {
+              _safeAnimateSheetTo(_preferredInitialSize,
+                  duration: const Duration(milliseconds: 250));
+            }
+          }
+        } catch (e) {
+          debugPrint('[LocationWidgets] overlayNotifier listener error: $e');
+        }
+      };
+      widget.overlayVisibleNotifier!.addListener(_overlayNotifierListener!);
+    }
+
+    // IMPORTANT: initialize the controller before using it
+    if (widget.controller != null) {
+      // If the provided controller is already attached to a sheet, don't reuse it:
+      try {
+        if (widget.controller!.isAttached) {
+          debugPrint(
+              '[LocationWidgets] passed controller is already attached — creating local controller instead');
+          _draggableController = DraggableScrollableController();
+          _createdControllerLocally = true;
+        } else {
+          _draggableController = widget.controller!;
+          _createdControllerLocally = false;
+        }
+      } catch (e, st) {
+        // defensive fallback
+        debugPrint(
+            '[LocationWidgets] error checking passed controller.isAttached: $e\n$st — using local controller');
+        _draggableController = DraggableScrollableController();
+        _createdControllerLocally = true;
+      }
+    } else {
+      _draggableController = DraggableScrollableController();
+      _createdControllerLocally = true;
+    }
+
+    // attach a safe listener to update _isExpanded based on controller.size
+    _controllerListener = () {
+      try {
+        final size = _draggableController.size;
+        final expanded = size >= _expandThreshold;
+        if (expanded != _isExpanded) {
+          // Defer the setState to avoid mutating during layout
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (!mounted) return;
+            if (expanded != _isExpanded) setState(() => _isExpanded = expanded);
+          });
+        }
+      } catch (_) {
+        // ignore if controller not ready yet
+      }
+    };
+    _draggableController.addListener(_controllerListener!);
 
     // Ensure sheet is at min if a route is already active on open.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (widget.isRouteActive) {
-        _draggableController.animateTo(
-          _sheetMinChildSize,
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.easeOut,
-        );
+        _safeAnimateSheetTo(_sheetMinChildSize,
+            duration: const Duration(milliseconds: 300));
       } else {
-        // ensure it opens to preferred initial if not in route
-        _draggableController.animateTo(
-          _preferredInitialSize,
-          duration: const Duration(milliseconds: 250),
-          curve: Curves.easeOut,
-        );
+        _safeAnimateSheetTo(_preferredInitialSize,
+            duration: const Duration(milliseconds: 250));
       }
     });
+  }
+
+  Future<void> _safeAnimateSheetTo(double target,
+      {Duration duration = const Duration(milliseconds: 300),
+      Curve curve = Curves.easeOut}) async {
+    if (!mounted) return;
+
+    // If sheet is attached, animate immediately (guarded)
+    if (_sheetAttached) {
+      try {
+        await _draggableController.animateTo(target,
+            duration: duration, curve: curve);
+      } catch (e, st) {
+        debugPrint(
+            '[LocationWidgets] animateTo failed (detached mid-call): $e\n$st');
+      }
+      return;
+    }
+
+    // Otherwise queue the animation and it will run when the sheet attaches
+    _pendingAnimateTarget = target;
+    _pendingAnimateDuration = duration;
+    _pendingAnimateCurve = curve;
+    debugPrint(
+        '[LocationWidgets] queued animateTo($target) — sheet not attached yet');
   }
 
   String _timeDiff(DateTime dt) {
@@ -164,19 +258,11 @@ class _LocationWidgetsState extends State<LocationWidgets> {
 
     if (oldWidget.isRouteActive != widget.isRouteActive) {
       if (widget.isRouteActive) {
-        // push sheet down (to minimum)
-        _draggableController.animateTo(
-          _sheetMinChildSize,
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.easeOut,
-        );
+        _safeAnimateSheetTo(_sheetMinChildSize,
+            duration: const Duration(milliseconds: 300));
       } else {
-        // bring sheet back to preferred initial size
-        _draggableController.animateTo(
-          _preferredInitialSize,
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.easeOut,
-        );
+        _safeAnimateSheetTo(_preferredInitialSize,
+            duration: const Duration(milliseconds: 300));
       }
     }
 
@@ -185,11 +271,8 @@ class _LocationWidgetsState extends State<LocationWidgets> {
         oldWidget.isJoining != widget.isJoining) {
       // only animate back if route not active
       if (!widget.isRouteActive) {
-        _draggableController.animateTo(
-          _preferredInitialSize,
-          duration: const Duration(milliseconds: 250),
-          curve: Curves.easeOut,
-        );
+        _safeAnimateSheetTo(_preferredInitialSize,
+            duration: const Duration(milliseconds: 250));
       }
     }
 
@@ -222,22 +305,78 @@ class _LocationWidgetsState extends State<LocationWidgets> {
       // restart listening for the new space
       _listenToMembers();
     }
+    if (oldWidget.overlayVisibleNotifier != widget.overlayVisibleNotifier) {
+      try {
+        if (oldWidget.overlayVisibleNotifier != null &&
+            _overlayNotifierListener != null) {
+          oldWidget.overlayVisibleNotifier!
+              .removeListener(_overlayNotifierListener!);
+        }
+      } catch (_) {}
+      if (widget.overlayVisibleNotifier != null) {
+        widget.overlayVisibleNotifier!.addListener(_overlayNotifierListener!);
+      }
+    }
   }
 
   @override
   void dispose() {
-    // _draggableController.removeListener(_sheetListener);
+    // remove controller listener if added
 
+    if (_controllerListener != null) {
+      try {
+        _draggableController.removeListener(_controllerListener!);
+      } catch (_) {}
+      _controllerListener = null;
+    }
+
+    // cancel all listeners
     _membersListener?.cancel();
-    _locationListeners.forEach((listener) => listener.cancel());
+    for (final listener in _locationListeners) {
+      try {
+        listener.cancel();
+      } catch (_) {}
+    }
     _locationListeners.clear();
-    _yourLocationListener?.cancel();
+    try {
+      _yourLocationListener?.cancel();
+    } catch (_) {}
 
-    flutterTts.stop();
-    _spaceNameController.dispose();
-    _draggableController.dispose();
+    // stop services and dispose controllers you own
+    try {
+      flutterTts.stop();
+    } catch (_) {}
 
+    try {
+      _spaceNameController.dispose();
+    } catch (_) {}
+
+    // Only dispose the draggable controller if we created it locally
+    if (_createdControllerLocally) {
+      try {
+        _draggableController.dispose();
+      } catch (_) {}
+    }
+
+    _sheetAttached = false;
+
+    if (_overlayNotifierListener != null) {
+      try {
+        widget.overlayVisibleNotifier
+            ?.removeListener(_overlayNotifierListener!);
+      } catch (_) {}
+      _overlayNotifierListener = null;
+    }
     super.dispose();
+  }
+
+  void _safeSetState(VoidCallback fn) {
+    if (!mounted) return;
+    try {
+      setState(fn);
+    } catch (e, st) {
+      debugPrint('[LocationWidgets] _safeSetState caught: $e\n$st');
+    }
   }
 
   void _handleMemberPressed(LatLng loc, String uid) {
@@ -399,6 +538,8 @@ class _LocationWidgetsState extends State<LocationWidgets> {
             final lat = locationData['latitude'];
             final lng = locationData['longitude'];
             final address = await _getAddressFromLatLng(LatLng(lat, lng));
+            // <-- BEFORE setState, ensure mounted
+            if (!mounted) return;
             setState(() {
               final index = _members.indexWhere((m) => m['uid'] == member);
               if (index != -1) {
@@ -616,6 +757,37 @@ class _LocationWidgetsState extends State<LocationWidgets> {
       minChildSize: _sheetMinChildSize,
       maxChildSize: _sheetMaxChildSize,
       builder: (context, scrollController) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted && !_sheetAttached) {
+            _sheetAttached = true;
+            debugPrint('[LocationWidgets] sheet attached');
+
+            // if there is a pending animation, run it once now
+            if (_pendingAnimateTarget != null) {
+              final t = _pendingAnimateTarget!;
+              final d = _pendingAnimateDuration;
+              final c = _pendingAnimateCurve;
+              // clear pending before calling to avoid re-entrancy loops
+              _pendingAnimateTarget = null;
+              Future.microtask(() async {
+                if (!mounted) {
+                  debugPrint(
+                      '[LocationWidgets] skipping pending animate — widget not mounted');
+                  return;
+                }
+                try {
+                  await _draggableController.animateTo(t,
+                      duration: d, curve: c);
+                  debugPrint('[LocationWidgets] applied pending animateTo($t)');
+                } catch (e, st) {
+                  debugPrint(
+                      '[LocationWidgets] pending animate failed: $e\n$st');
+                }
+              });
+            }
+          }
+        });
+
         return BlocBuilder<UserBloc, UserState>(
           builder: (context, userState) {
             final currentUser = _auth.currentUser;
@@ -681,325 +853,460 @@ class _LocationWidgetsState extends State<LocationWidgets> {
                         widget.isRouteActive);
                     debugPrint('[LocationWidgets] showButtons = $showButtons');
 
-                    return AnimatedSwitcher(
+                    return AnimatedSize(
                       duration: const Duration(milliseconds: 220),
-                      switchInCurve: Curves.easeOut,
-                      switchOutCurve: Curves.easeIn,
-                      child: showButtons
-                          ? ServiceButtons(
-                              key: const ValueKey('service_buttons'),
-                              onButtonPressed: (label) {/* … */},
-                              currentLocation:
-                                  widget.locationHandler.currentLocation,
-                              // WRAP the map view callback with logging so we can see if it fires
-                              onMapViewPressed: () async {
-                                if (_mapSheetOpening) {
+                      curve: Curves.easeInOut,
+                      child: AnimatedOpacity(
+                        duration: const Duration(milliseconds: 220),
+                        curve: Curves.easeOut,
+                        opacity: showButtons ? 1.0 : 0.0,
+                        // keep the same children so callbacks remain unchanged; use SizedBox.shrink when hidden so size collapses
+                        child: showButtons
+                            ? ServiceButtons(
+                                key: const ValueKey('service_buttons'),
+                                onButtonPressed: (label) {/* … */},
+                                currentLocation:
+                                    widget.locationHandler.currentLocation,
+                                // WRAP the map view callback with logging so we can see if it fires
+                                onMapViewPressed: () async {
+                                  if (_mapSheetOpening) {
+                                    debugPrint(
+                                        '[LocationWidgets] map sheet already opening - ignoring tap');
+                                    return;
+                                  }
+                                  _mapSheetOpening = true;
+                                  try {
+                                    debugPrint(
+                                        '[LocationWidgets] onMapViewPressed wrapper fired.');
+                                    await widget.onMapViewPressed?.call();
+                                  } finally {
+                                    // small delay to avoid immediate re-open
+                                    await Future.delayed(
+                                        const Duration(milliseconds: 200));
+                                    _mapSheetOpening = false;
+                                  }
+                                },
+                                onCenterPressed: () async {
                                   debugPrint(
-                                      '[LocationWidgets] map sheet already opening - ignoring tap');
-                                  return;
-                                }
-                                _mapSheetOpening = true;
-                                try {
-                                  debugPrint(
-                                      '[LocationWidgets] onMapViewPressed wrapper fired.');
-                                  await widget.onMapViewPressed?.call();
-                                } finally {
-                                  // small delay to avoid immediate re-open
-                                  await Future.delayed(
-                                      const Duration(milliseconds: 200));
-                                  _mapSheetOpening = false;
-                                }
-                              },
-                              onCenterPressed: () {
-                                debugPrint('GPS button pressed');
-                                debugPrint(
-                                    'locationHandler.currentLocation: ${widget.locationHandler.currentLocation}');
-                                if (widget.locationHandler.currentLocation ==
-                                    null) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                        content:
-                                            Text('locationNotAvailable'.tr())),
-                                  );
-                                  return;
-                                }
-                                try {
-                                  widget.locationHandler.panCameraToLocation(
-                                      widget.locationHandler.currentLocation!);
-                                  debugPrint('Called panCameraToLocation()');
-                                } catch (e, st) {
-                                  debugPrint(
-                                      'panCameraToLocation threw: $e\n$st');
-                                }
-                              },
-                            )
-                          : const SizedBox.shrink(
-                              key: ValueKey('empty_service_buttons')),
+                                      'GPS button pressed (center/reset)');
+                                  final currentLoc =
+                                      widget.locationHandler.currentLocation;
+                                  if (currentLoc == null) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                          content: Text(
+                                              'locationNotAvailable'.tr())),
+                                    );
+                                    return;
+                                  }
+
+                                  // mark local selection so UI highlights "You"
+                                  final id = _auth.currentUser?.uid;
+                                  if (id != null) {
+                                    setState(() {
+                                      _selectedMemberId = id;
+                                    });
+                                  }
+
+                                  // collapse sheet to min first so the overlay will position correctly
+                                  try {
+                                    await _safeAnimateSheetTo(
+                                      _sheetMinChildSize,
+                                      duration:
+                                          const Duration(milliseconds: 260),
+                                    );
+                                  } catch (e, st) {
+                                    debugPrint(
+                                        '[LocationWidgets] safeAnimateSheetTo failed: $e\n$st');
+                                  }
+
+                                  // pan camera to current location
+                                  try {
+                                    widget.locationHandler
+                                        .panCameraToLocation(currentLoc);
+                                  } catch (e, st) {
+                                    debugPrint(
+                                        'panCameraToLocation threw: $e\n$st');
+                                  }
+
+                                  // then ask the host (GpsScreen) to show the "my info" overlay
+                                  if (widget.onShowMyInfoPressed != null) {
+                                    try {
+                                      await widget.onShowMyInfoPressed!.call();
+                                    } catch (e, st) {
+                                      debugPrint(
+                                          '[LocationWidgets] onShowMyInfoPressed threw: $e\n$st');
+                                      // fallback: call the older onMemberPressed behavior if provided
+                                      if (id != null) {
+                                        widget.onMemberPressed(currentLoc, id);
+                                      }
+                                    }
+                                  } else {
+                                    // fallback if no host handler provided
+                                    if (id != null) {
+                                      widget.onMemberPressed(currentLoc, id);
+                                    }
+                                  }
+                                },
+                              )
+                            : const SizedBox.shrink(
+                                key: ValueKey('empty_service_buttons')),
+                      ),
                     );
                   }),
                 ),
                 const SizedBox(height: 10),
                 Expanded(
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: isDarkMode ? Colors.grey[900] : Colors.white,
-                      borderRadius: const BorderRadius.only(
-                        topLeft: Radius.circular(20),
-                        topRight: Radius.circular(20),
-                      ),
-                      boxShadow: const [
-                        BoxShadow(
-                          color: Colors.black26,
-                          blurRadius: 5,
-                          offset: Offset(0, -5),
+                  child: SafeArea(
+                    top:
+                        _isExpanded, // only add top safe inset when sheet is expanded
+                    bottom:
+                        false, // keep existing bottom behavior (sheet handles its own bottom)
+
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: isDarkMode ? Colors.grey[900] : Colors.white,
+                        borderRadius: const BorderRadius.only(
+                          topLeft: Radius.circular(20),
+                          topRight: Radius.circular(20),
                         ),
-                      ],
-                    ),
-                    child: SingleChildScrollView(
-                      controller: scrollController,
-                      child: Padding(
-                        padding: const EdgeInsets.all(16.0),
-                        child: Column(
-                          children: [
-                            // --- Default Layout: Always show these ---
-                            Container(
-                              width: 100,
-                              height: 2,
-                              color: isDarkMode
-                                  ? Colors.grey[700]
-                                  : Colors.grey.shade700,
-                              margin: const EdgeInsets.only(bottom: 8),
-                            ),
-                            const SizedBox(height: 5),
-                            SearchBarWithAutocomplete(
-                              onSearch: _searchLocation,
-                            ),
-                            const SizedBox(height: 10),
-                            // --- If a place is selected, show only the EstablishmentDetailsCard ---
-                            if (widget.selectedPlace != null)
-                              BlocProvider.value(
-                                value: BlocProvider.of<UserBloc>(context),
-                                child: EstablishmentDetailsCard(
-                                  place: widget.selectedPlace!,
-                                  onClose: widget.onCloseSelectedPlace,
-                                  isPwdLocation:
-                                      widget.selectedPlace!.category ==
-                                          'PWD Friendly',
+                        boxShadow: const [
+                          BoxShadow(
+                            color: Colors.black26,
+                            blurRadius: 5,
+                            offset: Offset(0, -5),
+                          ),
+                        ],
+                      ),
+                      child: SingleChildScrollView(
+                        controller: scrollController,
+                        child: Padding(
+                          padding: const EdgeInsets.all(16.0),
+                          child: Column(
+                            children: [
+                              // --- Default Layout: Always show these ---
+                              Container(
+                                width: 100,
+                                height: 4,
+                                decoration: BoxDecoration(
+                                  color: Colors.grey.shade400,
+                                  borderRadius: BorderRadius.circular(4),
                                 ),
-                              )
-                            else ...[
-                              // Otherwise, show the rest of the UI.
-                              Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceEvenly,
-                                children: [
-                                  CustomButton(
-                                    icon: Icons.people,
-                                    index: 0,
-                                    activeIndex: _activeIndex,
-                                    onPressed: (newIndex) {
-                                      // leave join flow
-                                      if (widget.isJoining) {
-                                        widget.onJoinStateChanged(false);
-                                      }
-                                      setState(() => _activeIndex = newIndex);
-                                    },
-                                  ),
-                                  CustomButton(
-                                    icon: Icons.business,
-                                    index: 1,
-                                    activeIndex: _activeIndex,
-                                    onPressed: (int newIndex) {
-                                      setState(() {
-                                        _activeIndex = newIndex;
-                                      });
-                                    },
-                                  ),
-                                  CustomButton(
-                                    icon: Icons.map,
-                                    index: 2,
-                                    activeIndex: _activeIndex,
-                                    onPressed: (int newIndex) {
-                                      setState(() {
-                                        _activeIndex = newIndex;
-                                      });
-                                    },
-                                  ),
-                                ],
+                                margin: const EdgeInsets.only(bottom: 8),
                               ),
-                              const SizedBox(height: 20),
-                              if (_activeIndex == 0) ...[
-                                if (widget.activeSpaceId.isEmpty)
-                                  // No space selected: user-card + button
-                                  Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      // 1) Current user row (same as MemberListWidget)
-                                      ListTile(
-                                        leading: CircleAvatar(
-                                          backgroundImage:
-                                              profilePicture != null &&
-                                                      profilePicture.isNotEmpty
-                                                  ? NetworkImage(profilePicture)
-                                                  : null,
-                                          child: profilePicture == null ||
-                                                  profilePicture.isEmpty
-                                              ? Text(avatarLetter,
-                                                  style: const TextStyle(
-                                                      color: Colors.white))
-                                              : null,
-                                        ),
-                                        title: Text(
-                                          userName,
-                                          style: TextStyle(
-                                            fontWeight: FontWeight.bold,
-                                            color: isDarkMode
-                                                ? Colors.white
-                                                : Colors.black,
+                              const SizedBox(height: 5),
+                              SearchBarWithAutocomplete(
+                                onSearch: _searchLocation,
+                              ),
+                              const SizedBox(height: 10),
+                              // --- If a place is selected, show only the EstablishmentDetailsCard ---
+                              if (widget.selectedPlace != null)
+                                BlocProvider.value(
+                                  value: BlocProvider.of<UserBloc>(context),
+                                  child: EstablishmentDetailsCard(
+                                    place: widget.selectedPlace!,
+                                    onClose: widget.onCloseSelectedPlace,
+                                    isPwdLocation:
+                                        widget.selectedPlace!.category ==
+                                            'PWD Friendly',
+                                  ),
+                                )
+                              else ...[
+                                // Otherwise, show the rest of the UI.
+                                Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceEvenly,
+                                  children: [
+                                    CustomButton(
+                                      icon: Icons.people,
+                                      index: 0,
+                                      activeIndex: _activeIndex,
+                                      onPressed: (newIndex) {
+                                        // leave join flow
+                                        if (widget.isJoining) {
+                                          widget.onJoinStateChanged(false);
+                                        }
+                                        setState(() => _activeIndex = newIndex);
+                                      },
+                                    ),
+                                    CustomButton(
+                                      icon: Icons.business,
+                                      index: 1,
+                                      activeIndex: _activeIndex,
+                                      onPressed: (int newIndex) {
+                                        setState(() {
+                                          _activeIndex = newIndex;
+                                        });
+                                      },
+                                    ),
+                                    CustomButton(
+                                      icon: Icons.map,
+                                      index: 2,
+                                      activeIndex: _activeIndex,
+                                      onPressed: (int newIndex) {
+                                        setState(() {
+                                          _activeIndex = newIndex;
+                                        });
+                                      },
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 20),
+                                if (_activeIndex == 0) ...[
+                                  if (widget.activeSpaceId.isEmpty)
+                                    // No space selected: user-card + button
+                                    Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        // 1) Current user row (same as MemberListWidget)
+                                        ListTile(
+                                          leading: CircleAvatar(
+                                            backgroundImage: profilePicture !=
+                                                        null &&
+                                                    profilePicture.isNotEmpty
+                                                ? NetworkImage(profilePicture)
+                                                : null,
+                                            child: profilePicture == null ||
+                                                    profilePicture.isEmpty
+                                                ? Text(avatarLetter,
+                                                    style: const TextStyle(
+                                                        color: Colors.white))
+                                                : null,
                                           ),
-                                        ),
-                                        subtitle: Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: [
-                                            Text(
-                                              _yourAddress ??
-                                                  'Current Location',
-                                              style: TextStyle(
-                                                fontSize: 12,
-                                                color: isDarkMode
-                                                    ? Colors.white70
-                                                    : Colors.black54,
-                                              ),
+                                          title: Text(
+                                            userName,
+                                            style: TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                              color: isDarkMode
+                                                  ? Colors.white
+                                                  : Colors.black,
                                             ),
-                                            const SizedBox(height: 2),
-                                            Text(
-                                              'Updated: ${_yourLastUpdate != null ? _timeDiff(_yourLastUpdate!) : 'just now'}',
-                                              style: TextStyle(
-                                                fontSize: 12,
-                                                color: isDarkMode
-                                                    ? Colors.white70
-                                                    : Colors.black54,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                        onTap: () {
-                                          final id = _auth.currentUser?.uid;
-                                          if (id != null) {
-                                            setState(() {
-                                              _selectedMemberId = id;
-                                            });
-                                          }
-                                          if (widget.locationHandler
-                                                  .currentLocation !=
-                                              null) {
-                                            widget.onMemberPressed(
-                                                widget.locationHandler
-                                                    .currentLocation!,
-                                                _auth.currentUser!.uid);
-                                          }
-                                        },
-                                      ),
-
-                                      // small spacing + divider (same visual separation used in MemberListWidget)
-                                      const SizedBox(height: 8),
-                                      Divider(
-                                          color: isDarkMode
-                                              ? Colors.grey[700]
-                                              : Colors.grey[300]),
-
-                                      // 2) Create-circle CTA aligned with avatar (left)
-                                      Padding(
-                                        padding: const EdgeInsets.symmetric(
-                                            vertical: 12.0, horizontal: 16.0),
-                                        child: InkWell(
-                                          onTap: () {
-                                            // Open create-space flow (same as space sheet)
-                                            Navigator.pushNamed(
-                                                    context, '/createSpace')
-                                                .then((success) {
-                                              if (success == true) {
-                                                // If you have logic to refresh spaces or members, call it here.
-                                                // For example: _listenToMembers(); // optional
-                                              }
-                                            });
-                                          },
-                                          child: Row(
+                                          ),
+                                          subtitle: Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
                                             children: [
-                                              CircleAvatar(
-                                                radius: 24,
-                                                backgroundColor:
-                                                    const Color(0xFF6750A4)
-                                                        .withOpacity(0.2),
-                                                child: Icon(Icons.add,
-                                                    size: 26,
-                                                    color: const Color(
-                                                        0xFF6750A4)),
-                                              ),
-                                              const SizedBox(width: 12),
-                                              const Text(
-                                                'Create a circle',
+                                              Text(
+                                                _yourAddress ??
+                                                    'Current Location',
                                                 style: TextStyle(
-                                                  color: Color(0xFF6750A4),
-                                                  fontWeight: FontWeight.bold,
-                                                  fontSize: 18,
+                                                  fontSize: 12,
+                                                  color: isDarkMode
+                                                      ? Colors.white70
+                                                      : Colors.black54,
+                                                ),
+                                              ),
+                                              const SizedBox(height: 2),
+                                              Text(
+                                                'Updated: ${_yourLastUpdate != null ? _timeDiff(_yourLastUpdate!) : 'just now'}',
+                                                style: TextStyle(
+                                                  fontSize: 12,
+                                                  color: isDarkMode
+                                                      ? Colors.white70
+                                                      : Colors.black54,
                                                 ),
                                               ),
                                             ],
                                           ),
+                                          onTap: () async {
+                                            final id = _auth.currentUser?.uid;
+                                            if (id != null) {
+                                              setState(() {
+                                                _selectedMemberId = id;
+                                              });
+                                            }
+
+                                            // collapse sheet first
+                                            try {
+                                              await _safeAnimateSheetTo(
+                                                  _sheetMinChildSize,
+                                                  duration: const Duration(
+                                                      milliseconds: 260));
+                                            } catch (e, st) {
+                                              debugPrint(
+                                                  '[LocationWidgets] safeAnimateSheetTo failed: $e\n$st');
+                                            }
+
+                                            // call host overlay handler
+                                            if (widget.onShowMyInfoPressed !=
+                                                null) {
+                                              try {
+                                                await widget
+                                                    .onShowMyInfoPressed!
+                                                    .call();
+                                              } catch (e, st) {
+                                                debugPrint(
+                                                    '[LocationWidgets] onShowMyInfoPressed threw: $e\n$st');
+                                                // fallback to existing behavior if desired
+                                                if (widget.locationHandler
+                                                        .currentLocation !=
+                                                    null) {
+                                                  widget.onMemberPressed(
+                                                      widget.locationHandler
+                                                          .currentLocation!,
+                                                      _auth.currentUser!.uid);
+                                                }
+                                              }
+                                              return;
+                                            }
+
+                                            // fallback existing behavior
+                                            if (widget.locationHandler
+                                                    .currentLocation !=
+                                                null) {
+                                              widget.onMemberPressed(
+                                                  widget.locationHandler
+                                                      .currentLocation!,
+                                                  _auth.currentUser!.uid);
+                                            }
+                                          },
                                         ),
-                                      ),
-                                    ],
-                                  )
-                                else ...[
-                                  // Space selected: show members
-                                  MemberListWidget(
-                                    activeSpaceId: widget.activeSpaceId,
-                                    members: _members,
-                                    selectedMemberId: _selectedMemberId,
-                                    yourLocation:
-                                        widget.locationHandler.currentLocation,
-                                    yourAddressLabel:
-                                        _yourAddress ?? 'Current Location',
-                                    yourLastUpdate: _yourLastUpdate,
-                                    onAddPerson: () {
-                                      Navigator.of(context).push(
-                                        MaterialPageRoute(
-                                          builder: (_) =>
-                                              VerificationCodeScreen(
-                                            spaceId: widget.activeSpaceId,
-                                            spaceName: _spaceName,
+
+                                        // small spacing + divider (same visual separation used in MemberListWidget)
+                                        const SizedBox(height: 8),
+                                        Divider(
+                                            color: isDarkMode
+                                                ? Colors.grey[700]
+                                                : Colors.grey[300]),
+
+                                        // 2) Create-circle CTA aligned with avatar (left)
+                                        Padding(
+                                          padding: const EdgeInsets.symmetric(
+                                              vertical: 12.0, horizontal: 16.0),
+                                          child: InkWell(
+                                            onTap: () {
+                                              // Open create-space flow (same as space sheet)
+                                              Navigator.pushNamed(
+                                                      context, '/createSpace')
+                                                  .then((success) {
+                                                if (success == true) {
+                                                  // If you have logic to refresh spaces or members, call it here.
+                                                  // For example: _listenToMembers(); // optional
+                                                }
+                                              });
+                                            },
+                                            child: Row(
+                                              children: [
+                                                CircleAvatar(
+                                                  radius: 24,
+                                                  backgroundColor:
+                                                      const Color(0xFF6750A4)
+                                                          .withOpacity(0.2),
+                                                  child: Icon(Icons.add,
+                                                      size: 26,
+                                                      color: const Color(
+                                                          0xFF6750A4)),
+                                                ),
+                                                const SizedBox(width: 12),
+                                                const Text(
+                                                  'Create a circle',
+                                                  style: TextStyle(
+                                                    color: Color(0xFF6750A4),
+                                                    fontWeight: FontWeight.bold,
+                                                    fontSize: 18,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
                                           ),
                                         ),
-                                      );
-                                    },
-                                    isLoading: _isLoading,
-                                    onMemberPressed: (LatLng loc, String uid) {
-                                      setState(() {
-                                        _selectedMemberId = uid;
-                                      }); // update parent UI state
-                                      widget.onMemberPressed(
-                                          loc, uid); // forward to GpsScreen
+                                      ],
+                                    )
+                                  else ...[
+                                    // Space selected: show members
+                                    MemberListWidget(
+                                      activeSpaceId: widget.activeSpaceId,
+                                      members: _members,
+                                      selectedMemberId: _selectedMemberId,
+                                      yourLocation: widget
+                                          .locationHandler.currentLocation,
+                                      yourAddressLabel:
+                                          _yourAddress ?? 'Current Location',
+                                      yourLastUpdate: _yourLastUpdate,
+                                      onAddPerson: () {
+                                        Navigator.of(context).push(
+                                          MaterialPageRoute(
+                                            builder: (_) =>
+                                                VerificationCodeScreen(
+                                              spaceId: widget.activeSpaceId,
+                                              spaceName: _spaceName,
+                                            ),
+                                          ),
+                                        );
+                                      },
+                                      onShowMyInfoPressed: () async {
+                                        final uid = FirebaseAuth
+                                            .instance.currentUser?.uid;
+                                        if (uid != null) {
+                                          setState(() {
+                                            _selectedMemberId = uid;
+                                          });
+                                        }
+
+                                        // collapse sheet to min immediately (or queued if detached)
+                                        try {
+                                          await _safeAnimateSheetTo(
+                                              _sheetMinChildSize,
+                                              duration: const Duration(
+                                                  milliseconds: 260));
+                                        } catch (e, st) {
+                                          debugPrint(
+                                              '[LocationWidgets] safeAnimateSheetTo failed: $e\n$st');
+                                        }
+
+                                        // then call the host-provided handler (GpsScreen) that shows the overlay
+                                        if (widget.onShowMyInfoPressed !=
+                                            null) {
+                                          try {
+                                            await widget.onShowMyInfoPressed!
+                                                .call();
+                                          } catch (e, st) {
+                                            debugPrint(
+                                                '[LocationWidgets] host onShowMyInfoPressed threw: $e\n$st');
+                                          }
+                                        }
+                                      },
+                                      isLoading: _isLoading,
+                                      onMemberPressed:
+                                          (LatLng loc, String uid) async {
+                                        // update local selection so the list highlights the tapped member
+                                        setState(() {
+                                          _selectedMemberId = uid;
+                                        });
+
+                                        // collapse sheet to min so overlay will position correctly
+                                        try {
+                                          await _safeAnimateSheetTo(
+                                              _sheetMinChildSize,
+                                              duration: const Duration(
+                                                  milliseconds: 260));
+                                        } catch (e, st) {
+                                          debugPrint(
+                                              '[LocationWidgets] safeAnimateSheetTo failed: $e\n$st');
+                                        }
+
+                                        // forward to GpsScreen (or whatever parent handler) to show overlay / pan camera
+                                        widget.onMemberPressed(loc, uid);
+                                      },
+                                    ),
+                                  ],
+                                ] else if (_activeIndex == 1) ...[
+                                  AddPlaceWidget(
+                                    onShowPlace: (Place place) {
+                                      widget.onPlaceSelected?.call(place);
                                     },
                                   ),
-                                ],
-                              ] else if (_activeIndex == 1) ...[
-                                AddPlaceWidget(
-                                  onShowPlace: (Place place) {
-                                    widget.onPlaceSelected?.call(place);
-                                  },
-                                ),
-                                // Map Tab: Show MapContent.
-                              ] else if (_activeIndex == 2)
-                                MapContent(
-                                  onCategorySelected: (category) {
-                                    widget.fetchNearbyPlaces(category);
-                                  },
-                                ),
+                                  // Map Tab: Show MapContent.
+                                ] else if (_activeIndex == 2)
+                                  MapContent(
+                                    onCategorySelected: (category) {
+                                      widget.fetchNearbyPlaces(category);
+                                    },
+                                  ),
+                              ],
                             ],
-                          ],
+                          ),
                         ),
                       ),
                     ),

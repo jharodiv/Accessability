@@ -1,4 +1,3 @@
-// server.js
 const express = require("express");
 const cors = require("cors"); 
 const { createClient } = require("redis");
@@ -28,10 +27,9 @@ client.on("connect", () => console.log("🔌 Connecting to Redis..."));
 client.on("ready", () => console.log("✅ Redis is ready!"));
 client.on("end", () => console.log("🔒 Redis connection closed"));
 
-// --- API endpoint to save invite code ---
-app.post("/api/save-deeplink", async (req, res) => {
-
-  res.setHeader("Access-Control-Allow-Origin", "*"); // allow any origin
+// --- API endpoint to save session → code mapping ---
+app.post("/api/store-session", async (req, res) => {
+  res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
 
@@ -40,40 +38,68 @@ app.post("/api/save-deeplink", async (req, res) => {
     return res.status(200).end();
   }
 
-  const { deviceId, inviteCode } = req.body;
-  console.log("📩 Save request:", { deviceId, inviteCode });
+  const { sessionId, code } = req.body;
+  console.log("📩 Save session request:", { sessionId, code });
 
-  if (!deviceId || !inviteCode) {
-    console.warn("⚠️ Missing deviceId or inviteCode");
-    return res.status(400).json({ error: "deviceId and inviteCode required" });
+  if (!sessionId || !code) {
+    console.warn("⚠️ Missing sessionId or code");
+    return res.status(400).json({ error: "sessionId and code required" });
   }
 
-  await client.setEx(`deeplink:${deviceId}`, 600, inviteCode); // expire in 1 day
-  console.log(`✅ Saved inviteCode=${inviteCode} for deviceId=${deviceId}`);
+  try {
+    // Store with 24-hour expiration (86400 seconds)
+    await client.setEx(`session:${sessionId}`, 86400, code);
+    console.log(`✅ Saved code=${code} for session=${sessionId}`);
 
-  res.json({ success: true });
+    res.json({ 
+      success: true, 
+      sessionId: sessionId,
+      expiresIn: "24 hours"
+    });
+
+  } catch (error) {
+    console.error("❌ Redis error:", error);
+    res.status(500).json({ error: "Failed to store session" });
+  }
 });
 
-// --- API endpoint to retrieve invite code ---
-app.get("/api/deeplink/:deviceId", async (req, res) => {
-  const deviceId = req.params.deviceId;
-  console.log("🔍 Lookup request for deviceId:", deviceId);
+// --- API endpoint to retrieve code by session ID ---
+app.get("/api/get-code/:sessionId", async (req, res) => {
+  const sessionId = req.params.sessionId;
+  console.log("🔍 Lookup request for session:", sessionId);
 
-  const inviteCode = await client.get(`deeplink:${deviceId}`);
+  try {
+    const code = await client.get(`session:${sessionId}`);
 
-  if (!inviteCode) {
-    console.warn(`⚠️ No invite code found for deviceId=${deviceId}`);
-    return res.status(404).json({ error: "No invite code found" });
+    if (!code) {
+      console.warn(`⚠️ No code found for session=${sessionId}`);
+      return res.status(404).json({ 
+        error: "Session not found or expired",
+        expired: true 
+      });
+    }
+
+    console.log(`✅ Found code=${code} for session=${sessionId}`);
+    res.json({ 
+      success: true, 
+      code: code,
+      sessionId: sessionId
+    });
+
+  } catch (error) {
+    console.error("❌ Redis error:", error);
+    res.status(500).json({ error: "Failed to retrieve code" });
   }
-
-  console.log(`✅ Found inviteCode=${inviteCode} for deviceId=${deviceId}`);
-  res.json({ inviteCode });
 });
 
 // --- Health check route ---
-app.get("/api", (req, res) => {
+app.get("/api/health", (req, res) => {
   console.log("💓 Health check ping");
-  res.json({ status: "ok" });
+  res.json({ 
+    status: "ok", 
+    timestamp: new Date().toISOString(),
+    service: "deeplink-session-api"
+  });
 });
 
 // --- Start server only after Redis connects ---

@@ -42,7 +42,7 @@ class _MapPerspectivePickerState extends State<MapPerspectivePicker> {
   void initState() {
     super.initState();
 
-    // default selection while we load persisted value
+    // If parent provided a forced initial perspective, prefer it.
     _selectedPerspective = widget.initialPerspective ?? MapPerspective.classic;
 
     // Use passed-in location if provided
@@ -51,9 +51,37 @@ class _MapPerspectivePickerState extends State<MapPerspectivePicker> {
       _isLocationFetched = true;
     }
 
-    // load saved preference (if initialPerspective not provided)
+    // load saved preference (only if parent didn't provide an explicit initialPerspective)
     if (widget.initialPerspective == null) {
       _loadSavedPerspective();
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant MapPerspectivePicker oldWidget) {
+    super.didUpdateWidget(oldWidget);
+
+    // If parent changed the initialPerspective, update selection accordingly
+    if (widget.initialPerspective != null &&
+        widget.initialPerspective != oldWidget.initialPerspective &&
+        widget.initialPerspective != _selectedPerspective) {
+      setState(() {
+        _selectedPerspective = widget.initialPerspective!;
+      });
+    }
+
+    // If the parent passes/updates currentLocation later, reflect it so perspective tile can render.
+    if (widget.currentLocation != oldWidget.currentLocation) {
+      if (widget.currentLocation != null) {
+        setState(() {
+          _currentLocation = widget.currentLocation!;
+          _isLocationFetched = true;
+        });
+      } else {
+        setState(() {
+          _isLocationFetched = false;
+        });
+      }
     }
   }
 
@@ -104,7 +132,7 @@ class _MapPerspectivePickerState extends State<MapPerspectivePicker> {
     final center = '${_currentLocation.latitude},${_currentLocation.longitude}';
     final mapType = _mapTypeName(p);
     final int sizePx =
-        _tileSize.toInt() * 2; // produce higher source resolution
+        (_tileSize.toInt() * 2); // produce higher source resolution
     final zoom = _zoomFor(p);
     final marker = 'color:red%7C$center';
     return 'https://maps.googleapis.com/maps/api/staticmap'
@@ -143,11 +171,15 @@ class _MapPerspectivePickerState extends State<MapPerspectivePicker> {
   }
 
   /// When a tile is tapped: update state (so highlight shows), save to prefs and return to parent.
+  /// We return both a string name and an index so parent parsing is robust.
   void _onTileTap(MapPerspective p) async {
     setState(() => _selectedPerspective = p);
     await _savePerspective(p);
-    // return the choice to caller and close the sheet
-    Navigator.of(context).pop({'perspectiveName': _perspectiveToKey(p)});
+
+    Navigator.of(context).pop({
+      'perspectiveName': _perspectiveToKey(p),
+      'perspectiveIndex': MapPerspective.values.indexOf(p),
+    });
   }
 
   Widget _placeholderFor(MapPerspective p) {
@@ -157,11 +189,13 @@ class _MapPerspectivePickerState extends State<MapPerspectivePicker> {
             decoration: BoxDecoration(
                 gradient: LinearGradient(
                     colors: [Colors.green[300]!, Colors.green[100]!])));
+
       case MapPerspective.street:
         return Container(
             decoration: BoxDecoration(
                 gradient: LinearGradient(
                     colors: [Colors.blueGrey[300]!, Colors.blueGrey[100]!])));
+
       case MapPerspective.perspective:
         return Container(
             decoration: BoxDecoration(
@@ -169,6 +203,7 @@ class _MapPerspectivePickerState extends State<MapPerspectivePicker> {
           Colors.deepPurple[300]!,
           Colors.deepPurple[100]!
         ])));
+
       case MapPerspective.classic:
       default:
         return Container(
@@ -190,24 +225,40 @@ class _MapPerspectivePickerState extends State<MapPerspectivePicker> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const SizedBox(height: 8),
-            Container(
-                width: 56,
-                height: 6,
-                decoration: BoxDecoration(
-                    color: Colors.grey[300],
-                    borderRadius: BorderRadius.circular(99))),
+            // draggable visual handle (so sheet feels draggable)
             const SizedBox(height: 12),
+
+            // TOP ROW: plain X (no background) on left + title
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20.0),
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: Text('map_types'.tr(),
-                    style: const TextStyle(
-                        fontSize: 20, fontWeight: FontWeight.bold)),
+              padding: const EdgeInsets.symmetric(horizontal: 16.0),
+              child: Row(
+                children: [
+                  // plain X button (no background)
+                  IconButton(
+                    visualDensity: VisualDensity.compact,
+                    padding: EdgeInsets.zero,
+                    constraints:
+                        const BoxConstraints(minWidth: 36, minHeight: 36),
+                    icon: Icon(Icons.close, size: 20, color: _purple),
+                    onPressed: () => Navigator.of(context).pop(),
+                  ),
+
+                  const SizedBox(width: 12),
+
+                  // Title
+                  Expanded(
+                    child: Text(
+                      'map_types'.tr(),
+                      style: const TextStyle(
+                          fontSize: 20, fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                ],
               ),
             ),
+
             const SizedBox(height: 12),
+
             SizedBox(
               height: _tileSize + 36,
               child: SingleChildScrollView(
@@ -223,6 +274,7 @@ class _MapPerspectivePickerState extends State<MapPerspectivePicker> {
                         onTap: () => _onTileTap(t.perspective),
                         child: Column(
                           children: [
+                            // tile box with highlight overlay when selected
                             Container(
                               width: _tileSize,
                               height: _tileSize,
@@ -245,7 +297,16 @@ class _MapPerspectivePickerState extends State<MapPerspectivePicker> {
                               ),
                               child: ClipRRect(
                                 borderRadius: BorderRadius.circular(9),
-                                child: _buildTileContent(t.perspective, url),
+                                child: Stack(
+                                  fit: StackFit.expand,
+                                  children: [
+                                    _buildTileContent(t.perspective, url),
+                                    if (isSelected)
+                                      Container(
+                                        color: _purple.withOpacity(0.06),
+                                      ),
+                                  ],
+                                ),
                               ),
                             ),
                             const SizedBox(height: 8),
@@ -263,6 +324,7 @@ class _MapPerspectivePickerState extends State<MapPerspectivePicker> {
                 ),
               ),
             ),
+
             const SizedBox(height: 12),
           ],
         ),
@@ -273,6 +335,7 @@ class _MapPerspectivePickerState extends State<MapPerspectivePicker> {
   /// Build the content for a tile. For "perspective" we use a small interactive GoogleMap
   /// if we have a current location and the platform supports it. Otherwise we use static image or placeholder.
   Widget _buildTileContent(MapPerspective p, String? url) {
+    // 1) If this is the perspective (3D) tile — try to show a small interactive GoogleMap (so tilt is visible).
     if (p == MapPerspective.perspective && _isLocationFetched) {
       final CameraPosition camera = CameraPosition(
           target: _currentLocation,
@@ -280,6 +343,7 @@ class _MapPerspectivePickerState extends State<MapPerspectivePicker> {
           tilt: 45,
           bearing: 30);
       return AbsorbPointer(
+        // disable gestures so it behaves like an image
         child: GoogleMap(
           initialCameraPosition: camera,
           mapType: MapType.satellite,
@@ -297,6 +361,7 @@ class _MapPerspectivePickerState extends State<MapPerspectivePicker> {
       );
     }
 
+    // 2) Otherwise use static image if url is available
     if (url != null) {
       return Image.network(
         url,
@@ -311,6 +376,7 @@ class _MapPerspectivePickerState extends State<MapPerspectivePicker> {
       );
     }
 
+    // 3) fallback placeholder
     return _placeholderFor(p);
   }
 }

@@ -232,27 +232,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     Navigator.pushNamed(context, '/about');
                   },
                 ),
-                // const Divider(),
-                // ListTile(
-                //   leading: const Icon(Icons.map, color: Color(0xFF6750A4)),
-                //   title: const Text('Map View', style: TextStyle(fontWeight: FontWeight.bold)),
-                //   onTap: () async {
-                //     // Open MapViewScreen. You can pass an initial perspective if needed.
-                //     final perspective = await Navigator.push(
-                //       context,
-                //       MaterialPageRoute(builder: (_) => const MapViewScreen()),
-                //     );
-                //     if (perspective != null && perspective is MapPerspective) {
-                //       // Pass the selected perspective into the homescreen/GpsScreen.
-                //       Navigator.pushNamedAndRemoveUntil(
-                //         context,
-                //         '/homescreen',
-                //         (route) => false,
-                //         arguments: perspective,
-                //       );
-                //     }
-                //   },
-                // ),
                 const Divider(),
                 ListTile(
                   leading: const Icon(Icons.logout, color: Color(0xFF6750A4)),

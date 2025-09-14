@@ -771,7 +771,9 @@ class _GpsScreenState extends State<GpsScreen> {
         if (_showingPwdMarkers) {
           _circles.removeWhere(
               (circle) => circle.circleId.value.startsWith('pwd_'));
-          _circles = _circles.union(createPwdfriendlyRouteCircles(locations));
+          _circles = _circles.union(
+            _postProcessNearbyCircles(createPwdfriendlyRouteCircles(locations)),
+          );
         }
       });
     } catch (e) {
@@ -1022,38 +1024,42 @@ class _GpsScreenState extends State<GpsScreen> {
       },
       // increase min pixel radius so circles aren't tiny on low zooms,
       // and increase extraVisualBoost so the manager returns larger radii
-      minPixelRadius: 8.0,
-      shrinkFactor: 0.92,
+      minPixelRadius: 15.0,
+      shrinkFactor: 1,
       extraVisualBoost: 1.6,
     );
 
     final Map<String, Color> placeColorById = {
       for (final p in places) p.id: _colorForPlaceType(p.category)
     };
-    final double zoomFactor = (16.0 - _currentZoom).clamp(0.0, 15.0);
-    final double maxMultiplier =
-        6.0; // tweak: larger = bigger circles at low zoom
+    const double _placeRadiusBoost = 1.35; // multiply final radius by this
+    const double _placeFillOpacity = 0.20;
+
+    final double maxMultiplier = 6.0; // max visual multiplier at highest zoom
+    final double zoomFactor =
+        (_currentZoom - 14.0).clamp(0.0, 8.0); // 0..8 range
     final double visualMultiplier =
-        1.0 + (zoomFactor / 15.0) * (maxMultiplier - 1.0);
+        1.0 + (zoomFactor / 8.0) * (maxMultiplier - 1.0);
+
+// appearance tweaks: remove outer stroke entirely
 
     final Set<Circle> computedPlaceCircles = computedPlaceCirclesRaw.map((c) {
       final String circleIdValue = c.circleId.value;
       final String placeId = _placeIdFromCircleId(circleIdValue);
       final Color placeColor = placeColorById[placeId] ?? _pwdCircleColor;
 
-      // scale the radius for visibility when zoomed out (do NOT clamp to 1.0)
-      final double adjustedRadius = c.radius * visualMultiplier;
-
-      // ensure stroke is visible on high-dpi devices
-      final int adjustedStroke = max(2, c.strokeWidth).toInt();
+      // scale radius using the zoom-driven multiplier (this will grow as you zoom in)
+      final double adjustedRadius =
+          c.radius * visualMultiplier * _placeRadiusBoost;
 
       return Circle(
         circleId: c.circleId,
         center: c.center,
         radius: adjustedRadius,
-        fillColor: placeColor.withOpacity(0.22),
-        strokeColor: placeColor.withOpacity(0.85),
-        strokeWidth: adjustedStroke,
+        fillColor: placeColor.withOpacity(_placeFillOpacity),
+        // remove outer ring: transparent color and zero width
+        strokeColor: Colors.transparent,
+        strokeWidth: 0,
         zIndex: c.zIndex,
         visible: true,
         consumeTapEvents: true,
@@ -1156,11 +1162,47 @@ class _GpsScreenState extends State<GpsScreen> {
     });
   }
 
+  Set<Circle> _postProcessNearbyCircles(Set<Circle> rawCircles,
+      {double minBoost = 1.0, double maxBoost = 3.5}) {
+    // compute a zoom-driven boost: at zoom 14 -> ~1.0, at high zoom -> up to maxBoost
+    final double zoomRange = (_currentZoom - 14.0).clamp(0.0, 8.0);
+    final double norm = (zoomRange / 8.0);
+    final double boost = minBoost + norm * (maxBoost - minBoost);
+
+    // appearance: 50% fill opacity
+    const double fillOpacity = 0.4;
+
+    return rawCircles.map((c) {
+      final double adjustedRadius = max(1.0, c.radius * boost);
+
+      return Circle(
+        circleId: c.circleId,
+        center: c.center,
+        radius: adjustedRadius,
+        // ensure we use the same base color but with 50% alpha
+        fillColor: (c.fillColor ?? _pwdCircleColor.withOpacity(fillOpacity))
+            .withOpacity(fillOpacity),
+        // remove outer ring
+        strokeColor: Colors.transparent,
+        strokeWidth: 0,
+        zIndex: c.zIndex,
+        visible: c.visible,
+        consumeTapEvents: c.consumeTapEvents,
+        onTap: c.onTap,
+      );
+    }).toSet();
+  }
+
   /// Convert raw nearby circles into "specs" stored in our manager and compute rescaled circles.
   Set<Circle> _computeNearbyCirclesFromRaw() {
     // delegate to NearbyManager (and also keep local copy of specs for compatibility)
     final specs = _nearbyCircleSpecs;
     if (specs.isEmpty) return {};
+
+    // Use larger visual parameters here to match PWD sizing:
+    // - minPixelRadius: larger => prevents very small circles at mid-zooms
+    // - shrinkFactor: 1.0 (don't shrink)
+    // - extraVisualBoost: 1.6 (make circles larger visually)
     return _nearbyManager.computeNearbyCirclesFromSpecs(
       currentZoom: _currentZoom,
       pwdBaseRadiusMeters: _pwdBaseRadiusMeters,
@@ -1171,10 +1213,9 @@ class _GpsScreenState extends State<GpsScreen> {
           CameraUpdate.newLatLngZoom(center, suggestedZoom),
         );
       },
-      // allow very small pixel radii so circles can be visible at low zooms
-      minPixelRadius: 8.0,
-      shrinkFactor: 0.92,
-      extraVisualBoost: 1.15,
+      minPixelRadius: 15.0, // increase from 8 -> 15
+      shrinkFactor: 1.0, // avoid shrinking
+      extraVisualBoost: 1.6, // stronger visual boost like places
     );
   }
 
@@ -1186,7 +1227,7 @@ class _GpsScreenState extends State<GpsScreen> {
       // Compute PWD circles (only if showing)
       Set<Circle> pwdSet = {};
       if (_showingPwdMarkers) {
-        pwdSet = createPwdfriendlyRouteCircles(
+        final rawPwd = createPwdfriendlyRouteCircles(
           _cachedPwdLocations,
           currentZoom: _currentZoom,
           pwdBaseRadiusMeters: _pwdBaseRadiusMeters,
@@ -1198,10 +1239,12 @@ class _GpsScreenState extends State<GpsScreen> {
             );
           },
         );
+        pwdSet = _postProcessNearbyCircles(rawPwd);
       }
 
-      // Compute nearby circles (uses your cached specs)
-      final nearbySet = _computeNearbyCirclesFromRaw();
+// Compute nearby circles (uses your cached specs)
+      final rawNearby = _computeNearbyCirclesFromRaw();
+      final nearbySet = _postProcessNearbyCircles(rawNearby);
 
       // ONLY show circles when zoom > 16.0 (your requested rule)
 // ONLY show circles when zoom > 16.0
@@ -1996,7 +2039,8 @@ class _GpsScreenState extends State<GpsScreen> {
 
 // Only add PWD circles when zoom > 16.0
           if (_currentZoom > 16.0) {
-            _circles = createPwdfriendlyRouteCircles(locations);
+            _circles = _postProcessNearbyCircles(
+                createPwdfriendlyRouteCircles(locations));
           }
           _showingPwdMarkers = true;
         });

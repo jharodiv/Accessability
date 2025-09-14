@@ -35,6 +35,7 @@ typedef CircleTapCallback = void Function(LatLng center, double suggestedZoom);
 class CircleManager {
   /// Create PWD circles (same logic you had). Provide onTap callback so
   /// caller can animate the camera using its own map controller.
+  // inside CircleManager (replace the existing function)
   static Set<Circle> createPwdfriendlyRouteCircles({
     required List<dynamic> pwdLocations,
     required double currentZoom,
@@ -75,18 +76,28 @@ class CircleManager {
 
       final int strokeWidth = _strokeWidthForZoom(currentZoom);
 
-      const double fillOpacity =
-          0.5; // lower = more transparent (try 0.04 - 0.12)
-      const double strokeOpacity = 0.0; // 0.0 hides stroke entirely
+      const double fillOpacity = 0.45;
+      const double strokeOpacity = 0.0;
 
-// ... later inside circles.add(Circle(...)) ...
+      // Prefer place id if present (stable id used by your places path)
+      String circleIdValue;
+      if (loc != null && loc['id'] != null && loc['id'].toString().isNotEmpty) {
+        circleIdValue = 'place_circle_${loc['id']}';
+      } else if (loc != null &&
+          loc['uid'] != null &&
+          loc['uid'].toString().isNotEmpty) {
+        circleIdValue = 'pwd_circle_${loc['uid']}';
+      } else {
+        circleIdValue =
+            'pwd_circle_${lat.toStringAsFixed(6)}_${lng.toStringAsFixed(6)}';
+      }
+
       circles.add(Circle(
-        circleId: CircleId('pwd_circle_${lat}_${lng}'),
+        circleId: CircleId(circleIdValue),
         center: LatLng(lat, lng),
         radius: finalRadiusMeters,
         fillColor: pwdCircleColor.withOpacity(fillOpacity),
-        strokeColor:
-            Colors.transparent, // or pwdCircleColor.withOpacity(strokeOpacity)
+        strokeColor: Colors.transparent,
         strokeWidth: 0,
         zIndex: 200,
         visible: true,

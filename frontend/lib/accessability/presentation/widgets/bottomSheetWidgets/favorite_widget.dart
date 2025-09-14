@@ -55,7 +55,7 @@ class _FavoriteWidgetState extends State<FavoriteWidget> {
   VoidCallback? _controllerListener;
 
   // sheet sizing constants (matched to SafetyAssistWidget)
-  final double _sheetMinChildSize = 0.3; // same as SafetyAssist
+  final double _sheetMinChildSize = 0.30; // same as SafetyAssist
   final double _sheetDefaultInitial = 0.35; // same initial as SafetyAssist
   final double _sheetMaxChildSize = 1.0;
   bool _isAtTop = false;
@@ -416,7 +416,6 @@ class _FavoriteWidgetState extends State<FavoriteWidget> {
                               },
                             ),
                           ),
-                          const SizedBox(height: 10),
                         ],
                       ),
                     ),
@@ -424,8 +423,6 @@ class _FavoriteWidgetState extends State<FavoriteWidget> {
                 ),
               ),
             ),
-
-            const SizedBox(height: 10),
 
             // --- main sheet content (white container) ---
             Expanded(

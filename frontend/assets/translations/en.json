@@ -322,5 +322,6 @@
   "contacts_access_restricted": "Contact access is restricted",
   "tip_add_emergency_contact": "Tip: keep this contact up-to-date so help can arrive quickly.",
   "no_results": "No results",
-  "select": "Select"
+  "select": "Select",
+  "cannotSendToSelf": "You cannot send it to yourself."
 }

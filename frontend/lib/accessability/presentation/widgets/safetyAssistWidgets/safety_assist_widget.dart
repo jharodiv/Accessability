@@ -74,7 +74,7 @@ class _SafetyAssistWidgetState extends State<SafetyAssistWidget> {
   Curve _pendingAnimateCurve = Curves.easeOut;
 
 // sizing constants (keep consistent with build)
-  final double _sheetMinChildSize = 0.3;
+  final double _sheetMinChildSize = 0.30;
   final double _sheetHelperExpandedSize = 0.8;
   // reduce initial so you can see the disappearance more clearly
   final double _sheetDefaultInitial = 0.35;
@@ -385,7 +385,6 @@ class _SafetyAssistWidgetState extends State<SafetyAssistWidget> {
                               },
                             ),
                           ),
-                          const SizedBox(height: 10),
                         ],
                       ),
                     ),

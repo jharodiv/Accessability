@@ -254,9 +254,9 @@ class _GpsScreenState extends State<GpsScreen> {
 
         // When rerouting starts collapse relevant sheets to their min sizes.
         if (rerouting) {
-          const double favoriteMin = 0.10; // FavoriteWidget minChildSize
-          const double locationMin = 0.10; // LocationWidgets minChildSize
-          const double safetyMin = 0.10; // SafetyAssistWidget minChildSize
+          const double favoriteMin = 0.3; // FavoriteWidget minChildSize
+          const double locationMin = 0.4; // LocationWidgets minChildSize
+          const double safetyMin = 0.3; // SafetyAssistWidget minChildSize
 
           // Run asynchronously so we don't block the route callback / UI thread.
           Future.microtask(() async {

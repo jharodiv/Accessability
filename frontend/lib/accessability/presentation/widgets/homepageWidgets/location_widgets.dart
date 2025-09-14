@@ -81,11 +81,12 @@ class _LocationWidgetsState extends State<LocationWidgets> {
   DateTime? _yourLastUpdate;
   StreamSubscription<DocumentSnapshot>? _yourLocationListener;
   late final DraggableScrollableController _draggableController;
-  final double _sheetMinChildSize = 0.20;
+  final double _sheetMinChildSize = 0.30;
+  final double _sheetDefaultInitial = 0.35;
   final double _sheetMaxChildSize = 1.0;
   // helper to compute the preferred "normal" initial size
   double get _preferredInitialSize =>
-      widget.isJoining ? 1.0 : (widget.selectedPlace != null ? 0.6 : 0.30);
+      widget.isJoining ? 1.0 : (widget.selectedPlace != null ? 0.6 : 0.35);
 
   final TextEditingController _spaceNameController = TextEditingController();
   final FlutterTts flutterTts = FlutterTts();
@@ -980,7 +981,6 @@ class _LocationWidgetsState extends State<LocationWidgets> {
                                   },
                                 ),
                               ),
-                              const SizedBox(height: 10),
                             ],
                           ),
                         ),
@@ -988,8 +988,6 @@ class _LocationWidgetsState extends State<LocationWidgets> {
                     ),
                   ),
                 ),
-
-                const SizedBox(height: 10),
                 Expanded(
                   child: Padding(
                     padding: EdgeInsets.only(

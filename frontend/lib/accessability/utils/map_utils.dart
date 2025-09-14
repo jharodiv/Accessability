@@ -75,7 +75,7 @@ class MapUtils {
     }
 
     // Default fallback (your old purple)
-    return const Color(0xFF6750A4);
+    return const Color(0xFF7C4DFF);
   }
 
   static double parseDouble(dynamic value) {

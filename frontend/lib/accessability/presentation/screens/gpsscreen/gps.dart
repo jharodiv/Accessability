@@ -32,7 +32,7 @@ import 'package:accessability/accessability/presentation/screens/gpsscreen/pwd_f
 import 'package:accessability/accessability/presentation/widgets/accessability_footer.dart'
     show Accessabilityfooter;
 import 'package:accessability/accessability/presentation/widgets/google_helper/map_view_screen.dart'
-    show MapViewScreen, MapPerspectivePicker;
+    show MapPerspectivePicker;
 import 'package:accessability/accessability/presentation/widgets/google_helper/openstreetmap_helper.dart'
     show OpenStreetMapHelper;
 import 'package:accessability/accessability/presentation/widgets/gpsWidgets/circle_manager.dart';
@@ -146,6 +146,7 @@ class _GpsScreenState extends State<GpsScreen> {
 
   Timer?
       _routeUpdateTimer; // used only to decide icon state (kept for minimal changes)
+  MapPerspective _currentMapPerspective = MapPerspective.classic; // default
 
   // Nearby management
   List<NearbyCircleSpec> _nearbyCircleSpecs = [];
@@ -581,20 +582,38 @@ class _GpsScreenState extends State<GpsScreen> {
 
   MapPerspective? _mapPerspectiveFromDynamic(dynamic v) {
     if (v == null) return null;
+
     try {
+      // already a MapPerspective
       if (v is MapPerspective) return v;
+
+      // integer index (clamped)
       if (v is int) {
-        final idx = v.clamp(0, MapPerspective.values.length - 1).toInt();
+        final maxIdx = MapPerspective.values.length - 1;
+        final idx = v.clamp(0, maxIdx).toInt();
         return MapPerspective.values[idx];
       }
+
+      // string name: allow "classic", "Classic", "perspective", "3d" etc.
       if (v is String) {
-        final byName = MapPerspective.values.firstWhere(
-          (e) => e.toString().split('.').last.toLowerCase() == v.toLowerCase(),
-          orElse: () => MapPerspective.classic,
-        );
-        return byName;
+        final s = v.trim().toLowerCase();
+        // try exact enum name match
+        for (final p in MapPerspective.values) {
+          if (p.toString().split('.').last.toLowerCase() == s) return p;
+        }
+        // optionally accept some friendly aliases
+        if (s == '3d' || s == 'perspective') return MapPerspective.perspective;
+        if (s == 'satellite' || s == 'aerial') return MapPerspective.aerial;
+        if (s == 'hybrid') return MapPerspective.street;
+        if (s == 'standard' || s == 'roadmap' || s == 'classic')
+          return MapPerspective.classic;
+
+        // no match
+        return null;
       }
-    } catch (_) {}
+    } catch (e, st) {
+      debugPrint('_mapPerspectiveFromDynamic parse error: $e\n$st');
+    }
     return null;
   }
 
@@ -1645,6 +1664,8 @@ class _GpsScreenState extends State<GpsScreen> {
 
   Future<void> _openMapSettings() async {
     debugPrint('[GpsScreen] _openMapSettings -> showing bottom sheet');
+
+    // prefetch static images as you already do (optional)
     final urls = [
       _staticMapUrlFor(MapPerspective.classic),
       _staticMapUrlFor(MapPerspective.aerial),
@@ -1652,7 +1673,6 @@ class _GpsScreenState extends State<GpsScreen> {
       _staticMapUrlFor(MapPerspective.perspective),
     ].whereType<String>().toList();
 
-// prefetch (fire-and-forget)
     for (final url in urls) {
       try {
         precacheImage(NetworkImage(url), context);
@@ -1660,11 +1680,11 @@ class _GpsScreenState extends State<GpsScreen> {
         debugPrint('precache failed: $e');
       }
     }
+
     try {
       final result = await showModalBottomSheet<Map<String, dynamic>>(
         context: context,
-        useRootNavigator: true, // <- add this
-
+        useRootNavigator: true,
         isScrollControlled: true,
         backgroundColor: Colors.transparent,
         builder: (ctx) {
@@ -1677,9 +1697,9 @@ class _GpsScreenState extends State<GpsScreen> {
               borderRadius:
                   const BorderRadius.vertical(top: Radius.circular(16)),
             ),
-            // pass the currently pending or default perspective if you want initial highlight
             child: MapPerspectivePicker(
-              initialPerspective: _pendingPerspective ?? MapPerspective.classic,
+              // <-- PASS the parent's current choice so the picker highlights it
+              initialPerspective: _currentMapPerspective,
               currentLocation: _locationHandler.currentLocation,
             ),
           );
@@ -1688,8 +1708,8 @@ class _GpsScreenState extends State<GpsScreen> {
 
       debugPrint('[GpsScreen] bottom sheet returned -> $result');
 
-      // `MapPerspectivePicker` returns {'perspectiveName': 'classic'} (string)
-      dynamic dyn = result;
+      // extract the returned value (picker returns {'perspectiveName': 'classic'} typically)
+      dynamic dyn;
       if (result is Map<String, dynamic>) {
         dyn = result['perspective'] ??
             result['perspectiveIndex'] ??
@@ -1699,10 +1719,17 @@ class _GpsScreenState extends State<GpsScreen> {
       final perspective = _mapPerspectiveFromDynamic(dyn);
       if (perspective != null) {
         debugPrint('[GpsScreen] parsed perspective -> $perspective');
+
+        // keep parent's state in sync so next open highlights correctly
+        setState(() {
+          _currentMapPerspective = perspective;
+        });
+
+        // apply the selection (your implementation)
         await applyMapPerspective(perspective);
       } else {
         debugPrint(
-            '[GpsScreen] no valid perspective returned from bottom sheet');
+            '[GpsScreen] no valid perspective returned from bottom sheet (dyn=$dyn)');
       }
     } catch (e, st) {
       debugPrint('[GpsScreen] _openMapSettings bottom sheet error: $e\n$st');

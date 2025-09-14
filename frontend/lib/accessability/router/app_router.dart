@@ -46,8 +46,6 @@ class AppRouter {
             settings: routeSettings);
       case '/addPlace':
         return _buildRoute(const AddNewPlaceScreen(), settings: routeSettings);
-      // case '/mapviewsettings':
-      //   return _buildRoute(const MapViewScreen(), settings: routeSettings);
       case '/onboarding':
         return _buildRoute(const OnboardingScreen(), settings: routeSettings);
       case '/homescreen':

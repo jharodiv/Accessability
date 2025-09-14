@@ -973,8 +973,13 @@ class _LocationWidgetsState extends State<LocationWidgets> {
                         boxShadow: const [
                           BoxShadow(
                             color: Colors.black26,
-                            blurRadius: 5,
-                            offset: Offset(0, -5),
+                            blurRadius: 0.5, // soft edge
+                            offset: Offset(-1, 0), // left side
+                          ),
+                          BoxShadow(
+                            color: Colors.black26,
+                            blurRadius: 0.5,
+                            offset: Offset(1, 0), // right side
                           ),
                         ],
                       ),

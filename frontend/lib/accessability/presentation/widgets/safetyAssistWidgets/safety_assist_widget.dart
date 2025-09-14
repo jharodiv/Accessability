@@ -356,8 +356,13 @@ class _SafetyAssistWidgetState extends State<SafetyAssistWidget> {
                   boxShadow: const [
                     BoxShadow(
                       color: Colors.black26,
-                      blurRadius: 10,
-                      offset: Offset(0, -5),
+                      blurRadius: 0.5, // soft edge
+                      offset: Offset(-1, 0), // left side
+                    ),
+                    BoxShadow(
+                      color: Colors.black26,
+                      blurRadius: 0.5,
+                      offset: Offset(1, 0), // right side
                     ),
                   ],
                 ),
@@ -388,8 +393,11 @@ class _SafetyAssistWidgetState extends State<SafetyAssistWidget> {
                             children: [
                               Container(
                                 width: 100,
-                                height: 2,
-                                color: Colors.grey.shade700,
+                                height: 4,
+                                decoration: BoxDecoration(
+                                  color: Colors.grey.shade400,
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
                                 margin: const EdgeInsets.only(bottom: 8),
                               ),
                               const SizedBox(height: 15),

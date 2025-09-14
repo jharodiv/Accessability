@@ -677,6 +677,23 @@ class _GpsScreenState extends State<GpsScreen> {
     }
   }
 
+  bool _circleSetsEqual(Set<Circle> a, Set<Circle> b) {
+    if (a.length != b.length) return false;
+    final Map<String, Circle> ma = {for (var c in a) c.circleId.value: c};
+    final Map<String, Circle> mb = {for (var c in b) c.circleId.value: c};
+    if (!ma.keys.toSet().containsAll(mb.keys.toSet())) return false;
+    for (final id in ma.keys) {
+      final ca = ma[id]!;
+      final cb = mb[id]!;
+      // compare geometry roughly (radius + lat/lng)
+      if ((ca.radius - cb.radius).abs() > 0.01) return false;
+      if ((ca.center.latitude - cb.center.latitude).abs() > 1e-6) return false;
+      if ((ca.center.longitude - cb.center.longitude).abs() > 1e-6)
+        return false;
+    }
+    return true;
+  }
+
   // --- Place marker creation (delegates to MarkerFactory) ---
   Future<Marker> _createPlaceMarker(Place place) async {
     final cacheKey =
@@ -1936,7 +1953,7 @@ class _GpsScreenState extends State<GpsScreen> {
                         if ((newZoom - _currentZoom).abs() > zoomThreshold) {
                           _currentZoom = newZoom;
                           _mapZoomNotifier.value = newZoom;
-                          setState(() {});
+                          // <-- NO setState() here
                         } else {
                           _mapZoomNotifier.value = newZoom;
                         }
@@ -1944,11 +1961,11 @@ class _GpsScreenState extends State<GpsScreen> {
                       onCameraIdle: () {
                         _zoomDebounceTimer?.cancel();
                         _zoomDebounceTimer =
-                            Timer(const Duration(milliseconds: 120), () {
+                            Timer(const Duration(milliseconds: 120), () async {
                           if (!mounted) return;
 
+                          // Compute PWD circles (only if showing)
                           Set<Circle> pwdSet = {};
-                          // Only create PWD circles if they should be showing
                           if (_showingPwdMarkers) {
                             pwdSet = createPwdfriendlyRouteCircles(
                               _cachedPwdLocations,
@@ -1965,10 +1982,19 @@ class _GpsScreenState extends State<GpsScreen> {
                             );
                           }
 
+                          // Compute nearby circles (uses your cached specs)
                           final nearbySet = _computeNearbyCirclesFromRaw();
-                          setState(() {
-                            _circles = pwdSet.union(nearbySet);
-                          });
+
+                          final newCircles = pwdSet.union(nearbySet);
+
+                          // Compare before setting state: avoid unnecessary rebuilds
+                          final bool same =
+                              _circleSetsEqual(_circles, newCircles);
+                          if (!same) {
+                            setState(() {
+                              _circles = newCircles;
+                            });
+                          }
                         });
                       },
                       onMapCreated: (controller) =>
@@ -1986,7 +2012,7 @@ class _GpsScreenState extends State<GpsScreen> {
                         // collapse all relevant sheets safely
                         try {
                           const double favoriteMin =
-                              0.10; // FavoriteWidget minChildSize
+                              0.15; // FavoriteWidget minChildSize
                           const double locationMin =
                               0.10; // LocationWidgets minChildSize
                           const double safetyMin =
@@ -2049,8 +2075,12 @@ class _GpsScreenState extends State<GpsScreen> {
                           setState(() => _fovPolygons = polys);
                         }
                       },
+                      lockBeamOnInitialLoad:
+                          false, // <- allow beam to grow/shrink with zoom
                       fovAngle: 40.0,
                       steps: 14,
+                      gradientLayers: 8, // fewer layers = less CPU
+                      initialBeamScale: 1.5, // make first beam 50% bigger
                     ),
 
                     // Navigation Controls (uses local UI flags which are updated by routeController)

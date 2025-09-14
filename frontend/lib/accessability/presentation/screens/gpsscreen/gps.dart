@@ -10,6 +10,7 @@ import 'package:accessability/accessability/presentation/widgets/gpsWidgets/navi
 import 'package:accessability/accessability/presentation/widgets/gpsWidgets/navigation_panel.dart';
 import 'package:accessability/accessability/presentation/widgets/gpsWidgets/rerouting_banner.dart';
 import 'package:accessability/accessability/presentation/widgets/gpsWidgets/user_marker_info_card.dart';
+import 'package:accessability/accessability/presentation/widgets/reusableWidgets/favorite_map_marker.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'package:firebase_auth/firebase_auth.dart';
@@ -160,6 +161,8 @@ class _GpsScreenState extends State<GpsScreen> {
   @override
   void initState() {
     super.initState();
+    FavoriteMapMarker.clearCache();
+    MarkerFactory.clearCaches();
 
     _favoriteSheetController = DraggableScrollableController();
     _locationSheetController = DraggableScrollableController();
@@ -327,6 +330,7 @@ class _GpsScreenState extends State<GpsScreen> {
         _locationHandler.mapController!.animateCamera(
           CameraUpdate.newLatLng(_locationHandler.currentLocation!),
         );
+        _maybeUpdateCircles();
       }
       // Apply a pending perspective if it was passed before location was ready.
       if (_pendingPerspective != null) {
@@ -866,12 +870,16 @@ class _GpsScreenState extends State<GpsScreen> {
         // Remove any existing PWD circles
         _circles
             .removeWhere((circle) => circle.circleId.value.startsWith('pwd_'));
-        // Create and add new PWD circles
-        _circles = _circles.union(createPwdfriendlyRouteCircles(locations));
+
+// Only add PWD circles when zoom > 16.0
+        if (_currentZoom > 16.0) {
+          _circles = _circles.union(createPwdfriendlyRouteCircles(locations));
+        }
 
         // Set the state to show PWD markers
         _showingPwdMarkers = true;
       });
+      _maybeUpdateCircles();
     } catch (e) {
       print('Error fetching PWD locations: $e');
       setState(() {
@@ -900,7 +908,6 @@ class _GpsScreenState extends State<GpsScreen> {
             CameraUpdate.newLatLngZoom(center, suggestedZoom),
           );
         });
-
     return _nearbyManager.createPwdfriendlyRouteCircles(
       pwdLocations,
       currentZoom: cz,
@@ -977,6 +984,7 @@ class _GpsScreenState extends State<GpsScreen> {
           ),
         ),
       );
+      _maybeUpdateCircles(); // add
     }
   }
 
@@ -1012,28 +1020,42 @@ class _GpsScreenState extends State<GpsScreen> {
           CameraUpdate.newLatLngZoom(center, suggestedZoom),
         );
       },
-      minPixelRadius: 24.0,
+      // increase min pixel radius so circles aren't tiny on low zooms,
+      // and increase extraVisualBoost so the manager returns larger radii
+      minPixelRadius: 8.0,
       shrinkFactor: 0.92,
-      extraVisualBoost: 1.15,
+      extraVisualBoost: 1.6,
     );
 
     final Map<String, Color> placeColorById = {
       for (final p in places) p.id: _colorForPlaceType(p.category)
     };
+    final double zoomFactor = (16.0 - _currentZoom).clamp(0.0, 15.0);
+    final double maxMultiplier =
+        6.0; // tweak: larger = bigger circles at low zoom
+    final double visualMultiplier =
+        1.0 + (zoomFactor / 15.0) * (maxMultiplier - 1.0);
 
     final Set<Circle> computedPlaceCircles = computedPlaceCirclesRaw.map((c) {
       final String circleIdValue = c.circleId.value;
       final String placeId = _placeIdFromCircleId(circleIdValue);
       final Color placeColor = placeColorById[placeId] ?? _pwdCircleColor;
+
+      // scale the radius for visibility when zoomed out (do NOT clamp to 1.0)
+      final double adjustedRadius = c.radius * visualMultiplier;
+
+      // ensure stroke is visible on high-dpi devices
+      final int adjustedStroke = max(2, c.strokeWidth).toInt();
+
       return Circle(
         circleId: c.circleId,
         center: c.center,
-        radius: c.radius,
-        fillColor: placeColor.withOpacity(0.16),
-        strokeColor: placeColor.withOpacity(0.95),
-        strokeWidth: c.strokeWidth,
+        radius: adjustedRadius,
+        fillColor: placeColor.withOpacity(0.22),
+        strokeColor: placeColor.withOpacity(0.85),
+        strokeWidth: adjustedStroke,
         zIndex: c.zIndex,
-        visible: c.visible,
+        visible: true,
         consumeTapEvents: true,
         onTap: () {
           _locationHandler.mapController?.animateCamera(
@@ -1050,9 +1072,16 @@ class _GpsScreenState extends State<GpsScreen> {
       _markers
           .removeWhere((marker) => marker.markerId.value.startsWith('place_'));
       _markers.addAll(createdMarkers.toSet());
+
+      // Remove previous place circles
       _circles.removeWhere((c) => c.circleId.value.startsWith('place_circle_'));
-      _circles = {..._circles, ...computedPlaceCircles};
+
+      // Only add computed place circles if zoom > 16.0
+      if (_currentZoom > 16.0) {
+        _circles = {..._circles, ...computedPlaceCircles};
+      }
     });
+    _maybeUpdateCircles();
 
     debugPrint(
         'Added ${createdMarkers.length} place markers and ${computedPlaceCircles.length} place circles');
@@ -1142,14 +1171,57 @@ class _GpsScreenState extends State<GpsScreen> {
           CameraUpdate.newLatLngZoom(center, suggestedZoom),
         );
       },
-      minPixelRadius: 24.0,
+      // allow very small pixel radii so circles can be visible at low zooms
+      minPixelRadius: 8.0,
       shrinkFactor: 0.92,
       extraVisualBoost: 1.15,
     );
   }
 
+  void _maybeUpdateCircles(
+      {Duration delay = const Duration(milliseconds: 220)}) {
+    Future.delayed(delay, () {
+      if (!mounted) return;
+
+      // Compute PWD circles (only if showing)
+      Set<Circle> pwdSet = {};
+      if (_showingPwdMarkers) {
+        pwdSet = createPwdfriendlyRouteCircles(
+          _cachedPwdLocations,
+          currentZoom: _currentZoom,
+          pwdBaseRadiusMeters: _pwdBaseRadiusMeters,
+          pwdRadiusMultiplier: _pwdRadiusMultiplier,
+          pwdCircleColor: _pwdCircleColor,
+          onTap: (center, suggestedZoom) {
+            _locationHandler.mapController?.animateCamera(
+              CameraUpdate.newLatLngZoom(center, suggestedZoom),
+            );
+          },
+        );
+      }
+
+      // Compute nearby circles (uses your cached specs)
+      final nearbySet = _computeNearbyCirclesFromRaw();
+
+      // ONLY show circles when zoom > 16.0 (your requested rule)
+// ONLY show circles when zoom > 16.0
+      final Set<Circle> newCircles =
+          (_currentZoom > 16.0) ? (pwdSet.union(nearbySet)) : <Circle>{};
+
+      // Compare and update
+      final bool same = _circleSetsEqual(_circles, newCircles);
+      if (!same) {
+        setState(() {
+          _circles = newCircles;
+        });
+      }
+    });
+  }
+
 // --- Nearby places fetching (delegates badge creation to MarkerFactory) ---
   Future<void> _fetchNearbyPlaces(String placeType) async {
+    FavoriteMapMarker.clearCache();
+    MarkerFactory.clearCaches();
     // If PWD category is selected
     if (placeType == 'PWD') {
       if (_showingPwdMarkers) {
@@ -1320,6 +1392,7 @@ class _GpsScreenState extends State<GpsScreen> {
           _circles = existingPwdCircles.union(newCircles);
           _polylines.clear();
         });
+        _maybeUpdateCircles();
       } else {
         // nothing returned => clear nearby circles (but keep pwd ones)
         setState(() {
@@ -1440,6 +1513,7 @@ class _GpsScreenState extends State<GpsScreen> {
         await _locationHandler.mapController!.animateCamera(
           CameraUpdate.newLatLng(location),
         );
+        _maybeUpdateCircles();
       } catch (e) {
         debugPrint('_onMemberPressed animateCamera error: $e');
       }
@@ -1586,6 +1660,8 @@ class _GpsScreenState extends State<GpsScreen> {
         // Use moveCamera for instant jump; switch to animateCamera if you prefer animation
         await controller
             .moveCamera(CameraUpdate.newCameraPosition(newPosition));
+        _maybeUpdateCircles(); // add
+
         debugPrint('[GpsScreen] camera moved to perspective $perspective');
       } catch (e, st) {
         debugPrint('[GpsScreen] moveCamera error: $e\n$st');
@@ -1614,6 +1690,8 @@ class _GpsScreenState extends State<GpsScreen> {
       try {
         await lateController
             .moveCamera(CameraUpdate.newCameraPosition(newPosition));
+        _maybeUpdateCircles(); // add
+
         debugPrint(
             '[GpsScreen] late camera move applied after controller became ready');
         _pendingPerspective = null;
@@ -1758,6 +1836,8 @@ class _GpsScreenState extends State<GpsScreen> {
         applyMapPerspective(pending);
       }
     }
+
+    _maybeUpdateCircles(delay: const Duration(milliseconds: 300));
   }
 
   String _placeIdFromCircleId(String circleIdValue) {
@@ -1911,9 +1991,16 @@ class _GpsScreenState extends State<GpsScreen> {
           _markers.addAll(pwdMarkers);
           _circles.removeWhere(
               (circle) => circle.circleId.value.startsWith('pwd_'));
-          _circles = createPwdfriendlyRouteCircles(locations);
+          _circles.removeWhere(
+              (circle) => circle.circleId.value.startsWith('pwd_'));
+
+// Only add PWD circles when zoom > 16.0
+          if (_currentZoom > 16.0) {
+            _circles = createPwdfriendlyRouteCircles(locations);
+          }
           _showingPwdMarkers = true;
         });
+        _maybeUpdateCircles();
       });
     } catch (e) {
       print('Error fetching PWD locations: $e');
@@ -2014,7 +2101,10 @@ class _GpsScreenState extends State<GpsScreen> {
                           // Compute nearby circles (uses your cached specs)
                           final nearbySet = _computeNearbyCirclesFromRaw();
 
-                          final newCircles = pwdSet.union(nearbySet);
+                          // ONLY show circles when zoom > 16.0
+                          final Set<Circle> newCircles = (_currentZoom >= 14.5)
+                              ? (pwdSet.union(nearbySet))
+                              : <Circle>{};
 
                           // Compare before setting state: avoid unnecessary rebuilds
                           final bool same =

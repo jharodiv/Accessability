@@ -14,18 +14,17 @@ class FavoriteMapMarker {
     BuildContext ctx, {
     required String cacheKey,
     double pixelRatio = 0, // 0 -> device DPR
-    double size = 72, // restored logical dp outer badge
-    Color outerColor = const Color(0xFF6750A4),
-    Color outerStrokeColor = const Color(0xFF5A3BD6),
-    double outerOpacity = 0.55,
-    Color innerBgColor = Colors.white,
-    Color iconColor = const Color(0xFF6750A4),
+    double size = 72, // logical dp outer badge
+    Color outerColor = const Color(0xFF7C4DFF), // purple outer ring
+    Color outerStrokeColor = const Color(0xFF7C4DFF),
+    double outerOpacity = 1.0,
+    Color innerBgColor = Colors.white, // inner background and pointer
+    Color iconColor = const Color(0xFF7C4DFF),
     IconData icon = Icons.place,
-    double iconSize = 52.0, // reduced icon size
-    double innerCircleRatio = 0.46, // make white background smaller
-    double innerPaddingFactor = 0.01, // keep tight inner padding
-    double iconInnerPaddingFactor =
-        0.08, // modest breathing space so icon is smaller
+    double iconSize = 52.0, // logical icon size
+    double innerCircleRatio = 0.56,
+    double innerPaddingFactor = 0.02, // <--- this was missing earlier
+    double iconInnerPaddingFactor = 0.12,
   }) async {
     final devicePR = MediaQuery.of(ctx).devicePixelRatio;
     final effectivePR = (pixelRatio <= 0) ? devicePR : pixelRatio;
@@ -59,20 +58,22 @@ class FavoriteMapMarker {
     }
   }
 
+  // The updated marker bitmap generator. Pointer is filled by innerBgColor (white)
+  // and a subtle purple stroke around the pointer is drawn for crispness.
   static Future<BitmapDescriptor> _createMarkerBitmap({
     required BuildContext ctx,
     int size = 96,
     double pixelRatio = 3.0,
-    Color outerColor = const Color(0xFF6750A4),
-    Color outerStrokeColor = const Color(0xFF5A3BD6),
-    double outerOpacity = 0.55,
+    Color outerColor = const Color(0xFF7C4DFF),
+    Color outerStrokeColor = const Color(0xFF7C4DFF),
+    double outerOpacity = 1.0,
     Color innerBgColor = Colors.white,
-    Color iconColor = const Color(0xFF6750A4),
+    Color iconColor = const Color(0xFF7C4DFF),
     IconData icon = Icons.place,
     double logicalIconSize = 52.0,
-    double innerCircleRatio = 0.46,
-    double innerPaddingFactor = 0.01,
-    double iconInnerPaddingFactor = 0.08,
+    double innerCircleRatio = 0.56,
+    double innerPaddingFactor = 0.02,
+    double iconInnerPaddingFactor = 0.12,
   }) async {
     final int canvasSize = (size * pixelRatio).toInt().clamp(1, 4096);
     final ui.PictureRecorder recorder = ui.PictureRecorder();
@@ -80,38 +81,48 @@ class FavoriteMapMarker {
     final Paint paint = Paint()..isAntiAlias = true;
 
     final double centerX = canvasSize / 2.0;
-    // restored headRadius multiplier to previous comfortable size
-    final double headRadius = canvasSize * 0.36;
-    final double centerY = canvasSize / 2.0;
+    // lift center so pointer and shadow fit nicely
+    final double centerY = canvasSize * 0.34;
     final Offset center = Offset(centerX, centerY);
 
-    // shadow
-    final Paint shadowPaint = Paint()
-      ..color = Colors.black.withOpacity(0.12)
+    final double headRadius = canvasSize * 0.30;
+
+    // ---------- floating shadow ----------
+    final double ellipseWidth = headRadius * 1.7;
+    final double ellipseHeight = headRadius * 0.42;
+    final Offset ellipseCenter =
+        Offset(centerX, centerY + headRadius * 0.95); // under badge
+    final Rect ovalRect = Rect.fromCenter(
+        center: ellipseCenter, width: ellipseWidth, height: ellipseHeight);
+    final Paint ovalPaint = Paint()
+      ..color = Colors.black.withOpacity(0.18)
       ..style = PaintingStyle.fill
-      ..maskFilter = MaskFilter.blur(BlurStyle.normal, pixelRatio * 1.2);
-    final double shadowOffset = pixelRatio * 0.8;
+      ..maskFilter = MaskFilter.blur(BlurStyle.normal, pixelRatio * 2.2);
+    canvas.drawOval(ovalRect, ovalPaint);
+
+    // subtle circular shadow towards marker
+    final Paint shadowPaint = Paint()
+      ..color = Colors.black.withOpacity(0.10)
+      ..style = PaintingStyle.fill
+      ..maskFilter = MaskFilter.blur(BlurStyle.normal, pixelRatio * 1.0);
     canvas.drawCircle(
-      Offset(centerX + shadowOffset, centerY + shadowOffset),
-      headRadius * 0.95,
+      Offset(centerX + pixelRatio * 0.6, centerY + pixelRatio * 0.6),
+      headRadius * 0.92,
       shadowPaint,
     );
 
-    // outer fill
+    // ---------- outer purple circle ----------
     paint
       ..style = PaintingStyle.fill
       ..color = outerColor.withOpacity(outerOpacity);
     canvas.drawCircle(center, headRadius, paint);
 
-    // outer stroke
-    final double strokeFactor = 0.07;
-    final double strokeFloor = 0.12;
-    final double outerStrokeW =
-        math.max(strokeFloor, pixelRatio * strokeFactor);
+    // subtle outer stroke to make edge crisp
+    final double outerStrokeW = math.max(0.12, pixelRatio * 0.06);
     final Paint outerStroke = Paint()
       ..style = PaintingStyle.stroke
       ..strokeWidth = outerStrokeW
-      ..color = outerStrokeColor.withOpacity(0.42)
+      ..color = outerStrokeColor.withOpacity(0.28)
       ..isAntiAlias = true;
     canvas.drawCircle(
       center,
@@ -119,26 +130,26 @@ class FavoriteMapMarker {
       outerStroke,
     );
 
-    // inner circle (white background) — smaller and tighter to icon
-    final double innerRadiusRaw = headRadius * innerCircleRatio;
+    // ---------- inner white circle ----------
+    final double coloredRadius = headRadius * innerCircleRatio;
     final double innerPadding = headRadius * innerPaddingFactor;
     final double innerRadius =
-        (innerRadiusRaw - innerPadding).clamp(0.0, headRadius);
-
-    final double innerYOffset = -headRadius * 0.04;
-    final Offset innerCenter = Offset(center.dx, center.dy + innerYOffset);
+        (coloredRadius - innerPadding).clamp(0.0, headRadius);
+    // slight lift so pointer connects naturally
+    final Offset innerCenter = Offset(center.dx, center.dy - headRadius * 0.02);
 
     final Paint innerBgPaint = Paint()..color = innerBgColor;
     canvas.drawCircle(innerCenter, innerRadius, innerBgPaint);
 
-    // inner stroke
-    final double innerStrokeW = math.max(0.18, pixelRatio * 0.06);
+    // small inner stroke for separation
+    final double innerStrokeW = math.max(0.12, pixelRatio * 0.05);
     final Paint innerStroke = Paint()
       ..style = PaintingStyle.stroke
       ..strokeWidth = innerStrokeW
-      ..color = Colors.black.withOpacity(0.055);
-    canvas.drawCircle(innerCenter,
-        innerRadius - (innerStroke.strokeWidth / 2.0), innerStroke);
+      ..color = Colors.black.withOpacity(0.06)
+      ..isAntiAlias = true;
+    canvas.drawCircle(
+        innerCenter, innerRadius - (innerStrokeW / 2.0), innerStroke);
 
     // glossy highlight
     final Paint gloss = Paint()
@@ -150,16 +161,51 @@ class FavoriteMapMarker {
       ..isAntiAlias = true;
     canvas.drawCircle(innerCenter, innerRadius, gloss);
 
-    // glyph sizing
+    // ---------- pointer (triangle) filled with innerBgColor (white) ----------
+    final double pointerLengthFactor = 0.18;
+    final double pointerWidthFactor = 0.45;
+    final double pointerOverlap = 0.02; // slight overlap so it reads connected
+    final double pointerTopY =
+        innerCenter.dy + innerRadius - (innerRadius * pointerOverlap);
+    final double pointerBottomY =
+        pointerTopY + headRadius * pointerLengthFactor;
+    final double pointerHalfWidth = headRadius * pointerWidthFactor;
+
+    final Path pointer = Path();
+    final double cx = center.dx;
+    pointer.moveTo(cx + pointerHalfWidth, pointerTopY);
+    pointer.lineTo(cx, pointerBottomY);
+    pointer.lineTo(cx - pointerHalfWidth, pointerTopY);
+    pointer.close();
+
+    // fill pointer with inner background color (white)
+    final Paint pointerPaint = Paint()..color = innerBgColor;
+    canvas.drawPath(pointer, pointerPaint);
+
+    // subtle purple edge around pointer for crispness
+    final Paint pointerEdge = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = math.max(0.8, pixelRatio * 0.32)
+      ..color = outerColor.withOpacity(0.22)
+      ..isAntiAlias = true;
+    canvas.drawPath(pointer, pointerEdge);
+
+    // tiny soft shadow under pointer tip for depth
+    final Path pointerShadow = Path.from(pointer);
+    final Paint pointerShadowPaint = Paint()
+      ..color = Colors.black.withOpacity(0.06)
+      ..maskFilter = MaskFilter.blur(BlurStyle.normal, pixelRatio * 0.8)
+      ..style = PaintingStyle.fill;
+    final Matrix4 m = Matrix4.identity()..translate(0.0, pixelRatio * 0.6);
+    pointerShadow.transform(m.storage);
+    canvas.drawPath(pointerShadow, pointerShadowPaint);
+
+    // ---------- glyph (icon) centered in inner white circle ----------
     final double requestedGlyphSize = logicalIconSize * pixelRatio;
     final double maxGlyph = innerRadius * (1.0 - iconInnerPaddingFactor);
-
-    // more conservative overflow so icon stays smaller
-    final double overflowFactor = 1.10;
+    final double overflowFactor = 1.06;
     final double glyphSizeUnclamped =
         math.min(requestedGlyphSize, maxGlyph * overflowFactor);
-
-    // safety: don't let glyph exceed the canvas by too much
     final double maxCanvasGlyph = canvasSize * 0.95;
     final double glyphSize = math.min(glyphSizeUnclamped, maxCanvasGlyph);
 
@@ -177,14 +223,14 @@ class FavoriteMapMarker {
     );
     tp.layout();
 
-    final double glyphOffsetY = glyphSize * 0.02;
+    final double glyphYOffset = glyphSize * 0.02;
     tp.paint(
-      canvas,
-      innerCenter -
-          Offset(tp.width / 2, tp.height / 2) -
-          Offset(0, glyphOffsetY),
-    );
+        canvas,
+        innerCenter -
+            Offset(tp.width / 2, tp.height / 2) -
+            Offset(0, glyphYOffset));
 
+    // finalize and return BitmapDescriptor
     final ui.Image img =
         await recorder.endRecording().toImage(canvasSize, canvasSize);
     final ByteData? bytes =

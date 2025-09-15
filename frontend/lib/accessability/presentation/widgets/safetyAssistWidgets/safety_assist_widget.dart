@@ -74,10 +74,15 @@ class _SafetyAssistWidgetState extends State<SafetyAssistWidget> {
   Curve _pendingAnimateCurve = Curves.easeOut;
 
 // sizing constants (keep consistent with build)
-  final double _sheetMinChildSize = 0.3;
+  final double _sheetMinChildSize = 0.30;
   final double _sheetHelperExpandedSize = 0.8;
-  final double _sheetDefaultInitial = 0.5;
+  // reduce initial so you can see the disappearance more clearly
+  final double _sheetDefaultInitial = 0.35;
   final double _expandThreshold = 0.8;
+  double _serviceAreaFactor = 1.0;
+
+  // SINGLE source-of-truth for whether service buttons are shown
+  bool _serviceVisible = true;
 
   @override
   void initState() {
@@ -106,15 +111,38 @@ class _SafetyAssistWidgetState extends State<SafetyAssistWidget> {
       _createdControllerLocally = true;
     }
 
-    // attach listener to draggable controller to update _isExpanded/_isAtTop
+    const double _hideThreshold = 0.55;
+    final double _fadeStart = _sheetDefaultInitial; // e.g. 0.35
+    // how sensitive to changes before triggering setState (increase to reduce rebuilds)
+    const double _factorDirtyThreshold = 0.02;
+
     _controllerListener = () {
       try {
         final size = _draggableController.size;
-        final expanded =
-            size >= _expandThreshold; // same threshold used previously
-        final atTop = size >= 0.995; // treat ~1.0 as 'at top'
-        if (expanded != _isExpanded) setState(() => _isExpanded = expanded);
-        if (atTop != _isAtTop) setState(() => _isAtTop = atTop);
+
+        // compute top state (avoid status bar overlap when at very top)
+        final bool atTop = size >= 0.995;
+
+        // Map size -> factor in a smooth linear ramp between _fadeStart.._hideThreshold
+        double factor;
+        if (size <= _fadeStart) {
+          factor = 1.0;
+        } else if (size >= _hideThreshold) {
+          factor = 0.0;
+        } else {
+          factor = 1.0 - (size - _fadeStart) / (_hideThreshold - _fadeStart);
+        }
+        factor = factor.clamp(0.0, 1.0);
+
+        // Only call setState when either the factor moved enough OR atTop changed
+        final bool factorChanged =
+            (factor - _serviceAreaFactor).abs() > _factorDirtyThreshold;
+        if (factorChanged || atTop != _isAtTop) {
+          setState(() {
+            _serviceAreaFactor = factor;
+            _isAtTop = atTop;
+          });
+        }
       } catch (_) {}
     };
 
@@ -288,11 +316,18 @@ class _SafetyAssistWidgetState extends State<SafetyAssistWidget> {
   @override
   Widget build(BuildContext context) {
     final bool isDarkMode = Provider.of<ThemeProvider>(context).isDarkMode;
+    final bool serviceVisible = _serviceVisible;
+    const Duration _svcAnimDur = Duration(milliseconds: 220);
+
+    final double downPx = serviceVisible ? 0.0 : 40.0; // px to slide down
+    final double translateY =
+        (1 - _serviceAreaFactor) * 20; // smaller value for subtler movement
 
     return DraggableScrollableSheet(
       controller: _draggableController,
       // Use different initial sizes based on whether the helper is showing.
-      initialChildSize: _showHelper ? 0.8 : 0.5,
+      initialChildSize:
+          _showHelper ? _sheetHelperExpandedSize : _sheetDefaultInitial,
       expand: true,
       minChildSize: 0.3,
       maxChildSize: 1.0, // <- allow dragging to utmost top
@@ -325,236 +360,264 @@ class _SafetyAssistWidgetState extends State<SafetyAssistWidget> {
 
         return Column(
           children: [
-            const SizedBox(height: 8),
-            IgnorePointer(
-              ignoring: _isExpanded || _showHelper || widget.isRerouting,
-              child: AnimatedOpacity(
-                duration: const Duration(milliseconds: 250),
-                opacity: (_isExpanded || _showHelper || widget.isRerouting)
-                    ? 0.0
-                    : 1.0,
-                child: ServiceButtons(
-                  onButtonPressed: widget.onServiceButtonPressed ?? (label) {},
-                  currentLocation: widget.currentLocation,
-                  onMapViewPressed: widget.onMapViewPressed,
-                  onCenterPressed: () {
-                    // fire-and-forget, _handleCenterPressed is async
-                    _handleCenterPressed();
-                  },
+            RepaintBoundary(
+              child: ClipRect(
+                child: Align(
+                  alignment: Alignment.topCenter,
+                  heightFactor: _serviceAreaFactor,
+                  child: Opacity(
+                    opacity: _serviceAreaFactor,
+                    child: Transform.translate(
+                      offset: Offset(0, translateY),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const SizedBox(height: 8),
+                          IgnorePointer(
+                            ignoring: _serviceAreaFactor < 0.05,
+                            child: ServiceButtons(
+                              onButtonPressed:
+                                  widget.onServiceButtonPressed ?? (label) {},
+                              currentLocation: widget.currentLocation,
+                              onMapViewPressed: widget.onMapViewPressed,
+                              onCenterPressed: () {
+                                _handleCenterPressed();
+                              },
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
                 ),
               ),
             ),
-            const SizedBox(height: 10),
             Expanded(
-              child: Container(
-                decoration: BoxDecoration(
-                  color: isDarkMode ? Colors.grey[900] : Colors.white,
-                  borderRadius: const BorderRadius.only(
-                    topLeft: Radius.circular(20),
-                    topRight: Radius.circular(20),
-                  ),
-                  boxShadow: const [
-                    BoxShadow(
-                      color: Colors.black26,
-                      blurRadius: 10,
-                      offset: Offset(0, -5),
+              child: Padding(
+                padding: EdgeInsets.only(
+                    top: _isAtTop ? MediaQuery.of(context).padding.top : 0),
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: isDarkMode ? Colors.grey[900] : Colors.white,
+                    borderRadius: const BorderRadius.only(
+                      topLeft: Radius.circular(20),
+                      topRight: Radius.circular(20),
                     ),
-                  ],
-                ),
-                child: SingleChildScrollView(
-                  controller: scrollController,
-                  child: Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    // Toggle between the helper widget and the main design.
-                    child: _showHelper
-                        ? SafetyAssistHelperWidget(
-                            onBack: () {
-                              setState(() {
-                                _showHelper = false;
-                              });
-                              try {
-                                _draggableController.animateTo(
-                                  0.8, // Collapse back to 80% of the screen.
-                                  duration: const Duration(milliseconds: 300),
-                                  curve: Curves.easeInOut,
-                                );
-                              } catch (_) {
-                                // ignore if animateTo not available on older Flutter
-                              }
-                            },
-                          )
-                        : Column(
-                            crossAxisAlignment: CrossAxisAlignment.center,
-                            children: [
-                              Container(
-                                width: 100,
-                                height: 2,
-                                color: Colors.grey.shade700,
-                                margin: const EdgeInsets.only(bottom: 8),
-                              ),
-                              const SizedBox(height: 15),
-                              Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Text(
-                                    "safety_assist".tr(),
-                                    style: TextStyle(
-                                      fontSize: 18,
-                                      fontWeight: FontWeight.w900,
-                                      color: isDarkMode
-                                          ? Colors.white
-                                          : Colors.black,
-                                    ),
+                    boxShadow: const [
+                      BoxShadow(
+                        color: Colors.black26,
+                        blurRadius: 0.5, // soft edge
+                        offset: Offset(-1, 0), // left side
+                      ),
+                      BoxShadow(
+                        color: Colors.black26,
+                        blurRadius: 0.5,
+                        offset: Offset(1, 0), // right side
+                      ),
+                    ],
+                  ),
+                  child: SingleChildScrollView(
+                    controller: scrollController,
+                    child: Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      // Toggle between the helper widget and the main design.
+                      child: _showHelper
+                          ? SafetyAssistHelperWidget(
+                              onBack: () {
+                                setState(() {
+                                  _showHelper = false;
+                                });
+                                try {
+                                  _draggableController.animateTo(
+                                    0.8, // Collapse back to 80% of the screen.
+                                    duration: const Duration(milliseconds: 300),
+                                    curve: Curves.easeInOut,
+                                  );
+                                } catch (_) {
+                                  // ignore if animateTo not available on older Flutter
+                                }
+                              },
+                            )
+                          : Column(
+                              crossAxisAlignment: CrossAxisAlignment.center,
+                              children: [
+                                Container(
+                                  width: 100,
+                                  height: 4,
+                                  decoration: BoxDecoration(
+                                    color: Colors.grey.shade400,
+                                    borderRadius: BorderRadius.circular(4),
                                   ),
-                                  Row(
-                                    // contains emergency button + help icon
-                                    children: [
-                                      // Emergency services button (police / ambulance / fire)
-                                      GestureDetector(
-                                        onTap: _showEmergencyServicesWidget,
-                                        child: Padding(
-                                          padding: const EdgeInsets.symmetric(
-                                              horizontal: 8.0),
+                                  margin: const EdgeInsets.only(bottom: 8),
+                                ),
+                                const SizedBox(height: 15),
+                                Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Text(
+                                      "safety_assist".tr(),
+                                      style: TextStyle(
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.w900,
+                                        color: isDarkMode
+                                            ? Colors.white
+                                            : Colors.black,
+                                      ),
+                                    ),
+                                    Row(
+                                      // contains emergency button + help icon
+                                      children: [
+                                        // Emergency services button (police / ambulance / fire)
+                                        GestureDetector(
+                                          onTap: _showEmergencyServicesWidget,
+                                          child: Padding(
+                                            padding: const EdgeInsets.symmetric(
+                                                horizontal: 8.0),
+                                            child: Icon(
+                                              Icons.local_police,
+                                              color: isDarkMode
+                                                  ? Colors.white
+                                                  : const Color(0xFF6750A4),
+                                            ),
+                                          ),
+                                        ),
+                                        // Help icon toggles the helper widget.
+                                        GestureDetector(
+                                          onTap: () {
+                                            setState(() {
+                                              _showHelper = true;
+                                            });
+                                            try {
+                                              _draggableController.animateTo(
+                                                0.8, // Expand the sheet to 80% of the screen.
+                                                duration: const Duration(
+                                                    milliseconds: 300),
+                                                curve: Curves.easeInOut,
+                                              );
+                                            } catch (_) {
+                                              // ignore on older Flutter versions
+                                            }
+                                          },
                                           child: Icon(
-                                            Icons.local_police,
+                                            Icons.help_outline,
                                             color: isDarkMode
                                                 ? Colors.white
                                                 : const Color(0xFF6750A4),
                                           ),
                                         ),
-                                      ),
-                                      // Help icon toggles the helper widget.
-                                      GestureDetector(
-                                        onTap: () {
-                                          setState(() {
-                                            _showHelper = true;
-                                          });
-                                          try {
-                                            _draggableController.animateTo(
-                                              0.8, // Expand the sheet to 80% of the screen.
-                                              duration: const Duration(
-                                                  milliseconds: 300),
-                                              curve: Curves.easeInOut,
-                                            );
-                                          } catch (_) {
-                                            // ignore on older Flutter versions
-                                          }
-                                        },
-                                        child: Icon(
-                                          Icons.help_outline,
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 20),
+                                InkWell(
+                                  onTap: _showAddEmergencyContactDialog,
+                                  child: Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 12),
+                                    child: Row(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.end,
+                                      children: [
+                                        Icon(
+                                          Icons.person_add_outlined,
                                           color: isDarkMode
                                               ? Colors.white
                                               : const Color(0xFF6750A4),
+                                          size: 30,
                                         ),
-                                      ),
-                                    ],
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 20),
-                              InkWell(
-                                onTap: _showAddEmergencyContactDialog,
-                                child: Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 12),
-                                  child: Row(
-                                    crossAxisAlignment: CrossAxisAlignment.end,
-                                    children: [
-                                      Icon(
-                                        Icons.person_add_outlined,
-                                        color: isDarkMode
-                                            ? Colors.white
-                                            : const Color(0xFF6750A4),
-                                        size: 30,
-                                      ),
-                                      const SizedBox(width: 15),
-                                      Text(
-                                        "add_emergency_contact".tr(),
-                                        style: TextStyle(
-                                          color: isDarkMode
-                                              ? Colors.white
-                                              : Colors.black,
-                                          fontWeight: FontWeight.bold,
+                                        const SizedBox(width: 15),
+                                        Text(
+                                          "add_emergency_contact".tr(),
+                                          style: TextStyle(
+                                            color: isDarkMode
+                                                ? Colors.white
+                                                : Colors.black,
+                                            fontWeight: FontWeight.bold,
+                                          ),
                                         ),
-                                      ),
-                                    ],
+                                      ],
+                                    ),
                                   ),
                                 ),
-                              ),
-                              const Divider(),
-                              BlocConsumer<EmergencyBloc, EmergencyState>(
-                                listener: (context, state) {
-                                  if (state is EmergencyOperationSuccess) {
-                                    // Refresh contacts after any operation
-                                    BlocProvider.of<EmergencyBloc>(context).add(
-                                      FetchEmergencyContactsEvent(
-                                          uid: widget.uid),
-                                    );
-                                  }
-                                },
-                                builder: (context, state) {
-                                  if (state is EmergencyLoading) {
-                                    return const Center(
-                                        child: CircularProgressIndicator());
-                                  } else if (state is EmergencyContactsLoaded) {
-                                    return EmergencyContactsList(
-                                      contacts: state.contacts,
-                                      isDarkMode: isDarkMode,
-                                      uid: widget.uid,
-                                      onAddPressed:
-                                          _showAddEmergencyContactDialog,
-                                      onCallPressed: (number) {
-                                        if (number != null &&
-                                            number.isNotEmpty) {
-                                          _launchCaller(number);
-                                        } else {
+                                const Divider(),
+                                BlocConsumer<EmergencyBloc, EmergencyState>(
+                                  listener: (context, state) {
+                                    if (state is EmergencyOperationSuccess) {
+                                      // Refresh contacts after any operation
+                                      BlocProvider.of<EmergencyBloc>(context)
+                                          .add(
+                                        FetchEmergencyContactsEvent(
+                                            uid: widget.uid),
+                                      );
+                                    }
+                                  },
+                                  builder: (context, state) {
+                                    if (state is EmergencyLoading) {
+                                      return const Center(
+                                          child: CircularProgressIndicator());
+                                    } else if (state
+                                        is EmergencyContactsLoaded) {
+                                      return EmergencyContactsList(
+                                        contacts: state.contacts,
+                                        isDarkMode: isDarkMode,
+                                        uid: widget.uid,
+                                        onAddPressed:
+                                            _showAddEmergencyContactDialog,
+                                        onCallPressed: (number) {
+                                          if (number != null &&
+                                              number.isNotEmpty) {
+                                            _launchCaller(number);
+                                          } else {
+                                            ScaffoldMessenger.of(context)
+                                                .showSnackBar(
+                                              SnackBar(
+                                                  content: Text(
+                                                      'no_number_available'
+                                                          .tr())),
+                                            );
+                                          }
+                                        },
+                                        onMessagePressed: (contact) {
                                           ScaffoldMessenger.of(context)
                                               .showSnackBar(
                                             SnackBar(
                                                 content: Text(
-                                                    'no_number_available'
+                                                    'implement_message_action'
                                                         .tr())),
                                           );
-                                        }
-                                      },
-                                      onMessagePressed: (contact) {
-                                        ScaffoldMessenger.of(context)
-                                            .showSnackBar(
-                                          SnackBar(
-                                              content: Text(
-                                                  'implement_message_action'
-                                                      .tr())),
-                                        );
-                                      },
-                                      onDeletePressed: (contactId) {
-                                        if (contactId != null &&
-                                            contactId.isNotEmpty) {
-                                          BlocProvider.of<EmergencyBloc>(
-                                                  context)
-                                              .add(
-                                            DeleteEmergencyContactEvent(
-                                                uid: widget.uid,
-                                                contactId: contactId),
-                                          );
-                                        }
-                                      },
-                                    );
-                                  } else if (state is EmergencyOperationError) {
-                                    return Text(
-                                      state.message,
-                                      style: TextStyle(
-                                        color: isDarkMode
-                                            ? Colors.white
-                                            : Colors.black,
-                                      ),
-                                    );
-                                  }
-                                  return const SizedBox.shrink();
-                                },
-                              ),
-                            ],
-                          ),
+                                        },
+                                        onDeletePressed: (contactId) {
+                                          if (contactId != null &&
+                                              contactId.isNotEmpty) {
+                                            BlocProvider.of<EmergencyBloc>(
+                                                    context)
+                                                .add(
+                                              DeleteEmergencyContactEvent(
+                                                  uid: widget.uid,
+                                                  contactId: contactId),
+                                            );
+                                          }
+                                        },
+                                      );
+                                    } else if (state
+                                        is EmergencyOperationError) {
+                                      return Text(
+                                        state.message,
+                                        style: TextStyle(
+                                          color: isDarkMode
+                                              ? Colors.white
+                                              : Colors.black,
+                                        ),
+                                      );
+                                    }
+                                    return const SizedBox.shrink();
+                                  },
+                                ),
+                              ],
+                            ),
+                    ),
                   ),
                 ),
               ),

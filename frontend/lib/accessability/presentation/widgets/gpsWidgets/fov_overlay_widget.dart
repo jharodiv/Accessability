@@ -13,6 +13,8 @@ class FovOverlay extends StatefulWidget {
   final LatLng? Function() getCurrentLocation;
   final Stream<LatLng>? locationStream;
   final void Function(Set<Polygon>) onPolygonsChanged;
+  final bool lockBeamOnInitialLoad; // new
+  final double initialBeamScale; // new
 
   /// New: optional listenable (fast, immediate) for map zoom changes.
   /// If provided, it will be used instead of polling getMapZoom().
@@ -51,7 +53,7 @@ class FovOverlay extends StatefulWidget {
     this.fovAngle = 40.0,
     this.color = const Color(0xFF7C4DFF),
     this.pollIntervalMs = 500,
-    this.largeBeamPx = 220.0,
+    this.largeBeamPx = 250.0,
     this.mediumBeamPx = 140.0,
     this.smallBeamPx = 80.0,
     this.steps = 18,
@@ -61,6 +63,8 @@ class FovOverlay extends StatefulWidget {
     // LIGHTER DEFAULTS
     this.startOpacity = 0.36, // inner (was 0.92)
     this.endOpacity = 0.02, // outer (was 0.06)
+    this.lockBeamOnInitialLoad = true,
+    this.initialBeamScale = 1.4, // 40% larger initially
   }) : super(key: key);
 
   @override
@@ -71,6 +75,8 @@ class _FovOverlayState extends State<FovOverlay> {
   StreamSubscription<CompassEvent?>? _compassSub;
   StreamSubscription<LatLng>? _locSub;
   Timer? _pollTimer;
+  Timer? _unlockTimer;
+
   Timer? _zoomWatchTimer;
   VoidCallback? _zoomListener; // listener for ValueListenable
 
@@ -158,6 +164,8 @@ class _FovOverlayState extends State<FovOverlay> {
 
   @override
   void dispose() {
+    _unlockTimer?.cancel();
+
     _compassSub?.cancel();
     _locSub?.cancel();
     _pollTimer?.cancel();
@@ -179,13 +187,14 @@ class _FovOverlayState extends State<FovOverlay> {
         return;
       }
 
-      // visibility toggle handling
+      // visibility toggle handling (unchanged)
       if (widget.minZoomToShow > 0) {
         final shouldBeVisible = z >= widget.minZoomToShow;
         if (shouldBeVisible != _zoomVisible) {
           _zoomVisible = shouldBeVisible;
           if (!_zoomVisible) {
             _updatePolygons({});
+            _lastSeenZoom = z;
             return;
           } else {
             _maybeRecompute(force: true);
@@ -195,22 +204,52 @@ class _FovOverlayState extends State<FovOverlay> {
         }
       }
 
+      // If beam is locked: allow *shrinking* but prevent recompute that would grow it
+      if (_beamLocked) {
+        final LatLng? center = _lastLocation ?? widget.getCurrentLocation();
+        if (center != null) {
+          // pick px based on current bucket so visuals remain consistent
+          final int bucket = _bucketForZoom(z);
+          double px;
+          if (bucket == 0)
+            px = widget.largeBeamPx;
+          else if (bucket == 1)
+            px = widget.mediumBeamPx;
+          else
+            px = widget.smallBeamPx;
+
+          final double mpp = _metersPerPixel(center.latitude, z);
+          final double computedMeters = (px * mpp).clamp(10.0, 350000.0);
+
+          // cap above by stored max (initial large size)
+          final double capped = math.min(computedMeters, _maxRadiusMeters);
+
+          // Only update if the computed (capped) value is *smaller* than current
+          if (capped < _currentRadiusMeters - 1e-3) {
+            _currentRadiusMeters = capped;
+            _buildGradientCone(_currentRadiusMeters);
+          }
+        }
+        _lastSeenZoom = z;
+        if (_debug) debugPrint('FOV: beam locked -> allowed shrink check done');
+        return;
+      }
+
+      // --- original non-locked behavior continues below ---
       final int bucket = _bucketForZoom(z);
 
-      // recompute radius per-bucket but also allow smooth updates within bucket.
-      // bucket change triggers a heavy "updateRadiusForBucket" + rebuild.
       if (_lastZoomBucket == null || _lastZoomBucket != bucket) {
         if (_debug)
           debugPrint('FOV: bucket change ${_lastZoomBucket} -> $bucket');
         _lastZoomBucket = bucket;
         _lastSeenZoom = z;
         _updateRadiusForBucket(
-            bucket); // sets _currentRadiusMeters using px constant
+            bucket); // heavy operation once per bucket change
         _buildGradientCone(_currentRadiusMeters);
         return;
       }
 
-      // Otherwise bucket didn't change: recompute dynamic radius that follows zoom.
+      // throttle and do smooth recompute in unlocked mode as before...
       final int now = DateTime.now().millisecondsSinceEpoch;
       if (now - _lastZoomRecomputeMs < _zoomRecomputeThrottleMs) {
         _lastSeenZoom = z;
@@ -219,11 +258,8 @@ class _FovOverlayState extends State<FovOverlay> {
       _lastZoomRecomputeMs = now;
       _lastSeenZoom = z;
 
-      // Recompute radius by converting px->meters using current zoom (so it scales smoothly)
-// Recompute radius by converting px->meters using current zoom (so it scales smoothly)
       final LatLng? center = _lastLocation ?? widget.getCurrentLocation();
       if (center != null) {
-        // choose px from the current bucket for visual consistency
         double px;
         if (bucket == 0)
           px = widget.largeBeamPx;
@@ -235,14 +271,30 @@ class _FovOverlayState extends State<FovOverlay> {
         final double mpp = _metersPerPixel(center.latitude, z);
         final double computedMeters = (px * mpp).clamp(10.0, 350000.0);
 
-        // initialize max if unset (first meaningful measurement)
+// inside _updateRadiusForBucket, replace the lock block with:
         if (_maxRadiusMeters == double.infinity) {
-          _maxRadiusMeters = computedMeters;
+          final double initialMax =
+              (computedMeters * widget.initialBeamScale).clamp(10.0, 350000.0);
+          _maxRadiusMeters = initialMax;
+
+          // If caller requested, lock beam after the first meaningful measurement
+          if (widget.lockBeamOnInitialLoad) {
+            _beamLocked = true;
+            // auto-unlock after 1.5 seconds (adjust as needed)
+            _unlockTimer?.cancel();
+            _unlockTimer = Timer(const Duration(milliseconds: 1500), () {
+              _beamLocked = false;
+              if (_debug) debugPrint('FOV: auto-unlocked after initial hold');
+              // rebuild so we immediately reflect latest zoom state
+              _maybeRecompute(force: true);
+            });
+            if (_debug)
+              debugPrint(
+                  'FOV: beam locked at initial size ($_maxRadiusMeters m)');
+          }
         }
 
-        // allow shrink (computed < max) but never grow above _maxRadiusMeters
         _currentRadiusMeters = math.min(computedMeters, _maxRadiusMeters);
-
         _buildGradientCone(_currentRadiusMeters);
       } else {
         _maybeRecompute(force: true);
@@ -253,9 +305,11 @@ class _FovOverlayState extends State<FovOverlay> {
   }
 
   void resetBeamSizing() {
+    _unlockTimer?.cancel();
     _maxRadiusMeters = double.infinity;
     _currentRadiusMeters = 0.0;
     _lastZoomBucket = null;
+    _beamLocked = false;
     _maybeRecompute(force: true);
   }
 
@@ -297,6 +351,7 @@ class _FovOverlayState extends State<FovOverlay> {
         // rebuild polygons with the new static radius
         _buildGradientCone(_currentRadiusMeters);
       }
+      _onExternalZoom(z); // reuse the same behavior (handles locked/unlocked)
     } catch (e) {
       if (_debug) debugPrint('FOV zoom check error: $e');
     }
@@ -316,6 +371,7 @@ class _FovOverlayState extends State<FovOverlay> {
 
   /// Pick a static radius (meters) for a chosen bucket and center location.
   /// This is done only when bucket changes so we avoid per-frame work.
+// 2) Modify _updateRadiusForBucket to apply initialBeamScale & optionally lock
   void _updateRadiusForBucket(int bucket) {
     final LatLng? center = _lastLocation ?? widget.getCurrentLocation();
     if (center == null) {
@@ -323,7 +379,6 @@ class _FovOverlayState extends State<FovOverlay> {
       return;
     }
 
-    // use lastSeenZoom or midpoint if unknown
     final double zoom =
         _lastSeenZoom ?? (widget.zoomCutLarge + widget.zoomCutSmall) / 2.0;
 
@@ -339,9 +394,18 @@ class _FovOverlayState extends State<FovOverlay> {
     final double computedMeters = (px * mpp).clamp(10.0, 350000.0);
 
     // If max hasn't been set yet, initialize it from this bucket,
-    // otherwise keep the existing _maxRadiusMeters.
+    // but allow a growth factor (initialBeamScale) so first beam is larger.
     if (_maxRadiusMeters == double.infinity) {
-      _maxRadiusMeters = computedMeters;
+      final double initialMax =
+          (computedMeters * widget.initialBeamScale).clamp(10.0, 350000.0);
+      _maxRadiusMeters = initialMax;
+
+      // If caller requested, lock beam after the first meaningful measurement
+      if (widget.lockBeamOnInitialLoad) {
+        _beamLocked = true;
+        if (_debug)
+          debugPrint('FOV: beam locked at initial size ($_maxRadiusMeters m)');
+      }
     }
 
     // Current radius follows computedMeters but never exceeds the stored max.

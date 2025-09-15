@@ -54,13 +54,17 @@ class _FavoriteWidgetState extends State<FavoriteWidget> {
   late final double _expandThreshold = 0.8;
   VoidCallback? _controllerListener;
 
-  // sheet sizing constants (keep consistent with build)
-  final double _sheetMinChildSize = 0.15;
-  final double _preferredInitialSize = 0.5;
+  // sheet sizing constants (matched to SafetyAssistWidget)
+  final double _sheetMinChildSize = 0.30; // same as SafetyAssist
+  final double _sheetDefaultInitial = 0.35; // same initial as SafetyAssist
   final double _sheetMaxChildSize = 1.0;
   bool _isAtTop = false;
 
-  // attachment / pending animation helpers (copied pattern from LocationWidgets)
+  // service-area animation state (copied from SafetyAssistWidget)
+  double _serviceAreaFactor = 1.0; // 1.0 = fully visible, 0.0 = hidden
+  bool _serviceVisible = true; // single source-of-truth if needed
+
+  // attachment / pending animation helpers (copied pattern)
   bool _sheetAttached = false;
   double? _pendingAnimateTarget;
   Duration _pendingAnimateDuration = const Duration(milliseconds: 300);
@@ -122,33 +126,38 @@ class _FavoriteWidgetState extends State<FavoriteWidget> {
       _createdControllerLocally = true;
     }
 
-    // attach listener to keep _isExpanded in sync with controller.size
+    // copy service-area fade logic from SafetyAssistWidget
+    const double _hideThreshold = 0.55;
+    final double _fadeStart = _sheetDefaultInitial; // 0.35
+    const double _factorDirtyThreshold = 0.02;
+
     _controllerListener = () {
       try {
         final size = _draggableController.size;
-        final expanded = size >= _expandThreshold;
-        final atTop = size >= 0.995; // treat ~1.0 as 'at top'
-        debugPrint(
-            '[FavoriteWidget] controller.size=$size expanded=$expanded _isExpanded=$_isExpanded _isAtTop=$_isAtTop isAttached=${_draggableController.isAttached}');
-        if (expanded != _isExpanded) {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (!mounted) return;
-            if (expanded != _isExpanded) {
-              debugPrint('[FavoriteWidget] updating _isExpanded -> $expanded');
-              setState(() => _isExpanded = expanded);
-            }
+
+        // compute top state (avoid status bar overlap when at very top)
+        final bool atTop = size >= 0.995;
+
+        // Map size -> factor in a smooth linear ramp between _fadeStart.._hideThreshold
+        double factor;
+        if (size <= _fadeStart) {
+          factor = 1.0;
+        } else if (size >= _hideThreshold) {
+          factor = 0.0;
+        } else {
+          factor = 1.0 - (size - _fadeStart) / (_hideThreshold - _fadeStart);
+        }
+        factor = factor.clamp(0.0, 1.0);
+
+        final bool factorChanged =
+            (factor - _serviceAreaFactor).abs() > _factorDirtyThreshold;
+        if (factorChanged || atTop != _isAtTop) {
+          setState(() {
+            _serviceAreaFactor = factor;
+            _isAtTop = atTop;
           });
         }
-        // update at-top state so widgets that depend on it can react
-        if (atTop != (_isAtTop ?? false)) {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (!mounted) return;
-            setState(() => _isAtTop = atTop);
-          });
-        }
-      } catch (e, st) {
-        debugPrint('[FavoriteWidget] controller listener error: $e\n$st');
-      }
+      } catch (_) {}
     };
 
     _draggableController.addListener(_controllerListener!);
@@ -169,6 +178,49 @@ class _FavoriteWidgetState extends State<FavoriteWidget> {
     }
   }
 
+  // ----------------- _safeAnimateSheetTo (copied) -----------------
+  Future<void> _safeAnimateSheetTo(double target,
+      {Duration duration = const Duration(milliseconds: 300),
+      Curve curve = Curves.easeOut}) async {
+    if (!mounted) {
+      debugPrint(
+          '[FavoriteWidget] _safeAnimateSheetTo called but not mounted, target=$target');
+      return;
+    }
+
+    debugPrint(
+        '[FavoriteWidget] _safeAnimateSheetTo(target=$target, attached=$_sheetAttached)');
+
+    if (_sheetAttached) {
+      try {
+        debugPrint(
+            '[FavoriteWidget] animating controller to $target NOW (isAttached=${_draggableController.isAttached})');
+        await _draggableController.animateTo(target,
+            duration: duration, curve: curve);
+        double after = 0;
+        try {
+          after = _draggableController.size;
+        } catch (_) {}
+        debugPrint(
+            '[FavoriteWidget] animateTo completed to $target, controller.size=$after');
+      } catch (e, st) {
+        debugPrint('[FavoriteWidget] animateTo failed: $e\n$st');
+        try {
+          debugPrint(
+              '[FavoriteWidget] controller.size on failure=${_draggableController.size}');
+        } catch (_) {}
+      }
+      return;
+    }
+
+    // queue it to run once sheet attaches
+    _pendingAnimateTarget = target;
+    _pendingAnimateDuration = duration;
+    _pendingAnimateCurve = curve;
+    debugPrint(
+        '[FavoriteWidget] queued animateTo($target) — sheet not attached yet');
+  }
+
   @override
   void didUpdateWidget(covariant FavoriteWidget oldWidget) {
     super.didUpdateWidget(oldWidget);
@@ -186,7 +238,7 @@ class _FavoriteWidgetState extends State<FavoriteWidget> {
       } else {
         debugPrint(
             '[FavoriteWidget] didUpdateWidget: rerouting stopped -> restoring');
-        _safeAnimateSheetTo(_preferredInitialSize,
+        _safeAnimateSheetTo(_sheetDefaultInitial,
             duration: const Duration(milliseconds: 250));
       }
     }
@@ -223,51 +275,6 @@ class _FavoriteWidgetState extends State<FavoriteWidget> {
     }
   }
 
-  // ----------------- _safeAnimateSheetTo (replace your existing) -----------------
-  Future<void> _safeAnimateSheetTo(double target,
-      {Duration duration = const Duration(milliseconds: 300),
-      Curve curve = Curves.easeOut}) async {
-    if (!mounted) {
-      debugPrint(
-          '[FavoriteWidget] _safeAnimateSheetTo called but not mounted, target=$target');
-      return;
-    }
-
-    debugPrint(
-        '[FavoriteWidget] _safeAnimateSheetTo(target=$target, attached=$_sheetAttached)');
-
-    if (_sheetAttached) {
-      try {
-        debugPrint(
-            '[FavoriteWidget] animating controller to $target NOW (isAttached=${_draggableController.isAttached})');
-        await _draggableController.animateTo(target,
-            duration: duration, curve: curve);
-        // after animate, log reported size
-        double after = 0;
-        try {
-          after = _draggableController.size;
-        } catch (_) {}
-        debugPrint(
-            '[FavoriteWidget] animateTo completed to $target, controller.size=$after');
-      } catch (e, st) {
-        debugPrint('[FavoriteWidget] animateTo failed: $e\n$st');
-        // try to print current size even on failure
-        try {
-          debugPrint(
-              '[FavoriteWidget] controller.size on failure=${_draggableController.size}');
-        } catch (_) {}
-      }
-      return;
-    }
-
-    // queue it to run once sheet attaches
-    _pendingAnimateTarget = target;
-    _pendingAnimateDuration = duration;
-    _pendingAnimateCurve = curve;
-    debugPrint(
-        '[FavoriteWidget] queued animateTo($target) — sheet not attached yet');
-  }
-
   @override
   void dispose() {
     if (_controllerListener != null) {
@@ -288,12 +295,16 @@ class _FavoriteWidgetState extends State<FavoriteWidget> {
   @override
   Widget build(BuildContext context) {
     final bool isDarkMode = Provider.of<ThemeProvider>(context).isDarkMode;
+    const Duration _svcAnimDur = Duration(milliseconds: 220);
+
+    // match SafetyAssist: subtle translate when fading
+    final double translateY = (1 - _serviceAreaFactor) * 20;
 
     return DraggableScrollableSheet(
       controller: _draggableController,
       expand: true,
-      initialChildSize: _preferredInitialSize,
-      minChildSize: _sheetMinChildSize,
+      initialChildSize: _sheetDefaultInitial, // MATCHED to SafetyAssist (0.35)
+      minChildSize: _sheetMinChildSize, // MATCHED to SafetyAssist (0.3)
       maxChildSize: _sheetMaxChildSize,
       builder: (BuildContext context, ScrollController scrollController) {
         // mark sheet as attached and apply any pending animation (once)
@@ -301,7 +312,7 @@ class _FavoriteWidgetState extends State<FavoriteWidget> {
           if (mounted && !_sheetAttached) {
             _sheetAttached = true;
             debugPrint(
-                '[FavoriteWidget] sheet attached (builder) - applying pending if any (pending=$_pendingAnimateTarget) isAttached=${_draggableController.isAttached}');
+                '[FavoriteWidget] sheet attached (builder) - applying pending if any (pending=$_pendingAnimateTarget)');
             if (_pendingAnimateTarget != null) {
               final t = _pendingAnimateTarget!;
               final d = _pendingAnimateDuration;
@@ -314,8 +325,7 @@ class _FavoriteWidgetState extends State<FavoriteWidget> {
                   return;
                 }
                 try {
-                  debugPrint(
-                      '[FavoriteWidget] applying pending animateTo($t) (isAttached=${_draggableController.isAttached})');
+                  debugPrint('[FavoriteWidget] applying pending animateTo($t)');
                   await _draggableController.animateTo(t,
                       duration: d, curve: c);
                   double after = 0;
@@ -333,112 +343,93 @@ class _FavoriteWidgetState extends State<FavoriteWidget> {
           }
         });
 
-        // NOTE: ServiceButtons is placed OUTSIDE the white container below (same visual position as LocationWidgets)
         return Column(
           children: [
-            const SizedBox(height: 8),
-
-            // --- OUTSIDE ServiceButtons (above the main container) ---
-            IgnorePointer(
-              // now also ignore if rerouting is active
-              ignoring: _isExpanded || widget.isRerouting,
-              child: Builder(builder: (ctx) {
-                // show/hide with animation like LocationWidgets
-                final showButtons = !(_isExpanded || widget.isRerouting);
-                return AnimatedSize(
-                  duration: const Duration(milliseconds: 220),
-                  curve: Curves.easeInOut,
-                  child: AnimatedOpacity(
-                    duration: const Duration(milliseconds: 220),
-                    curve: Curves.easeOut,
-                    opacity: (_isExpanded || widget.isRerouting) ? 0.0 : 1.0,
-                    // keep same children so callbacks remain unchanged; use SizedBox.shrink when hidden so size collapses
-                    child: showButtons
-                        ? ServiceButtons(
-                            onButtonPressed:
-                                widget.onServiceButtonPressed ?? (label) {},
-                            currentLocation: widget.currentLocation,
-                            onMapViewPressed: () async {
-                              debugPrint(
-                                  '[FavoriteWidget] ServiceButtons.onMapViewPressed tapped (mapSheetOpening=$_mapSheetOpening)');
-                              if (_mapSheetOpening) {
+            // --- SERVICE AREA: copied structure from SafetyAssistWidget ---
+            RepaintBoundary(
+              child: ClipRect(
+                child: Align(
+                  alignment: Alignment.topCenter,
+                  heightFactor: _serviceAreaFactor,
+                  child: Opacity(
+                    opacity: _serviceAreaFactor,
+                    child: Transform.translate(
+                      offset: Offset(0, translateY),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const SizedBox(height: 8),
+                          // ignore pointer when almost hidden (same threshold as SafetyAssist)
+                          IgnorePointer(
+                            ignoring: _serviceAreaFactor < 0.05,
+                            child: ServiceButtons(
+                              onButtonPressed:
+                                  widget.onServiceButtonPressed ?? (label) {},
+                              currentLocation: widget.currentLocation,
+                              onMapViewPressed: () async {
                                 debugPrint(
-                                    '[FavoriteWidget] ignoring map tap - already opening');
-                                return;
-                              }
-                              _mapSheetOpening = true;
-                              try {
-                                await widget.onMapViewPressed?.call();
-                              } finally {
-                                await Future.delayed(
-                                    const Duration(milliseconds: 200));
-                                _mapSheetOpening = false;
-                                debugPrint(
-                                    '[FavoriteWidget] mapSheetOpening reset to false');
-                              }
-                            },
-                            onCenterPressed: () async {
-                              debugPrint(
-                                  '[FavoriteWidget] ServiceButtons.onCenterPressed tapped');
-                              final currentLoc = widget.currentLocation;
-                              if (currentLoc == null) {
-                                debugPrint(
-                                    '[FavoriteWidget] no currentLocation to center on');
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                      content:
-                                          Text('locationNotAvailable'.tr())),
-                                );
-                                return;
-                              }
-
-                              // collapse sheet to min first
-                              try {
-                                debugPrint(
-                                    '[FavoriteWidget] collapsing sheet to min before center');
-                                await _safeAnimateSheetTo(_sheetMinChildSize,
-                                    duration:
-                                        const Duration(milliseconds: 260));
-                              } catch (e, st) {
-                                debugPrint(
-                                    '[FavoriteWidget] safeAnimateSheetTo failed before center: $e\n$st');
-                              }
-
-                              // call any center handler
-                              try {
-                                widget.onCenterPressed?.call();
-                              } catch (e, st) {
-                                debugPrint(
-                                    '[FavoriteWidget] onCenterPressed threw: $e\n$st');
-                              }
-
-                              // then request host to show my-info overlay if provided
-                              if (widget.onShowMyInfoPressed != null) {
-                                try {
+                                    '[FavoriteWidget] ServiceButtons.onMapViewPressed tapped (mapSheetOpening=$_mapSheetOpening)');
+                                if (_mapSheetOpening) {
                                   debugPrint(
-                                      '[FavoriteWidget] calling onShowMyInfoPressed');
-                                  await widget.onShowMyInfoPressed!.call();
+                                      '[FavoriteWidget] ignoring map tap - already opening');
+                                  return;
+                                }
+                                _mapSheetOpening = true;
+                                try {
+                                  await widget.onMapViewPressed?.call();
+                                } finally {
+                                  await Future.delayed(
+                                      const Duration(milliseconds: 200));
+                                  _mapSheetOpening = false;
+                                  debugPrint(
+                                      '[FavoriteWidget] mapSheetOpening reset to false');
+                                }
+                              },
+                              onCenterPressed: () async {
+                                debugPrint(
+                                    '[FavoriteWidget] ServiceButtons.onCenterPressed tapped');
+                                // collapse sheet to min first (same UX as SafetyAssist)
+                                try {
+                                  await _safeAnimateSheetTo(_sheetMinChildSize,
+                                      duration:
+                                          const Duration(milliseconds: 260));
                                 } catch (e, st) {
                                   debugPrint(
-                                      '[FavoriteWidget] onShowMyInfoPressed threw: $e\n$st');
+                                      '[FavoriteWidget] safeAnimateSheetTo failed before center: $e\n$st');
                                 }
-                              }
-                            },
-                          )
-                        : const SizedBox.shrink(),
-                  ),
-                );
-              }),
-            ),
 
-            const SizedBox(height: 10),
+                                try {
+                                  widget.onCenterPressed?.call();
+                                } catch (e, st) {
+                                  debugPrint(
+                                      '[FavoriteWidget] onCenterPressed threw: $e\n$st');
+                                }
+
+                                if (widget.onShowMyInfoPressed != null) {
+                                  try {
+                                    await widget.onShowMyInfoPressed!.call();
+                                  } catch (e, st) {
+                                    debugPrint(
+                                        '[FavoriteWidget] onShowMyInfoPressed threw: $e\n$st');
+                                  }
+                                }
+                              },
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
 
             // --- main sheet content (white container) ---
             Expanded(
-              child: SafeArea(
-                top:
-                    _isExpanded, // only add top safe inset when sheet is expanded
-                bottom: false,
+              // COPY: use padding with top = MediaQuery padding when sheet is at top (same as SafetyAssistWidget)
+              child: Padding(
+                padding: EdgeInsets.only(
+                    top: _isAtTop ? MediaQuery.of(context).padding.top : 0),
                 child: Container(
                   decoration: BoxDecoration(
                     color: isDarkMode ? Colors.grey[900] : Colors.white,
@@ -449,8 +440,13 @@ class _FavoriteWidgetState extends State<FavoriteWidget> {
                     boxShadow: const [
                       BoxShadow(
                         color: Colors.black26,
-                        blurRadius: 10,
-                        offset: Offset(0, -5),
+                        blurRadius: 0.5,
+                        offset: Offset(-1, 0),
+                      ),
+                      BoxShadow(
+                        color: Colors.black26,
+                        blurRadius: 0.5,
+                        offset: Offset(1, 0),
                       ),
                     ],
                   ),
@@ -507,8 +503,7 @@ class _FavoriteWidgetState extends State<FavoriteWidget> {
                                   }
 
                                   final existingIndex = lists.indexWhere(
-                                    (item) => item["title"] == newCategory,
-                                  );
+                                      (item) => item["title"] == newCategory);
 
                                   if (existingIndex == -1) {
                                     setState(() {

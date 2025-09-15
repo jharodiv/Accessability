@@ -35,6 +35,7 @@ typedef CircleTapCallback = void Function(LatLng center, double suggestedZoom);
 class CircleManager {
   /// Create PWD circles (same logic you had). Provide onTap callback so
   /// caller can animate the camera using its own map controller.
+  // inside CircleManager (replace the existing function)
   static Set<Circle> createPwdfriendlyRouteCircles({
     required List<dynamic> pwdLocations,
     required double currentZoom,
@@ -75,13 +76,29 @@ class CircleManager {
 
       final int strokeWidth = _strokeWidthForZoom(currentZoom);
 
+      const double fillOpacity = 0.45;
+      const double strokeOpacity = 0.0;
+
+      // Prefer place id if present (stable id used by your places path)
+      String circleIdValue;
+      if (loc != null && loc['id'] != null && loc['id'].toString().isNotEmpty) {
+        circleIdValue = 'place_circle_${loc['id']}';
+      } else if (loc != null &&
+          loc['uid'] != null &&
+          loc['uid'].toString().isNotEmpty) {
+        circleIdValue = 'pwd_circle_${loc['uid']}';
+      } else {
+        circleIdValue =
+            'pwd_circle_${lat.toStringAsFixed(6)}_${lng.toStringAsFixed(6)}';
+      }
+
       circles.add(Circle(
-        circleId: CircleId('pwd_circle_${lat}_${lng}'),
+        circleId: CircleId(circleIdValue),
         center: LatLng(lat, lng),
         radius: finalRadiusMeters,
-        fillColor: pwdCircleColor.withOpacity(0.16),
-        strokeColor: pwdCircleColor.withOpacity(0.95),
-        strokeWidth: strokeWidth,
+        fillColor: pwdCircleColor.withOpacity(fillOpacity),
+        strokeColor: Colors.transparent,
+        strokeWidth: 0,
         zIndex: 200,
         visible: true,
         consumeTapEvents: true,
@@ -125,16 +142,11 @@ class CircleManager {
     required Color pwdCircleColor,
     required CircleTapCallback onTap,
     double minPixelRadius = 12.0,
-    double shrinkFactor = 0.55,
-    double extraVisualBoost = 1.0,
+    double shrinkFactor = 1.0, // set to 1.0 to avoid shrinking
+    double extraVisualBoost = 1.25, // boost to make circles more visible
   }) {
     final Set<Circle> circles = {};
     if (specs.isEmpty) return circles;
-
-    int _strokeWidthForZoom(double zoom) {
-      final int w = ((zoom - 12) * 0.6).round();
-      return w.clamp(1, 8);
-    }
 
     for (final spec in specs) {
       final LatLng center = spec.center;
@@ -147,22 +159,29 @@ class CircleManager {
       final double metersPerPixel =
           156543.03392 * cos(latRad) / pow(2.0, currentZoom);
 
+      // radius based on zoom + spec base
       final double zoomAdaptiveMeters =
           _radiusForZoom(currentZoom, baseRadius) * pwdRadiusMultiplier;
+
+      // minimum allowed meters based on pixel floor
       final double minMetersFloor = minPixelRadius * metersPerPixel;
 
-      final double adjustedRadius = max(zoomAdaptiveMeters, minMetersFloor) *
-          shrinkFactor *
-          extraVisualBoost;
-      final int strokeW = _strokeWidthForZoom(currentZoom);
+      // Combine them and prevent shrinking: choose the max baseline, then apply boosts.
+      double candidateRadius = max(zoomAdaptiveMeters, minMetersFloor) *
+          extraVisualBoost *
+          shrinkFactor;
+
+      // make sure radius never drops below zoomAdaptiveMeters (prevents shrink)
+      final double finalRadius = max(candidateRadius, zoomAdaptiveMeters);
 
       circles.add(Circle(
         circleId: CircleId(id),
         center: center,
-        radius: adjustedRadius,
-        fillColor: pwdCircleColor.withOpacity(0.16),
-        strokeColor: pwdCircleColor.withOpacity(0.95),
-        strokeWidth: strokeW,
+        radius: finalRadius,
+        fillColor: pwdCircleColor.withOpacity(0.4), // 50% opacity
+        // Remove outer ring:
+        strokeColor: Colors.transparent,
+        strokeWidth: 0,
         zIndex: zIndex,
         visible: visible,
         consumeTapEvents: true,
@@ -185,7 +204,13 @@ class CircleManager {
   }
 
   static double _radiusForZoom(double zoom, double baseMeters) {
-    final num factor = pow(2, 13.0 - zoom).clamp(0.25, 12.0);
-    return max(8.0, baseMeters * factor);
+    // Compute original factor (2^(13 - zoom))
+    final num factor = pow(2, 13.0 - zoom);
+
+    // If zoom is high (>= 15) don't let factor shrink below 1.0,
+    // so radius will not get smaller than baseMeters at those zooms.
+    final num clampedFactor = (zoom >= 15.0) ? 1.0 : factor.clamp(0.25, 12.0);
+
+    return max(8.0, baseMeters * clampedFactor);
   }
 }

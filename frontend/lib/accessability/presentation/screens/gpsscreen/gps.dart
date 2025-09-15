@@ -10,6 +10,7 @@ import 'package:accessability/accessability/presentation/widgets/gpsWidgets/navi
 import 'package:accessability/accessability/presentation/widgets/gpsWidgets/navigation_panel.dart';
 import 'package:accessability/accessability/presentation/widgets/gpsWidgets/rerouting_banner.dart';
 import 'package:accessability/accessability/presentation/widgets/gpsWidgets/user_marker_info_card.dart';
+import 'package:accessability/accessability/presentation/widgets/reusableWidgets/favorite_map_marker.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'package:firebase_auth/firebase_auth.dart';
@@ -32,7 +33,7 @@ import 'package:accessability/accessability/presentation/screens/gpsscreen/pwd_f
 import 'package:accessability/accessability/presentation/widgets/accessability_footer.dart'
     show Accessabilityfooter;
 import 'package:accessability/accessability/presentation/widgets/google_helper/map_view_screen.dart'
-    show MapViewScreen, MapPerspectivePicker;
+    show MapPerspectivePicker;
 import 'package:accessability/accessability/presentation/widgets/google_helper/openstreetmap_helper.dart'
     show OpenStreetMapHelper;
 import 'package:accessability/accessability/presentation/widgets/gpsWidgets/circle_manager.dart';
@@ -68,6 +69,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:accessability/accessability/backgroundServices/pwd_location_notification_service.dart';
 import 'package:accessability/accessability/backgroundServices/space_member_notification_service.dart';
+import 'package:flutter/scheduler.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 class GpsScreen extends StatefulWidget {
   const GpsScreen({super.key});
@@ -112,6 +115,7 @@ class _GpsScreenState extends State<GpsScreen> {
   MapPerspective? _pendingPerspective;
   String _activeSpaceName = '';
   bool _showingPwdMarkers = false;
+  final double _circleZoomCutoff = 14.0; // make circles visible at zoom 14.0+
 
   // Polylines / route visuals (driven by RouteController callbacks)
   Set<Polyline> _polylines = {};
@@ -141,9 +145,11 @@ class _GpsScreenState extends State<GpsScreen> {
   bool _suppressMapTapCollapse = false;
   Timer? _suppressMapTapCollapseTimer;
   final ValueNotifier<bool> _userOverlayVisible = ValueNotifier<bool>(false);
-
+  final Map<String, Place> _placeById = {};
+  String? _droppedPlaceId;
   Timer?
       _routeUpdateTimer; // used only to decide icon state (kept for minimal changes)
+  MapPerspective _currentMapPerspective = MapPerspective.classic; // default
 
   // Nearby management
   List<NearbyCircleSpec> _nearbyCircleSpecs = [];
@@ -157,6 +163,8 @@ class _GpsScreenState extends State<GpsScreen> {
   @override
   void initState() {
     super.initState();
+    FavoriteMapMarker.clearCache();
+    MarkerFactory.clearCaches();
 
     _favoriteSheetController = DraggableScrollableController();
     _locationSheetController = DraggableScrollableController();
@@ -252,9 +260,9 @@ class _GpsScreenState extends State<GpsScreen> {
 
         // When rerouting starts collapse relevant sheets to their min sizes.
         if (rerouting) {
-          const double favoriteMin = 0.10; // FavoriteWidget minChildSize
-          const double locationMin = 0.10; // LocationWidgets minChildSize
-          const double safetyMin = 0.10; // SafetyAssistWidget minChildSize
+          const double favoriteMin = 0.3; // FavoriteWidget minChildSize
+          const double locationMin = 0.4; // LocationWidgets minChildSize
+          const double safetyMin = 0.3; // SafetyAssistWidget minChildSize
 
           // Run asynchronously so we don't block the route callback / UI thread.
           Future.microtask(() async {
@@ -324,6 +332,7 @@ class _GpsScreenState extends State<GpsScreen> {
         _locationHandler.mapController!.animateCamera(
           CameraUpdate.newLatLng(_locationHandler.currentLocation!),
         );
+        _maybeUpdateCircles();
       }
       // Apply a pending perspective if it was passed before location was ready.
       if (_pendingPerspective != null) {
@@ -579,20 +588,38 @@ class _GpsScreenState extends State<GpsScreen> {
 
   MapPerspective? _mapPerspectiveFromDynamic(dynamic v) {
     if (v == null) return null;
+
     try {
+      // already a MapPerspective
       if (v is MapPerspective) return v;
+
+      // integer index (clamped)
       if (v is int) {
-        final idx = v.clamp(0, MapPerspective.values.length - 1).toInt();
+        final maxIdx = MapPerspective.values.length - 1;
+        final idx = v.clamp(0, maxIdx).toInt();
         return MapPerspective.values[idx];
       }
+
+      // string name: allow "classic", "Classic", "perspective", "3d" etc.
       if (v is String) {
-        final byName = MapPerspective.values.firstWhere(
-          (e) => e.toString().split('.').last.toLowerCase() == v.toLowerCase(),
-          orElse: () => MapPerspective.classic,
-        );
-        return byName;
+        final s = v.trim().toLowerCase();
+        // try exact enum name match
+        for (final p in MapPerspective.values) {
+          if (p.toString().split('.').last.toLowerCase() == s) return p;
+        }
+        // optionally accept some friendly aliases
+        if (s == '3d' || s == 'perspective') return MapPerspective.perspective;
+        if (s == 'satellite' || s == 'aerial') return MapPerspective.aerial;
+        if (s == 'hybrid') return MapPerspective.street;
+        if (s == 'standard' || s == 'roadmap' || s == 'classic')
+          return MapPerspective.classic;
+
+        // no match
+        return null;
       }
-    } catch (_) {}
+    } catch (e, st) {
+      debugPrint('_mapPerspectiveFromDynamic parse error: $e\n$st');
+    }
     return null;
   }
 
@@ -677,30 +704,67 @@ class _GpsScreenState extends State<GpsScreen> {
     }
   }
 
+  bool _circleSetsEqual(Set<Circle> a, Set<Circle> b) {
+    if (a.length != b.length) return false;
+    final Map<String, Circle> ma = {for (var c in a) c.circleId.value: c};
+    final Map<String, Circle> mb = {for (var c in b) c.circleId.value: c};
+    if (!ma.keys.toSet().containsAll(mb.keys.toSet())) return false;
+    for (final id in ma.keys) {
+      final ca = ma[id]!;
+      final cb = mb[id]!;
+      // compare geometry roughly (radius + lat/lng)
+      if ((ca.radius - cb.radius).abs() > 0.01) return false;
+      if ((ca.center.latitude - cb.center.latitude).abs() > 1e-6) return false;
+      if ((ca.center.longitude - cb.center.longitude).abs() > 1e-6)
+        return false;
+    }
+    return true;
+  }
+
   // --- Place marker creation (delegates to MarkerFactory) ---
   Future<Marker> _createPlaceMarker(Place place) async {
-    final cacheKey =
-        'place_${place.id}_v2_c${_colorForPlaceType(place.category).value}_s88_is40';
-    return MarkerFactory.createPlaceMarker(
-      ctx: context,
-      place: place,
-      iconProvider: () => MarkerFactory.ensureFavoriteBitmap(
+    // keep local lookup for later (used by _setPlaceMarkerDropped)
+    _placeById[place.id] = place;
+
+    final badgeSize = 64;
+    BitmapDescriptor icon;
+    try {
+      icon = await MarkerFactory.createBadgeForPlaceType(
         ctx: context,
-        cacheKey: cacheKey,
-        placeColor: _colorForPlaceType(place.category),
-        outerSize: 64,
-        innerSize: 30,
-        pixelRatio: MediaQuery.of(context).devicePixelRatio,
+        placeType: place.category ?? 'place',
+        size: badgeSize,
+      );
+    } catch (e) {
+      icon = BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueViolet);
+    }
+
+    // Build a marker using same visual anchor as fetchNearbyPlaces
+    return Marker(
+      markerId: MarkerId('place_${place.id}'),
+      position: LatLng(place.latitude, place.longitude),
+      icon: icon,
+      anchor: const Offset(0.5, 0.72), // matches your nearby badges
+      zIndex: 300,
+      infoWindow: InfoWindow(
+        title: place.name,
+        snippet:
+            '${'category'.tr()}: ${place.category ?? ''}\nTap for 3D navigation',
+        onTap: () {
+          // start route + visually "drop" this marker
+          if (_locationHandler.currentLocation != null) {
+            routeController.createRoute(
+              _locationHandler.currentLocation!,
+              LatLng(place.latitude, place.longitude),
+            );
+            routeController
+                .startFollowingUser(() => _locationHandler.currentLocation);
+
+            // mark this place as dropped (makes icon bigger / lifts above)
+            _droppedPlaceId = place.id;
+            _setPlaceMarkerDropped(place.id, true);
+          }
+        },
       ),
-      onInfoTap: () {
-        if (_locationHandler.currentLocation != null) {
-          // start route to this place
-          routeController.createRoute(_locationHandler.currentLocation!,
-              LatLng(place.latitude, place.longitude));
-          routeController
-              .startFollowingUser(() => _locationHandler.currentLocation);
-        }
-      },
       onTap: () async {
         try {
           final openStreetMapHelper = OpenStreetMapHelper();
@@ -718,6 +782,49 @@ class _GpsScreenState extends State<GpsScreen> {
     );
   }
 
+  Future<void> _setPlaceMarkerDropped(String placeId, bool dropped) async {
+    final markerIdValue = 'place_$placeId';
+    final oldMarker = _markers.firstWhere(
+      (m) => m.markerId.value == markerIdValue,
+      orElse: () =>
+          Marker(markerId: MarkerId('invalid'), position: LatLng(0, 0)),
+    );
+
+    if (oldMarker.markerId.value == 'invalid') return;
+
+    final place = _placeById[placeId];
+    final placeType = place?.category ?? 'place';
+
+    // choose a larger badge when dropped, smaller when not
+    final int size = dropped ? 88 : 64;
+    BitmapDescriptor bmp;
+    try {
+      bmp = await MarkerFactory.createBadgeForPlaceType(
+        ctx: context,
+        placeType: placeType,
+        size: size,
+      );
+    } catch (e) {
+      bmp = oldMarker.icon;
+    }
+
+    final newAnchor =
+        dropped ? const Offset(0.5, 0.90) : const Offset(0.5, 0.72);
+    final newZIndex = dropped ? 400.0 : (oldMarker.zIndex ?? 300.0);
+
+    final newMarker = oldMarker.copyWith(
+      iconParam: bmp,
+      anchorParam: newAnchor,
+      zIndexParam: newZIndex,
+    );
+
+    if (!mounted) return;
+    setState(() {
+      _markers.removeWhere((m) => m.markerId.value == markerIdValue);
+      _markers.add(newMarker);
+    });
+  }
+
   /// Call this to change PWD circle size and immediately rebuild circles
   void setPwdRadiusMultiplier(double multiplier) async {
     try {
@@ -729,7 +836,9 @@ class _GpsScreenState extends State<GpsScreen> {
         if (_showingPwdMarkers) {
           _circles.removeWhere(
               (circle) => circle.circleId.value.startsWith('pwd_'));
-          _circles = _circles.union(createPwdfriendlyRouteCircles(locations));
+          _circles = _circles.union(
+            _postProcessNearbyCircles(createPwdfriendlyRouteCircles(locations)),
+          );
         }
       });
     } catch (e) {
@@ -828,12 +937,16 @@ class _GpsScreenState extends State<GpsScreen> {
         // Remove any existing PWD circles
         _circles
             .removeWhere((circle) => circle.circleId.value.startsWith('pwd_'));
-        // Create and add new PWD circles
-        _circles = _circles.union(createPwdfriendlyRouteCircles(locations));
+
+// Only add PWD circles when zoom > 16.0
+        if (_currentZoom > 16.0) {
+          _circles = _circles.union(createPwdfriendlyRouteCircles(locations));
+        }
 
         // Set the state to show PWD markers
         _showingPwdMarkers = true;
       });
+      _maybeUpdateCircles();
     } catch (e) {
       print('Error fetching PWD locations: $e');
       setState(() {
@@ -862,7 +975,6 @@ class _GpsScreenState extends State<GpsScreen> {
             CameraUpdate.newLatLngZoom(center, suggestedZoom),
           );
         });
-
     return _nearbyManager.createPwdfriendlyRouteCircles(
       pwdLocations,
       currentZoom: cz,
@@ -939,20 +1051,37 @@ class _GpsScreenState extends State<GpsScreen> {
           ),
         ),
       );
+      _maybeUpdateCircles(); // add
     }
   }
 
   // --- Build place markers (keeps prior behavior but uses marker factory) ---
-  Future<void> _buildPlaceMarkersAsync(List<Place> places) async {
+  Future<void> _buildPlaceMarkersAsync(List<Place> places,
+      {bool debugCenterOnFirst = true}) async {
     debugPrint('buildPlaceMarkers called with ${places.length} places');
-    final futures = <Future<Marker>>[];
-    for (final place in places) {
-      futures.add(_createPlaceMarker(place));
+
+    if (places.isEmpty) {
+      if (!mounted) return;
+      setState(() {
+        _markers.removeWhere((m) => m.markerId.value.startsWith('place_'));
+        _circles
+            .removeWhere((c) => c.circleId.value.startsWith('place_circle_'));
+        _nearbyCircleSpecs = [];
+      });
+      return;
     }
+
+    // Keep local lookup
+    for (final p in places) _placeById[p.id] = p;
+
+    // 1) create markers
+    final futures = <Future<Marker>>[];
+    for (final place in places) futures.add(_createPlaceMarker(place));
     final createdMarkers = await Future.wait(futures);
     if (!mounted) return;
 
-    final List<NearbyCircleSpec> placeSpecs = places.map((place) {
+    // 2) store specs for compatibility
+    final placeSpecs = places.map((place) {
       return NearbyCircleSpec(
         id: 'place_circle_${place.id}',
         center: LatLng(place.latitude, place.longitude),
@@ -961,10 +1090,21 @@ class _GpsScreenState extends State<GpsScreen> {
         visible: true,
       );
     }).toList();
+    _nearbyCircleSpecs = placeSpecs;
 
-    final Set<Circle> computedPlaceCirclesRaw =
-        CircleManager.computeNearbyCirclesFromSpecs(
-      specs: placeSpecs,
+    // 3) build "pwd-like" input list
+    final placeLocations = places.map((p) {
+      return {
+        'id': p.id,
+        'name': p.name,
+        'latitude': p.latitude,
+        'longitude': p.longitude,
+      };
+    }).toList();
+
+    // 4) raw circles via PWD pipeline
+    final rawPlaceCircles = createPwdfriendlyRouteCircles(
+      placeLocations,
       currentZoom: _currentZoom,
       pwdBaseRadiusMeters: _pwdBaseRadiusMeters,
       pwdRadiusMultiplier: _pwdRadiusMultiplier,
@@ -974,50 +1114,48 @@ class _GpsScreenState extends State<GpsScreen> {
           CameraUpdate.newLatLngZoom(center, suggestedZoom),
         );
       },
-      minPixelRadius: 24.0,
-      shrinkFactor: 0.92,
-      extraVisualBoost: 1.15,
     );
 
-    final Map<String, Color> placeColorById = {
-      for (final p in places) p.id: _colorForPlaceType(p.category)
-    };
+// 5) post-process using the same visual transform as PWD circles
+    final computedPlaceCircles = _postProcessNearbyCircles(rawPlaceCircles)
+        .map((c) => c.copyWith(
+              // keep a reasonable zIndex for places (not extreme debug-high)
+              zIndexParam: 200,
+              visibleParam: true,
+            ))
+        .toSet();
 
-    final Set<Circle> computedPlaceCircles = computedPlaceCirclesRaw.map((c) {
-      final String circleIdValue = c.circleId.value;
-      final String placeId = _placeIdFromCircleId(circleIdValue);
-      final Color placeColor = placeColorById[placeId] ?? _pwdCircleColor;
-      return Circle(
-        circleId: c.circleId,
-        center: c.center,
-        radius: c.radius,
-        fillColor: placeColor.withOpacity(0.16),
-        strokeColor: placeColor.withOpacity(0.95),
-        strokeWidth: c.strokeWidth,
-        zIndex: c.zIndex,
-        visible: c.visible,
-        consumeTapEvents: true,
-        onTap: () {
-          _locationHandler.mapController?.animateCamera(
-            CameraUpdate.newLatLngZoom(
-              c.center,
-              max(15.0, min(18.0, _currentZoom + 1.6)),
-            ),
-          );
-        },
-      );
-    }).toSet();
+    debugPrint(
+        'buildPlaceMarkers: currentZoom=$_currentZoom createdMarkers=${createdMarkers.length} '
+        'computedPlaceCircles=${computedPlaceCircles.length} ids=${computedPlaceCircles.map((c) => c.circleId.value).join(", ")}');
 
+    if (!mounted) return;
+
+    // 6) update state: remove old place markers/circles, add new ones, preserve others
     setState(() {
+      // remove and replace place markers
       _markers
           .removeWhere((marker) => marker.markerId.value.startsWith('place_'));
       _markers.addAll(createdMarkers.toSet());
-      _circles.removeWhere((c) => c.circleId.value.startsWith('place_circle_'));
-      _circles = {..._circles, ...computedPlaceCircles};
-    });
 
-    debugPrint(
-        'Added ${createdMarkers.length} place markers and ${computedPlaceCircles.length} place circles');
+      // remove old place circles
+      _circles.removeWhere((c) => c.circleId.value.startsWith('place_circle_'));
+
+      // MERGE: preserve existing special circles (pwd_, debug_, etc.)
+      final preserved = _circles.where((c) {
+        final id = c.circleId.value;
+        return id.startsWith('pwd_') ||
+            id.startsWith('debug_') ||
+            id == 'debug_map_created_circle';
+      }).toSet();
+
+      // Only add place circles if zoom cutoff passes
+      final Set<Circle> toAdd = (_currentZoom >= _circleZoomCutoff)
+          ? computedPlaceCircles
+          : <Circle>{};
+
+      _circles = {...preserved, ...toAdd};
+    });
   }
 
   // Callback when the tutorial is completed.
@@ -1089,11 +1227,47 @@ class _GpsScreenState extends State<GpsScreen> {
     });
   }
 
+  Set<Circle> _postProcessNearbyCircles(Set<Circle> rawCircles,
+      {double minBoost = 1.0, double maxBoost = 2.0}) {
+    // compute a zoom-driven boost: at zoom 14 -> ~1.0, at high zoom -> up to maxBoost
+    final double zoomRange = (_currentZoom - 14.0).clamp(0.0, 8.0);
+    final double norm = (zoomRange / 8.0);
+    final double boost = minBoost + norm * (maxBoost - minBoost);
+
+    // appearance: 50% fill opacity
+    const double fillOpacity = 0.4;
+
+    return rawCircles.map((c) {
+      final double adjustedRadius = max(1.0, c.radius * boost);
+
+      return Circle(
+        circleId: c.circleId,
+        center: c.center,
+        radius: adjustedRadius,
+        // ensure we use the same base color but with 50% alpha
+        fillColor: (c.fillColor ?? _pwdCircleColor.withOpacity(fillOpacity))
+            .withOpacity(fillOpacity),
+        // remove outer ring
+        strokeColor: Colors.transparent,
+        strokeWidth: 0,
+        zIndex: c.zIndex,
+        visible: c.visible,
+        consumeTapEvents: c.consumeTapEvents,
+        onTap: c.onTap,
+      );
+    }).toSet();
+  }
+
   /// Convert raw nearby circles into "specs" stored in our manager and compute rescaled circles.
   Set<Circle> _computeNearbyCirclesFromRaw() {
     // delegate to NearbyManager (and also keep local copy of specs for compatibility)
     final specs = _nearbyCircleSpecs;
     if (specs.isEmpty) return {};
+
+    // Use larger visual parameters here to match PWD sizing:
+    // - minPixelRadius: larger => prevents very small circles at mid-zooms
+    // - shrinkFactor: 1.0 (don't shrink)
+    // - extraVisualBoost: 1.6 (make circles larger visually)
     return _nearbyManager.computeNearbyCirclesFromSpecs(
       currentZoom: _currentZoom,
       pwdBaseRadiusMeters: _pwdBaseRadiusMeters,
@@ -1104,14 +1278,76 @@ class _GpsScreenState extends State<GpsScreen> {
           CameraUpdate.newLatLngZoom(center, suggestedZoom),
         );
       },
-      minPixelRadius: 24.0,
-      shrinkFactor: 0.92,
-      extraVisualBoost: 1.15,
+      minPixelRadius: 15.0, // increase from 8 -> 15
+      shrinkFactor: 1.0, // avoid shrinking
+      extraVisualBoost: 1.0, // stronger visual boost like places
     );
+  }
+
+  void _maybeUpdateCircles(
+      {Duration delay = const Duration(milliseconds: 220)}) {
+    Future.delayed(delay, () {
+      if (!mounted) return;
+
+      // --- Preserve important circles (place_circle_, place_, pwd_, debug_, etc.) ---
+      final preserved = _circles.where((c) {
+        final id = c.circleId.value;
+        return id.startsWith('place_') ||
+            id.startsWith('place_circle_') ||
+            id.startsWith('pwd_') ||
+            id.startsWith('pwd_circle_') ||
+            id.startsWith('debug_');
+      }).toSet();
+
+      // Compute PWD circles (only if showing)
+      Set<Circle> pwdSet = {};
+      if (_showingPwdMarkers) {
+        final rawPwd = createPwdfriendlyRouteCircles(
+          _cachedPwdLocations,
+          currentZoom: _currentZoom,
+          pwdBaseRadiusMeters: _pwdBaseRadiusMeters,
+          pwdRadiusMultiplier: _pwdRadiusMultiplier,
+          pwdCircleColor: _pwdCircleColor,
+          onTap: (center, suggestedZoom) {
+            _locationHandler.mapController?.animateCamera(
+              CameraUpdate.newLatLngZoom(center, suggestedZoom),
+            );
+          },
+        );
+        pwdSet = _postProcessNearbyCircles(rawPwd);
+      }
+
+      // Compute nearby circles (uses your cached specs)
+      final rawNearby = _computeNearbyCirclesFromRaw();
+      final nearbySet = _postProcessNearbyCircles(rawNearby);
+
+      // Apply zoom cutoff
+      final Set<Circle> computed = (_currentZoom >= _circleZoomCutoff)
+          ? (pwdSet.union(nearbySet))
+          : <Circle>{};
+
+      // Merge preserved and computed - computed overrides preserved when ids match
+      final Map<String, Circle> mergedMap = {
+        for (var c in preserved) c.circleId.value: c
+      };
+      for (final c in computed) {
+        mergedMap[c.circleId.value] = c;
+      }
+      final Set<Circle> newCircles = mergedMap.values.toSet();
+
+      final bool same = _circleSetsEqual(_circles, newCircles);
+      if (!same) {
+        setState(() {
+          _circles = newCircles;
+        });
+      } else {}
+    });
   }
 
 // --- Nearby places fetching (delegates badge creation to MarkerFactory) ---
   Future<void> _fetchNearbyPlaces(String placeType) async {
+    FavoriteMapMarker.clearCache();
+    MarkerFactory.clearCaches();
     // If PWD category is selected
     if (placeType == 'PWD') {
       if (_showingPwdMarkers) {
@@ -1140,16 +1376,22 @@ class _GpsScreenState extends State<GpsScreen> {
         _markers.removeWhere((m) => !(m.markerId.value.startsWith('user_') ||
             m.markerId.value.startsWith('place_')));
 
-        // Clear all circles
-        _circles.clear();
+        // Keep permanent circles (place_/place_circle_/pwd_), remove the rest
+        _circles = _circles.where((c) {
+          final id = c.circleId.value;
+          return id.startsWith('place_') ||
+              id.startsWith('place_circle_') ||
+              id.startsWith('pwd_') ||
+              id.startsWith('pwd_circle_');
+        }).toSet();
 
-        // Clear computed nearby specs
+        // Clear computed nearby specs (you may keep if you want to recompute later)
         _nearbyCircleSpecs = [];
 
         // Clear route visuals
         _polylines.clear();
 
-        // Also clear PWD markers if they were showing
+        // Also clear PWD markers flag
         _showingPwdMarkers = false;
       });
       return;
@@ -1276,12 +1518,27 @@ class _GpsScreenState extends State<GpsScreen> {
 
         setState(() {
           _markers = existingMarkers.union(newMarkers);
-          final existingPwdCircles = _circles
-              .where((c) => c.circleId.value.startsWith('pwd_'))
-              .toSet();
-          _circles = existingPwdCircles.union(newCircles);
+
+          // Preserve place circles (place_, place_circle_) and pwd_ ones — only add new nearby circles.
+          final preservedPlaceAndPwd = _circles.where((c) {
+            final id = c.circleId.value;
+            return id.startsWith('place_') ||
+                id.startsWith('place_circle_') ||
+                id.startsWith('pwd_') ||
+                id.startsWith('pwd_circle_');
+          }).toSet();
+
+          // newCircles come from the nearby fetch and should override any preserved items with same id
+          final Map<String, Circle> merged = {
+            for (var c in preservedPlaceAndPwd) c.circleId.value: c
+          };
+          for (final c in newCircles) merged[c.circleId.value] = c;
+
+          _circles = merged.values.toSet();
           _polylines.clear();
         });
+
+        _maybeUpdateCircles();
       } else {
         // nothing returned => clear nearby circles (but keep pwd ones)
         setState(() {
@@ -1402,6 +1659,7 @@ class _GpsScreenState extends State<GpsScreen> {
         await _locationHandler.mapController!.animateCamera(
           CameraUpdate.newLatLng(location),
         );
+        _maybeUpdateCircles();
       } catch (e) {
         debugPrint('_onMemberPressed animateCamera error: $e');
       }
@@ -1548,6 +1806,8 @@ class _GpsScreenState extends State<GpsScreen> {
         // Use moveCamera for instant jump; switch to animateCamera if you prefer animation
         await controller
             .moveCamera(CameraUpdate.newCameraPosition(newPosition));
+        _maybeUpdateCircles(); // add
+
         debugPrint('[GpsScreen] camera moved to perspective $perspective');
       } catch (e, st) {
         debugPrint('[GpsScreen] moveCamera error: $e\n$st');
@@ -1576,6 +1836,8 @@ class _GpsScreenState extends State<GpsScreen> {
       try {
         await lateController
             .moveCamera(CameraUpdate.newCameraPosition(newPosition));
+        _maybeUpdateCircles(); // add
+
         debugPrint(
             '[GpsScreen] late camera move applied after controller became ready');
         _pendingPerspective = null;
@@ -1626,6 +1888,8 @@ class _GpsScreenState extends State<GpsScreen> {
 
   Future<void> _openMapSettings() async {
     debugPrint('[GpsScreen] _openMapSettings -> showing bottom sheet');
+
+    // prefetch static images as you already do (optional)
     final urls = [
       _staticMapUrlFor(MapPerspective.classic),
       _staticMapUrlFor(MapPerspective.aerial),
@@ -1633,7 +1897,6 @@ class _GpsScreenState extends State<GpsScreen> {
       _staticMapUrlFor(MapPerspective.perspective),
     ].whereType<String>().toList();
 
-// prefetch (fire-and-forget)
     for (final url in urls) {
       try {
         precacheImage(NetworkImage(url), context);
@@ -1641,11 +1904,11 @@ class _GpsScreenState extends State<GpsScreen> {
         debugPrint('precache failed: $e');
       }
     }
+
     try {
       final result = await showModalBottomSheet<Map<String, dynamic>>(
         context: context,
-        useRootNavigator: true, // <- add this
-
+        useRootNavigator: true,
         isScrollControlled: true,
         backgroundColor: Colors.transparent,
         builder: (ctx) {
@@ -1658,9 +1921,9 @@ class _GpsScreenState extends State<GpsScreen> {
               borderRadius:
                   const BorderRadius.vertical(top: Radius.circular(16)),
             ),
-            // pass the currently pending or default perspective if you want initial highlight
             child: MapPerspectivePicker(
-              initialPerspective: _pendingPerspective ?? MapPerspective.classic,
+              // <-- PASS the parent's current choice so the picker highlights it
+              initialPerspective: _currentMapPerspective,
               currentLocation: _locationHandler.currentLocation,
             ),
           );
@@ -1669,8 +1932,8 @@ class _GpsScreenState extends State<GpsScreen> {
 
       debugPrint('[GpsScreen] bottom sheet returned -> $result');
 
-      // `MapPerspectivePicker` returns {'perspectiveName': 'classic'} (string)
-      dynamic dyn = result;
+      // extract the returned value (picker returns {'perspectiveName': 'classic'} typically)
+      dynamic dyn;
       if (result is Map<String, dynamic>) {
         dyn = result['perspective'] ??
             result['perspectiveIndex'] ??
@@ -1680,10 +1943,17 @@ class _GpsScreenState extends State<GpsScreen> {
       final perspective = _mapPerspectiveFromDynamic(dyn);
       if (perspective != null) {
         debugPrint('[GpsScreen] parsed perspective -> $perspective');
+
+        // keep parent's state in sync so next open highlights correctly
+        setState(() {
+          _currentMapPerspective = perspective;
+        });
+
+        // apply the selection (your implementation)
         await applyMapPerspective(perspective);
       } else {
         debugPrint(
-            '[GpsScreen] no valid perspective returned from bottom sheet');
+            '[GpsScreen] no valid perspective returned from bottom sheet (dyn=$dyn)');
       }
     } catch (e, st) {
       debugPrint('[GpsScreen] _openMapSettings bottom sheet error: $e\n$st');
@@ -1712,6 +1982,8 @@ class _GpsScreenState extends State<GpsScreen> {
         applyMapPerspective(pending);
       }
     }
+
+    _maybeUpdateCircles(delay: const Duration(milliseconds: 300));
   }
 
   String _placeIdFromCircleId(String circleIdValue) {
@@ -1865,9 +2137,17 @@ class _GpsScreenState extends State<GpsScreen> {
           _markers.addAll(pwdMarkers);
           _circles.removeWhere(
               (circle) => circle.circleId.value.startsWith('pwd_'));
-          _circles = createPwdfriendlyRouteCircles(locations);
+          _circles.removeWhere(
+              (circle) => circle.circleId.value.startsWith('pwd_'));
+
+// Only add PWD circles when zoom > 16.0
+          if (_currentZoom >= _circleZoomCutoff) {
+            _circles = _postProcessNearbyCircles(
+                createPwdfriendlyRouteCircles(locations));
+          }
           _showingPwdMarkers = true;
         });
+        _maybeUpdateCircles();
       });
     } catch (e) {
       print('Error fetching PWD locations: $e');
@@ -1936,7 +2216,7 @@ class _GpsScreenState extends State<GpsScreen> {
                         if ((newZoom - _currentZoom).abs() > zoomThreshold) {
                           _currentZoom = newZoom;
                           _mapZoomNotifier.value = newZoom;
-                          setState(() {});
+                          // <-- NO setState() here
                         } else {
                           _mapZoomNotifier.value = newZoom;
                         }
@@ -1944,11 +2224,11 @@ class _GpsScreenState extends State<GpsScreen> {
                       onCameraIdle: () {
                         _zoomDebounceTimer?.cancel();
                         _zoomDebounceTimer =
-                            Timer(const Duration(milliseconds: 120), () {
+                            Timer(const Duration(milliseconds: 120), () async {
                           if (!mounted) return;
 
+                          // Compute PWD circles (only if showing)
                           Set<Circle> pwdSet = {};
-                          // Only create PWD circles if they should be showing
                           if (_showingPwdMarkers) {
                             pwdSet = createPwdfriendlyRouteCircles(
                               _cachedPwdLocations,
@@ -1965,10 +2245,39 @@ class _GpsScreenState extends State<GpsScreen> {
                             );
                           }
 
+                          // Compute nearby circles (uses your cached specs)
                           final nearbySet = _computeNearbyCirclesFromRaw();
-                          setState(() {
-                            _circles = pwdSet.union(nearbySet);
-                          });
+
+                          // Apply zoom cutoff
+                          final Set<Circle> computed =
+                              (_currentZoom >= _circleZoomCutoff)
+                                  ? (pwdSet.union(nearbySet))
+                                  : <Circle>{};
+
+                          // Preserve permanent/special circles already on the map
+                          final preserved = _circles.where((c) {
+                            final id = c.circleId.value;
+                            return id.startsWith('place_') ||
+                                id.startsWith('place_circle_') ||
+                                id.startsWith('pwd_') ||
+                                id.startsWith('pwd_circle_') ||
+                                id.startsWith('debug_');
+                          }).toSet();
+
+                          // Merge: computed circles override preserved when ids clash
+                          final Map<String, Circle> merged = {
+                            for (var c in preserved) c.circleId.value: c
+                          };
+                          for (final c in computed) {
+                            merged[c.circleId.value] = c;
+                          }
+                          final Set<Circle> mergedSet = merged.values.toSet();
+
+                          if (!_circleSetsEqual(_circles, mergedSet)) {
+                            setState(() {
+                              _circles = mergedSet;
+                            });
+                          }
                         });
                       },
                       onMapCreated: (controller) =>
@@ -1986,7 +2295,7 @@ class _GpsScreenState extends State<GpsScreen> {
                         // collapse all relevant sheets safely
                         try {
                           const double favoriteMin =
-                              0.10; // FavoriteWidget minChildSize
+                              0.15; // FavoriteWidget minChildSize
                           const double locationMin =
                               0.10; // LocationWidgets minChildSize
                           const double safetyMin =
@@ -2049,8 +2358,12 @@ class _GpsScreenState extends State<GpsScreen> {
                           setState(() => _fovPolygons = polys);
                         }
                       },
+                      lockBeamOnInitialLoad:
+                          false, // <- allow beam to grow/shrink with zoom
                       fovAngle: 40.0,
                       steps: 14,
+                      gradientLayers: 8, // fewer layers = less CPU
+                      initialBeamScale: 1.5, // make first beam 50% bigger
                     ),
 
                     // Navigation Controls (uses local UI flags which are updated by routeController)

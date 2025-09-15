@@ -19,45 +19,50 @@ class MarkerFactory {
   static final Map<String, BitmapDescriptor> _badgeCache = {};
 
   /// Generate (or return cached) favorite/place marker bitmap.
-  static Future<BitmapDescriptor> ensureFavoriteBitmap({
-    required BuildContext ctx,
-    required String cacheKey,
-    required Color placeColor,
-    double outerSize = 88,
-    double innerSize = 45,
-    double pixelRatio = 1.0,
-    double outerOpacity = 0.45,
-  }) async {
-    if (_favCache.containsKey(cacheKey)) return _favCache[cacheKey]!;
+  // static Future<BitmapDescriptor> ensureFavoriteBitmap({
+  //   required BuildContext ctx,
+  //   required String cacheKey,
+  //   Color? placeColor, // optional now
+  //   double outerSize = 88,
+  //   double innerSize = 45,
+  //   double pixelRatio = 1.0,
+  //   double outerOpacity = 1.0,
+  // }) async {
+  //   // Build a composite key so different colors/sizes won't collide in the cache
+  //   final resolvedColor = placeColor ?? const Color(0xFF7C4DFF);
+  //   final compositeKey =
+  //       '${cacheKey}_${resolvedColor.value}_os${outerSize.toInt()}_is${innerSize.toInt()}_pr${pixelRatio.toStringAsFixed(2)}';
+  //   final Color accent = MapUtils.colorForPlaceType(placeType);
 
-    try {
-      final desc = await FavoriteMapMarker.toBitmapDescriptor(
-        ctx,
-        cacheKey: cacheKey,
-        pixelRatio: pixelRatio <= 0 ? 1.0 : pixelRatio,
-        size: outerSize,
-        outerColor: placeColor,
-        outerStrokeColor: placeColor,
-        outerOpacity: outerOpacity,
-        innerBgColor: Colors.white,
-        iconColor: placeColor,
-        icon: Icons.place,
-        iconSize: innerSize * 0.60,
-      );
+  //   if (_favCache.containsKey(compositeKey)) return _favCache[compositeKey]!;
 
-      if (desc != null) {
-        _favCache[cacheKey] = desc;
-        return desc;
-      }
-    } catch (e) {
-      debugPrint('MarkerFactory.ensureFavoriteBitmap error: $e');
-    }
+  //   try {
+  //     // Use BadgeIcon (keeps BadgeIcon untouched). We'll set:
+  //     // - outerRingColor = resolvedColor (purple),
+  //     // - innerBgColor = white (pointer/background white),
+  //     // - iconBgColor = resolvedColor (not strictly needed by your BadgeIcon impl,
+  //     //   but keeps intent clear), and
+  //     // - icon = Icons.place with the glyph colored purple by BadgeIcon (if BadgeIcon supports icon color).
+  //     final bmp = await BadgeIcon.createBadgeWithIcon(
+  //       ctx: ctx,
+  //       size: outerSize.toInt(),
+  //       outerRingColor: Colors.white,
+  //       iconBgColor: accent,
+  //       icon: Icons.place,
+  //       innerRatio: 0.56,
+  //       iconRatio: 0.52,
+  //     );
 
-    final fallback =
-        BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueViolet);
-    _favCache[cacheKey] = fallback;
-    return fallback;
-  }
+  //     _favCache[compositeKey] = bmp;
+  //     return bmp;
+  //   } catch (e, st) {
+  //     debugPrint('MarkerFactory.ensureFavoriteBitmap error: $e\n$st');
+  //     final fallback =
+  //         BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueViolet);
+  //     _favCache[compositeKey] = fallback;
+  //     return fallback;
+  //   }
+  // }
 
   /// Create and/or cache a category badge (used by the nearby fetch logic).
   static Future<BitmapDescriptor> createBadgeForPlaceType({

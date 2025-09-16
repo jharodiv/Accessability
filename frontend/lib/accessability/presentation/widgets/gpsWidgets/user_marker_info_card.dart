@@ -201,28 +201,38 @@ class UserMarkerInfoCard extends StatelessWidget {
                   // TOP ROW: timestamp at left, close at right (single row)
                   Row(
                     children: [
-                      // timestamp chip (left)
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 8, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: Colors.grey.shade100,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: Colors.grey.shade200),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Icon(Icons.access_time,
-                                size: 14, color: Colors.grey),
-                            const SizedBox(width: 6),
-                            Text(timeLabel,
-                                style: const TextStyle(fontSize: 12)),
-                          ],
+                      // Make the timestamp chip flexible so it can shrink when space is tight.
+                      Flexible(
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: Colors.grey.shade100,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: Colors.grey.shade200),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.access_time,
+                                  size: 14, color: Colors.grey),
+                              const SizedBox(width: 6),
+                              // Ensure the text truncates instead of overflowing
+                              Expanded(
+                                child: Text(
+                                  timeLabel,
+                                  style: const TextStyle(fontSize: 12),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  softWrap: false,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
 
-                      const Spacer(),
+                      const SizedBox(width: 8),
 
                       // close icon (right)
                       GestureDetector(

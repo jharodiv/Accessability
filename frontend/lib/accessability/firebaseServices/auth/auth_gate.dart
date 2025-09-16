@@ -21,15 +21,7 @@ class AuthGate extends StatelessWidget {
     return BlocBuilder<AuthBloc, AuthState>(
       builder: (context, authState) {
         if (authState is AuthLoading) {
-          return const Scaffold(
-            backgroundColor: Colors.white,
-            body: Center(
-              child: CircularProgressIndicator(
-                valueColor: AlwaysStoppedAnimation<Color>(Colors.deepPurple),
-                strokeWidth: 3,
-              ),
-            ),
-          );
+          return const SizedBox.shrink();
         } else if (authState is AuthenticatedLogin) {
           userBloc.add(FetchUserData());
           return BlocBuilder<UserBloc, UserState>(

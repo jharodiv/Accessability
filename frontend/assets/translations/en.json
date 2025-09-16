@@ -323,5 +323,13 @@
   "tip_add_emergency_contact": "Tip: keep this contact up-to-date so help can arrive quickly.",
   "no_results": "No results",
   "select": "Select",
-  "cannotSendToSelf": "You cannot send it to yourself."
+  "cannotSendToSelf": "You cannot send it to yourself.",
+  "no_emergency_contacts_yet": "No emergency contacts yet",
+  "add_one_now_to_get_help_faster": "Add one now to get help faster.",
+  "or_tap_here_to_add": "Or tap here to add",
+  "no_number_available": "No number available",
+  "confirm_delete": "Confirm delete",
+  "confirm_delete_contact": "Are you sure you want to delete {0}?",
+  "implement_message_action": "Message action not implemented",
+  "locationNotAvailable": "Location not available"
 }

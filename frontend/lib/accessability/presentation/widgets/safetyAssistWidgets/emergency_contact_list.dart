@@ -22,16 +22,12 @@ class EmergencyContactsList extends StatelessWidget {
     required this.onDeletePressed,
   }) : super(key: key);
 
-  String _relationOf(EmergencyContact c) {
-    // try these names in order until we find a non-empty string
-    return _stringProp(c, ['relationship', 'relation', 'arrival']);
-  }
+  String _relationOf(EmergencyContact c) =>
+      _stringProp(c, ['relationship', 'relation', 'arrival']);
 
-  String _phoneOf(EmergencyContact c) {
-    return _stringProp(c, ['phone', 'number', 'update', 'tel']);
-  }
+  String _phoneOf(EmergencyContact c) =>
+      _stringProp(c, ['phone', 'number', 'update', 'tel']);
 
-  // NEW: compact, muted action button used in the bottom sheet
   Widget _sheetAction({
     required IconData icon,
     required String label,
@@ -72,20 +68,7 @@ class EmergencyContactsList extends StatelessWidget {
     );
   }
 
-  // put these inside EmergencyContactsList
-
   String _stringProp(dynamic obj, List<String> props) {
-    for (final p in props) {
-      try {
-        final dyn = obj as dynamic;
-        final val = dyn?.$;
-        {
-          '';
-        }
-        ; // placeholder to keep analyzer quiet
-      } catch (_) {}
-    }
-    // above hack isn't needed at runtime; below we do actual tries:
     for (final p in props) {
       try {
         final dyn = obj as dynamic;
@@ -120,11 +103,9 @@ class EmergencyContactsList extends StatelessWidget {
     return '';
   }
 
-  // Reworked bottom sheet: compact, muted, no overflow
   void _showActionsSheet(BuildContext context, EmergencyContact contact,
       String phone, bool isDark) {
     final mq = MediaQuery.of(context);
-    // cap height so it never overflows
     final sheetHeight = (mq.size.height * 0.28).clamp(140.0, 260.0);
 
     showModalBottomSheet(
@@ -209,7 +190,6 @@ class EmergencyContactsList extends StatelessWidget {
                   Expanded(
                     child: LayoutBuilder(
                       builder: (context, constraints) {
-                        // use Wrap so actions never overflow horizontally
                         return Center(
                           child: Wrap(
                             alignment: WrapAlignment.center,
@@ -295,31 +275,54 @@ class EmergencyContactsList extends StatelessWidget {
   Widget build(BuildContext context) {
     final isDark = isDarkMode;
 
+    // -------- NEW: refined empty state (no duplicate button) ----------
     if (contacts.isEmpty) {
-      // ultra compact empty state with single Add button inline to the right
       return Padding(
-        padding: const EdgeInsets.symmetric(vertical: 6),
-        child: Row(
+        padding: const EdgeInsets.symmetric(vertical: 28.0, horizontal: 18.0),
+        child: Column(
           children: [
-            const Spacer(),
-            TextButton.icon(
-              onPressed: onAddPressed,
-              icon: Icon(Icons.person_add,
-                  color: isDark
-                      ? const Color(0xFFBDA6FF)
-                      : const Color(0xFF7C5BE6)),
-              label: Text('add'.tr(),
-                  style: TextStyle(
-                      color: isDark
-                          ? const Color(0xFFBDA6FF)
-                          : const Color(0xFF7C5BE6),
-                      fontWeight: FontWeight.w800)),
+            // soft rounded illustration card
+            Container(
+              width: 116,
+              height: 116,
+              decoration: BoxDecoration(
+                color: isDark ? Colors.white10 : const Color(0xFFF8F4FF),
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: [
+                  if (!isDark)
+                    BoxShadow(
+                      color: Colors.black12,
+                      blurRadius: 10,
+                      offset: Offset(0, 6),
+                    )
+                ],
+              ),
+              child: Center(
+                child: Icon(
+                  Icons.person_off_outlined,
+                  size: 54,
+                  color: isDark ? Colors.white70 : const Color(0xFF6B3FC5),
+                ),
+              ),
             ),
+            const SizedBox(height: 20),
+            Text(
+              'no_emergency_contacts_yet'.tr(),
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w800,
+                color: isDark ? Colors.white : Colors.black87,
+              ),
+            ),
+            const SizedBox(height: 10),
+            // subtle instruction referencing the top add button (no extra CTA here)
           ],
         ),
       );
     }
 
+    // ---------- POPULATED STATE (unchanged) ----------
     return Column(
       children: contacts.map((contact) {
         final relation = _relationOf(contact);

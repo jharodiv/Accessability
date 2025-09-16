@@ -28,7 +28,10 @@ class PlaceBloc extends Bloc<PlaceEvent, PlaceState> {
         event.longitude,
         category: event.category, // Optional category passed if available.
       );
-      emit(PlaceOperationSuccess());
+
+      // After adding, fetch all places again to refresh the list
+      final places = await placeRepository.getAllPlaces();
+      emit(PlacesLoaded(places));
     } catch (e) {
       emit(PlaceOperationError('Failed to add place: ${e.toString()}'));
     }
@@ -65,7 +68,10 @@ class PlaceBloc extends Bloc<PlaceEvent, PlaceState> {
     emit(PlaceOperationLoading());
     try {
       await placeRepository.deletePlace(event.placeId);
-      emit(PlaceOperationSuccess());
+
+      // After deleting, fetch all places again to refresh the list
+      final places = await placeRepository.getAllPlaces();
+      emit(PlacesLoaded(places));
     } catch (e) {
       emit(PlaceOperationError('Failed to delete place: ${e.toString()}'));
     }
@@ -77,7 +83,10 @@ class PlaceBloc extends Bloc<PlaceEvent, PlaceState> {
     try {
       await placeRepository.updatePlaceCategory(
           event.placeId, event.newCategory);
-      emit(PlaceOperationSuccess());
+
+      // After updating, fetch all places again to refresh the list
+      final places = await placeRepository.getAllPlaces();
+      emit(PlacesLoaded(places));
     } catch (e) {
       emit(PlaceOperationError(
           'Failed to update place category: ${e.toString()}'));
@@ -89,7 +98,10 @@ class PlaceBloc extends Bloc<PlaceEvent, PlaceState> {
     emit(PlaceOperationLoading());
     try {
       await placeRepository.removePlaceFromCategory(event.placeId);
-      emit(PlaceOperationSuccess());
+
+      // After removing from category, fetch all places again to refresh the list
+      final places = await placeRepository.getAllPlaces();
+      emit(PlacesLoaded(places));
     } catch (e) {
       emit(PlaceOperationError(
           'Failed to remove place from category: ${e.toString()}'));
@@ -103,7 +115,10 @@ class PlaceBloc extends Bloc<PlaceEvent, PlaceState> {
     try {
       await placeRepository.updateNotificationRadius(
           event.placeId, event.radius);
-      emit(PlaceOperationSuccess());
+
+      // After updating radius, fetch all places again to refresh the list
+      final places = await placeRepository.getAllPlaces();
+      emit(PlacesLoaded(places));
     } catch (e) {
       emit(PlaceOperationError(
           'Failed to update notification radius: ${e.toString()}'));

@@ -1,14 +1,6 @@
-import 'dart:async';
-import 'dart:math';
-
-import 'package:accessability/accessability/firebaseServices/chat/chat_service.dart';
-import 'package:accessability/accessability/data/model/place.dart';
-import 'package:accessability/accessability/firebaseServices/place/geocoding_service.dart';
 import 'package:accessability/accessability/logic/bloc/place/bloc/place_event.dart';
 import 'package:accessability/accessability/presentation/screens/gpsscreen/location_handler.dart';
 import 'package:accessability/accessability/logic/bloc/place/bloc/place_bloc.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:flutter/material.dart';
@@ -208,14 +200,22 @@ class _AddNewPlaceScreenState extends State<AddNewPlaceScreen> {
       );
       return;
     }
+
+    // Add the place
     context.read<PlaceBloc>().add(
           AddPlaceEvent(
             name: placeName,
             latitude: _currentLatLng.latitude,
             longitude: _currentLatLng.longitude,
-            // Notification radius is now automatically set to 100.0 in the event
+            notificationRadius: 100.0, // Explicitly set the radius
           ),
         );
+
+    // Show success message
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('placeAddedSuccessfully'.tr())),
+    );
+
     Navigator.of(context).pop();
   }
 }

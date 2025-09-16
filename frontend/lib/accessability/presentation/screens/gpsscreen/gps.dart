@@ -1280,9 +1280,11 @@ class _GpsScreenState extends State<GpsScreen> {
         pwdSet = _postProcessNearbyCircles(rawPwd);
       }
 
-      // Compute nearby circles (uses your cached specs)
-      final rawNearby = _computeNearbyCirclesFromRaw();
-      final nearbySet = _postProcessNearbyCircles(rawNearby);
+      // Compute nearby circles (uses your cached specs) - THIS IS THE KEY FIX
+      Set<Circle> nearbySet = {};
+      if (_nearbyCircleSpecs.isNotEmpty) {
+        nearbySet = _computeNearbyCirclesFromRaw();
+      }
 
       // Apply zoom cutoff
       final Set<Circle> computed = (_currentZoom >= _circleZoomCutoff)
@@ -1303,7 +1305,7 @@ class _GpsScreenState extends State<GpsScreen> {
         setState(() {
           _circles = newCircles;
         });
-      } else {}
+      }
     });
   }
 
@@ -1475,7 +1477,7 @@ class _GpsScreenState extends State<GpsScreen> {
             baseFallback: _pwdBaseRadiusMeters,
           );
 
-          // compute scaled circles using NearbyManager helper
+          // compute scaled circles using NearbyManager helper - THIS IS THE KEY FIX
           newCircles = _computeNearbyCirclesFromRaw();
         }
 
@@ -2208,6 +2210,12 @@ class _GpsScreenState extends State<GpsScreen> {
                             );
                           }
 
+                          // Compute nearby circles (uses your cached specs) - THIS IS THE KEY FIX
+                          Set<Circle> nearbySet = {};
+                          if (_nearbyCircleSpecs.isNotEmpty) {
+                            nearbySet = _computeNearbyCirclesFromRaw();
+                          }
+
                           // Compute place circles (from your stored place data)
                           Set<Circle> placeSet = {};
                           final places =
@@ -2252,7 +2260,7 @@ class _GpsScreenState extends State<GpsScreen> {
                           // Apply zoom cutoff
                           final Set<Circle> computed =
                               (_currentZoom >= _circleZoomCutoff)
-                                  ? (pwdSet.union(placeSet))
+                                  ? (pwdSet.union(nearbySet).union(placeSet))
                                   : <Circle>{};
 
                           // Preserve other circles (debug, etc.)

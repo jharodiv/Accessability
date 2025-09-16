@@ -24,7 +24,7 @@ class DeepLinkService {
     debugPrint("🔗 DeepLinkService initialized with navigatorKey");
 
     // Handle both types of cold starts
-    await _handleSessionColdStart(); // APK installation intent
+    // await _handleSessionColdStart(); // APK installation intent
     await _handleDeepLinkColdStart(); // Traditional deep link
 
     // Hot links while running

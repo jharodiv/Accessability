@@ -59,25 +59,6 @@
                 <category android:name="android.intent.category.BROWSABLE"/>
                 <data android:scheme="accessability" android:host="open"/>
             </intent-filter>
-
-            <!-- ✅ FIXED: APK Installation Intent for GitHub URLs -->
-            <intent-filter>
-                <action android:name="android.intent.action.VIEW"/>
-                <category android:name="android.intent.category.DEFAULT"/>
-                <category android:name="android.intent.category.BROWSABLE"/>
-                <data 
-                    android:scheme="https"
-                    android:host="github.com"
-                    android:pathPrefix="/Montilla007/3Y2AAPWD/releases/"/>
-            </intent-filter>
-
-            <!-- ✅ ADD THIS: Catch ALL https URLs (fallback) -->
-            <intent-filter>
-                <action android:name="android.intent.action.VIEW"/>
-                <category android:name="android.intent.category.DEFAULT"/>
-                <category android:name="android.intent.category.BROWSABLE"/>
-                <data android:scheme="https"/>
-            </intent-filter>
         </activity>
 
         <!-- Firebase Messaging Service -->

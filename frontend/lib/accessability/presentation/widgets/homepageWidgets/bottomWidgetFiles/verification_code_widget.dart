@@ -1,6 +1,7 @@
 // verification_code_screen.dart
 import 'dart:math';
 
+import 'package:accessability/accessability/backgroundServices/deep_link_service.dart';
 import 'package:accessability/accessability/firebaseServices/chat/chat_service.dart';
 import 'package:accessability/accessability/presentation/widgets/reusableWidgets/send_code_dialog_widget.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -38,6 +39,11 @@ class _VerificationCodeScreenState extends State<VerificationCodeScreen> {
   void initState() {
     super.initState();
     _ensureCode();
+
+    // Clear pending deep link/session to avoid re-navigation issues
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      DeepLinkService().clearPendingData();
+    });
   }
 
   Future<void> _ensureCode() async {

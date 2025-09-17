@@ -288,5 +288,13 @@
   "tip_add_emergency_contact": "Tip: panatilihing updated ang contact para mabilis makaalis ang tulong.",
   "no_phone_number": "Walang numero",
   "no_results": "Walang resulta",
-  "select": "Piliin"
+  "select": "Piliin",
+  "no_emergency_contacts_yet": "Wala pang emergency contact",
+  "add_one_now_to_get_help_faster": "Magdagdag ngayon para mas mabilis makatanggap ng tulong.",
+  "or_tap_here_to_add": "O i-tap dito para magdagdag",
+  "no_number_available": "Walang numero",
+  "confirm_delete": "Kumpirmahin ang pagtanggal",
+  "confirm_delete_contact": "Sigurado ka bang tatanggalin ang {0}?",
+  "implement_message_action": "Ang aksyon sa pagmemensahe ay hindi pa naka-implement",
+  "locationNotAvailable": "Hindi available ang lokasyon"
 }

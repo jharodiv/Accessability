@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>QR Code Generator</title>
+  <style>
+    body {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      font-family: Arial, sans-serif;
+      background: #f0f0f0;
+    }
+    #qrcode {
+      margin-top: 20px;
+      padding: 20px;
+      background: #fff;
+      border-radius: 12px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+    }
+    input {
+      padding: 10px;
+      width: 300px;
+      font-size: 16px;
+      border-radius: 6px;
+      border: 1px solid #ccc;
+    }
+    button {
+      margin-top: 10px;
+      padding: 10px 20px;
+      font-size: 16px;
+      border: none;
+      background-color: #007bff;
+      color: white;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #0056b3;
+    }
+  </style>
+</head>
+<body>
+  <h1>QR Code Generator</h1>
+  <input type="text" id="url" value="http://192.168.1.12:5500/static/index.html/?code=123456">
+  <button onclick="generateQR()">Generate QR</button>
+  <div id="qrcode"></div>
+
+  <!-- QRCode.js library -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <script>
+    function generateQR() {
+      const url = document.getElementById('url').value.trim();
+      const container = document.getElementById('qrcode');
+      container.innerHTML = ""; // clear previous QR
+      if (!url) return alert("Please enter a URL");
+      
+      new QRCode(container, {
+        text: url,
+        width: 250,
+        height: 250,
+        colorDark : "#000000",
+        colorLight : "#ffffff",
+        correctLevel : QRCode.CorrectLevel.H
+      });
+    }
+
+    // Generate initial QR on page load
+    window.onload = generateQR;
+  </script>
+</body>
+</html>

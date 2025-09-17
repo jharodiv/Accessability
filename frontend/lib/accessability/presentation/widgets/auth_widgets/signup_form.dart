@@ -20,11 +20,18 @@ class _SignupFormState extends State<SignupForm> {
   final TextEditingController passwordController = TextEditingController();
   final TextEditingController confirmPasswordController =
       TextEditingController();
-  String? errorTitle;
-  String? errorMessage;
+
+  // Focus nodes to allow keyboard "Next" navigation
+  late final List<FocusNode> _focusNodes;
 
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _focusNodes = List.generate(7, (_) => FocusNode());
+  }
 
   @override
   void dispose() {
@@ -35,6 +42,10 @@ class _SignupFormState extends State<SignupForm> {
     contactNumberController.dispose();
     passwordController.dispose();
     confirmPasswordController.dispose();
+
+    for (final node in _focusNodes) {
+      node.dispose();
+    }
     super.dispose();
   }
 
@@ -199,6 +210,7 @@ class _SignupFormState extends State<SignupForm> {
 
   @override
   Widget build(BuildContext context) {
+    // Back to original visual design and spacing (no visible Next/DONE button)
     return Center(
       child: SizedBox(
         width: MediaQuery.of(context).size.width * 0.8,
@@ -217,8 +229,13 @@ class _SignupFormState extends State<SignupForm> {
                   ),
                 ),
                 const SizedBox(height: 20),
+
+                // Username
                 TextField(
                   controller: usernameController,
+                  focusNode: _focusNodes[0],
+                  textInputAction: TextInputAction.next,
+                  onSubmitted: (_) => _focusNodes[1].requestFocus(),
                   decoration: const InputDecoration(
                     labelText: 'Username',
                     border: OutlineInputBorder(
@@ -227,8 +244,13 @@ class _SignupFormState extends State<SignupForm> {
                   ),
                 ),
                 const SizedBox(height: 20),
+
+                // First Name
                 TextField(
                   controller: firstNameController,
+                  focusNode: _focusNodes[1],
+                  textInputAction: TextInputAction.next,
+                  onSubmitted: (_) => _focusNodes[2].requestFocus(),
                   decoration: const InputDecoration(
                     labelText: 'First Name',
                     border: OutlineInputBorder(
@@ -237,8 +259,13 @@ class _SignupFormState extends State<SignupForm> {
                   ),
                 ),
                 const SizedBox(height: 20),
+
+                // Last Name
                 TextField(
                   controller: lastNameController,
+                  focusNode: _focusNodes[2],
+                  textInputAction: TextInputAction.next,
+                  onSubmitted: (_) => _focusNodes[3].requestFocus(),
                   decoration: const InputDecoration(
                     labelText: 'Last Name',
                     border: OutlineInputBorder(
@@ -247,8 +274,14 @@ class _SignupFormState extends State<SignupForm> {
                   ),
                 ),
                 const SizedBox(height: 20),
+
+                // Email
                 TextField(
                   controller: emailController,
+                  focusNode: _focusNodes[3],
+                  keyboardType: TextInputType.emailAddress,
+                  textInputAction: TextInputAction.next,
+                  onSubmitted: (_) => _focusNodes[4].requestFocus(),
                   decoration: const InputDecoration(
                     labelText: 'Email',
                     border: OutlineInputBorder(
@@ -257,8 +290,14 @@ class _SignupFormState extends State<SignupForm> {
                   ),
                 ),
                 const SizedBox(height: 20),
+
+                // Contact Number
                 TextField(
                   controller: contactNumberController,
+                  focusNode: _focusNodes[4],
+                  keyboardType: TextInputType.phone,
+                  textInputAction: TextInputAction.next,
+                  onSubmitted: (_) => _focusNodes[5].requestFocus(),
                   decoration: const InputDecoration(
                     labelText: 'Contact Number',
                     border: OutlineInputBorder(
@@ -267,9 +306,14 @@ class _SignupFormState extends State<SignupForm> {
                   ),
                 ),
                 const SizedBox(height: 20),
+
+                // Password
                 TextField(
                   controller: passwordController,
+                  focusNode: _focusNodes[5],
                   obscureText: _obscurePassword,
+                  textInputAction: TextInputAction.next,
+                  onSubmitted: (_) => _focusNodes[6].requestFocus(),
                   decoration: InputDecoration(
                     labelText: 'Password',
                     border: const OutlineInputBorder(
@@ -291,9 +335,14 @@ class _SignupFormState extends State<SignupForm> {
                   ),
                 ),
                 const SizedBox(height: 20),
+
+                // Confirm Password (last)
                 TextField(
                   controller: confirmPasswordController,
+                  focusNode: _focusNodes[6],
                   obscureText: _obscureConfirmPassword,
+                  textInputAction: TextInputAction.done,
+                  onSubmitted: (_) => signup(),
                   decoration: InputDecoration(
                     labelText: 'Confirm Password',
                     border: const OutlineInputBorder(
@@ -315,6 +364,7 @@ class _SignupFormState extends State<SignupForm> {
                   ),
                 ),
                 const SizedBox(height: 20),
+
                 ElevatedButton(
                   onPressed: signup,
                   style: ElevatedButton.styleFrom(
@@ -332,6 +382,7 @@ class _SignupFormState extends State<SignupForm> {
                   ),
                 ),
                 const SizedBox(height: 15),
+
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
@@ -340,10 +391,6 @@ class _SignupFormState extends State<SignupForm> {
                       onTap: () {
                         // if you want to pop back to a previous LoginScreen:
                         Navigator.of(context).pop();
-                        // or, if you need to push a fresh LoginScreen instance:
-                        // Navigator.of(context).push(MaterialPageRoute(
-                        //   builder: (_) => const LoginScreen(),
-                        // ));
                       },
                       child: const Text(
                         "Login",

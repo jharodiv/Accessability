@@ -17,6 +17,7 @@ import 'package:accessability/accessability/presentation/widgets/homepageWidgets
 import 'package:accessability/accessability/presentation/widgets/homepageWidgets/bottomWidgetFiles/verification_code_widget.dart';
 import 'package:accessability/accessability/themes/theme_provider.dart';
 import 'package:easy_localization/easy_localization.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -28,7 +29,8 @@ import 'package:flutter/scheduler.dart';
 
 class LocationWidgets extends StatefulWidget {
   final String activeSpaceId;
-  final Function(LatLng) onCategorySelected;
+  final Function(String)? onCategorySelectedName; //For String Categories
+  final Function(LatLng) onCategorySelected; //it's for Map
   final Function(LatLng, String) onMemberPressed;
   final Place? selectedPlace;
   final VoidCallback? onCloseSelectedPlace;
@@ -47,6 +49,7 @@ class LocationWidgets extends StatefulWidget {
   const LocationWidgets({
     super.key,
     required this.activeSpaceId,
+    required this.onCategorySelectedName,
     required this.onCategorySelected,
     required this.onMemberPressed,
     required this.fetchNearbyPlaces,
@@ -108,6 +111,8 @@ class _LocationWidgetsState extends State<LocationWidgets> {
   VoidCallback? _overlayNotifierListener;
   double _serviceAreaFactor = 1.0; // 1.0 = fully visible, 0.0 = hidden
   bool _isAtTop = false; // track if sheet is at the very top (for safe padding)
+
+  //String? _selectedCategory;
 
   @override
   void initState() {
@@ -1031,6 +1036,11 @@ class _LocationWidgetsState extends State<LocationWidgets> {
                               const SizedBox(height: 5),
                               SearchBarWithAutocomplete(
                                 onSearch: _searchLocation,
+                                onCategorySelected: (category) {
+                                  print(
+                                      "Parent Callback triggered with: $category");
+                                  widget.onCategorySelectedName?.call(category);
+                                },
                               ),
                               const SizedBox(height: 10),
                               // --- If a place is selected, show only the EstablishmentDetailsCard ---

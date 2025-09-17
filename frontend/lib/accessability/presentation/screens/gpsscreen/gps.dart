@@ -4,6 +4,7 @@ import 'dart:math';
 import 'package:accessability/accessability/backgroundServices/deep_link_service.dart';
 import 'package:accessability/accessability/data/model/place.dart';
 import 'package:accessability/accessability/firebaseServices/place/geocoding_service.dart';
+import 'package:accessability/accessability/logic/bloc/place/bloc/place_state.dart';
 import 'package:accessability/accessability/presentation/widgets/dialog/ok_dialog_widget.dart';
 import 'package:accessability/accessability/presentation/widgets/gpsWidgets/map_perspective.dart';
 import 'package:accessability/accessability/presentation/widgets/gpsWidgets/navigation_controls.dart';
@@ -723,7 +724,6 @@ class _GpsScreenState extends State<GpsScreen> {
 
   // --- Place marker creation (delegates to MarkerFactory) ---
   Future<Marker> _createPlaceMarker(Place place) async {
-    // keep local lookup for later (used by _setPlaceMarkerDropped)
     _placeById[place.id] = place;
 
     final badgeSize = 64;
@@ -758,7 +758,6 @@ class _GpsScreenState extends State<GpsScreen> {
             );
             routeController
                 .startFollowingUser(() => _locationHandler.currentLocation);
-
             // mark this place as dropped (makes icon bigger / lifts above)
             _droppedPlaceId = place.id;
             _setPlaceMarkerDropped(place.id, true);
@@ -1056,8 +1055,7 @@ class _GpsScreenState extends State<GpsScreen> {
   }
 
   // --- Build place markers (keeps prior behavior but uses marker factory) ---
-  Future<void> _buildPlaceMarkersAsync(List<Place> places,
-      {bool debugCenterOnFirst = true}) async {
+  Future<void> _buildPlaceMarkersAsync(List<Place> places) async {
     debugPrint('buildPlaceMarkers called with ${places.length} places');
 
     if (places.isEmpty) {
@@ -1066,7 +1064,6 @@ class _GpsScreenState extends State<GpsScreen> {
         _markers.removeWhere((m) => m.markerId.value.startsWith('place_'));
         _circles
             .removeWhere((c) => c.circleId.value.startsWith('place_circle_'));
-        _nearbyCircleSpecs = [];
       });
       return;
     }
@@ -1074,25 +1071,13 @@ class _GpsScreenState extends State<GpsScreen> {
     // Keep local lookup
     for (final p in places) _placeById[p.id] = p;
 
-    // 1) create markers
+    // 1) Create markers
     final futures = <Future<Marker>>[];
     for (final place in places) futures.add(_createPlaceMarker(place));
     final createdMarkers = await Future.wait(futures);
     if (!mounted) return;
 
-    // 2) store specs for compatibility
-    final placeSpecs = places.map((place) {
-      return NearbyCircleSpec(
-        id: 'place_circle_${place.id}',
-        center: LatLng(place.latitude, place.longitude),
-        baseRadius: _pwdBaseRadiusMeters,
-        zIndex: 200,
-        visible: true,
-      );
-    }).toList();
-    _nearbyCircleSpecs = placeSpecs;
-
-    // 3) build "pwd-like" input list
+    // 2) Create properly scaled circles using the same method as PWD circles
     final placeLocations = places.map((p) {
       return {
         'id': p.id,
@@ -1102,7 +1087,6 @@ class _GpsScreenState extends State<GpsScreen> {
       };
     }).toList();
 
-    // 4) raw circles via PWD pipeline
     final rawPlaceCircles = createPwdfriendlyRouteCircles(
       placeLocations,
       currentZoom: _currentZoom,
@@ -1116,45 +1100,29 @@ class _GpsScreenState extends State<GpsScreen> {
       },
     );
 
-// 5) post-process using the same visual transform as PWD circles
+    // Apply the same post-processing as PWD circles
     final computedPlaceCircles = _postProcessNearbyCircles(rawPlaceCircles)
         .map((c) => c.copyWith(
-              // keep a reasonable zIndex for places (not extreme debug-high)
               zIndexParam: 200,
               visibleParam: true,
             ))
         .toSet();
 
-    debugPrint(
-        'buildPlaceMarkers: currentZoom=$_currentZoom createdMarkers=${createdMarkers.length} '
-        'computedPlaceCircles=${computedPlaceCircles.length} ids=${computedPlaceCircles.map((c) => c.circleId.value).join(", ")}');
-
     if (!mounted) return;
 
-    // 6) update state: remove old place markers/circles, add new ones, preserve others
     setState(() {
-      // remove and replace place markers
+      // Remove old place markers and circles
       _markers
           .removeWhere((marker) => marker.markerId.value.startsWith('place_'));
-      _markers.addAll(createdMarkers.toSet());
-
-      // remove old place circles
       _circles.removeWhere((c) => c.circleId.value.startsWith('place_circle_'));
 
-      // MERGE: preserve existing special circles (pwd_, debug_, etc.)
-      final preserved = _circles.where((c) {
-        final id = c.circleId.value;
-        return id.startsWith('pwd_') ||
-            id.startsWith('debug_') ||
-            id == 'debug_map_created_circle';
-      }).toSet();
+      // Add new place markers
+      _markers.addAll(createdMarkers.toSet());
 
-      // Only add place circles if zoom cutoff passes
-      final Set<Circle> toAdd = (_currentZoom >= _circleZoomCutoff)
-          ? computedPlaceCircles
-          : <Circle>{};
-
-      _circles = {...preserved, ...toAdd};
+      // Only add place circles if zoom cutoff passes (same as PWD circles)
+      if (_currentZoom >= _circleZoomCutoff) {
+        _circles.addAll(computedPlaceCircles);
+      }
     });
   }
 
@@ -1260,14 +1228,9 @@ class _GpsScreenState extends State<GpsScreen> {
 
   /// Convert raw nearby circles into "specs" stored in our manager and compute rescaled circles.
   Set<Circle> _computeNearbyCirclesFromRaw() {
-    // delegate to NearbyManager (and also keep local copy of specs for compatibility)
     final specs = _nearbyCircleSpecs;
     if (specs.isEmpty) return {};
 
-    // Use larger visual parameters here to match PWD sizing:
-    // - minPixelRadius: larger => prevents very small circles at mid-zooms
-    // - shrinkFactor: 1.0 (don't shrink)
-    // - extraVisualBoost: 1.6 (make circles larger visually)
     return _nearbyManager.computeNearbyCirclesFromSpecs(
       currentZoom: _currentZoom,
       pwdBaseRadiusMeters: _pwdBaseRadiusMeters,
@@ -1278,9 +1241,9 @@ class _GpsScreenState extends State<GpsScreen> {
           CameraUpdate.newLatLngZoom(center, suggestedZoom),
         );
       },
-      minPixelRadius: 15.0, // increase from 8 -> 15
-      shrinkFactor: 1.0, // avoid shrinking
-      extraVisualBoost: 1.0, // stronger visual boost like places
+      minPixelRadius: 15.0,
+      shrinkFactor: 1.0,
+      extraVisualBoost: 1.0,
     );
   }
 
@@ -1317,9 +1280,11 @@ class _GpsScreenState extends State<GpsScreen> {
         pwdSet = _postProcessNearbyCircles(rawPwd);
       }
 
-      // Compute nearby circles (uses your cached specs)
-      final rawNearby = _computeNearbyCirclesFromRaw();
-      final nearbySet = _postProcessNearbyCircles(rawNearby);
+      // Compute nearby circles (uses your cached specs) - THIS IS THE KEY FIX
+      Set<Circle> nearbySet = {};
+      if (_nearbyCircleSpecs.isNotEmpty) {
+        nearbySet = _computeNearbyCirclesFromRaw();
+      }
 
       // Apply zoom cutoff
       final Set<Circle> computed = (_currentZoom >= _circleZoomCutoff)
@@ -1340,7 +1305,7 @@ class _GpsScreenState extends State<GpsScreen> {
         setState(() {
           _circles = newCircles;
         });
-      } else {}
+      }
     });
   }
 
@@ -1512,7 +1477,7 @@ class _GpsScreenState extends State<GpsScreen> {
             baseFallback: _pwdBaseRadiusMeters,
           );
 
-          // compute scaled circles using NearbyManager helper
+          // compute scaled circles using NearbyManager helper - THIS IS THE KEY FIX
           newCircles = _computeNearbyCirclesFromRaw();
         }
 
@@ -2245,23 +2210,64 @@ class _GpsScreenState extends State<GpsScreen> {
                             );
                           }
 
-                          // Compute nearby circles (uses your cached specs)
-                          final nearbySet = _computeNearbyCirclesFromRaw();
+                          // Compute nearby circles (uses your cached specs) - THIS IS THE KEY FIX
+                          Set<Circle> nearbySet = {};
+                          if (_nearbyCircleSpecs.isNotEmpty) {
+                            nearbySet = _computeNearbyCirclesFromRaw();
+                          }
+
+                          // Compute place circles (from your stored place data)
+                          Set<Circle> placeSet = {};
+                          final places =
+                              context.read<PlaceBloc>().state is PlacesLoaded
+                                  ? (context.read<PlaceBloc>().state
+                                          as PlacesLoaded)
+                                      .places
+                                  : [];
+
+                          if (places.isNotEmpty) {
+                            final placeLocations = places.map((p) {
+                              return {
+                                'id': p.id,
+                                'name': p.name,
+                                'latitude': p.latitude,
+                                'longitude': p.longitude,
+                              };
+                            }).toList();
+
+                            final rawPlaceCircles =
+                                createPwdfriendlyRouteCircles(
+                              placeLocations,
+                              currentZoom: _currentZoom,
+                              pwdBaseRadiusMeters: _pwdBaseRadiusMeters,
+                              pwdRadiusMultiplier: _pwdRadiusMultiplier,
+                              pwdCircleColor: _pwdCircleColor,
+                              onTap: (center, suggestedZoom) {
+                                _locationHandler.mapController?.animateCamera(
+                                  CameraUpdate.newLatLngZoom(
+                                      center, suggestedZoom),
+                                );
+                              },
+                            );
+
+                            placeSet =
+                                _postProcessNearbyCircles(rawPlaceCircles)
+                                    .map((c) => c.copyWith(
+                                        zIndexParam: 200, visibleParam: true))
+                                    .toSet();
+                          }
 
                           // Apply zoom cutoff
                           final Set<Circle> computed =
                               (_currentZoom >= _circleZoomCutoff)
-                                  ? (pwdSet.union(nearbySet))
+                                  ? (pwdSet.union(nearbySet).union(placeSet))
                                   : <Circle>{};
 
-                          // Preserve permanent/special circles already on the map
+                          // Preserve other circles (debug, etc.)
                           final preserved = _circles.where((c) {
                             final id = c.circleId.value;
-                            return id.startsWith('place_') ||
-                                id.startsWith('place_circle_') ||
-                                id.startsWith('pwd_') ||
-                                id.startsWith('pwd_circle_') ||
-                                id.startsWith('debug_');
+                            return id.startsWith('debug_') ||
+                                id == 'debug_map_created_circle';
                           }).toSet();
 
                           // Merge: computed circles override preserved when ids clash

@@ -288,5 +288,13 @@
   "tip_add_emergency_contact": "Tip: siguradoan yo na updated so contact tapno madali so tulong na makakararating.",
   "no_phone_number": "Awan numero",
   "no_results": "Awan resulta",
-  "select": "Pipili"
+  "select": "Pipili",
+  "no_emergency_contacts_yet": "Awan pay emergency contact",
+  "add_one_now_to_get_help_faster": "Idagdag so kontak ya para agdali so pagtulong",
+  "or_tap_here_to_add": "O i-tap so ed sikayon para magdagdag",
+  "no_number_available": "Awan numero",
+  "confirm_delete": "Kumpirmaren ed pana-alis",
+  "confirm_delete_contact": "Sigurado ka ed pana-alis i {0}?",
+  "implement_message_action": "Di so na-implement so aksyon na pagmensahi",
+  "locationNotAvailable": "Di makita so lugar"
 }

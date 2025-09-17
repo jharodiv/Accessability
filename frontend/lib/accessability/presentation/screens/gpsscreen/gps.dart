@@ -161,6 +161,8 @@ class _GpsScreenState extends State<GpsScreen> {
   final NearbyManager _nearbyManager = NearbyManager();
   OverlayEntry? _userOverlayEntry;
 
+  String? _selectedCategory;
+
   @override
   void initState() {
     super.initState();
@@ -2119,6 +2121,31 @@ class _GpsScreenState extends State<GpsScreen> {
     }
   }
 
+  void _handleCategorySelected(String category) {
+    print("🎯 _handleCategorySelected CALLED with: $category");
+
+    final map = {
+      'hospital': 'Hospital',
+      'restaurant': 'Restaurant',
+      'shopping': 'Shopping',
+      'groceries': 'Groceries',
+      'pwd': 'PWD',
+    };
+
+    final normalize = map[category.toLowerCase()] ?? category;
+
+    print("✅ Normalized category: $normalize");
+
+    setState(() {
+      _selectedCategory = normalize;
+    });
+
+    print("📌 _selectedCategory updated to: $_selectedCategory");
+
+    _fetchNearbyPlaces(normalize);
+    print("🚀 _fetchNearbyPlaces triggered for: $normalize");
+  }
+
   @override
   Widget build(BuildContext context) {
     final bool isDarkMode = Provider.of<ThemeProvider>(context).isDarkMode;
@@ -2439,9 +2466,7 @@ class _GpsScreenState extends State<GpsScreen> {
                       settingsKey: settingsKey,
                       activeSpaceId: _activeSpaceId,
                       activeSpaceName: _activeSpaceName,
-                      onCategorySelected: (selectedType) {
-                        _fetchNearbyPlaces(selectedType);
-                      },
+                      onCategorySelected: _handleCategorySelected,
                       onOverlayChange: (isVisible) {
                         setState(() {});
                       },
@@ -2479,6 +2504,8 @@ class _GpsScreenState extends State<GpsScreen> {
                         activeSpaceId: _activeSpaceId,
                         overlayVisibleNotifier:
                             _userOverlayVisible, // <-- ADD THIS
+
+                        onCategorySelectedName: _handleCategorySelected,
 
                         onCategorySelected: (LatLng location) {
                           _locationHandler.panCameraToLocation(location);

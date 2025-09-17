@@ -8,8 +8,11 @@ import 'package:flutter_tts/flutter_tts.dart';
 
 class SearchBarWithAutocomplete extends StatefulWidget {
   final Function(String) onSearch;
+  final Function(String)? onCategorySelected;
+  //final Function(String)? onShowPwdLocation;
 
-  const SearchBarWithAutocomplete({super.key, required this.onSearch});
+  const SearchBarWithAutocomplete(
+      {super.key, required this.onSearch, this.onCategorySelected});
 
   @override
   _SearchBarWithAutocompleteState createState() =>
@@ -32,6 +35,8 @@ class _SearchBarWithAutocompleteState extends State<SearchBarWithAutocomplete> {
 
   //Tts Integration
   late FlutterTts _flutterTts;
+
+  String? _selectedCategory;
 
   @override
   void initState() {
@@ -145,7 +150,7 @@ class _SearchBarWithAutocompleteState extends State<SearchBarWithAutocomplete> {
 
     setState(() {
       _isListening = true;
-      _searchController.text = "Listening..."; // Visual feedback
+      _searchController.text = "Listening...";
     });
 
     print("🎯 Speech listening started for Dory commands");
@@ -242,24 +247,25 @@ class _SearchBarWithAutocompleteState extends State<SearchBarWithAutocomplete> {
 
       print("🎯 Dory result - Label: $label, Confidence: $confidence%");
 
-      if (confidence >= 50) {
+      if (confidence >= 40) {
         print("✅ Executing command: $label");
 
         switch (label) {
           case 'open_settings':
-            Navigator.pushNamed(context, '/settings');
+            Navigator.pushNamed(context, '/settings'); //done
             break;
 
           case 'call_sos':
-            Navigator.pushNamed(context, '/sos');
+            Navigator.pushNamed(context, '/sos'); //done
             break;
 
           case 'open_chat':
             Navigator.pushNamed(context, '/inbox');
+            await _speak("Opening your inbox"); //done
             break;
 
           case 'opencreate_space':
-            Navigator.pushNamed(context, '/createSpace');
+            Navigator.pushNamed(context, '/createSpace'); //done
             break;
 
           case 'find_location':
@@ -267,15 +273,17 @@ class _SearchBarWithAutocompleteState extends State<SearchBarWithAutocomplete> {
             break;
 
           case 'pwd_route':
-            Navigator.pushNamed(context, '/pwdRoute');
+            widget.onCategorySelected?.call("pwd");
+            await _speak("Searching for PWD locations nearby");
             break;
 
           case 'open_account':
             Navigator.pushNamed(context, '/account');
+            await _speak("Opening your Profile"); //done
             break;
 
           case 'set_checkin':
-            Navigator.pushNamed(context, '/checkin');
+            Navigator.pushNamed(context, '/send-location'); //done
             break;
 
           case 'open_safety_contact':
@@ -285,6 +293,23 @@ class _SearchBarWithAutocompleteState extends State<SearchBarWithAutocomplete> {
           case 'open_favorites':
             Navigator.pushNamed(context, '/favorites');
             break;
+
+          case 'find_bus':
+            await _speak("Can't find bus");
+
+          case 'find_shopping':
+            await _speak("Can't find shopping");
+
+          case 'find_restaurant':
+            await _speak("Can't find restaurant");
+
+          case 'find_groceries':
+            await _speak("Can't find Groceries");
+
+          case 'find_hospital':
+            print("📡 Voice command: requesting parent callback with 'hospital'");
+            widget.onCategorySelected?.call("hospital");
+            await _speak("Searching for Nearest Hospital");
 
           default:
             print('❓ Unrecognized label: $label');
@@ -306,6 +331,12 @@ class _SearchBarWithAutocompleteState extends State<SearchBarWithAutocomplete> {
     }
 
     _searchController.clear();
+
+    setState(() {
+      _isListening = false;
+      _isProcessingWakeWord = false;
+      _isWakeWordListening = false;
+    });
   }
 
   void _stopListening() {
@@ -377,9 +408,9 @@ class _SearchBarWithAutocompleteState extends State<SearchBarWithAutocomplete> {
               IconButton(
                 icon: Icon(
                   _isListening
-                      ? Icons.mic
+                      ? Icons.mic_rounded
                       : (_isWakeWordListening
-                          ? Icons.mic_external_on
+                          ? Icons.mic_rounded
                           : Icons.mic_none),
                   color: _isListening
                       ? Colors.green
@@ -389,7 +420,6 @@ class _SearchBarWithAutocompleteState extends State<SearchBarWithAutocomplete> {
                 ),
                 onPressed: () {
                   if (_isListening) {
-                    // Stop current listening
                     _stopListening();
                   } else if (_isWakeWordListening) {
                     // Stop wake word listening

@@ -2,7 +2,6 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>QR Code Generator</title>
   <style>
     body {
@@ -11,77 +10,65 @@
       justify-content: center;
       align-items: center;
       height: 100vh;
-      margin: 0;
-      background: #f9f9f9;
       font-family: Arial, sans-serif;
+      background: #f0f0f0;
     }
-    img {
-      width: 250px;
-      height: 250px;
-      margin-bottom: 20px;
+    #qrcode {
+      margin-top: 20px;
+      padding: 20px;
+      background: #fff;
+      border-radius: 12px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+    }
+    input {
+      padding: 10px;
+      width: 300px;
+      font-size: 16px;
+      border-radius: 6px;
+      border: 1px solid #ccc;
     }
     button {
-      background-color: #007bff;
-      color: white;
-      border: none;
+      margin-top: 10px;
       padding: 10px 20px;
       font-size: 16px;
-      border-radius: 5px;
+      border: none;
+      background-color: #007bff;
+      color: white;
+      border-radius: 6px;
       cursor: pointer;
-      margin: 5px;
     }
     button:hover {
       background-color: #0056b3;
     }
-    p {
-      margin-top: 10px;
-      font-size: 14px;
-      color: #333;
-      word-break: break-word;
-    }
   </style>
 </head>
 <body>
-  <img id="qr" alt="QR Code">
-  <button onclick="shuffleCode()">🔀 Shuffle Code</button>
-  <button onclick="getMyIP()">🌐 Get My IP</button>
-  <p id="link"></p>
-  <p id="ip"></p>
+  <h1>QR Code Generator</h1>
+  <input type="text" id="url" value="http://192.168.1.12:5500/static/index.html/?code=123456">
+  <button onclick="generateQR()">Generate QR</button>
+  <div id="qrcode"></div>
 
+  <!-- QRCode.js library -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
   <script>
-    const baseUrl = "https://3-y2-aapwd-8vze.vercel.app/";
-    let currentCode = generateRandomCode();
-
-    function generateRandomCode() {
-      // Generate a random 6-digit number
-      return Math.floor(100000 + Math.random() * 900000);
+    function generateQR() {
+      const url = document.getElementById('url').value.trim();
+      const container = document.getElementById('qrcode');
+      container.innerHTML = ""; // clear previous QR
+      if (!url) return alert("Please enter a URL");
+      
+      new QRCode(container, {
+        text: url,
+        width: 250,
+        height: 250,
+        colorDark : "#000000",
+        colorLight : "#ffffff",
+        correctLevel : QRCode.CorrectLevel.H
+      });
     }
 
-    function updateQRCode() {
-      const fullUrl = `${baseUrl}?code=${currentCode}`;
-      document.getElementById("qr").src =
-        `https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(fullUrl)}&size=250x250`;
-      document.getElementById("link").innerHTML =
-        `<a href="${fullUrl}" target="_blank">${fullUrl}</a>`;
-    }
-
-    function shuffleCode() {
-      currentCode = generateRandomCode();
-      updateQRCode();
-    }
-
-    async function getMyIP() {
-      try {
-        const response = await fetch("https://api.ipify.org?format=json");
-        const data = await response.json();
-        document.getElementById("ip").textContent = `Your IP: ${data.ip}`;
-      } catch (error) {
-        document.getElementById("ip").textContent = "Failed to fetch IP.";
-      }
-    }
-
-    // Initialize page
-    updateQRCode();
+    // Generate initial QR on page load
+    window.onload = generateQR;
   </script>
 </body>
 </html>

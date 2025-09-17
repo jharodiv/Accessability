@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:app_links/app_links.dart';
 import 'package:http/http.dart' as http;
+import 'package:flutter/services.dart';
 
 class DeepLinkService {
   static final DeepLinkService _instance = DeepLinkService._internal();
@@ -20,6 +21,9 @@ class DeepLinkService {
   Future<void> initialize(GlobalKey<NavigatorState> key) async {
     navigatorKey = key;
     debugPrint("🔗 DeepLinkService initialized with navigatorKey");
+
+    // Hnalde Clipboard
+    await _handleClipboard();
 
     // Handle cold start
     await _handleDeepLinkColdStart();
@@ -53,6 +57,53 @@ class DeepLinkService {
     }
   }
 
+  Future<void> _handleClipboard() async {
+    try {
+      final clipboardData = await Clipboard.getData(Clipboard.kTextPlain);
+      final text = clipboardData?.text ?? "";
+
+      if (!text.startsWith("session_")) {
+        debugPrint("📋 Clipboard does not contain a valid session ID.");
+        return;
+      }
+
+      debugPrint("📋 Clipboard contains sessionId: $text");
+
+      if (_deepLinkHandled) {
+        debugPrint("⏩ Deep link already handled, skipping clipboard.");
+        return;
+      }
+
+      // ✅ Fetch code from API
+      final inviteCode = await _getCodeFromSession(text);
+
+      if (inviteCode != null) {
+        debugPrint(
+            "✅ Invite code retrieved from clipboard session: $inviteCode");
+
+        _deepLinkHandled = true;
+
+        // ✅ Build pending URI like a cold start deep link
+        _pendingUri = Uri(
+          path: 'joinspace',
+          queryParameters: {'code': text},
+        );
+
+        // 🔄 Log that Deferred Deep Link is triggered
+        debugPrint(
+            "🔄 [Deferred Deep Link] Triggered navigation using clipboard session.");
+
+        // ✅ Clear clipboard after successful use
+        await Clipboard.setData(const ClipboardData(text: ""));
+        debugPrint("🧹 Clipboard cleared after use.");
+      } else {
+        debugPrint("⚠️ No invite code found for clipboard session.");
+      }
+    } catch (e) {
+      debugPrint("❌ Error checking clipboard for deep link: $e");
+    }
+  }
+
   /// Called whenever a link is received (cold or hot)
   void _handleLink(Uri uri) {
     if (_deepLinkHandled) return; // Avoid double handling
@@ -78,6 +129,9 @@ class DeepLinkService {
     } else {
       debugPrint("ℹ️ No pending link to consume");
     }
+    // ✅ Clear clipboard after successful use
+    Clipboard.setData(const ClipboardData(text: ""));
+    debugPrint("🧹 Clipboard cleared after use.");
   }
 
   /// Navigation logic

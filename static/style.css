@@ -9,6 +9,14 @@ body {
   text-align: center;
 }
 
+.container {
+  max-width: 400px;
+  background: white;
+  padding: 30px;
+  border-radius: 10px;
+  box-shadow: 0 0 15px rgba(0,0,0,0.1);
+}
+
 .download-btn {
   display: inline-block;
   margin-top: 20px;
@@ -18,4 +26,12 @@ body {
   text-decoration: none;
   border-radius: 8px;
   font-weight: bold;
+  cursor: pointer;
+}
+
+.session-info {
+  font-size: 0.9rem;
+  color: #666;
+  margin-top: 15px;
+  word-break: break-all;
 }

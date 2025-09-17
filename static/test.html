@@ -1,74 +1,65 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
   <meta charset="UTF-8">
-  <title>QR Code Generator</title>
+  <title>6-Digit Code Generator</title>
   <style>
     body {
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      align-items: center;
-      height: 100vh;
       font-family: Arial, sans-serif;
-      background: #f0f0f0;
+      text-align: center;
+      margin-top: 100px;
     }
-    #qrcode {
+    #code-box {
+      font-size: 2rem;
+      font-weight: bold;
+      padding: 10px 20px;
+      border: 2px solid #000;
+      display: inline-block;
       margin-top: 20px;
-      padding: 20px;
-      background: #fff;
-      border-radius: 12px;
-      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
-    }
-    input {
-      padding: 10px;
-      width: 300px;
-      font-size: 16px;
-      border-radius: 6px;
-      border: 1px solid #ccc;
+      background-color: #f9f9f9;
+      border-radius: 5px;
     }
     button {
-      margin-top: 10px;
+      margin-top: 30px;
       padding: 10px 20px;
-      font-size: 16px;
-      border: none;
-      background-color: #007bff;
-      color: white;
-      border-radius: 6px;
+      font-size: 1.2rem;
       cursor: pointer;
     }
-    button:hover {
-      background-color: #0056b3;
-    }
   </style>
+  <script>
+    let code = "";
+
+    function generateCode() {
+      code = Math.floor(100000 + Math.random() * 900000).toString();
+      document.getElementById("code-box").textContent = code;
+    }
+
+    function copyCode() {
+      if (!code) generateCode(); // if somehow no code yet
+
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(code)
+          .then(() => alert("✅ Code copied: " + code))
+          .catch(() => alert("⚠️ Could not copy automatically. Please copy manually."));
+      } else {
+        const tempInput = document.createElement("input");
+        tempInput.value = code;
+        document.body.appendChild(tempInput);
+        tempInput.select();
+        document.execCommand("copy");
+        document.body.removeChild(tempInput);
+        alert("✅ Code copied: " + code);
+      }
+    }
+
+    window.onload = generateCode;
+  </script>
 </head>
 <body>
-  <h1>QR Code Generator</h1>
-  <input type="text" id="url" value="http://192.168.1.12:5500/static/index.html/?code=123456">
-  <button onclick="generateQR()">Generate QR</button>
-  <div id="qrcode"></div>
-
-  <!-- QRCode.js library -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-  <script>
-    function generateQR() {
-      const url = document.getElementById('url').value.trim();
-      const container = document.getElementById('qrcode');
-      container.innerHTML = ""; // clear previous QR
-      if (!url) return alert("Please enter a URL");
-      
-      new QRCode(container, {
-        text: url,
-        width: 250,
-        height: 250,
-        colorDark : "#000000",
-        colorLight : "#ffffff",
-        correctLevel : QRCode.CorrectLevel.H
-      });
-    }
-
-    // Generate initial QR on page load
-    window.onload = generateQR;
-  </script>
+  <h1>Generated 6-Digit Code</h1>
+  <div id="code-box">------</div>
+  <br>
+  <button onclick="copyCode()">📋 Copy Code</button>
+  <button onclick="generateCode()">🔄 Generate New Code</button>
 </body>
 </html>

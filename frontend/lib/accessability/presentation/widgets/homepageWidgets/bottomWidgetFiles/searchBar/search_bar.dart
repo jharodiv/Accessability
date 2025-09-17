@@ -295,21 +295,26 @@ class _SearchBarWithAutocompleteState extends State<SearchBarWithAutocomplete> {
             break;
 
           case 'find_bus':
-            await _speak("Can't find bus");
+            widget.onCategorySelected?.call("bus");
+            await _speak("Searching for the Nearest Bus Station");
 
           case 'find_shopping':
-            await _speak("Can't find shopping");
+            widget.onCategorySelected?.call("shopping");
+            await _speak("Searching for the Nearest Shopping Market");
 
           case 'find_restaurant':
-            await _speak("Can't find restaurant");
+            widget.onCategorySelected?.call("restaurant");
+            await _speak("Searching for the Nearest Restaurant");
 
           case 'find_groceries':
-            await _speak("Can't find Groceries");
+            widget.onCategorySelected?.call("grocery");
+            await _speak("Searching for the Nearest Grocery");
 
           case 'find_hospital':
-            print("📡 Voice command: requesting parent callback with 'hospital'");
+            print(
+                "📡 Voice command: requesting parent callback with 'hospital'");
             widget.onCategorySelected?.call("hospital");
-            await _speak("Searching for Nearest Hospital");
+            await _speak("Searching for the Nearest Hospital");
 
           default:
             print('❓ Unrecognized label: $label');

@@ -73,6 +73,7 @@ class TopwidgetsState extends State<Topwidgets> {
 
   void _handleCategorySelection(String cat) {
     final map = {
+      'Pwd': 'PWD',
       'Restawran': 'Restaurant',
       'Pamimili': 'Shopping',
       'Grocery': 'Groceries',

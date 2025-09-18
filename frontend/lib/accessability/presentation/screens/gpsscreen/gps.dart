@@ -750,8 +750,7 @@ class _GpsScreenState extends State<GpsScreen> {
       zIndex: 300,
       infoWindow: InfoWindow(
         title: place.name,
-        snippet:
-            '${'category'.tr()}: ${place.category ?? ''}\nTap for 3D navigation',
+        snippet: 'Tap to show route',
         onTap: () {
           // start route + visually "drop" this marker
           if (_locationHandler.currentLocation != null) {

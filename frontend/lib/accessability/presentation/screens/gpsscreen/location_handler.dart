@@ -832,30 +832,48 @@ class LocationHandler {
     bool isSelected = false,
     String? username,
     Color? accentColor,
+
+    /// How many logical (dp) pixels to subtract from the ORIGINAL size (78.0).
+    /// Updated default: subtract 25 logical px (i.e. 78 - 25 = 53 dp).
+    double shrinkByLogical = 25.0,
   }) async {
     try {
       final double dpr = ui.window.devicePixelRatio;
 
-      // Logical sizes
-      const double logicalSquare = 78.0;
-      const double logicalBorder = 4.0;
-      const double logicalCorner = 18.0;
-      const double logicalPointerW = 16.0;
-      const double logicalPointerH = 12.0;
-      const double logicalOverlap = 6.0;
+      // --- ORIGINAL logical constants (kept for proportion) ---
+      const double baseLogicalSquare = 78.0;
+      const double baseLogicalBorder = 4.0;
+      const double baseLogicalCorner = 18.0;
+      const double baseLogicalPointerW = 16.0;
+      const double baseLogicalPointerH = 12.0;
+      const double baseLogicalOverlap = 6.0;
+      const double baseLogicalSafetyGap = 2.0;
 
-      // device pixels
+      // Apply shrink (in logical dp), clamp to avoid vanishing
+      final double logicalSquare =
+          max(24.0, baseLogicalSquare - shrinkByLogical);
+
+      // Scale factor to keep proportions identical
+      final double scale = logicalSquare / baseLogicalSquare;
+
+      // Scaled logical measurements (preserve proportions)
+      final double logicalBorder = baseLogicalBorder * scale;
+      final double logicalCorner = baseLogicalCorner * scale;
+      final double logicalPointerW = baseLogicalPointerW * scale;
+      final double logicalPointerH = baseLogicalPointerH * scale;
+      final double logicalOverlap = baseLogicalOverlap * scale;
+      final double logicalSafetyGap = baseLogicalSafetyGap * scale;
+
+      // Convert to device pixels (original code used device pixels)
       final double border = logicalBorder * dpr;
       final double corner = logicalCorner * dpr;
       final double pointerW = logicalPointerW * dpr;
       final double pointerH = logicalPointerH * dpr;
       final double overlap = logicalOverlap * dpr;
+      final double safetyGap = logicalSafetyGap * dpr;
       final double outerSize = logicalSquare * dpr;
 
-      const double logicalSafetyGap = 2.0;
-      final double safetyGap = logicalSafetyGap * dpr;
-
-      // softer accent purple
+      // Colors (unchanged)
       final Color accent = accentColor ??
           (isSelected ? const Color(0xFF6750A4) : const Color(0xFF6750A4));
       final Color fallbackBg = const Color(0xFFEEEEF5);
@@ -864,7 +882,7 @@ class LocationHandler {
       ui.Image? profileImg;
       Color? sampledColor;
 
-      // load image
+      // load image (same logic as before)
       if (imageUrl.isNotEmpty) {
         try {
           final resp = await http
@@ -881,8 +899,9 @@ class LocationHandler {
             if (bd != null) {
               final Uint8List pixels = bd.buffer.asUint8List();
               int r = 0, g = 0, b = 0, count = 0;
-              // sample every 100th pixel for speed
-              for (int i = 0; i < pixels.length; i += 400) {
+              // sample every Nth pixel for speed (coarser)
+              final int step = max(1, (pixels.length ~/ 4000));
+              for (int i = 0; i < pixels.length; i += step * 4) {
                 r += pixels[i];
                 g += pixels[i + 1];
                 b += pixels[i + 2];
@@ -908,9 +927,14 @@ class LocationHandler {
           max(defaultPointerTopY, innerBottomY + safetyGap);
       final double tipY = pointerTopY + pointerH;
 
-      final int canvasW = (outerSize).ceil();
+      // ensure at least 1x1 canvas to avoid crashes
+      final int canvasW = max(1, (outerSize).ceil());
       final int canvasH =
-          max((outerSize + pointerH - overlap).ceil(), tipY.ceil());
+          max(1, max((outerSize + pointerH - overlap).ceil(), tipY.ceil()));
+
+      // debug: useful to confirm what was generated
+      debugPrint(
+          '[marker] shrinkByLogical=$shrinkByLogical logicalSquare=$logicalSquare dpr=$dpr outerSize(devicePx)=$outerSize canvas=${canvasW}x$canvasH');
 
       final recorder = ui.PictureRecorder();
       final canvas = Canvas(recorder,
@@ -926,7 +950,7 @@ class LocationHandler {
         Radius.circular(corner),
       );
 
-      // soft shadow
+      // soft shadow (scaled)
       canvas.drawRRect(
         outerRRect.shift(Offset(0, border * 0.45)),
         Paint()
@@ -954,15 +978,15 @@ class LocationHandler {
             ..style = PaintingStyle.fill
             ..color = innerFillColor);
 
-      // draw profile
+      // draw profile / initial (same logic)
       canvas.save();
       canvas.clipRRect(innerRRect);
       if (profileImg != null) {
         final double imgW = profileImg.width.toDouble();
         final double imgH = profileImg.height.toDouble();
-        final double scale = max(innerSize / imgW, innerSize / imgH);
-        final double srcW = innerSize / scale;
-        final double srcH = innerSize / scale;
+        final double scaleImg = max(innerSize / imgW, innerSize / imgH);
+        final double srcW = innerSize / scaleImg;
+        final double srcH = innerSize / scaleImg;
         final double srcLeft = (imgW - srcW) / 2;
         final double srcTop = (imgH - srcH) / 2;
         final Rect src = Rect.fromLTWH(srcLeft, srcTop, srcW, srcH);
@@ -976,22 +1000,25 @@ class LocationHandler {
         final String initial = (username != null && username.trim().isNotEmpty)
             ? username.trim()[0].toUpperCase()
             : '?';
-        final tp = TextPainter(
-          text: TextSpan(
-            text: initial,
-            style: TextStyle(
-                color: initialColor,
-                fontSize: innerSize * 0.42,
-                fontWeight: FontWeight.w700),
-          ),
-          textAlign: TextAlign.center,
-          textDirection: TextDirection.ltr,
-        );
-        tp.layout(minWidth: 0, maxWidth: innerSize);
-        tp.paint(
-            canvas,
-            Offset(inset + ((innerSize - tp.width) / 2),
-                inset + ((innerSize - tp.height) / 2)));
+        // keep initials only when innerSize is usable
+        if (innerSize >= (4.0 * dpr)) {
+          final tp = TextPainter(
+            text: TextSpan(
+              text: initial,
+              style: TextStyle(
+                  color: initialColor,
+                  fontSize: innerSize * 0.42,
+                  fontWeight: FontWeight.w700),
+            ),
+            textAlign: TextAlign.center,
+            textDirection: TextDirection.ltr,
+          );
+          tp.layout(minWidth: 0, maxWidth: innerSize);
+          tp.paint(
+              canvas,
+              Offset(inset + ((innerSize - tp.width) / 2),
+                  inset + ((innerSize - tp.height) / 2)));
+        }
       }
       canvas.restore();
 

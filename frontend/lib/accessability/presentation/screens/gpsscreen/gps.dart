@@ -103,7 +103,7 @@ class _GpsScreenState extends State<GpsScreen> {
   bool _autoSelectAttempted = false;
   static const String _kSavedActiveSpaceKey = 'saved_active_space_id';
   bool _isLocationFetched = false;
-  late Key _mapKey = UniqueKey();
+  GlobalKey _mapKey = GlobalKey();
   String _activeSpaceId = '';
   bool _isLoading = false;
   Place? _selectedPlace;
@@ -175,7 +175,7 @@ class _GpsScreenState extends State<GpsScreen> {
     _safetySheetController = DraggableScrollableController();
 
     print("Using API Key: $_googleAPIKey");
-    _mapKey = UniqueKey();
+    _mapKey = GlobalKey();
 
     _pwdNotificationService.initialize().then((_) {
       _pwdNotificationService.startLocationMonitoring();
@@ -425,63 +425,47 @@ class _GpsScreenState extends State<GpsScreen> {
     double? speedKmh,
     DateTime? timestamp,
   }) async {
-    // remove any existing overlay first
     _removeUserOverlay();
 
-    // Suppress the usual map-onTap collapse while we prepare/show the overlay.
     _userOverlayVisible.value = true;
     _suppressMapTapCollapse = true;
     _suppressMapTapCollapseTimer?.cancel();
     _suppressMapTapCollapseTimer = Timer(
         const Duration(seconds: 4), () => _suppressMapTapCollapse = false);
 
-    // --- IMPORTANT: collapse relevant DraggableScrollableSheets so LocationWidgets
-    // will go to its min height when the user overlay is shown.
-    // We try all three controllers (favorite, location, safety). Each animateTo is
-    // guarded and non-fatal so we don't crash if controller isn't attached.
-    const double favoriteMin = 0.10; // matches FavoriteWidget minChildSize
-    const double locationMin =
-        0.20; // matches LocationWidgets._sheetMinChildSize
-    const double safetyMin = 0.10; // matches SafetyAssistWidget minChildSize
-
-    Future<void> tryCollapse(
-        DraggableScrollableController? controller, double target) async {
-      if (controller == null) return;
+    // collapse sheets (same helper as before)
+    const double favoriteMin = 0.10;
+    const double locationMin = 0.20;
+    const double safetyMin = 0.10;
+    Future<void> tryCollapse(DraggableScrollableController? c, double t) async {
+      if (c == null) return;
       try {
-        // Only attempt if noticeably larger than target to avoid redundant calls
-        final cur = controller.size;
-        if (cur > target + 0.01) {
-          if (controller.isAttached) {
-            await controller.animateTo(
-              target,
-              duration: const Duration(milliseconds: 260),
-              curve: Curves.easeOut,
-            );
-          } else {
-            // If not attached yet, try a short delay then attempt again.
-            await Future.delayed(const Duration(milliseconds: 120));
-            if (controller.isAttached) {
-              await controller.animateTo(
-                target,
+        final cur = c.size;
+        if (cur > t + 0.01) {
+          if (c.isAttached) {
+            await c.animateTo(t,
                 duration: const Duration(milliseconds: 260),
-                curve: Curves.easeOut,
-              );
-            } // otherwise ignore — it will be collapsed when sheet attaches
+                curve: Curves.easeOut);
+          } else {
+            await Future.delayed(const Duration(milliseconds: 120));
+            if (c.isAttached) {
+              await c.animateTo(t,
+                  duration: const Duration(milliseconds: 260),
+                  curve: Curves.easeOut);
+            }
           }
         }
       } catch (e) {
-        debugPrint('[GpsScreen] collapse attempt failed for controller: $e');
+        debugPrint('[GpsScreen] collapse attempt failed: $e');
       }
     }
 
-    // Fire-and-await collapses so the UI has settled before we position overlay.
     await tryCollapse(_favoriteSheetController, favoriteMin);
     await tryCollapse(_locationSheetController, locationMin);
     await tryCollapse(_safetySheetController, safetyMin);
 
     final controller = _locationHandler.mapController;
     if (controller == null) {
-      // can't proceed — clear suppression and exit
       _suppressMapTapCollapse = false;
       _suppressMapTapCollapseTimer?.cancel();
       _suppressMapTapCollapseTimer = null;
@@ -489,7 +473,7 @@ class _GpsScreenState extends State<GpsScreen> {
     }
 
     try {
-      // card size used for positioning (matches card design)
+      // card sizes/offsets
       const double cardWidth = 260.0;
       const double cardHeight = 112.0;
       const double topOffsetFromProfile = 20.0;
@@ -497,17 +481,80 @@ class _GpsScreenState extends State<GpsScreen> {
 
       final screenW = MediaQuery.of(context).size.width;
       final screenH = MediaQuery.of(context).size.height;
+      final devicePixelRatio = MediaQuery.of(context).devicePixelRatio;
 
       final currentUid = FirebaseAuth.instance.currentUser?.uid;
       final bool isCurrentUser = currentUid != null && currentUid == userId;
 
-      // conservative fallback position (center-ish)
+      // fallback center (used if coordinate lookup fails)
       double left = ((screenW - cardWidth) / 2 - leftNudge)
           .clamp(8.0, screenW - cardWidth - 8.0);
       double top = ((screenH / 2) - cardHeight - topOffsetFromProfile)
           .clamp(8.0, screenH - cardHeight - 8.0);
 
-      // Insert overlay immediately with a barrier to avoid tap-through.
+      if (isCurrentUser) {
+        // center map for current user then put card at center
+        try {
+          await controller.animateCamera(CameraUpdate.newLatLng(location));
+        } catch (e) {
+          debugPrint('[GpsScreen] animateCamera failed for current user: $e');
+        }
+        // let camera/layout settle
+        await Future.delayed(const Duration(milliseconds: 220));
+        final double centerY = screenH / 2;
+        left = ((screenW - cardWidth) / 2 - leftNudge)
+            .clamp(8.0, screenW - cardWidth - 8.0);
+        top = (centerY - cardHeight - topOffsetFromProfile)
+            .clamp(8.0, screenH - cardHeight - 8.0);
+      } else {
+        // NON-CURRENT USER: animate camera to the tapped member first,
+        // then position overlay centered above the MAP CENTER so the member
+        // will appear under the card.
+        try {
+          // animate camera to center the member
+          await controller.animateCamera(CameraUpdate.newLatLng(location));
+        } catch (e) {
+          debugPrint('[GpsScreen] animateCamera failed for other user: $e');
+        }
+
+        // Wait for camera + layout to settle. May need to tweak duration for slower devices.
+        await Future.delayed(const Duration(milliseconds: 250));
+
+        // Determine map center on screen: using MediaQuery center is safe because camera was centered on member.
+        // But if your map doesn't fill the entire screen, compute map's global offset and apply it.
+        Offset mapGlobal = Offset.zero;
+        RenderBox? mapBox;
+        try {
+          mapBox = _mapKey.currentContext?.findRenderObject() as RenderBox?;
+          if (mapBox != null) {
+            mapGlobal = mapBox.localToGlobal(Offset.zero);
+          } else {
+            debugPrint(
+                '[overlay-debug] mapBox was null when computing mapGlobal; falling back to screen center.');
+          }
+        } catch (e) {
+          debugPrint('[overlay-debug] mapBox lookup error: $e');
+        }
+
+        // If mapGlobal is zero, assume map fills entire screen and center overlay relative to screen.
+        final double centerXLogical = (mapGlobal == Offset.zero)
+            ? (screenW / 2)
+            : (mapGlobal.dx + (mapBox!.size.width / 2));
+        final double centerYLogical = (mapGlobal == Offset.zero)
+            ? (screenH / 2)
+            : (mapGlobal.dy + (mapBox!.size.height / 2));
+
+        // Place card centered above the center point
+        left = (centerXLogical - cardWidth / 2 - leftNudge)
+            .clamp(8.0, screenW - cardWidth - 8.0);
+        top = (centerYLogical - cardHeight - topOffsetFromProfile)
+            .clamp(8.0, screenH - cardHeight - 8.0);
+
+        debugPrint(
+            '[overlay-debug] centered overlay for other user: left=$left top=$top mapGlobal=$mapGlobal centerLogical=($centerXLogical,$centerYLogical)');
+      }
+
+      // Insert overlay once with computed coordinates.
       _userOverlayEntry = OverlayEntry(builder: (ctx) {
         return Stack(
           children: [
@@ -534,52 +581,8 @@ class _GpsScreenState extends State<GpsScreen> {
       });
 
       Overlay.of(context)!.insert(_userOverlayEntry!);
-
-      // Compute precise position: center-based for current user (after camera move),
-      // or marker-screen-coordinate for other users.
-      if (isCurrentUser) {
-        try {
-          await controller.animateCamera(CameraUpdate.newLatLng(location));
-        } catch (e) {
-          debugPrint('[GpsScreen] animateCamera failed for current user: $e');
-        }
-        // brief wait for camera/layout to stabilise
-        await Future.delayed(const Duration(milliseconds: 250));
-
-        final double centerY = screenH / 2;
-        left = ((screenW - cardWidth) / 2 - leftNudge)
-            .clamp(8.0, screenW - cardWidth - 8.0);
-        top = (centerY - cardHeight - topOffsetFromProfile)
-            .clamp(8.0, screenH - cardHeight - 8.0);
-      } else {
-        try {
-          final screenCoord = await controller.getScreenCoordinate(location);
-          final devicePixelRatio = MediaQuery.of(context).devicePixelRatio;
-          final dx = screenCoord.x.toDouble() / devicePixelRatio;
-          final dy = screenCoord.y.toDouble() / devicePixelRatio;
-
-          left = (dx - cardWidth / 2 - leftNudge)
-              .clamp(8.0, screenW - cardWidth - 8.0);
-          top = (dy - cardHeight - topOffsetFromProfile)
-              .clamp(8.0, screenH - cardHeight - 8.0);
-        } catch (e) {
-          debugPrint(
-              '[GpsScreen] getScreenCoordinate failed, using fallback: $e');
-        }
-      }
-
-      // Rebuild overlay so the card moves to the computed coordinates.
-      try {
-        _userOverlayEntry?.markNeedsBuild();
-      } catch (e) {
-        debugPrint('[GpsScreen] markNeedsBuild failed: $e');
-      }
-
-      // Keep suppression active while the overlay is present; _removeUserOverlay()
-      // clears `_suppressMapTapCollapse` and cancels the timer.
     } catch (e, st) {
       debugPrint('[GpsScreen] Error creating overlay: $e\n$st');
-      // cleanup on error
       _suppressMapTapCollapse = false;
       _suppressMapTapCollapseTimer?.cancel();
       _suppressMapTapCollapseTimer = null;

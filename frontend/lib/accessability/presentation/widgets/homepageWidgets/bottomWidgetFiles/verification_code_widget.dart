@@ -9,6 +9,7 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:qr_flutter/qr_flutter.dart';
+import 'package:flutter/services.dart';
 
 class VerificationCodeScreen extends StatefulWidget {
   final String spaceId;
@@ -44,6 +45,15 @@ class _VerificationCodeScreenState extends State<VerificationCodeScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       DeepLinkService().clearPendingData();
     });
+  }
+
+  Future<void> _clearClipboard() async {
+    try {
+      await Clipboard.setData(const ClipboardData(text: ""));
+      debugPrint("🧹 Clipboard cleared after successful join navigation.");
+    } catch (e) {
+      debugPrint("⚠️ Failed to clear clipboard: $e");
+    }
   }
 
   Future<void> _ensureCode() async {
@@ -85,6 +95,9 @@ class _VerificationCodeScreenState extends State<VerificationCodeScreen> {
           'codeTimestamp': DateTime.now(),
         });
       }
+
+      // ✅ CLEAR CLIPBOARD AFTER SUCCESSFUL CODE FETCH
+      await _clearClipboard();
     } catch (e) {
       debugPrint('Error ensuring code: $e');
       if (mounted) {
@@ -194,147 +207,162 @@ class _VerificationCodeScreenState extends State<VerificationCodeScreen> {
   }
 
   Widget _buildBody() {
-    // choose display name — if widget.spaceName provided use it; else fallback to generic 'Space'
     final displayName = (widget.spaceName?.trim().isNotEmpty ?? false)
         ? widget.spaceName!.trim()
         : 'Space';
 
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start, // left align texts
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        const SizedBox(height: 12), // more breathing room from top
-        Padding(
-          padding: const EdgeInsets.only(left: 8, right: 8),
-          child: Text(
-            'inviteMembers'.tr(namedArgs: {'space': displayName}),
-            style: const TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.w700,
-              color: Color(0xFF2E1750),
-            ),
-            textAlign: TextAlign.center,
-          ),
-        ),
-        const SizedBox(
-            height: 20), // increased spacing between title & subtitle
-        Padding(
-          padding: const EdgeInsets.only(left: 8, right: 8),
-          child: Text(
-            'shareCodeInstruction'.tr(),
-            textAlign: TextAlign.center,
-            style: const TextStyle(
-                fontSize: 15, color: Color(0xFF7A6E9A), height: 1.4),
-          ),
-        ),
-        const SizedBox(height: 25), // more space before the purple card
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.symmetric(vertical: 36, horizontal: 24),
-          margin: const EdgeInsets.symmetric(vertical: 4),
-          decoration: BoxDecoration(
-            color: const Color(
-                0xFFF1E9FF), // subtle purple background like screenshot
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: Column(
-            children: [
-              if (_isLoading)
-                const SizedBox(
-                    height: 72,
-                    child: Center(child: CircularProgressIndicator()))
-              else ...[
-                Text(
-                  _displayFormattedCode(_verificationCode),
-                  style: const TextStyle(
-                    fontSize: 36,
-                    fontWeight: FontWeight.w800,
-                    color: Color(0xFF6750A4),
-                    letterSpacing: 1.8,
-                  ),
-                ),
-                const SizedBox(height: 14),
-                Text(
-                  'codeActiveFor'
-                      .tr(namedArgs: {'duration': _formatValidityText()}),
-                  style: const TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w400,
-                    color: Color(0xFF2E1750),
-                  ),
-                ),
-                const SizedBox(height: 26),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF6750A4),
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: const StadiumBorder(),
-                    ),
-                    onPressed: _isLoading ? null : _shareCode,
-                    child: Text(
-                      'shareCode'.tr(),
-                      style: const TextStyle(
-                          fontSize: 16, fontWeight: FontWeight.w700),
-                    ),
-                  ),
-                ),
-                // "Regenerate code" removed as requested
-              ],
-            ],
-          ),
-        ),
-        const SizedBox(height: 24),
+        const SizedBox(height: 20),
 
-        // 🔹 OR separator
+        /// Title
+        Text(
+          'inviteMembers'.tr(namedArgs: {'space': displayName}),
+          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                fontWeight: FontWeight.bold,
+                color: const Color(0xFF2E1750),
+              ),
+          textAlign: TextAlign.center,
+        ),
+        const SizedBox(height: 12),
+
+        /// Subtitle
+        Text(
+          'shareCodeInstruction'.tr(),
+          textAlign: TextAlign.center,
+          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: const Color(0xFF7A6E9A),
+                height: 1.4,
+              ),
+        ),
+        const SizedBox(height: 28),
+
+        /// Code Card
+        Card(
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          elevation: 3,
+          color: const Color(0xFFF7F3FF),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 20),
+            child: Column(
+              children: [
+                _isLoading
+                    ? const Padding(
+                        padding: EdgeInsets.all(24),
+                        child: CircularProgressIndicator(),
+                      )
+                    : Column(
+                        children: [
+                          /// Code
+                          Text(
+                            _displayFormattedCode(_verificationCode),
+                            style: Theme.of(context)
+                                .textTheme
+                                .displayMedium
+                                ?.copyWith(
+                                  fontWeight: FontWeight.w800,
+                                  letterSpacing: 2,
+                                  color: const Color(0xFF5B3DC4),
+                                ),
+                          ),
+                          const SizedBox(height: 12),
+
+                          /// Validity Text
+                          Text(
+                            'codeActiveFor'.tr(
+                                namedArgs: {'duration': _formatValidityText()}),
+                            style: Theme.of(context)
+                                .textTheme
+                                .bodyMedium
+                                ?.copyWith(
+                                  color: Colors.black87,
+                                ),
+                          ),
+                          const SizedBox(height: 24),
+
+                          /// Share Button
+                          SizedBox(
+                            width: double.infinity,
+                            child: ElevatedButton.icon(
+                              icon: const Icon(Icons.send, size: 20),
+                              label: Text('shareCode'.tr()),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFF6750A4),
+                                foregroundColor: Colors.white,
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 14),
+                                shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(30)),
+                              ),
+                              onPressed: _isLoading ? null : _shareCode,
+                            ),
+                          ),
+                        ],
+                      ),
+              ],
+            ),
+          ),
+        ),
+
+        const SizedBox(height: 32),
+
+        /// OR Divider
         Row(
           children: [
             const Expanded(
-                child: Divider(thickness: 1, color: Color(0xFFCCC2DC))),
+                child: Divider(color: Color(0xFFCCC2DC), thickness: 1)),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 12),
               child: Text(
                 'or'.tr(),
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: Color(0xFF7A6E9A),
-                ),
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                      color: const Color(0xFF7A6E9A),
+                    ),
               ),
             ),
             const Expanded(
-                child: Divider(thickness: 1, color: Color(0xFFCCC2DC))),
+                child: Divider(color: Color(0xFFCCC2DC), thickness: 1)),
           ],
         ),
 
-        const SizedBox(height: 24),
+        const SizedBox(height: 28),
 
-        // 🔹 New QR code container
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(24),
-          margin: const EdgeInsets.symmetric(vertical: 4),
-          decoration: BoxDecoration(
-            color: const Color(0xFFEDE7F6), // lighter purple for QR container
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: Column(
-            children: [
-              Text(
-                'scanToEnter'.tr(),
-                style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFF2E1750)),
-              ),
-              const SizedBox(height: 16),
-              QrImageView(
-                data:
-                    "https://3-y2-aapwd-8vze.vercel.app/?code=${_verificationCode ?? ""}", // your deep link
-                version: QrVersions.auto,
-                size: 200,
-              ),
-            ],
+        /// QR Section
+        Card(
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          elevation: 2,
+          color: const Color(0xFFF5F0FF),
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              children: [
+                Text(
+                  'scanToEnter'.tr(),
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w600,
+                        color: const Color(0xFF2E1750),
+                      ),
+                ),
+                const SizedBox(height: 16),
+                QrImageView(
+                  data:
+                      "https://3-y2-aapwd-8vze.vercel.app/?code=${_verificationCode ?? ""}",
+                  version: QrVersions.auto,
+                  size: 180,
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Point your camera to join',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: Colors.grey[700],
+                      ),
+                ),
+              ],
+            ),
           ),
         ),
       ],

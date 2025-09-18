@@ -97,7 +97,8 @@ window.onload = async function () {
   setTimeout(() => {
     if (!document.hidden && Date.now() - start >= 1500) {
       console.log("📦 App did not open. Showing manual download option.");
-      document.querySelector(".container h1").textContent = "Couldn't open the app automatically.";
+      document.getElementById("statusText").textContent = "Couldn't open the app automatically.";
+
     }
   }, 1500);
 

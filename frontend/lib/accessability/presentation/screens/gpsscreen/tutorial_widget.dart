@@ -1,3 +1,4 @@
+import 'package:accessability/accessability/backgroundServices/deep_link_service.dart';
 import 'package:accessability/accessability/logic/bloc/auth/auth_bloc.dart';
 import 'package:accessability/accessability/logic/bloc/auth/auth_event.dart';
 import 'package:flutter/material.dart';
@@ -204,14 +205,32 @@ class TutorialWidget {
         opacityShadow: 0.8,
         onFinish: () {
           debugPrint("Tutorial finished ✅ marking onboarding complete");
-          // 🔹 Dispatch onboarding complete here
+
+          // 🔹 Dispatch onboarding complete
           context.read<AuthBloc>().add(CompleteOnboardingEvent());
+
+          // 🔹 Trigger deferred deep link consumption after tutorial
+          debugPrint(
+              "🛰️ Tutorial finished, now consuming pending deep links...");
+          Future.delayed(const Duration(seconds: 2), () {
+            DeepLinkService().consumePendingLinkIfAny();
+          });
+
           onTutorialComplete?.call();
         },
         onSkip: () {
           debugPrint("Tutorial skipped ❌ marking onboarding complete anyway");
-          // 🔹 Even if skipped, still mark as complete
+
+          // 🔹 Dispatch onboarding complete
           context.read<AuthBloc>().add(CompleteOnboardingEvent());
+
+          // 🔹 Trigger deferred deep link consumption after skip
+          debugPrint(
+              "🛰️ Tutorial skipped, now consuming pending deep links...");
+          Future.delayed(const Duration(seconds: 2), () {
+            DeepLinkService().consumePendingLinkIfAny();
+          });
+
           onTutorialComplete?.call();
           return true;
         },

@@ -332,5 +332,6 @@
   "confirm_delete": "Confirm delete",
   "confirm_delete_contact": "Are you sure you want to delete {0}?",
   "implement_message_action": "Message action not implemented",
-  "locationNotAvailable": "Location not available"
+  "locationNotAvailable": "Location not available",
+  "contact_name_is": "Contact name is {0}"
 }

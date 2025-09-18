@@ -97,29 +97,53 @@ class _AddEmergencyContactScreenState extends State<AddEmergencyContactScreen>
           // Phone: try to extract leading +countrycode and leftover number
           final raw = (selectedContact['phone'] ?? '').trim();
           if (raw.isNotEmpty) {
-            final m = RegExp(r'^\+[\d]{1,4}').firstMatch(raw);
-            if (m != null) {
-              final cc = m.group(0)!;
-              final rest =
-                  raw.substring(cc.length).replaceAll(RegExp(r'\D'), '');
-              if (_countryCodes.contains(cc)) {
-                setState(() => _countryCode = cc);
-              } else {
-                // if contact country code not in list, set it and optionally add to list
+            // remove whitespace (keeps + and digits and other chars intact for later parsing)
+            final cleaned = raw.replaceAll(RegExp(r'\s+'), '');
+
+            // Try to match a known country code from _countryCodes (longest first)
+            String? matchedCc;
+            final codes = List<String>.from(_countryCodes);
+            codes.sort((a, b) => b.length.compareTo(a.length)); // longest first
+            for (final cc in codes) {
+              if (cleaned.startsWith(cc)) {
+                matchedCc = cc;
+                break;
+              }
+            }
+
+            if (matchedCc != null) {
+              // extract remainder after cc, remove non-digits, strip leading zeros
+              var rest = cleaned
+                  .substring(matchedCc.length)
+                  .replaceAll(RegExp(r'\D'), '');
+              rest =
+                  rest.replaceFirst(RegExp(r'^0+'), ''); // remove leading zeros
+              setState(() => _countryCode = matchedCc!);
+              _phoneCtrl.text = rest;
+            } else {
+              // fallback: detect a +countrycode (1-4 digits) using regex like before
+              final m = RegExp(r'^\+[\d]{1,4}').firstMatch(cleaned);
+              if (m != null) {
+                final cc = m.group(0)!;
+                var rest =
+                    cleaned.substring(cc.length).replaceAll(RegExp(r'\D'), '');
+                rest = rest.replaceFirst(
+                    RegExp(r'^0+'), ''); // remove leading zeros
                 setState(() {
                   _countryCode = cc;
                   if (!_countryCodes.contains(cc)) _countryCodes.insert(0, cc);
                 });
+                _phoneCtrl.text = rest;
+              } else {
+                // No country + prefix, just keep digits and strip leading zeros
+                _phoneCtrl.text = cleaned
+                    .replaceAll(RegExp(r'\D'), '')
+                    .replaceFirst(RegExp(r'^0+'), '');
               }
-              _phoneCtrl.text = rest;
-            } else {
-              // no +country code — remove non-digits and set
-              _phoneCtrl.text = raw.replaceAll(RegExp(r'\D'), '');
             }
           } else {
             _phoneCtrl.text = '';
           }
-
           _updateButtonState();
         }
       } catch (e) {

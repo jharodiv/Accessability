@@ -2,54 +2,55 @@ class EmergencyContact {
   final String? id; // Firestore document ID (optional)
   final String name;
   final String location;
-  final String arrival;
-  final String update;
+  final String relationship;
+  final String address;
+  final String phone; // <-- re-added
 
   EmergencyContact({
     this.id,
     required this.name,
     required this.location,
-    required this.arrival,
-    required this.update,
+    required this.relationship,
+    required this.address,
+    required this.phone,
   });
 
-  // Creates an EmergencyContact instance from a Map.
-  // Optionally, the Firestore document ID can be provided.
   factory EmergencyContact.fromMap(Map<String, dynamic> map, {String? id}) {
     return EmergencyContact(
       id: id,
-      name: map['name'] ?? '',
-      location: map['location'] ?? '',
-      arrival: map['arrival'] ?? '',
-      update: map['update'] ?? '',
+      name: map['name'] as String? ?? '',
+      location: map['location'] as String? ?? '',
+      relationship: map['relationship'] as String? ?? '',
+      address: map['address'] as String? ?? '',
+      phone: map['phone'] as String? ?? '',
     );
   }
 
-  // Converts the EmergencyContact instance into a Map.
-  // This map can then be stored in Firestore.
   Map<String, dynamic> toMap() {
     return {
       'name': name,
       'location': location,
-      'arrival': arrival,
-      'update': update,
+      'relationship': relationship,
+      'address': address,
+      'phone': phone,
     };
   }
 
-  // Optional: Create a copy of the EmergencyContact with updated values.
   EmergencyContact copyWith({
     String? id,
     String? name,
     String? location,
-    String? arrival,
-    String? update,
+    String? relationship,
+    String? address,
+    String? phone,
   }) {
     return EmergencyContact(
       id: id ?? this.id,
       name: name ?? this.name,
       location: location ?? this.location,
-      arrival: arrival ?? this.arrival,
-      update: update ?? this.update,
+      relationship: relationship ?? this.relationship,
+      address: address ?? this.address,
+      phone: phone ?? this.phone,
     );
   }
 }

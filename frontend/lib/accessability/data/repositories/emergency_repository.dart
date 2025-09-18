@@ -38,4 +38,17 @@ class EmergencyRepository {
       throw Exception('Failed to delete emergency contact: ${e.toString()}');
     }
   }
+
+  // // Optional helper: fetch contacts filtered by relationship.
+  // // Requires EmergencyService.getEmergencyContactsByRelationship to be implemented.
+  // Future<List<EmergencyContact>> getEmergencyContactsByRelationship(
+  //     String uid, String relationship) async {
+  //   try {
+  //     return await emergencyService.getEmergencyContactsByRelationship(
+  //         uid, relationship);
+  //   } catch (e) {
+  //     throw Exception(
+  //         'Failed to fetch emergency contacts by relationship: ${e.toString()}');
+  //   }
+  // }
 }

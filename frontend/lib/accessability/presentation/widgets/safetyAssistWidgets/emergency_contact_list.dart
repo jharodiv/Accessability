@@ -1,4 +1,5 @@
 import 'package:accessability/accessability/data/model/emergency_contact.dart';
+import 'package:accessability/accessability/presentation/widgets/reusableWidgets/delete_confirmation_dialog.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 
@@ -22,11 +23,15 @@ class EmergencyContactsList extends StatelessWidget {
     required this.onDeletePressed,
   }) : super(key: key);
 
-  String _relationOf(EmergencyContact c) =>
-      _stringProp(c, ['relationship', 'relation', 'arrival']);
+  String _relationOf(EmergencyContact c) {
+    final r = (c.relationship ?? '').toString().trim();
+    return r;
+  }
 
-  String _phoneOf(EmergencyContact c) =>
-      _stringProp(c, ['phone', 'number', 'update', 'tel']);
+  String _phoneOf(EmergencyContact c) {
+    final p = (c.phone ?? '').toString().trim();
+    return p;
+  }
 
   Widget _sheetAction({
     required IconData icon,
@@ -68,49 +73,20 @@ class EmergencyContactsList extends StatelessWidget {
     );
   }
 
-  String _stringProp(dynamic obj, List<String> props) {
-    for (final p in props) {
-      try {
-        final dyn = obj as dynamic;
-        final v = (() {
-          switch (p) {
-            case 'relationship':
-              return dyn.relationship;
-            case 'relation':
-              return dyn.relation;
-            case 'arrival':
-              return dyn.arrival;
-            case 'phone':
-              return dyn.phone;
-            case 'number':
-              return dyn.number;
-            case 'update':
-              return dyn.update;
-            case 'tel':
-              return dyn.tel;
-            default:
-              return null;
-          }
-        })();
-        if (v != null) {
-          final s = v.toString().trim();
-          if (s.isNotEmpty) return s;
-        }
-      } catch (_) {
-        // ignore and try next
-      }
-    }
-    return '';
-  }
-
-  void _showActionsSheet(BuildContext context, EmergencyContact contact,
-      String phone, bool isDark) {
-    final mq = MediaQuery.of(context);
-    final sheetHeight = (mq.size.height * 0.28).clamp(140.0, 260.0);
+  void _showDetailsSheet(
+    BuildContext context,
+    EmergencyContact contact,
+    String phone,
+    bool isDark,
+    void Function(String? number) onCallPressed,
+    void Function(EmergencyContact contact) onMessagePressed,
+    void Function(String? contactId) onDeletePressed,
+  ) {
+    const Color purple = Color(0xFF6750A4);
 
     showModalBottomSheet(
       context: context,
-      isScrollControlled: false,
+      isScrollControlled: true,
       backgroundColor: isDark ? Colors.grey[900] : Colors.white,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
@@ -118,152 +94,192 @@ class EmergencyContactsList extends StatelessWidget {
       builder: (ctx) {
         return SafeArea(
           top: false,
-          child: SizedBox(
-            height: sheetHeight,
-            child: Padding(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 18.0, vertical: 14),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // small handle
-                  Container(
-                      width: 36,
-                      height: 4,
-                      decoration: BoxDecoration(
-                          color: isDark ? Colors.white12 : Colors.grey[300],
-                          borderRadius: BorderRadius.circular(2))),
-                  const SizedBox(height: 12),
-                  // header row
-                  Row(
-                    children: [
-                      CircleAvatar(
-                        radius: 20,
-                        backgroundColor: isDark
-                            ? const Color(0xFF5E2FB7)
-                            : const Color(0xFFF0E8FF),
-                        child: Text(
-                          contact.name.isNotEmpty
-                              ? contact.name[0].toUpperCase()
-                              : '?',
-                          style: TextStyle(
-                              color: isDark
-                                  ? Colors.white
-                                  : const Color(0xFF5A2B9B),
-                              fontWeight: FontWeight.w800),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(contact.name,
-                                style: TextStyle(
-                                    fontWeight: FontWeight.w800,
-                                    fontSize: 16,
-                                    color: isDark
-                                        ? Colors.white
-                                        : Colors.black87)),
-                            if (phone.isNotEmpty) ...[
-                              const SizedBox(height: 4),
-                              Text(phone,
-                                  style: TextStyle(
-                                      color: isDark
-                                          ? Colors.grey[300]
-                                          : Colors.grey[700],
-                                      fontSize: 13)),
-                            ],
-                          ],
-                        ),
-                      ),
-                      IconButton(
-                        onPressed: () => Navigator.pop(ctx),
-                        icon: Icon(Icons.close,
-                            color: isDark ? Colors.white70 : Colors.black54),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 14),
-
-                  // actions — responsive: use Row with evenly spaced actions; wrap on small widths
-                  Expanded(
-                    child: LayoutBuilder(
-                      builder: (context, constraints) {
-                        return Center(
-                          child: Wrap(
-                            alignment: WrapAlignment.center,
-                            spacing: 18,
-                            runSpacing: 12,
-                            children: [
-                              _sheetAction(
-                                icon: Icons.call,
-                                label: 'Call',
-                                isDark: isDark,
-                                onTap: () {
-                                  Navigator.pop(ctx);
-                                  if (phone.isNotEmpty) {
-                                    onCallPressed(phone);
-                                  } else {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                        SnackBar(
-                                            content: Text(
-                                                'no_number_available'.tr())));
-                                  }
-                                },
-                              ),
-                              _sheetAction(
-                                icon: Icons.message,
-                                label: 'Message',
-                                isDark: isDark,
-                                onTap: () {
-                                  Navigator.pop(ctx);
-                                  onMessagePressed(contact);
-                                },
-                              ),
-                              _sheetAction(
-                                icon: Icons.delete_outline,
-                                label: 'Delete',
-                                isDark: isDark,
-                                background: Colors.redAccent.withOpacity(0.9),
-                                iconColor: Colors.white,
-                                onTap: () async {
-                                  Navigator.pop(ctx);
-                                  final confirmed = await showDialog<bool>(
-                                    context: context,
-                                    builder: (dctx) => AlertDialog(
-                                      title: Text('confirm_delete'.tr()),
-                                      content: Text('confirm_delete_contact'
-                                          .tr(args: [contact.name])),
-                                      actions: [
-                                        TextButton(
-                                            onPressed: () =>
-                                                Navigator.pop(dctx, false),
-                                            child: Text('cancel'.tr())),
-                                        ElevatedButton(
-                                          style: ElevatedButton.styleFrom(
-                                              backgroundColor:
-                                                  Colors.redAccent),
-                                          onPressed: () =>
-                                              Navigator.pop(dctx, true),
-                                          child: Text('delete'.tr()),
-                                        ),
-                                      ],
-                                    ),
-                                  );
-                                  if (confirmed == true) {
-                                    onDeletePressed(contact.id);
-                                  }
-                                },
-                              ),
-                            ],
-                          ),
-                        );
-                      },
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // handle
+                Center(
+                  child: Container(
+                    width: 36,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: isDark ? Colors.white12 : Colors.grey[300],
+                      borderRadius: BorderRadius.circular(2),
                     ),
                   ),
-                ],
-              ),
+                ),
+                const SizedBox(height: 10),
+
+                // header: avatar + name + relationship pill + close
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    CircleAvatar(
+                      radius: 20,
+                      backgroundColor: isDark
+                          ? const Color(0xFF5E2FB7)
+                          : const Color(0xFFF0E8FF),
+                      child: Text(
+                        contact.name.isNotEmpty
+                            ? contact.name[0].toUpperCase()
+                            : '?',
+                        style: TextStyle(
+                            color:
+                                isDark ? Colors.white : const Color(0xFF5A2B9B),
+                            fontWeight: FontWeight.w800),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            contact.name,
+                            style: TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w900,
+                                color: isDark ? Colors.white : Colors.black87),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          if (contact.relationship.trim().isNotEmpty) ...[
+                            const SizedBox(height: 6),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(
+                                  color: isDark
+                                      ? Colors.white10
+                                      : const Color(0xFFF3E8FF),
+                                  borderRadius: BorderRadius.circular(999)),
+                              child: Text(contact.relationship,
+                                  style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w700,
+                                      color: isDark
+                                          ? Colors.white70
+                                          : const Color(0xFF5A2B9B))),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                    IconButton(
+                      onPressed: () => Navigator.pop(ctx),
+                      icon: Icon(Icons.close,
+                          color: isDark ? Colors.white70 : Colors.black54),
+                    ),
+                  ],
+                ),
+
+                const SizedBox(height: 12),
+
+                // Optional compact info hint (if you want something above actions)
+                // Removed explicit phone & location lines per request:
+                // the Location action will show full location when tapped.
+                // The Call action will use the `phone` value.
+
+                // actions row — Call, Message, Location, Delete (all same style)
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    // Call
+                    _sheetAction(
+                      icon: Icons.call,
+                      label: 'Call',
+                      isDark: isDark,
+                      onTap: () {
+                        Navigator.pop(ctx);
+                        if (phone.isNotEmpty) {
+                          onCallPressed(phone);
+                        } else {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('no_number_available'.tr())),
+                          );
+                        }
+                      },
+                    ),
+
+                    // Message
+                    _sheetAction(
+                      icon: Icons.message,
+                      label: 'Message',
+                      isDark: isDark,
+                      onTap: () {
+                        Navigator.pop(ctx);
+                        onMessagePressed(contact);
+                      },
+                    ),
+
+                    // Location (same style) - close sheet then show full-location dialog
+                    _sheetAction(
+                      icon: Icons.location_on,
+                      label: 'Location',
+                      isDark: isDark,
+                      onTap: () {
+                        Navigator.pop(ctx);
+                        if (contact.location.trim().isNotEmpty) {
+                          showDialog(
+                            context: context,
+                            builder: (dctx) => AlertDialog(
+                              title: Text('location'.tr()),
+                              content: Text(contact.location),
+                              actions: [
+                                TextButton(
+                                  onPressed: () => Navigator.of(dctx).pop(),
+                                  child: Text('close'.tr()),
+                                )
+                              ],
+                            ),
+                          );
+                        } else {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                                content: Text('no_location_available'.tr())),
+                          );
+                        }
+                      },
+                    ),
+
+                    // Delete
+                    _sheetAction(
+                      icon: Icons.delete_outline,
+                      label: 'Delete',
+                      isDark: isDark,
+                      background: Colors.redAccent.withOpacity(0.9),
+                      iconColor: Colors.white,
+                      onTap: () async {
+                        Navigator.pop(
+                            ctx); // close the sheet first (keeps previous behavior)
+
+// show the styled confirmation dialog
+                        final confirmed = await showDialog<bool>(
+                          context: context,
+                          builder: (dctx) => DeleteConfirmationDialogWidget(
+                            contactName: contact.name,
+                            onConfirm: () {
+                              // Optional: perform the delete action here, but better to let caller handle it.
+                              // You may leave this empty and use the returned 'confirmed' boolean
+                              // to run the deletion in the calling scope.
+                            },
+                          ),
+                        );
+
+// If the dialog returned true, call your deletion callback:
+                        if (confirmed == true) {
+                          onDeletePressed(contact.id);
+                        }
+                      },
+                    ),
+                  ],
+                ),
+
+                const SizedBox(height: 8),
+              ],
             ),
           ),
         );
@@ -275,13 +291,11 @@ class EmergencyContactsList extends StatelessWidget {
   Widget build(BuildContext context) {
     final isDark = isDarkMode;
 
-    // -------- NEW: refined empty state (no duplicate button) ----------
     if (contacts.isEmpty) {
       return Padding(
         padding: const EdgeInsets.symmetric(vertical: 28.0, horizontal: 18.0),
         child: Column(
           children: [
-            // soft rounded illustration card
             Container(
               width: 116,
               height: 116,
@@ -316,13 +330,11 @@ class EmergencyContactsList extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 10),
-            // subtle instruction referencing the top add button (no extra CTA here)
           ],
         ),
       );
     }
 
-    // ---------- POPULATED STATE (unchanged) ----------
     return Column(
       children: contacts.map((contact) {
         final relation = _relationOf(contact);
@@ -331,7 +343,8 @@ class EmergencyContactsList extends StatelessWidget {
         return Column(
           children: [
             InkWell(
-              onTap: () {},
+              onTap: () => _showDetailsSheet(context, contact, phone, isDark,
+                  onCallPressed, onMessagePressed, onDeletePressed),
               child: Padding(
                 padding:
                     const EdgeInsets.symmetric(vertical: 10.0, horizontal: 6),
@@ -362,18 +375,19 @@ class EmergencyContactsList extends StatelessWidget {
 
                     const SizedBox(width: 12),
 
-                    // text block (collapses if no location/arrival)
+                    // text block: name row (name + relation at right), then phone row below
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // name + relation (small)
+                          // top row: name (left) and relationship (right)
                           Row(
                             children: [
+                              // name (takes available space)
                               Expanded(
                                 child: Text(contact.name,
                                     style: TextStyle(
-                                        fontSize: 14,
+                                        fontSize: 15,
                                         fontWeight: FontWeight.w800,
                                         color: isDark
                                             ? Colors.white
@@ -381,6 +395,8 @@ class EmergencyContactsList extends StatelessWidget {
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis),
                               ),
+
+                              // relationship pill (if present) — appears to the right of the name
                               if (relation.isNotEmpty) ...[
                                 const SizedBox(width: 8),
                                 Container(
@@ -398,68 +414,13 @@ class EmergencyContactsList extends StatelessWidget {
                                           color: isDark
                                               ? Colors.white70
                                               : const Color(0xFF5A2B9B))),
-                                )
+                                ),
                               ],
                             ],
                           ),
 
-                          // only show location/arrival when present (no empty gap)
-                          if (contact.location != null &&
-                              contact.location
-                                  .toString()
-                                  .trim()
-                                  .isNotEmpty) ...[
-                            const SizedBox(height: 6),
-                            Row(
-                              children: [
-                                Icon(Icons.location_on,
-                                    size: 12,
-                                    color: isDark
-                                        ? Colors.grey[400]
-                                        : Colors.grey[700]),
-                                const SizedBox(width: 6),
-                                Expanded(
-                                  child: Text(contact.location,
-                                      style: TextStyle(
-                                          color: isDark
-                                              ? Colors.grey[400]
-                                              : Colors.grey[700],
-                                          fontSize: 12),
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis),
-                                ),
-                              ],
-                            ),
-                          ],
-
-                          if (contact.arrival != null &&
-                              contact.arrival.toString().trim().isNotEmpty &&
-                              (relation.isEmpty ||
-                                  contact.arrival != relation)) ...[
-                            const SizedBox(height: 6),
-                            Row(
-                              children: [
-                                Icon(Icons.access_time,
-                                    size: 12,
-                                    color: isDark
-                                        ? Colors.grey[400]
-                                        : Colors.grey[700]),
-                                const SizedBox(width: 6),
-                                Expanded(
-                                    child: Text(contact.arrival,
-                                        style: TextStyle(
-                                            color: isDark
-                                                ? Colors.grey[400]
-                                                : Colors.grey[700],
-                                            fontSize: 12),
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis)),
-                              ],
-                            ),
-                          ],
-
-                          // phone row always shown
-                          const SizedBox(height: 6),
+                          // phone row (small) below name
+                          const SizedBox(height: 8),
                           Row(
                             children: [
                               Icon(Icons.phone,
@@ -487,22 +448,29 @@ class EmergencyContactsList extends StatelessWidget {
 
                     const SizedBox(width: 8),
 
-                    // compact three-dot button
-                    Material(
-                      color: Colors.transparent,
-                      child: InkWell(
-                        onTap: () =>
-                            _showActionsSheet(context, contact, phone, isDark),
-                        borderRadius: BorderRadius.circular(10),
-                        child: Container(
-                          width: 40,
-                          height: 40,
-                          decoration: BoxDecoration(
-                              color: isDark
-                                  ? Colors.white12
-                                  : const Color(0xFFF0F3FF),
-                              borderRadius: BorderRadius.circular(8)),
-                          child: const Icon(Icons.more_horiz),
+                    // compact three-dot button — vertically centered
+                    Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                          color:
+                              isDark ? Colors.white12 : const Color(0xFFF0F3FF),
+                          borderRadius: BorderRadius.circular(8)),
+                      child: Center(
+                        child: InkWell(
+                          onTap: () => _showDetailsSheet(
+                              context,
+                              contact,
+                              phone,
+                              isDark,
+                              onCallPressed,
+                              onMessagePressed,
+                              onDeletePressed),
+                          borderRadius: BorderRadius.circular(10),
+                          child: const Padding(
+                            padding: EdgeInsets.all(6.0),
+                            child: Icon(Icons.more_horiz),
+                          ),
                         ),
                       ),
                     ),

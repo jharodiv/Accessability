@@ -10,6 +10,7 @@ import 'package:accessability/accessability/data/model/emergency_contact.dart';
 import 'package:accessability/accessability/logic/bloc/emergency/bloc/emergency_bloc.dart';
 import 'package:accessability/accessability/logic/bloc/emergency/bloc/emergency_event.dart';
 import 'package:accessability/accessability/logic/bloc/emergency/bloc/emergency_state.dart';
+import 'package:accessability/accessability/presentation/widgets/shimmer/shimmer_emergency_contact_list.dart';
 import 'package:accessability/accessability/themes/theme_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -240,11 +241,13 @@ class _SafetyAssistWidgetState extends State<SafetyAssistWidget> {
     )
         .then((result) {
       if (result is Map<String, String?>) {
+        // UPDATED: map the new model fields (relationship & address)
         final contact = EmergencyContact(
           name: result['name'] ?? '',
           location: result['location'] ?? '',
-          arrival: result['arrival'] ?? '',
-          update: result['phone'] ?? '',
+          relationship: result['relationship'] ?? '',
+          address: result['address'] ?? '',
+          phone: result['phone'] ?? '',
         );
         BlocProvider.of<EmergencyBloc>(context).add(
           AddEmergencyContactEvent(uid: widget.uid, contact: contact),
@@ -555,8 +558,8 @@ class _SafetyAssistWidgetState extends State<SafetyAssistWidget> {
                                   },
                                   builder: (context, state) {
                                     if (state is EmergencyLoading) {
-                                      return const Center(
-                                          child: CircularProgressIndicator());
+                                      return EmergencyContactsListShimmer(
+                                          isDarkMode: isDarkMode, itemCount: 4);
                                     } else if (state
                                         is EmergencyContactsLoaded) {
                                       return EmergencyContactsList(

@@ -20,7 +20,8 @@ class NearbyManager {
   }
 
   /// Compute rescaled circles from specs using the same tuning from your earlier file.
-  Set<Circle> computeNearbyCirclesFromSpecs({
+  Set<Circle> computeNearbyCirclesFromExternalSpecs({
+    required List<NearbyCircleSpec> specs,
     required double currentZoom,
     double pwdBaseRadiusMeters = 30.0,
     double pwdRadiusMultiplier = 1.0,
@@ -31,7 +32,7 @@ class NearbyManager {
     double extraVisualBoost = 1.15,
   }) {
     return CircleManager.computeNearbyCirclesFromSpecs(
-      specs: _specs,
+      specs: specs,
       currentZoom: currentZoom,
       pwdBaseRadiusMeters: pwdBaseRadiusMeters,
       pwdRadiusMultiplier: pwdRadiusMultiplier,

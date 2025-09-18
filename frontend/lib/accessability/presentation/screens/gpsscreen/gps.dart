@@ -160,7 +160,8 @@ class _GpsScreenState extends State<GpsScreen> {
   late final RouteController routeController;
   final NearbyManager _nearbyManager = NearbyManager();
   OverlayEntry? _userOverlayEntry;
-
+  final double _placeBaseRadiusMeters = 30.0;
+  final Color _placeCircleColor = const Color(0xFF7C4DFF);
   String? _selectedCategory;
 
   @override
@@ -1056,6 +1057,26 @@ class _GpsScreenState extends State<GpsScreen> {
     }
   }
 
+  Set<Circle> _computeNearbyCirclesFromSpecs(List<NearbyCircleSpec> specs) {
+    if (specs.isEmpty) return {};
+
+    return _nearbyManager.computeNearbyCirclesFromExternalSpecs(
+      specs: specs,
+      currentZoom: _currentZoom,
+      pwdBaseRadiusMeters: _pwdBaseRadiusMeters,
+      pwdRadiusMultiplier: _pwdRadiusMultiplier,
+      pwdCircleColor: _pwdCircleColor,
+      onTap: (center, suggestedZoom) {
+        _locationHandler.mapController?.animateCamera(
+          CameraUpdate.newLatLngZoom(center, suggestedZoom),
+        );
+      },
+      minPixelRadius: 15.0,
+      shrinkFactor: 1.0,
+      extraVisualBoost: 1.0,
+    );
+  }
+
   // --- Build place markers (keeps prior behavior but uses marker factory) ---
   Future<void> _buildPlaceMarkersAsync(List<Place> places) async {
     debugPrint('buildPlaceMarkers called with ${places.length} places');
@@ -1079,30 +1100,19 @@ class _GpsScreenState extends State<GpsScreen> {
     final createdMarkers = await Future.wait(futures);
     if (!mounted) return;
 
-    // 2) Create properly scaled circles using the same method as PWD circles
-    final placeLocations = places.map((p) {
-      return {
-        'id': p.id,
-        'name': p.name,
-        'latitude': p.latitude,
-        'longitude': p.longitude,
-      };
+    // 2) Create circle specs for proper zoom-based scaling
+    final placeSpecs = places.map((place) {
+      return NearbyCircleSpec(
+        id: 'place_circle_${place.id}',
+        center: LatLng(place.latitude, place.longitude),
+        baseRadius: _pwdBaseRadiusMeters, // Use same base radius
+        zIndex: 200,
+        visible: true,
+      );
     }).toList();
 
-    final rawPlaceCircles = createPwdfriendlyRouteCircles(
-      placeLocations,
-      currentZoom: _currentZoom,
-      pwdBaseRadiusMeters: _pwdBaseRadiusMeters,
-      pwdRadiusMultiplier: _pwdRadiusMultiplier,
-      pwdCircleColor: _pwdCircleColor,
-      onTap: (center, suggestedZoom) {
-        _locationHandler.mapController?.animateCamera(
-          CameraUpdate.newLatLngZoom(center, suggestedZoom),
-        );
-      },
-    );
-
-    // Apply the same post-processing as PWD circles
+    // 3) Compute circles using the same method as nearby circles
+    final rawPlaceCircles = _computeNearbyCirclesFromSpecs(placeSpecs);
     final computedPlaceCircles = _postProcessNearbyCircles(rawPlaceCircles)
         .map((c) => c.copyWith(
               zIndexParam: 200,
@@ -1121,7 +1131,7 @@ class _GpsScreenState extends State<GpsScreen> {
       // Add new place markers
       _markers.addAll(createdMarkers.toSet());
 
-      // Only add place circles if zoom cutoff passes (same as PWD circles)
+      // Only add place circles if zoom cutoff passes
       if (_currentZoom >= _circleZoomCutoff) {
         _circles.addAll(computedPlaceCircles);
       }
@@ -1233,7 +1243,8 @@ class _GpsScreenState extends State<GpsScreen> {
     final specs = _nearbyCircleSpecs;
     if (specs.isEmpty) return {};
 
-    return _nearbyManager.computeNearbyCirclesFromSpecs(
+    return _nearbyManager.computeNearbyCirclesFromExternalSpecs(
+      specs: specs,
       currentZoom: _currentZoom,
       pwdBaseRadiusMeters: _pwdBaseRadiusMeters,
       pwdRadiusMultiplier: _pwdRadiusMultiplier,
@@ -1472,14 +1483,14 @@ class _GpsScreenState extends State<GpsScreen> {
               ? result['circles'] as Set<Circle>
               : Set<Circle>.from(result['circles']);
 
-          // Convert raw circles to specs via CircleManager (we keep local copy for backward compatibility)
+          // Convert raw circles to specs via CircleManager with CONSISTENT base radius
           _nearbyCircleSpecs = _nearbyManager.specsFromRawCircles(
             raw,
             inflateFactor: 1.6,
-            baseFallback: _pwdBaseRadiusMeters,
+            baseFallback: _placeBaseRadiusMeters, // Use consistent base radius
           );
 
-          // compute scaled circles using NearbyManager helper - THIS IS THE KEY FIX
+          // compute scaled circles using NearbyManager helper
           newCircles = _computeNearbyCirclesFromRaw();
         }
 
@@ -2237,7 +2248,7 @@ class _GpsScreenState extends State<GpsScreen> {
                             );
                           }
 
-                          // Compute nearby circles (uses your cached specs) - THIS IS THE KEY FIX
+                          // Compute nearby circles (uses your cached specs)
                           Set<Circle> nearbySet = {};
                           if (_nearbyCircleSpecs.isNotEmpty) {
                             nearbySet = _computeNearbyCirclesFromRaw();
@@ -2253,32 +2264,21 @@ class _GpsScreenState extends State<GpsScreen> {
                                   : [];
 
                           if (places.isNotEmpty) {
-                            final placeLocations = places.map((p) {
-                              return {
-                                'id': p.id,
-                                'name': p.name,
-                                'latitude': p.latitude,
-                                'longitude': p.longitude,
-                              };
+                            // Create circle specs for user-added places
+                            final placeSpecs = places.map((place) {
+                              return NearbyCircleSpec(
+                                id: 'place_circle_${place.id}',
+                                center: LatLng(place.latitude, place.longitude),
+                                baseRadius:
+                                    _pwdBaseRadiusMeters, // Use same base radius as PWD
+                                zIndex: 200,
+                                visible: true,
+                              );
                             }).toList();
 
-                            final rawPlaceCircles =
-                                createPwdfriendlyRouteCircles(
-                              placeLocations,
-                              currentZoom: _currentZoom,
-                              pwdBaseRadiusMeters: _pwdBaseRadiusMeters,
-                              pwdRadiusMultiplier: _pwdRadiusMultiplier,
-                              pwdCircleColor: _pwdCircleColor,
-                              onTap: (center, suggestedZoom) {
-                                _locationHandler.mapController?.animateCamera(
-                                  CameraUpdate.newLatLngZoom(
-                                      center, suggestedZoom),
-                                );
-                              },
-                            );
-
+                            // Compute circles using the same method as nearby circles
                             placeSet =
-                                _postProcessNearbyCircles(rawPlaceCircles)
+                                _computeNearbyCirclesFromSpecs(placeSpecs)
                                     .map((c) => c.copyWith(
                                         zIndexParam: 200, visibleParam: true))
                                     .toSet();

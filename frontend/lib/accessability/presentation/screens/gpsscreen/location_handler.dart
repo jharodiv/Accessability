@@ -87,6 +87,10 @@ class LocationHandler {
   final Function(Set<Marker>) onMarkersUpdated;
   final UserMarkerTapCallback? onUserMarkerTap;
 
+  final List<StreamSubscription<DocumentSnapshot>> _memberLocationListeners =
+      [];
+  StreamSubscription<DocumentSnapshot>? _spaceMembersListener;
+
   LocationHandler({
     required this.onMarkersUpdated,
     this.onUserMarkerTap, // new optional callback
@@ -223,6 +227,47 @@ class LocationHandler {
       }
     } catch (e) {
       debugPrint('Failed to update UserLocations: $e');
+    }
+  }
+
+  void _cancelMemberListeners() {
+    for (final listener in _memberLocationListeners) {
+      listener.cancel();
+    }
+    _memberLocationListeners.clear();
+
+    _spaceMembersListener?.cancel();
+    _spaceMembersListener = null;
+  }
+
+  void clearMemberMarkers() {
+    // Remove all user markers except the current user
+    final newMarkers = _markers
+        .where((marker) =>
+            !marker.markerId.value.startsWith('user_') ||
+            marker.markerId.value ==
+                'user_${FirebaseAuth.instance.currentUser?.uid}')
+        .toSet();
+
+    if (newMarkers.length != _markers.length) {
+      _markers = newMarkers;
+      // Also update the marker map
+      _markerMap.removeWhere((key, value) =>
+          key.startsWith('user_') &&
+          key != 'user_${FirebaseAuth.instance.currentUser?.uid}');
+      onMarkersUpdated(_markers);
+    }
+  }
+
+  void _removeMemberMarker(String userId) {
+    final markerId = 'user_$userId';
+    final newMarkers =
+        _markers.where((marker) => marker.markerId.value != markerId).toSet();
+
+    if (newMarkers.length != _markers.length) {
+      _markers = newMarkers;
+      _markerMap.remove(markerId);
+      onMarkersUpdated(_markers);
     }
   }
 
@@ -378,31 +423,73 @@ class LocationHandler {
 
   // [Space Management Methods]
   void updateActiveSpaceId(String spaceId) {
+    if (activeSpaceId == spaceId) return;
+
+    debugPrint(
+        '[LocationHandler] Updating active space from $activeSpaceId to $spaceId');
+
+    // Clear ALL member markers first (not just some)
+    _removeAllMemberMarkers();
+
+    // Cancel any existing member listeners
+    _firestoreSubscription?.cancel();
+    _firestoreSubscription = null;
+
+    activeSpaceId = spaceId;
+
+    // If spaceId is empty, don't try to listen for members
     if (spaceId.isEmpty) {
-      _firestoreSubscription?.cancel();
-      _firestoreSubscription = null;
-      activeSpaceId = '';
-      selectedUserId = null;
+      debugPrint(
+          '[LocationHandler] No active space - clearing all member markers');
       return;
     }
 
-    if (spaceId == activeSpaceId) return;
-
-    activeSpaceId = spaceId;
-    listenForLocationUpdates(); // Start listening for the new space
+    // Start listening for new space members
+    listenForLocationUpdates();
   }
 
   void listenForLocationUpdates() {
-    if (activeSpaceId.isEmpty) return;
+    if (activeSpaceId.isEmpty) {
+      debugPrint(
+          '[LocationHandler] No active space - not listening for members');
 
+      // Clear ALL member markers when no space is selected
+      _removeAllMemberMarkers();
+      return;
+    }
+
+    // Cancel any existing subscription first
     _firestoreSubscription?.cancel();
+
+    debugPrint('[LocationHandler] Listening for space: $activeSpaceId');
+
+    // Clear ALL member markers before starting to listen to a new space
+    _removeAllMemberMarkers();
 
     _firestoreSubscription = FirebaseFirestore.instance
         .collection('Spaces')
         .doc(activeSpaceId)
         .snapshots()
         .asyncMap((spaceSnapshot) async {
-          final members = List<String>.from(spaceSnapshot['members']);
+          if (!spaceSnapshot.exists) {
+            debugPrint('[LocationHandler] Space $activeSpaceId does not exist');
+            // Clear all member markers if space doesn't exist
+            _removeAllMemberMarkers();
+            return Stream<QuerySnapshot>.empty();
+          }
+
+          final data = spaceSnapshot.data() as Map<String, dynamic>?;
+          final members = List<String>.from(data?['members'] ?? []);
+          debugPrint(
+              '[LocationHandler] Space has ${members.length} members: $members');
+
+          // Clear existing member markers (except current user) - this is redundant but safe
+          _removeAllMemberMarkers();
+
+          if (members.isEmpty) {
+            return Stream<QuerySnapshot>.empty();
+          }
+
           return FirebaseFirestore.instance
               .collection('UserLocations')
               .where(FieldPath.documentId, whereIn: members)
@@ -415,10 +502,21 @@ class LocationHandler {
 
           // Process each member doc and add/replace marker
           for (final doc in snapshot.docs) {
-            final data = doc.data();
+            final data = doc.data() as Map<String, dynamic>?;
+
+            // Add null checks for data
+            if (data == null) {
+              continue;
+            }
+
             final lat = data['latitude'];
             final lng = data['longitude'];
             final userId = doc.id;
+
+            // Add null checks for lat/lng
+            if (lat == null || lng == null) {
+              continue;
+            }
 
             if (!_shouldProcessMemberUpdate(userId, lat, lng)) {
               // skip if not worth updating
@@ -430,8 +528,10 @@ class LocationHandler {
                 .collection('Users')
                 .doc(userId)
                 .get();
-            final username = userDoc['username'];
-            final profilePictureUrl = userDoc.data()?['profilePicture'] ?? '';
+
+            final userData = userDoc.data() as Map<String, dynamic>?;
+            final username = userData?['username'] ?? 'Unknown';
+            final profilePictureUrl = userData?['profilePicture'] ?? '';
 
             final isSelected = userId == selectedUserId;
             BitmapDescriptor customIcon;
@@ -457,7 +557,7 @@ class LocationHandler {
             final location = LatLng(lat, lng);
             final memberMarkerId = 'user_$userId';
 
-            // Build the marker (keep your existing onTap body)
+            // Build the marker
             final Marker memberMarker = Marker(
               markerId: MarkerId(memberMarkerId),
               position: location,
@@ -476,9 +576,8 @@ class LocationHandler {
                     lng,
                   );
                 }
-                final dataMap = doc.data() as Map<String, dynamic>? ?? {};
 
-                final rawBattery = dataMap['batteryPercent'];
+                final rawBattery = data['batteryPercent'];
                 final int? batteryPercentParsed = rawBattery is int
                     ? rawBattery
                     : (rawBattery != null
@@ -486,26 +585,26 @@ class LocationHandler {
                         : null);
 
                 double? speedKmhParsed;
-                if (dataMap['speedKmh'] != null) {
-                  final s = dataMap['speedKmh'];
+                if (data['speedKmh'] != null) {
+                  final s = data['speedKmh'];
                   speedKmhParsed =
                       (s is num) ? s.toDouble() : double.tryParse('$s');
-                } else if (dataMap['speed'] != null) {
-                  final s = dataMap['speed'];
+                } else if (data['speed'] != null) {
+                  final s = data['speed'];
                   final double? mps =
                       (s is num) ? s.toDouble() : double.tryParse('$s');
                   if (mps != null) speedKmhParsed = mps * 3.6;
                 }
 
                 DateTime? timestampParsed;
-                final tsRaw = dataMap['timestamp'];
+                final tsRaw = data['timestamp'];
                 if (tsRaw is Timestamp)
                   timestampParsed = tsRaw.toDate();
                 else if (tsRaw is String)
                   timestampParsed = DateTime.tryParse(tsRaw);
 
                 debugPrint(
-                    '[LocationHandler.listenForLocationUpdates] tapped user=$userId battery=$batteryPercentParsed speedKmh=$speedKmhParsed timestamp=$timestampParsed dist=${distMeters.toStringAsFixed(1)}');
+                    '[LocationHandler] Tapped user=$userId battery=$batteryPercentParsed speedKmh=$speedKmhParsed timestamp=$timestampParsed dist=${distMeters.toStringAsFixed(1)}');
 
                 selectedUserId = userId;
 
@@ -515,7 +614,7 @@ class LocationHandler {
                     username: username,
                     location: location,
                     address: address,
-                    profileUrl: profilePictureUrl ?? '',
+                    profileUrl: profilePictureUrl,
                     distanceMeters: distMeters,
                     batteryPercent: batteryPercentParsed,
                     speedKmh: speedKmhParsed,
@@ -523,22 +622,19 @@ class LocationHandler {
                   );
                 }
 
-                // keep listening (you had this call previously)
                 listenForLocationUpdates();
               },
             );
 
-            // Add or replace the marker in the map (this is where _setMarker is used)
+            // Add or replace the marker in the map
             _setMarker(memberMarker);
             seenMemberMarkerIds.add(memberMarkerId);
           }
 
-          // Remove member markers that were NOT present in this snapshot (stale ones).
-          // Important: do NOT remove the current user's marker (you used 'user_current' id earlier).
+          // Remove member markers that were NOT present in this snapshot (stale ones)
           final keysToRemove = _markerMap.keys.where((k) {
             return k.startsWith('user_') &&
-                k !=
-                    'user_current' && // keep current-user marker if you still use this id
+                k != 'user_${FirebaseAuth.instance.currentUser?.uid}' &&
                 !seenMemberMarkerIds.contains(k);
           }).toList();
 
@@ -550,7 +646,28 @@ class LocationHandler {
             _markers = _markerMap.values.toSet();
             onMarkersUpdated(_markers);
           }
+        }, onError: (error) {
+          debugPrint('[LocationHandler] Error listening to members: $error');
         });
+  }
+
+  void _removeAllMemberMarkers() {
+    // Remove all user markers except the current user
+    final keysToRemove = _markerMap.keys
+        .where((k) =>
+            k.startsWith('user_') &&
+            k != 'user_${FirebaseAuth.instance.currentUser?.uid}')
+        .toList();
+
+    if (keysToRemove.isNotEmpty) {
+      for (final k in keysToRemove) {
+        _markerMap.remove(k);
+      }
+      _markers = _markerMap.values.toSet();
+      onMarkersUpdated(_markers);
+      debugPrint(
+          '[LocationHandler] Removed ${keysToRemove.length} member markers');
+    }
   }
 
   // [UI Control Methods]

@@ -202,30 +202,9 @@ class _GpsScreenState extends State<GpsScreen> {
     // 1) Initialize LocationHandler first (used by RouteController)
     _locationHandler = LocationHandler(
       onMarkersUpdated: (markers) {
-        // Build map from current markers (preserve those we want to keep)
-        final Map<String, Marker> merged = {
-          for (var m in _markers) m.markerId.value: m,
-        };
-
-        // Merge/replace with incoming ones (incoming wins)
-        for (final m in markers) {
-          merged[m.markerId.value] = m;
-        }
-
-        // Optional: ensure current user marker (if present) keeps highest zIndex
-        final currentUid = FirebaseAuth.instance.currentUser?.uid;
-        if (currentUid != null) {
-          final userKey = 'user_$currentUid';
-          if (merged.containsKey(userKey)) {
-            final userMarker = merged[userKey]!;
-            merged[userKey] = userMarker.copyWith(
-              zIndexParam: 2000.0, // force top zIndex
-            );
-          }
-        }
-
+        // REPLACE the entire implementation with this:
         setState(() {
-          _markers = merged.values.toSet();
+          _markers = markers;
         });
       },
       onUserMarkerTap: ({
@@ -1201,10 +1180,19 @@ class _GpsScreenState extends State<GpsScreen> {
   }
 
   void _handleSpaceIdChanged(String spaceId) async {
+    debugPrint('[GpsScreen] Space changed to: $spaceId');
+
     setState(() {
       _activeSpaceId = spaceId;
       _isLoading = true;
     });
+
+    // Immediately tell LocationHandler to update
+    try {
+      _locationHandler.updateActiveSpaceId(spaceId);
+    } catch (e) {
+      debugPrint('[GpsScreen] Error updating LocationHandler: $e');
+    }
 
     String name = '';
     if (spaceId.isNotEmpty) {
@@ -1217,6 +1205,7 @@ class _GpsScreenState extends State<GpsScreen> {
         debugPrint('[GpsScreen] _handleSpaceIdChanged failed: $e');
       }
     }
+
     if (!mounted) return;
     setState(() {
       _activeSpaceName = name;

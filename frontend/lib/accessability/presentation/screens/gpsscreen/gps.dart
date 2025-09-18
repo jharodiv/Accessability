@@ -353,7 +353,14 @@ class _GpsScreenState extends State<GpsScreen> {
 
     _restoreOrAutoSelectSpace();
 
-    _consumePendingDeepLinksIfAny();
+    /// ✅ First check clipboard for a session ID (after widget tree is ready)
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      debugPrint("📋 Checking clipboard from MainScreen...");
+      await DeepLinkService().checkClipboardForSession();
+
+      /// ✅ Then consume any pending deep links (clipboard or cold start)
+      _consumePendingDeepLinksIfAny();
+    });
   }
 
   void _consumePendingDeepLinksIfAny() {

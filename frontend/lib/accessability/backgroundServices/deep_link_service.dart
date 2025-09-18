@@ -1,12 +1,16 @@
 import 'dart:async';
 import 'dart:convert';
+import 'package:accessability/accessability/logic/bloc/auth/auth_bloc.dart';
+import 'package:accessability/accessability/logic/bloc/auth/auth_state.dart';
 import 'package:flutter/material.dart';
 import 'package:app_links/app_links.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter/services.dart';
 
 class DeepLinkService {
   static final DeepLinkService _instance = DeepLinkService._internal();
+
   factory DeepLinkService() => _instance;
   DeepLinkService._internal();
 
@@ -21,9 +25,6 @@ class DeepLinkService {
   Future<void> initialize(GlobalKey<NavigatorState> key) async {
     navigatorKey = key;
     debugPrint("🔗 DeepLinkService initialized with navigatorKey");
-
-    // Hnalde Clipboard
-    await _handleClipboard();
 
     // Handle cold start
     await _handleDeepLinkColdStart();
@@ -48,7 +49,6 @@ class DeepLinkService {
         }
 
         _pendingUri = initialUri;
-        _deepLinkHandled = true; // ✅ Mark as handled immediately
       } else {
         debugPrint("❄️ [COLD START] No deep link found");
       }
@@ -59,6 +59,18 @@ class DeepLinkService {
 
   Future<void> _handleClipboard() async {
     try {
+      // ✅ Check authentication & onboarding before even reading clipboard
+      final context = navigatorKey.currentContext;
+      if (context != null) {
+        final authState = context.read<AuthBloc>().state;
+        if (authState is AuthenticatedLogin &&
+            authState.hasCompletedOnboarding) {
+          debugPrint(
+              "✅ User already completed onboarding — skipping clipboard deep link.");
+          return; // ⏩ Skip clipboard logic entirely
+        }
+      }
+
       final clipboardData = await Clipboard.getData(Clipboard.kTextPlain);
       final text = clipboardData?.text ?? "";
 
@@ -92,16 +104,17 @@ class DeepLinkService {
         // 🔄 Log that Deferred Deep Link is triggered
         debugPrint(
             "🔄 [Deferred Deep Link] Triggered navigation using clipboard session.");
-
-        // ✅ Clear clipboard after successful use
-        await Clipboard.setData(const ClipboardData(text: ""));
-        debugPrint("🧹 Clipboard cleared after use.");
       } else {
         debugPrint("⚠️ No invite code found for clipboard session.");
       }
     } catch (e) {
       debugPrint("❌ Error checking clipboard for deep link: $e");
     }
+  }
+
+  /// ✅ Public method to trigger clipboard check externally
+  Future<void> checkClipboardForSession() async {
+    return _handleClipboard();
   }
 
   /// Called whenever a link is received (cold or hot)
@@ -115,15 +128,36 @@ class DeepLinkService {
 
     _deepLinkHandled = true;
     debugPrint("➡️ Handling deep link now: $uri");
-    Future.delayed(const Duration(milliseconds: 300), () => _navigate(uri));
+
+    // ✅ Check authentication before navigating
+    final context = navigatorKey.currentContext;
+    if (context != null) {
+      final authState = context.read<AuthBloc>().state;
+      if (authState is AuthenticatedLogin) {
+        debugPrint("✅ User is authenticated, navigating now...");
+        Future.delayed(const Duration(milliseconds: 300), () => _navigate(uri));
+      } else {
+        debugPrint(
+            "⏳ User not authenticated, storing pending URI until login.");
+        _pendingUri = uri; // store for later consumption
+        _deepLinkHandled = false; // allow handling after login
+      }
+    } else {
+      debugPrint(
+          "⚠️ No context available, cannot check auth yet. Storing URI.");
+      _pendingUri = uri;
+      _deepLinkHandled = false;
+    }
   }
 
   /// Call this from main.dart once the navigator is ready
   void consumePendingLinkIfAny() {
+    debugPrint("📢 consumePendingLinkIfAny() CALLED");
     if (_pendingUri != null && navigatorKey.currentState != null) {
       debugPrint("🚀 Consuming pending deep link: $_pendingUri");
       final uriToNavigate = _pendingUri!;
       _pendingUri = null;
+      _deepLinkHandled = true;
       Future.delayed(
           const Duration(milliseconds: 300), () => _navigate(uriToNavigate));
     } else {

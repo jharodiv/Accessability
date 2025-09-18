@@ -33,6 +33,8 @@ class LocationHandler {
   String activeSpaceId = '';
   final OpenStreetMapGeocodingService _geocodingService =
       OpenStreetMapGeocodingService();
+  final Map<String, Marker> _markerMap = {};
+  Set<Marker> get markersSet => _markerMap.values.toSet();
 
   // Location update control
   static const double _minDistanceForUpdate = 50.0; // meters
@@ -89,6 +91,20 @@ class LocationHandler {
     required this.onMarkersUpdated,
     this.onUserMarkerTap, // new optional callback
   });
+
+  void _setMarker(Marker marker) {
+    _markerMap[marker.markerId.value] = marker; // replace or add
+    _markers = _markerMap.values.toSet();
+    onMarkersUpdated(_markers);
+  }
+
+  void _removeMarkersWithPrefix(String prefix) {
+    final keysToRemove =
+        _markerMap.keys.where((k) => k.startsWith(prefix)).toList();
+    for (final k in keysToRemove) _markerMap.remove(k);
+    _markers = _markerMap.values.toSet();
+    onMarkersUpdated(_markers);
+  }
 
   // [Core Location Methods]
   Future<void> getUserLocation() async {
@@ -288,6 +304,8 @@ class LocationHandler {
         position: currentLocation!,
         infoWindow: InfoWindow.noText,
         consumeTapEvents: true,
+        // ignore: deprecated_member_use
+        zIndex: 2000.0, // <<--- ensure user is on top
         icon: customIcon,
         onTap: () async {
           final address = await getAddressForLocation(currentLocation!);
@@ -354,8 +372,7 @@ class LocationHandler {
         },
       );
 
-      _markers.add(userMarker);
-      onMarkersUpdated(_markers);
+      _setMarker(userMarker);
     }
   }
 
@@ -393,133 +410,144 @@ class LocationHandler {
         })
         .asyncExpand((snapshotStream) => snapshotStream)
         .listen((snapshot) async {
-          final updatedMarkers = <Marker>{};
-          final existingMarkers = _markers
-              .where((marker) => !marker.markerId.value.startsWith('user_'))
-              .toSet();
+          // Track which member marker ids we saw in this update
+          final Set<String> seenMemberMarkerIds = {};
 
+          // Process each member doc and add/replace marker
           for (final doc in snapshot.docs) {
             final data = doc.data();
             final lat = data['latitude'];
             final lng = data['longitude'];
             final userId = doc.id;
 
-            if (_shouldProcessMemberUpdate(userId, lat, lng)) {
-              final userDoc = await FirebaseFirestore.instance
-                  .collection('Users')
-                  .doc(userId)
-                  .get();
-              final username = userDoc['username'];
-              final profilePictureUrl = userDoc.data()?['profilePicture'] ?? '';
+            if (!_shouldProcessMemberUpdate(userId, lat, lng)) {
+              // skip if not worth updating
+              continue;
+            }
 
-              final isSelected = userId == selectedUserId;
-              BitmapDescriptor customIcon;
-              if (profilePictureUrl.isNotEmpty) {
-                try {
-                  customIcon = await _createCustomMarkerIcon(
-                    profilePictureUrl,
-                    isSelected: isSelected,
-                  );
-                } catch (e) {
-                  customIcon = await BitmapDescriptor.fromAssetImage(
-                    const ImageConfiguration(size: Size(24, 24)),
-                    'assets/images/others/default_profile.png',
-                  );
-                }
-              } else {
+            // Fetch user profile for icon/text
+            final userDoc = await FirebaseFirestore.instance
+                .collection('Users')
+                .doc(userId)
+                .get();
+            final username = userDoc['username'];
+            final profilePictureUrl = userDoc.data()?['profilePicture'] ?? '';
+
+            final isSelected = userId == selectedUserId;
+            BitmapDescriptor customIcon;
+            if (profilePictureUrl.isNotEmpty) {
+              try {
+                customIcon = await _createCustomMarkerIcon(
+                  profilePictureUrl,
+                  isSelected: isSelected,
+                );
+              } catch (e) {
                 customIcon = await BitmapDescriptor.fromAssetImage(
                   const ImageConfiguration(size: Size(24, 24)),
                   'assets/images/others/default_profile.png',
                 );
               }
-
-              final location = LatLng(lat, lng);
-              // final address = await getAddressForLocation(location);
-
-              updatedMarkers.add(
-                Marker(
-                  markerId: MarkerId('user_$userId'),
-                  position: location,
-                  // Prevent default info window and allow custom handling
-                  infoWindow: InfoWindow.noText,
-                  consumeTapEvents:
-                      true, // <- prevents default InfoWindow auto-open
-                  icon: customIcon,
-                  onTap: () async {
-                    // compute address/distance
-                    final address = await getAddressForLocation(location);
-                    double distMeters = 0.0;
-                    if (currentLocation != null) {
-                      distMeters = _calculateDistance(
-                        currentLocation!.latitude,
-                        currentLocation!.longitude,
-                        lat,
-                        lng,
-                      );
-                    }
-
-                    // parse telemetry from the user location document (doc)
-                    final dataMap = doc.data() as Map<String, dynamic>? ?? {};
-
-                    // batteryPercent (might be int or string)
-                    final rawBattery = dataMap['batteryPercent'];
-                    final int? batteryPercentParsed = rawBattery is int
-                        ? rawBattery
-                        : (rawBattery != null
-                            ? int.tryParse(rawBattery.toString())
-                            : null);
-
-                    // speed: prefer speedKmh, otherwise convert speed (m/s) -> km/h
-                    double? speedKmhParsed;
-                    if (dataMap['speedKmh'] != null) {
-                      final s = dataMap['speedKmh'];
-                      speedKmhParsed =
-                          (s is num) ? s.toDouble() : double.tryParse('$s');
-                    } else if (dataMap['speed'] != null) {
-                      final s = dataMap['speed'];
-                      final double? mps =
-                          (s is num) ? s.toDouble() : double.tryParse('$s');
-                      if (mps != null) speedKmhParsed = mps * 3.6;
-                    }
-
-                    // timestamp (Firestore Timestamp or string)
-                    DateTime? timestampParsed;
-                    final tsRaw = dataMap['timestamp'];
-                    if (tsRaw is Timestamp) {
-                      timestampParsed = tsRaw.toDate();
-                    } else if (tsRaw is String) {
-                      timestampParsed = DateTime.tryParse(tsRaw);
-                    }
-
-                    debugPrint(
-                        '[LocationHandler.listenForLocationUpdates] tapped user=$userId battery=$batteryPercentParsed speedKmh=$speedKmhParsed timestamp=$timestampParsed dist=${distMeters.toStringAsFixed(1)}');
-
-                    selectedUserId = userId;
-
-                    if (onUserMarkerTap != null) {
-                      onUserMarkerTap!(
-                        userId: userId,
-                        username: username,
-                        location: location,
-                        address: address,
-                        profileUrl: profilePictureUrl ?? '',
-                        distanceMeters: distMeters,
-                        batteryPercent: batteryPercentParsed,
-                        speedKmh: speedKmhParsed,
-                        timestamp: timestampParsed,
-                      );
-                    }
-
-                    // keep listening
-                    listenForLocationUpdates();
-                  },
-                ),
+            } else {
+              customIcon = await BitmapDescriptor.fromAssetImage(
+                const ImageConfiguration(size: Size(24, 24)),
+                'assets/images/others/default_profile.png',
               );
             }
+
+            final location = LatLng(lat, lng);
+            final memberMarkerId = 'user_$userId';
+
+            // Build the marker (keep your existing onTap body)
+            final Marker memberMarker = Marker(
+              markerId: MarkerId(memberMarkerId),
+              position: location,
+              infoWindow: InfoWindow.noText,
+              consumeTapEvents: true,
+              icon: customIcon,
+              zIndex: 300.0,
+              onTap: () async {
+                final address = await getAddressForLocation(location);
+                double distMeters = 0.0;
+                if (currentLocation != null) {
+                  distMeters = _calculateDistance(
+                    currentLocation!.latitude,
+                    currentLocation!.longitude,
+                    lat,
+                    lng,
+                  );
+                }
+                final dataMap = doc.data() as Map<String, dynamic>? ?? {};
+
+                final rawBattery = dataMap['batteryPercent'];
+                final int? batteryPercentParsed = rawBattery is int
+                    ? rawBattery
+                    : (rawBattery != null
+                        ? int.tryParse(rawBattery.toString())
+                        : null);
+
+                double? speedKmhParsed;
+                if (dataMap['speedKmh'] != null) {
+                  final s = dataMap['speedKmh'];
+                  speedKmhParsed =
+                      (s is num) ? s.toDouble() : double.tryParse('$s');
+                } else if (dataMap['speed'] != null) {
+                  final s = dataMap['speed'];
+                  final double? mps =
+                      (s is num) ? s.toDouble() : double.tryParse('$s');
+                  if (mps != null) speedKmhParsed = mps * 3.6;
+                }
+
+                DateTime? timestampParsed;
+                final tsRaw = dataMap['timestamp'];
+                if (tsRaw is Timestamp)
+                  timestampParsed = tsRaw.toDate();
+                else if (tsRaw is String)
+                  timestampParsed = DateTime.tryParse(tsRaw);
+
+                debugPrint(
+                    '[LocationHandler.listenForLocationUpdates] tapped user=$userId battery=$batteryPercentParsed speedKmh=$speedKmhParsed timestamp=$timestampParsed dist=${distMeters.toStringAsFixed(1)}');
+
+                selectedUserId = userId;
+
+                if (onUserMarkerTap != null) {
+                  onUserMarkerTap!(
+                    userId: userId,
+                    username: username,
+                    location: location,
+                    address: address,
+                    profileUrl: profilePictureUrl ?? '',
+                    distanceMeters: distMeters,
+                    batteryPercent: batteryPercentParsed,
+                    speedKmh: speedKmhParsed,
+                    timestamp: timestampParsed,
+                  );
+                }
+
+                // keep listening (you had this call previously)
+                listenForLocationUpdates();
+              },
+            );
+
+            // Add or replace the marker in the map (this is where _setMarker is used)
+            _setMarker(memberMarker);
+            seenMemberMarkerIds.add(memberMarkerId);
           }
 
-          if (updatedMarkers.isNotEmpty) {
-            _markers = existingMarkers.toSet().union(updatedMarkers);
+          // Remove member markers that were NOT present in this snapshot (stale ones).
+          // Important: do NOT remove the current user's marker (you used 'user_current' id earlier).
+          final keysToRemove = _markerMap.keys.where((k) {
+            return k.startsWith('user_') &&
+                k !=
+                    'user_current' && // keep current-user marker if you still use this id
+                !seenMemberMarkerIds.contains(k);
+          }).toList();
+
+          if (keysToRemove.isNotEmpty) {
+            for (final k in keysToRemove) {
+              _markerMap.remove(k);
+            }
+            // push updated set to map consumers
+            _markers = _markerMap.values.toSet();
             onMarkersUpdated(_markers);
           }
         });
@@ -682,72 +710,218 @@ class LocationHandler {
     }
   }
 
-  Future<BitmapDescriptor> _createCustomMarkerIcon(String imageUrl,
-      {bool isSelected = false}) async {
+  Future<BitmapDescriptor> _createCustomMarkerIcon(
+    String imageUrl, {
+    bool isSelected = false,
+    String? username,
+    Color? accentColor,
+  }) async {
     try {
-      final response = await http.get(Uri.parse(imageUrl));
-      if (response.statusCode != 200) {
-        throw Exception('Failed to load image: ${response.statusCode}');
+      final double dpr = ui.window.devicePixelRatio;
+
+      // Logical sizes
+      const double logicalSquare = 78.0;
+      const double logicalBorder = 4.0;
+      const double logicalCorner = 18.0;
+      const double logicalPointerW = 16.0;
+      const double logicalPointerH = 12.0;
+      const double logicalOverlap = 6.0;
+
+      // device pixels
+      final double border = logicalBorder * dpr;
+      final double corner = logicalCorner * dpr;
+      final double pointerW = logicalPointerW * dpr;
+      final double pointerH = logicalPointerH * dpr;
+      final double overlap = logicalOverlap * dpr;
+      final double outerSize = logicalSquare * dpr;
+
+      const double logicalSafetyGap = 2.0;
+      final double safetyGap = logicalSafetyGap * dpr;
+
+      // softer accent purple
+      final Color accent = accentColor ??
+          (isSelected ? const Color(0xFF6750A4) : const Color(0xFF6750A4));
+      final Color fallbackBg = const Color(0xFFEEEEF5);
+      final Color initialColor = Colors.white;
+
+      ui.Image? profileImg;
+      Color? sampledColor;
+
+      // load image
+      if (imageUrl.isNotEmpty) {
+        try {
+          final resp = await http
+              .get(Uri.parse(imageUrl))
+              .timeout(const Duration(seconds: 10));
+          if (resp.statusCode == 200 && resp.bodyBytes.isNotEmpty) {
+            final codec = await ui.instantiateImageCodec(resp.bodyBytes);
+            final frame = await codec.getNextFrame();
+            profileImg = frame.image;
+
+            // --- SAMPLE COLOR ---
+            final ByteData? bd =
+                await profileImg.toByteData(format: ui.ImageByteFormat.rawRgba);
+            if (bd != null) {
+              final Uint8List pixels = bd.buffer.asUint8List();
+              int r = 0, g = 0, b = 0, count = 0;
+              // sample every 100th pixel for speed
+              for (int i = 0; i < pixels.length; i += 400) {
+                r += pixels[i];
+                g += pixels[i + 1];
+                b += pixels[i + 2];
+                count++;
+              }
+              if (count > 0) {
+                sampledColor =
+                    Color.fromARGB(255, r ~/ count, g ~/ count, b ~/ count);
+              }
+            }
+          }
+        } catch (e) {
+          debugPrint('[marker] image load error: $e');
+        }
       }
 
-      final profileBytes = response.bodyBytes;
-      final profileCodec = await ui.instantiateImageCodec(profileBytes);
-      final profileFrame = await profileCodec.getNextFrame();
-      final profileImage = profileFrame.image;
+      final double inset = border;
+      final double innerSize = outerSize - inset * 2;
+      final double innerBottomY = inset + innerSize;
 
-      final markerShapeAsset = isSelected
-          ? 'assets/images/others/marker_shape_selected.png'
-          : 'assets/images/others/marker_shape.png';
-      final markerShapeBytes = await rootBundle.load(markerShapeAsset);
-      final markerShapeCodec =
-          await ui.instantiateImageCodec(markerShapeBytes.buffer.asUint8List());
-      final markerShapeFrame = await markerShapeCodec.getNextFrame();
-      final markerShapeImage = markerShapeFrame.image;
+      final double defaultPointerTopY = outerSize - overlap;
+      final double pointerTopY =
+          max(defaultPointerTopY, innerBottomY + safetyGap);
+      final double tipY = pointerTopY + pointerH;
 
-      final pictureRecorder = ui.PictureRecorder();
-      final canvas = Canvas(pictureRecorder);
+      final int canvasW = (outerSize).ceil();
+      final int canvasH =
+          max((outerSize + pointerH - overlap).ceil(), tipY.ceil());
 
-      final markerWidth = markerShapeImage.width.toDouble();
-      final markerHeight = markerShapeImage.height.toDouble();
-      canvas.drawImage(markerShapeImage, Offset.zero, Paint());
+      final recorder = ui.PictureRecorder();
+      final canvas = Canvas(recorder,
+          Rect.fromLTWH(0, 0, canvasW.toDouble(), canvasH.toDouble()));
+      final paint = Paint()..isAntiAlias = true;
 
-      const profileSize = 100.0;
-      final profileOffset = Offset(
-        (markerWidth - profileSize) / 1.8,
-        11,
+      canvas.drawRect(
+          Rect.fromLTWH(0, 0, canvasW.toDouble(), canvasH.toDouble()),
+          Paint()..blendMode = BlendMode.clear);
+
+      final RRect outerRRect = RRect.fromRectAndRadius(
+        Rect.fromLTWH(0, 0, outerSize, outerSize),
+        Radius.circular(corner),
       );
 
-      final clipPath = Path()
-        ..addOval(Rect.fromCircle(
-          center: Offset(profileOffset.dx + profileSize / 2,
-              profileOffset.dy + profileSize / 2),
-          radius: profileSize / 2,
-        ));
-      canvas.clipPath(clipPath);
-
-      canvas.drawImageRect(
-        profileImage,
-        Rect.fromLTWH(0, 0, profileImage.width.toDouble(),
-            profileImage.height.toDouble()),
-        Rect.fromLTWH(
-            profileOffset.dx, profileOffset.dy, profileSize, profileSize),
-        Paint(),
+      // soft shadow
+      canvas.drawRRect(
+        outerRRect.shift(Offset(0, border * 0.45)),
+        Paint()
+          ..color = Colors.black.withOpacity(0.06)
+          ..maskFilter = MaskFilter.blur(BlurStyle.normal, border),
       );
 
-      final picture = pictureRecorder.endRecording();
-      final imageMarker =
-          await picture.toImage(markerWidth.toInt(), markerHeight.toInt());
-      final byteData =
-          await imageMarker.toByteData(format: ui.ImageByteFormat.png);
+      // outer accent
+      paint
+        ..style = PaintingStyle.fill
+        ..color = accent;
+      canvas.drawRRect(outerRRect, paint);
 
-      if (byteData == null) {
-        throw Exception('Failed to convert image to bytes');
+      // inner rect
+      final RRect innerRRect = RRect.fromRectAndRadius(
+        Rect.fromLTWH(inset, inset, innerSize, innerSize),
+        Radius.circular(max(0.0, corner - inset)),
+      );
+
+      // fill with sampled color or fallback
+      final Color innerFillColor = sampledColor ?? Colors.white;
+      canvas.drawRRect(
+          innerRRect,
+          Paint()
+            ..style = PaintingStyle.fill
+            ..color = innerFillColor);
+
+      // draw profile
+      canvas.save();
+      canvas.clipRRect(innerRRect);
+      if (profileImg != null) {
+        final double imgW = profileImg.width.toDouble();
+        final double imgH = profileImg.height.toDouble();
+        final double scale = max(innerSize / imgW, innerSize / imgH);
+        final double srcW = innerSize / scale;
+        final double srcH = innerSize / scale;
+        final double srcLeft = (imgW - srcW) / 2;
+        final double srcTop = (imgH - srcH) / 2;
+        final Rect src = Rect.fromLTWH(srcLeft, srcTop, srcW, srcH);
+        final Rect dst = Rect.fromLTWH(inset, inset, innerSize, innerSize);
+        canvas.drawImageRect(profileImg, src, dst, Paint()..isAntiAlias = true);
+      } else {
+        paint
+          ..style = PaintingStyle.fill
+          ..color = fallbackBg;
+        canvas.drawRRect(innerRRect, paint);
+        final String initial = (username != null && username.trim().isNotEmpty)
+            ? username.trim()[0].toUpperCase()
+            : '?';
+        final tp = TextPainter(
+          text: TextSpan(
+            text: initial,
+            style: TextStyle(
+                color: initialColor,
+                fontSize: innerSize * 0.42,
+                fontWeight: FontWeight.w700),
+          ),
+          textAlign: TextAlign.center,
+          textDirection: TextDirection.ltr,
+        );
+        tp.layout(minWidth: 0, maxWidth: innerSize);
+        tp.paint(
+            canvas,
+            Offset(inset + ((innerSize - tp.width) / 2),
+                inset + ((innerSize - tp.height) / 2)));
       }
+      canvas.restore();
 
-      return BitmapDescriptor.fromBytes(byteData.buffer.asUint8List());
-    } catch (e) {
-      print("Error creating custom marker icon: $e");
-      return BitmapDescriptor.defaultMarker;
+      // pointer
+      final double leftX = (outerSize / 2) - (pointerW / 2);
+      final double rightX = (outerSize / 2) + (pointerW / 2);
+      final double tipX = outerSize / 2;
+
+      final Path triangle = Path()
+        ..moveTo(leftX, pointerTopY)
+        ..lineTo(tipX, tipY)
+        ..lineTo(rightX, pointerTopY)
+        ..close();
+
+      paint
+        ..style = PaintingStyle.fill
+        ..color = accent;
+      canvas.drawPath(triangle, paint);
+
+      // highlight
+      final double innerTopY = pointerTopY + (pointerH * 0.18);
+      final double innerTipY = tipY - (pointerH * 0.18);
+      canvas.drawPath(
+        Path()
+          ..moveTo(leftX + (pointerW * 0.2), innerTopY)
+          ..lineTo(tipX, innerTipY)
+          ..lineTo(rightX - (pointerW * 0.2), innerTopY)
+          ..close(),
+        Paint()..color = Colors.white.withOpacity(0.06),
+      );
+
+      final ui.Image finalImg =
+          await recorder.endRecording().toImage(canvasW, canvasH);
+      final ByteData? bd =
+          await finalImg.toByteData(format: ui.ImageByteFormat.png);
+      if (bd == null) throw Exception('Failed to encode marker image');
+
+      return BitmapDescriptor.fromBytes(bd.buffer.asUint8List());
+    } catch (e, st) {
+      debugPrint('_createCustomMarkerIcon error: $e\n$st');
+      try {
+        return await BitmapDescriptor.fromAssetImage(
+            const ImageConfiguration(size: Size(48, 48)),
+            'assets/images/others/default_profile.png');
+      } catch (_) {
+        return BitmapDescriptor.defaultMarker;
+      }
     }
   }
 

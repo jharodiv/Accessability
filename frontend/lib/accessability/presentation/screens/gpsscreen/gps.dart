@@ -202,12 +202,30 @@ class _GpsScreenState extends State<GpsScreen> {
     // 1) Initialize LocationHandler first (used by RouteController)
     _locationHandler = LocationHandler(
       onMarkersUpdated: (markers) {
-        final existingMarkers = _markers
-            .where((marker) => !marker.markerId.value.startsWith('user_'))
-            .toSet();
-        final updatedMarkers = existingMarkers.union(markers);
+        // Build map from current markers (preserve those we want to keep)
+        final Map<String, Marker> merged = {
+          for (var m in _markers) m.markerId.value: m,
+        };
+
+        // Merge/replace with incoming ones (incoming wins)
+        for (final m in markers) {
+          merged[m.markerId.value] = m;
+        }
+
+        // Optional: ensure current user marker (if present) keeps highest zIndex
+        final currentUid = FirebaseAuth.instance.currentUser?.uid;
+        if (currentUid != null) {
+          final userKey = 'user_$currentUid';
+          if (merged.containsKey(userKey)) {
+            final userMarker = merged[userKey]!;
+            merged[userKey] = userMarker.copyWith(
+              zIndexParam: 2000.0, // force top zIndex
+            );
+          }
+        }
+
         setState(() {
-          _markers = updatedMarkers;
+          _markers = merged.values.toSet();
         });
       },
       onUserMarkerTap: ({
@@ -1115,7 +1133,7 @@ class _GpsScreenState extends State<GpsScreen> {
     final rawPlaceCircles = _computeNearbyCirclesFromSpecs(placeSpecs);
     final computedPlaceCircles = _postProcessNearbyCircles(rawPlaceCircles)
         .map((c) => c.copyWith(
-              zIndexParam: 200,
+              zIndexParam: 50,
               visibleParam: true,
             ))
         .toSet();
@@ -1230,7 +1248,7 @@ class _GpsScreenState extends State<GpsScreen> {
         // remove outer ring
         strokeColor: Colors.transparent,
         strokeWidth: 0,
-        zIndex: c.zIndex,
+        zIndex: 50,
         visible: c.visible,
         consumeTapEvents: c.consumeTapEvents,
         onTap: c.onTap,
@@ -1432,6 +1450,9 @@ class _GpsScreenState extends State<GpsScreen> {
           final markersSet = result['markers'] is Set
               ? result['markers'] as Set<Marker>
               : Set<Marker>.from(result['markers']);
+          final bool bringNearbyToTop =
+              true; // true because user clicked top widget
+          final double nearbyZIndex = bringNearbyToTop ? 3000.0 : 80.0;
 
           for (final marker in markersSet) {
             debugPrint(
@@ -1439,6 +1460,8 @@ class _GpsScreenState extends State<GpsScreen> {
             final Marker newMarker = Marker(
               markerId: marker.markerId,
               position: marker.position,
+              zIndex: nearbyZIndex, // <<-- set high when needed
+
               icon: badgeIcon,
               infoWindow: InfoWindow(
                 title: marker.infoWindow.title,

@@ -288,6 +288,18 @@ class _LocationWidgetsState extends State<LocationWidgets> {
     }
   }
 
+  void _handlePlaceSelected(Place place) {
+    debugPrint(
+        '[LocationWidgets] Place selected: ${place.name} at ${place.latitude}, ${place.longitude}');
+
+    // Pan the camera to the selected place location
+    widget.locationHandler.panCameraToLocation(
+      LatLng(place.latitude, place.longitude),
+      zoom: 16.0, // Optional: zoom in closer
+    );
+    widget.onPlaceSelected?.call(place);
+  }
+
   @override
   void didUpdateWidget(LocationWidgets oldWidget) {
     super.didUpdateWidget(oldWidget);
@@ -1337,9 +1349,7 @@ class _LocationWidgetsState extends State<LocationWidgets> {
                                   ],
                                 ] else if (_activeIndex == 1) ...[
                                   AddPlaceWidget(
-                                    onShowPlace: (Place place) {
-                                      widget.onPlaceSelected?.call(place);
-                                    },
+                                    onShowPlace: _handlePlaceSelected,
                                   ),
                                   // Map Tab: Show MapContent.
                                 ] else if (_activeIndex == 2)

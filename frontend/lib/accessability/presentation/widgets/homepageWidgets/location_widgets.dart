@@ -1343,11 +1343,7 @@ class _LocationWidgetsState extends State<LocationWidgets> {
                                   ),
                                   // Map Tab: Show MapContent.
                                 ] else if (_activeIndex == 2)
-                                  MapContent(
-                                    onCategorySelected: (category) {
-                                      widget.fetchNearbyPlaces(category);
-                                    },
-                                  ),
+                                  MapContent(),
                               ],
                             ],
                           ),

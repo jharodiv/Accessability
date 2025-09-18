@@ -65,7 +65,7 @@ class MarkerHandler {
 
       // Load asset (expected to have transparent background)
       final ByteData data =
-          await rootBundle.load('assets/images/others/accessabilitylogo.png');
+          await rootBundle.load('assets/images/others/accessability.png');
       final Uint8List bytes = data.buffer.asUint8List();
       final ui.Codec codec = await ui.instantiateImageCodec(bytes);
       final ui.FrameInfo frameInfo = await codec.getNextFrame();

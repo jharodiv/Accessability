@@ -202,9 +202,18 @@ class _GpsScreenState extends State<GpsScreen> {
     // 1) Initialize LocationHandler first (used by RouteController)
     _locationHandler = LocationHandler(
       onMarkersUpdated: (markers) {
-        // REPLACE the entire implementation with this:
+        // PRESERVE place markers when updating from LocationHandler
+        final existingPlaceMarkers = _markers
+            .where((m) =>
+                m.markerId.value.startsWith('place_') ||
+                m.markerId.value.startsWith('pwd_'))
+            .toSet();
+
+        // Combine existing place markers with new markers from handler
+        final combinedMarkers = markers.union(existingPlaceMarkers);
+
         setState(() {
-          _markers = markers;
+          _markers = combinedMarkers;
         });
       },
       onUserMarkerTap: ({

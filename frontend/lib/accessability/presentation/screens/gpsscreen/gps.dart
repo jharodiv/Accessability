@@ -260,7 +260,7 @@ class _GpsScreenState extends State<GpsScreen> {
           }
         });
       },
-// REPLACE your existing onReroutingChanged callback with this:
+      // REPLACE your existing onReroutingChanged callback with this:
       onReroutingChanged: (rerouting) {
         if (!mounted) return;
 
@@ -353,11 +353,19 @@ class _GpsScreenState extends State<GpsScreen> {
 
     _restoreOrAutoSelectSpace();
 
-    WidgetsBinding.instance.addPostFrameCallback((_) async {
-      debugPrint("🛰️ GPS mounted, checking for pending deep links...");
-      await Future.delayed(const Duration(seconds: 2));
-      DeepLinkService().consumePendingLinkIfAny();
-    });
+    _consumePendingDeepLinksIfAny();
+  }
+
+  void _consumePendingDeepLinksIfAny() {
+    final auth = context.read<AuthBloc>().state as AuthenticatedLogin;
+
+    if (auth.hasCompletedOnboarding) {
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        debugPrint("🛰️ GPS mounted, checking for pending deep links...");
+        await Future.delayed(const Duration(seconds: 2));
+        DeepLinkService().consumePendingLinkIfAny();
+      });
+    }
   }
 
   void _showDestinationReachedDialog() {

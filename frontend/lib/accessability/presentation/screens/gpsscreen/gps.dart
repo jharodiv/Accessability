@@ -355,10 +355,13 @@ class _GpsScreenState extends State<GpsScreen> {
 
     /// ✅ First check clipboard for a session ID (after widget tree is ready)
     WidgetsBinding.instance.addPostFrameCallback((_) async {
-      debugPrint("📋 Checking clipboard from MainScreen...");
+      debugPrint(
+          "🔗 [MainScreen] 📋 Checking clipboard for deep link session...");
+
       await DeepLinkService().checkClipboardForSession();
 
-      /// ✅ Then consume any pending deep links (clipboard or cold start)
+      /// ✅ Then consume any pending deep links (from clipboard or cold start)
+      debugPrint("🔗 [MainScreen] 🚀 Consuming pending deep links (if any)...");
       _consumePendingDeepLinksIfAny();
     });
   }
@@ -368,10 +371,16 @@ class _GpsScreenState extends State<GpsScreen> {
 
     if (auth.hasCompletedOnboarding) {
       WidgetsBinding.instance.addPostFrameCallback((_) async {
-        debugPrint("🛰️ GPS mounted, checking for pending deep links...");
+        debugPrint(
+            "🔗 [MainScreen] 🛰️ Waiting before consuming pending deep links...");
         await Future.delayed(const Duration(seconds: 2));
+        debugPrint(
+            "🔗 [MainScreen] 🔄 Triggering DeepLinkService.consumePendingLinkIfAny()");
         DeepLinkService().consumePendingLinkIfAny();
       });
+    } else {
+      debugPrint(
+          "🔗 [MainScreen] ⏩ Onboarding not completed — skipping deep link consumption.");
     }
   }
 

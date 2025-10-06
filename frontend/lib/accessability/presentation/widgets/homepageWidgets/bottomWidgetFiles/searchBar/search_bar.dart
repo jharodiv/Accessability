@@ -9,7 +9,6 @@ import 'package:flutter_tts/flutter_tts.dart';
 class SearchBarWithAutocomplete extends StatefulWidget {
   final Function(String) onSearch;
   final Function(String)? onCategorySelected;
-  //final Function(String)? onShowPwdLocation;
 
   const SearchBarWithAutocomplete(
       {super.key, required this.onSearch, this.onCategorySelected});
@@ -252,20 +251,21 @@ class _SearchBarWithAutocompleteState extends State<SearchBarWithAutocomplete> {
 
         switch (label) {
           case 'open_settings':
-            Navigator.pushNamed(context, '/settings'); //done
+            Navigator.pushNamed(context, '/settings');
+            await _speak("Opening Settings");
             break;
 
           case 'call_sos':
-            Navigator.pushNamed(context, '/sos'); //done
+            Navigator.pushNamed(context, '/sos');
             break;
 
           case 'open_chat':
             Navigator.pushNamed(context, '/inbox');
-            await _speak("Opening your inbox"); //done
+            await _speak("Opening your inbox");
             break;
 
           case 'opencreate_space':
-            Navigator.pushNamed(context, '/createSpace'); //done
+            Navigator.pushNamed(context, '/createSpace');
             break;
 
           case 'find_location':
@@ -279,11 +279,11 @@ class _SearchBarWithAutocompleteState extends State<SearchBarWithAutocomplete> {
 
           case 'open_account':
             Navigator.pushNamed(context, '/account');
-            await _speak("Opening your Profile"); //done
+            await _speak("Opening your Profile");
             break;
 
           case 'set_checkin':
-            Navigator.pushNamed(context, '/send-location'); //done
+            Navigator.pushNamed(context, '/send-location');
             break;
 
           case 'open_safety_contact':
@@ -297,24 +297,29 @@ class _SearchBarWithAutocompleteState extends State<SearchBarWithAutocomplete> {
           case 'find_bus':
             widget.onCategorySelected?.call("bus");
             await _speak("Searching for the Nearest Bus Station");
+            break;
 
           case 'find_shopping':
             widget.onCategorySelected?.call("shopping");
             await _speak("Searching for the Nearest Shopping Market");
+            break;
 
           case 'find_restaurant':
             widget.onCategorySelected?.call("restaurant");
             await _speak("Searching for the Nearest Restaurant");
+            break;
 
           case 'find_groceries':
             widget.onCategorySelected?.call("grocery");
             await _speak("Searching for the Nearest Grocery");
+            break;
 
           case 'find_hospital':
             print(
                 "📡 Voice command: requesting parent callback with 'hospital'");
             widget.onCategorySelected?.call("hospital");
             await _speak("Searching for the Nearest Hospital");
+            break;
 
           default:
             print('❓ Unrecognized label: $label');
@@ -408,7 +413,17 @@ class _SearchBarWithAutocompleteState extends State<SearchBarWithAutocomplete> {
                     Icons.clear,
                     color: isDarkMode ? Colors.grey[400] : Colors.grey[700],
                   ),
-                  onPressed: _clearSearch,
+                  onPressed: () {
+                    // Stop wake word listening if active
+                    if (_isWakeWordListening) {
+                      _melodyManager.stop();
+                      setState(() {
+                        _isWakeWordListening = false;
+                        _isProcessingWakeWord = false;
+                      });
+                    }
+                    _clearSearch();
+                  },
                 ),
               IconButton(
                 icon: Icon(
@@ -429,8 +444,10 @@ class _SearchBarWithAutocompleteState extends State<SearchBarWithAutocomplete> {
                   } else if (_isWakeWordListening) {
                     // Stop wake word listening
                     _melodyManager.stop();
+                    _clearSearch();
                     setState(() {
                       _isWakeWordListening = false;
+                      _isProcessingWakeWord = false;
                     });
                   } else {
                     // Start wake word listening

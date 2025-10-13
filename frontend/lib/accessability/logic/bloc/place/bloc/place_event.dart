@@ -1,3 +1,4 @@
+import 'package:accessability/accessability/data/model/place.dart';
 import 'package:equatable/equatable.dart';
 
 abstract class PlaceEvent extends Equatable {
@@ -73,4 +74,63 @@ class UpdatePlaceNotificationRadiusEvent extends PlaceEvent {
 
   @override
   List<Object?> get props => [placeId, radius];
+}
+
+class ToggleFavoritePlaceEvent extends PlaceEvent {
+  final Place place;
+
+  const ToggleFavoritePlaceEvent({required this.place});
+
+  @override
+  List<Object> get props => [place];
+}
+
+class CheckFavoriteStatusEvent extends PlaceEvent {
+  final Place place;
+
+  const CheckFavoriteStatusEvent({required this.place});
+
+  @override
+  List<Object> get props => [place];
+}
+
+class GetFavoritePlacesEvent extends PlaceEvent {
+  const GetFavoritePlacesEvent();
+
+  @override
+  List<Object> get props => [];
+}
+
+class AddToFavoritesEvent extends PlaceEvent {
+  final Place place;
+
+  const AddToFavoritesEvent({required this.place});
+
+  @override
+  List<Object> get props => [place];
+}
+
+class DeletePlaceCompletelyEvent extends PlaceEvent {
+  final String placeId;
+
+  const DeletePlaceCompletelyEvent({required this.placeId});
+
+  @override
+  List<Object> get props => [placeId];
+}
+
+class ToggleFavoriteWithDeletionEvent extends PlaceEvent {
+  final Place place;
+
+  const ToggleFavoriteWithDeletionEvent({required this.place});
+
+  @override
+  List<Object> get props => [place];
+}
+
+class CleanupOrphanedPlacesEvent extends PlaceEvent {
+  const CleanupOrphanedPlacesEvent();
+
+  @override
+  List<Object> get props => [];
 }

@@ -1,13 +1,12 @@
 import 'package:accessability/accessability/presentation/widgets/homepageWidgets/bottomWidgetFiles/verification_code_widget.dart';
-import 'package:accessability/accessability/presentation/widgets/space_management_widgets/change_admin_status.dart';
 import 'package:accessability/accessability/presentation/widgets/space_management_widgets/edit_space_name_screen.dart';
 import 'package:accessability/accessability/presentation/widgets/space_management_widgets/leave_space_dialog.dart';
 import 'package:accessability/accessability/presentation/widgets/space_management_widgets/remove_member.dart';
 import 'package:accessability/accessability/themes/theme_provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:easy_localization/easy_localization.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:easy_localization/easy_localization.dart';
 import 'package:provider/provider.dart';
 
 class SpaceManagementList extends StatelessWidget {
@@ -139,7 +138,7 @@ class SpaceManagementList extends StatelessWidget {
                           Text(
                             spaceName?.isNotEmpty == true
                                 ? spaceName!
-                                : 'Space management'.tr(),
+                                : 'spaceManagement'.tr(),
                             style: theme.textTheme.titleMedium?.copyWith(
                               fontWeight: FontWeight.w700,
                               fontSize: 16,
@@ -152,8 +151,7 @@ class SpaceManagementList extends StatelessWidget {
                           ),
                           const SizedBox(height: 6),
                           Text(
-                            'Changes you make here apply only to the current selected Space.'
-                                .tr(),
+                            'space_changes_notice'.tr(),
                             style: theme.textTheme.bodySmall,
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
@@ -170,7 +168,7 @@ class SpaceManagementList extends StatelessWidget {
           // Section header: Space details
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-            child: Text('Space details'.tr(), style: sectionHeaderStyle),
+            child: Text('space_details'.tr(), style: sectionHeaderStyle),
           ),
           Divider(height: 1, thickness: 1, color: dividerColor),
 
@@ -182,7 +180,7 @@ class SpaceManagementList extends StatelessWidget {
                 // Edit Space Name (in details section) — white tile with chevron
                 _buildTile(
                   context,
-                  title: 'Edit Space Name'.tr(),
+                  title: 'edit_space_name'.tr(),
                   titleStyle: rowTitleStyle,
                   onTap: () async {
                     final result = await Navigator.of(context).push<String>(
@@ -204,7 +202,7 @@ class SpaceManagementList extends StatelessWidget {
                 Padding(
                   padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
                   child:
-                      Text('Space Management'.tr(), style: sectionHeaderStyle),
+                      Text('spaceManagement'.tr(), style: sectionHeaderStyle),
                 ),
                 Divider(height: 1, thickness: 1, color: dividerColor),
 
@@ -212,7 +210,7 @@ class SpaceManagementList extends StatelessWidget {
 
                 _buildTile(
                   context,
-                  title: 'My Role'.tr(),
+                  title: 'my_role'.tr(),
                   titleStyle: rowTitleStyle,
                   trailingWidget: Padding(
                     padding: const EdgeInsets.only(right: 8.0),
@@ -228,7 +226,7 @@ class SpaceManagementList extends StatelessWidget {
                 // Change Admin Status
                 _buildTile(
                   context,
-                  title: 'Change Admin Status'.tr(),
+                  title: 'change_admin_status'.tr(),
                   titleStyle: rowTitleStyle,
                   onTap: () {
                     if (onViewAdmin != null) {
@@ -236,7 +234,7 @@ class SpaceManagementList extends StatelessWidget {
                     } else {
                       // fallback behaviour (optional):
                       ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Please select a space'.tr())),
+                        SnackBar(content: Text('please_select_a_space'.tr())),
                       );
                     }
                   },
@@ -246,7 +244,7 @@ class SpaceManagementList extends StatelessWidget {
                 // Add people to Space
                 _buildTile(
                   context,
-                  title: 'Add people to Space'.tr(),
+                  title: 'add_people_to_space'.tr(),
                   titleStyle: rowTitleStyle,
                   onTap: () {
                     if (onAddPeople != null) {
@@ -256,7 +254,7 @@ class SpaceManagementList extends StatelessWidget {
                     final sid = (spaceId ?? '').trim();
                     if (sid.isEmpty) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('No space selected'.tr())),
+                        SnackBar(content: Text('noSpaceSelected'.tr())),
                       );
                       return;
                     }
@@ -273,12 +271,12 @@ class SpaceManagementList extends StatelessWidget {
                 if (canRemove) ...[
                   _buildTile(
                     context,
-                    title: 'Remove people from Space'.tr(),
+                    title: 'removePeopleFromSpace'.tr(),
                     titleStyle: rowTitleStyle,
                     onTap: () async {
                       if (spaceId == null || spaceId!.trim().isEmpty) {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text('Please select a space'.tr())),
+                          SnackBar(content: Text('please_select_a_space'.tr())),
                         );
                         return;
                       }
@@ -288,7 +286,7 @@ class SpaceManagementList extends StatelessWidget {
                       final currentUser = auth.currentUser;
                       if (currentUser == null) {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text('Please sign in'.tr())),
+                          SnackBar(content: Text('please_sign_in'.tr())),
                         );
                         return;
                       }
@@ -317,7 +315,7 @@ class SpaceManagementList extends StatelessWidget {
 
                       if (memberIds.isEmpty) {
                         ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text('noMembersFound'.tr())));
+                            SnackBar(content: Text('no_members_found'.tr())));
                         return;
                       }
 
@@ -382,7 +380,7 @@ class SpaceManagementList extends StatelessWidget {
                 // Leave Space
                 _buildTile(
                   context,
-                  title: 'Leave Space'.tr(),
+                  title: 'leaveSpace'.tr(),
                   titleStyle: rowTitleStyle,
                   onTap: () {
                     showDialog(

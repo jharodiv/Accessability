@@ -334,5 +334,33 @@
   "implement_message_action": "Message action not implemented",
   "cannot_launch_messages": "Cannot open messages app",
   "locationNotAvailable": "Location not available",
-  "contact_name_is": "Contact name is {0}"
+  "contact_name_is": "Contact name is {0}",
+  "remove_from_favorites": "Remove from Favorites",
+  "remove_from_list": "Remove from List",
+  "removed_from_favorites": "Successfully removed from favorites",
+
+
+  "add_a_person": "Add a person",
+  "select_chat_rooms_or_spaces": "Select Chat Rooms or Spaces",
+  "space_chats": "Space Chats",
+  "group_chat_tap_to_select": "Group chat — tap to select",
+  "tap_to_select_person": "Tap to select person",
+  "people": "People",
+  "space": "Space",
+  "welcome_to_the": "Welcome to the",
+   "space_details": "Space details",
+   "edit_space_name": "Edit Space Name",
+"my_role": "My Role",
+  "change_admin_status": "Change Admin Status",
+  "add_people_to_space": "Add people to Space",
+  "please_select_a_space": "Please select a space",
+  "please_sign_in": "Please sign in",
+  "no_members_found": "No members found",
+  "space_changes_notice": "Changes you make here apply only to the current selected Space.",
+  "type_a_message": "Type a message...",
+  "point_camera_to_join": "Point your camera to join",
+  "you_are_a_member": "You are a member",
+  "invitation_expired": "Invitation expired",
+  "join_a_space": "Join a Space"
+
 }

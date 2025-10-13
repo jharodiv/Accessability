@@ -1,9 +1,10 @@
 import 'dart:math';
-import 'package:flutter/material.dart';
-import 'package:easy_localization/easy_localization.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+
 import 'package:accessability/accessability/firebaseServices/chat/chat_service.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:easy_localization/easy_localization.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/material.dart';
 
 class CreateSpaceScreen extends StatefulWidget {
   const CreateSpaceScreen({super.key});
@@ -146,7 +147,7 @@ class _CreateSpaceScreenState extends State<CreateSpaceScreen> {
               color: const Color(0xFF6750A4), // Purple arrow
             ),
             title: Text(
-              'Create Space',
+              'createSpace'.tr(),
               style: const TextStyle(
                 fontWeight: FontWeight.bold,
                 color: Colors.black, // Title black
@@ -163,7 +164,7 @@ class _CreateSpaceScreenState extends State<CreateSpaceScreen> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             const Text(
-              'Create My Space',
+              'create_my_space',
               style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
             ).tr(),
             const SizedBox(height: 20),
@@ -171,7 +172,7 @@ class _CreateSpaceScreenState extends State<CreateSpaceScreen> {
               controller: _spaceNameController,
               focusNode: _nameFocusNode,
               decoration: InputDecoration(
-                labelText: 'Space Name'.tr(),
+                labelText: 'space_name'.tr(),
                 labelStyle: const TextStyle(color: Color(0xFF6750A4)),
                 border: OutlineInputBorder(
                   borderSide: const BorderSide(color: Color(0xFF6750A4)),
@@ -213,7 +214,7 @@ class _CreateSpaceScreenState extends State<CreateSpaceScreen> {
                               color: Colors.white,
                             ),
                           )
-                        : const Text('Create').tr(),
+                        : const Text('create').tr(),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -225,7 +226,7 @@ class _CreateSpaceScreenState extends State<CreateSpaceScreen> {
                       shape: const StadiumBorder(),
                       padding: const EdgeInsets.symmetric(vertical: 12),
                     ),
-                    child: const Text('Back').tr(),
+                    child: const Text('back').tr(),
                   ),
                 ),
               ],

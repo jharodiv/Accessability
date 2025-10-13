@@ -17,6 +17,14 @@ class PlaceRepository {
     }
   }
 
+  Future<void> toggleFavorite(Place place) async {
+    try {
+      await placeService.toggleFavorite(place);
+    } catch (e) {
+      throw Exception('Failed to toggle favorite: ${e.toString()}');
+    }
+  }
+
   Future<void> updateNotificationRadius(String placeId, double radius) async {
     try {
       await placeService.updateNotificationRadius(placeId, radius);
@@ -64,6 +72,58 @@ class PlaceRepository {
       await placeService.removePlaceFromCategory(placeId);
     } catch (e) {
       throw Exception('Failed to remove place from category: ${e.toString()}');
+    }
+  }
+
+  // NEW: Delete place completely
+  Future<void> deletePlaceCompletely(String placeId) async {
+    try {
+      await placeService.deletePlaceCompletely(placeId);
+    } catch (e) {
+      throw Exception('Failed to delete place: ${e.toString()}');
+    }
+  }
+
+  // NEW: Toggle favorite with deletion
+  Future<void> toggleFavoriteWithDeletion(Place place) async {
+    try {
+      await placeService.toggleFavoriteWithDeletion(place);
+    } catch (e) {
+      throw Exception('Failed to toggle favorite: ${e.toString()}');
+    }
+  }
+
+  Future<bool> isPlaceFavorite(Place place) async {
+    try {
+      return await placeService.isPlaceFavorite(place);
+    } catch (e) {
+      throw Exception('Failed to check favorite status: ${e.toString()}');
+    }
+  }
+
+  // NEW: Get favorite places stream
+  Stream<List<Place>> getFavoritePlaces() {
+    try {
+      return placeService.getFavoritePlaces();
+    } catch (e) {
+      throw Exception('Failed to get favorite places: ${e.toString()}');
+    }
+  }
+
+  // NEW: Add place to favorites
+  Future<void> addToFavorites(Place place) async {
+    try {
+      await placeService.addToFavorites(place);
+    } catch (e) {
+      throw Exception('Failed to add to favorites: ${e.toString()}');
+    }
+  }
+
+  Future<bool> shouldDeletePlace(Place place) async {
+    try {
+      return await placeService.shouldDeletePlace(place);
+    } catch (e) {
+      throw Exception('Failed to check deletion status: ${e.toString()}');
     }
   }
 }

@@ -296,5 +296,31 @@
   "confirm_delete": "Kumpirmahin ang pagtanggal",
   "confirm_delete_contact": "Sigurado ka bang tatanggalin ang {0}?",
   "implement_message_action": "Ang aksyon sa pagmemensahe ay hindi pa naka-implement",
-  "locationNotAvailable": "Hindi available ang lokasyon"
+  "locationNotAvailable": "Hindi available ang lokasyon",
+  "leaveSpace": "Umalis sa Space",
+  "safetyAssist": "Tulong sa Kaligtasan",
+
+  "add_a_person": "Magdagdag ng tao",
+  "select_chat_rooms_or_spaces": "Pumili ng mga chat room o space",
+  "space_chats": "Mga space chat",
+  "group_chat_tap_to_select": "Group chat — i-tap upang pumili",
+  "tap_to_select_person": "I-tap upang pumili ng tao",
+  "people": "Mga tao",
+  "space": "Espasyo",
+   "welcome_to_the": "Maligayang pagdating sa",
+   "space_details": "Mga detalye ng space",
+    "edit_space_name": "Baguhin ang Pangalan ng Space",
+  "my_role": "Aking Tungkulin",
+  "change_admin_status": "Baguhin ang Katayuan ng Admin",
+"add_people_to_space": "Magdagdag ng mga tao sa Space",
+"please_select_a_space": "Mangyaring pumili ng space",
+"please_sign_in": "Mangyaring mag-sign in",
+"no_members_found": "Walang nahanap na mga miyembro",
+"space_changes_notice": "Ang mga pagbabagong ginagawa mo dito ay para lamang sa kasalukuyang napiling Space.",
+"type_a_message": "Mag-type ng mensahe...",
+"point_camera_to_join": "Itutok ang camera para sumali",
+"you_are_a_member": "Ikaw ay isang miyembro",
+"invitation_expired": "Nag-expire na ang imbitasyon",
+"join_a_space": "Sumali sa isang Space"
+
 }

@@ -1,10 +1,11 @@
+import 'dart:math' as math;
+
+import 'package:accessability/accessability/firebaseServices/chat/chat_service.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:easy_localization/easy_localization.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:easy_localization/easy_localization.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:accessability/accessability/firebaseServices/chat/chat_service.dart';
-import 'dart:math' as math;
 
 class JoinSpaceScreen extends StatefulWidget {
   const JoinSpaceScreen({super.key});
@@ -253,10 +254,10 @@ class _JoinSpaceScreenState extends State<JoinSpaceScreen> {
               onPressed: _safePop,
             ),
             title: const Text(
-              'Join a Space',
+              'join_a_space',
               style: TextStyle(
                   color: Color(0xFF2E1750), fontWeight: FontWeight.w600),
-            ),
+            ).tr(),
             centerTitle: false,
           ),
         ),
@@ -274,7 +275,7 @@ class _JoinSpaceScreenState extends State<JoinSpaceScreen> {
             children: [
               // removed the extra SizedBox here since padding.top now provides the spacing
               const Text(
-                'Enter the invite code',
+                'enter_invite_code',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 24,
@@ -285,7 +286,7 @@ class _JoinSpaceScreenState extends State<JoinSpaceScreen> {
               ).tr(),
               const SizedBox(height: 18),
               const Text(
-                'Get the code from the person setting up your family\'s Space',
+                'invite_code_subheading',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 14,
@@ -339,7 +340,7 @@ class _JoinSpaceScreenState extends State<JoinSpaceScreen> {
                           ),
                         )
                       : const Text(
-                          'Submit',
+                          'submit',
                           style: TextStyle(
                               fontSize: 18, fontWeight: FontWeight.w600),
                         ).tr(),

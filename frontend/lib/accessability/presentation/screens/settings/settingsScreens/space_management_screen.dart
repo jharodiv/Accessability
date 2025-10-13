@@ -580,7 +580,7 @@ class _SpaceManagementScreenState extends State<SpaceManagementScreen> {
                 // now awaits are allowed
                 if (_selectedSpaceId == null) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Please select a space'.tr())),
+                    SnackBar(content: Text('please_select_a_space'.tr())),
                   );
                   return;
                 }
@@ -671,7 +671,7 @@ class _SpaceManagementScreenState extends State<SpaceManagementScreen> {
                 if (_selectedSpaceId == null ||
                     (_selectedSpaceId ?? '').trim().isEmpty) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Please select a space'.tr())),
+                    SnackBar(content: Text('please_select_a_space'.tr())),
                   );
                   return;
                 }
@@ -688,7 +688,7 @@ class _SpaceManagementScreenState extends State<SpaceManagementScreen> {
               onLeave: () {
                 if (_selectedSpaceId == null) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Please select a space'.tr())),
+                    SnackBar(content: Text('please_select_a_space'.tr())),
                   );
                   return;
                 }

@@ -8,8 +8,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:qr_flutter/qr_flutter.dart';
 import 'package:flutter/services.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 
 class VerificationCodeScreen extends StatefulWidget {
   final String spaceId;
@@ -356,7 +356,7 @@ class _VerificationCodeScreenState extends State<VerificationCodeScreen> {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'Point your camera to join',
+                  'point_camera_to_join'.tr(),
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
                         color: Colors.grey[700],
                       ),

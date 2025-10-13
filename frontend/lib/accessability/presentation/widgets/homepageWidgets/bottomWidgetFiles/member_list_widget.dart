@@ -3,9 +3,10 @@ import 'package:accessability/accessability/firebaseServices/place/geocoding_ser
 import 'package:accessability/accessability/presentation/widgets/shimmer/shimmer_member_list.dart'
     show ShimmerMemberList;
 import 'package:accessability/accessability/themes/theme_provider.dart';
-import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:easy_localization/easy_localization.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:provider/provider.dart';
 
@@ -247,7 +248,7 @@ class _MemberListWidgetState extends State<MemberListWidget> {
                   ),
                   const SizedBox(width: 12),
                   Text(
-                    'Add a person',
+                    'add_a_person'.tr(),
                     style: TextStyle(
                         color: purple,
                         fontWeight: FontWeight.bold,
@@ -446,7 +447,7 @@ class _MemberListWidgetState extends State<MemberListWidget> {
               ),
               const SizedBox(width: 12),
               Text(
-                'Add a person',
+                'add_a_person'.tr(),
                 style: TextStyle(
                     color: purple, fontWeight: FontWeight.bold, fontSize: 18),
               ),

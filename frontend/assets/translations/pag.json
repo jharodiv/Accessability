@@ -136,7 +136,7 @@
   "arrival": "Pagdating",
   "update": "Update",
   "add": "Idagdag",
-  "safety_assist": "Safety Assist",
+  "safety_assist": "Tulong ed Katalagan",
   "no_emergency_contacts": "Angapo pa ya emergency contacts.",
   "safety_assist_description_1": "AccessAbility ya mangipabalo ed safety contacts mo no emergency. Agdagdag, update, o i-delete so contacts mo ed app.",
   "safety_assist_description_2": "No emergency, pwede mo i-activate so SOS. Maipadala ya alert ed contacts mo, upat ya lugar tan impormasyon.",
@@ -296,5 +296,31 @@
   "confirm_delete": "Kumpirmaren ed pana-alis",
   "confirm_delete_contact": "Sigurado ka ed pana-alis i {0}?",
   "implement_message_action": "Di so na-implement so aksyon na pagmensahi",
-  "locationNotAvailable": "Di makita so lugar"
+  "locationNotAvailable": "Di makita so lugar",
+  "leaveSpace": "Talaw ed Space",
+
+  
+  "add_a_person": "Mandagdag ya tao",
+  "select_chat_rooms_or_spaces": "Pilian so chat rooms tan spaces",
+  "space_chats": "Espasio na saray chat",
+  "group_chat_tap_to_select": "Grupo ya chat — tapen ed panangpilì",
+  "tap_to_select_person": "Tapen ed panangpilì na tao",
+  "people": "Saray tao",
+  "space": "Espasio",
+  "welcome_to_the": "Maabig ed",
+  "space_details": "Detalye na space",
+ "edit_space_name": "Alyamen so Ngalan na Space",
+  "my_role": "Sakot ya Gagawa",
+  "change_admin_status": "Alyamen so Admin Status",
+  "add_people_to_space": "Mandagdag na too ed Space",
+  "please_select_a_space": "Mamili na space",
+  "please_sign_in": "Mangyaring mag-sign in",
+  "no_members_found": "Agaran nabasa ya miyembro",
+  "space_changes_notice": "Say mga aliwawa ya gagawen mo ditan et para la ed say natan ya napili ya Space.",
+  "type_a_message": "Mag-type na mensahe...",
+  "point_camera_to_join": "Itutok so camera para makidugyon",
+  "you_are_a_member": "Sika ya miyembro",
+  "invitation_expired": "Nag-expire ya imbitasyon",
+  "join_a_space": "Makidugyon ed sakey ya Space"
+
 }

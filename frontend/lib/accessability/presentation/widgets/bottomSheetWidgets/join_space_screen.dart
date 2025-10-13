@@ -69,9 +69,7 @@ class _JoinSpaceScreenState extends State<JoinSpaceScreen> {
       _controllers.every((c) => c.text.trim().isNotEmpty);
 
   Future<void> _joinSpace() async {
-    if (_isLoading || _isDisposed || _navigationCompleted) return;
-
-    _navigationCompleted = true;
+    if (_isLoading || _isDisposed) return;
 
     final user = _auth.currentUser;
     if (user == null) {
@@ -113,25 +111,23 @@ class _JoinSpaceScreenState extends State<JoinSpaceScreen> {
       final currentMembers = List<String>.from(spaceDoc['members'] ?? []);
 
       if (!currentMembers.contains(user.uid)) {
-        // Add user to space
         await _firestore.collection('Spaces').doc(spaceId).update({
           'members': FieldValue.arrayUnion([user.uid]),
         });
       }
 
-      // Always add to space chat room (handles re-joining case)
       await _chatService.addMemberToSpaceChatRoom(spaceId, user.uid);
 
       _showSnackBar('joined_space_successfully'.tr());
 
-      _navigationCompleted = true;
+      _navigationCompleted = true; // ✅ only mark completed on success
 
       Future.microtask(() {
         if (!_isDisposed && Navigator.canPop(context)) {
           Navigator.of(context).pop({
             'success': true,
             'spaceId': spaceId,
-            'spaceName': spaceDoc['name']
+            'spaceName': spaceDoc['name'],
           });
         }
       });
@@ -140,6 +136,7 @@ class _JoinSpaceScreenState extends State<JoinSpaceScreen> {
         _showSnackBar('error_joining_space'.tr(args: [e.toString()]));
       }
     } finally {
+      // ✅ Always reset loading state and navigation flag if join failed
       if (!_isDisposed && !_navigationCompleted) {
         setState(() => _isLoading = false);
       }

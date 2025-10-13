@@ -17,7 +17,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 import 'package:accessability/accessability/logic/bloc/place/bloc/place_event.dart'
-    show GetAllPlacesEvent;
+    show GetAllPlacesEvent, CleanupOrphanedPlacesEvent;
 import 'package:accessability/accessability/logic/bloc/place/bloc/place_state.dart'
     as place_state;
 import 'package:accessability/accessability/logic/bloc/user/user_bloc.dart'
@@ -364,6 +364,14 @@ class _GpsScreenState extends State<GpsScreen> {
       debugPrint("🔗 [MainScreen] 🚀 Consuming pending deep links (if any)...");
       _consumePendingDeepLinksIfAny();
     });
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _cleanupOrphanedPlaces();
+    });
+  }
+
+  void _cleanupOrphanedPlaces() {
+    context.read<PlaceBloc>().add(const CleanupOrphanedPlacesEvent());
   }
 
   void _consumePendingDeepLinksIfAny() {

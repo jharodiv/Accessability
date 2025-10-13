@@ -4,8 +4,8 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 class Place {
   final String id;
   final String userId;
-  final String? googlePlaceId; // Google place ID
-  final String? osmId; // OpenStreetMap ID
+  final String? googlePlaceId;
+  final String? osmId;
   final double? rating;
   final int? reviewsCount;
   final String? address;
@@ -15,11 +15,13 @@ class Place {
   final double latitude;
   final double longitude;
   final DateTime? timestamp;
-  final bool? isFromOSM; // Flag to indicate OpenStreetMap source
+  final bool? isFromOSM;
   final double? averageRating;
   final int? totalRatings;
   final List<Map<String, dynamic>>? reviews;
   final double notificationRadius;
+  final bool isFavorite;
+  final String source; // NEW: 'user', 'google', 'osm', 'pwd'
 
   Place({
     required this.id,
@@ -40,6 +42,8 @@ class Place {
     this.reviews,
     this.isFromOSM = false,
     this.notificationRadius = 100.0,
+    this.isFavorite = false,
+    this.source = 'user', // NEW: default to 'user'
   });
 
   factory Place.fromMap(String id, Map<String, dynamic> data) {
@@ -70,6 +74,8 @@ class Place {
           : null,
       notificationRadius:
           (data['notificationRadius'] as num?)?.toDouble() ?? 100.0,
+      isFavorite: data['isFavorite'] ?? false,
+      source: data['source'] ?? 'user', // NEW
     );
   }
 
@@ -92,11 +98,14 @@ class Place {
       'totalRatings': totalRatings,
       'reviews': reviews,
       'notificationRadius': notificationRadius,
+      'isFavorite': isFavorite,
+      'source': source, // NEW
     };
   }
 
-  /// Creates a Place from a nearby Marker
-  factory Place.fromNearbyMarker(Marker marker, {bool isOSM = false}) {
+  /// Creates a Place from a nearby Marker (for fetched places)
+  factory Place.fromNearbyMarker(Marker marker,
+      {bool isOSM = false, String source = 'google'}) {
     return Place(
         id: marker.markerId.value,
         userId: '',
@@ -110,28 +119,33 @@ class Place {
         category: '',
         latitude: marker.position.latitude,
         longitude: marker.position.longitude,
-        timestamp: DateTime.now(), // Added timestamp
+        timestamp: DateTime.now(),
         isFromOSM: isOSM,
-        notificationRadius: 100.0);
+        notificationRadius: 100.0,
+        isFavorite: false,
+        source: source); // NEW: Set the source
   }
 
   /// Creates a copy of the place with updated values
-  Place copyWith(
-      {String? id,
-      String? userId,
-      String? googlePlaceId,
-      String? osmId,
-      double? rating,
-      int? reviewsCount,
-      String? address,
-      String? imageUrl,
-      String? name,
-      String? category,
-      double? latitude,
-      double? longitude,
-      DateTime? timestamp,
-      bool? isFromOSM,
-      double? notificationRadius}) {
+  Place copyWith({
+    String? id,
+    String? userId,
+    String? googlePlaceId,
+    String? osmId,
+    double? rating,
+    int? reviewsCount,
+    String? address,
+    String? imageUrl,
+    String? name,
+    String? category,
+    double? latitude,
+    double? longitude,
+    DateTime? timestamp,
+    bool? isFromOSM,
+    double? notificationRadius,
+    bool? isFavorite,
+    String? source, // NEW
+  }) {
     return Place(
         id: id ?? this.id,
         userId: userId ?? this.userId,
@@ -147,6 +161,8 @@ class Place {
         longitude: longitude ?? this.longitude,
         timestamp: timestamp ?? this.timestamp,
         isFromOSM: isFromOSM ?? this.isFromOSM,
-        notificationRadius: notificationRadius ?? this.notificationRadius);
+        notificationRadius: notificationRadius ?? this.notificationRadius,
+        isFavorite: isFavorite ?? this.isFavorite,
+        source: source ?? this.source); // NEW
   }
 }

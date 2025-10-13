@@ -31,3 +31,23 @@ class PlaceOperationError extends PlaceState {
   @override
   List<Object?> get props => [message];
 }
+
+// NEW: Add these missing state classes
+class PlaceFavoriteStatusChecked extends PlaceState {
+  final bool isFavorite;
+
+  const PlaceFavoriteStatusChecked({required this.isFavorite});
+
+  @override
+  List<Object?> get props => [isFavorite];
+}
+
+class PlaceFavoriteToggled extends PlaceState {
+  final Place place;
+  final bool isFavorite;
+
+  const PlaceFavoriteToggled({required this.place, required this.isFavorite});
+
+  @override
+  List<Object?> get props => [place, isFavorite];
+}

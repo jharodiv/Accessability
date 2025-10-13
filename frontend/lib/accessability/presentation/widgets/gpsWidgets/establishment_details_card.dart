@@ -1,3 +1,6 @@
+import 'package:accessability/accessability/logic/bloc/place/bloc/place_bloc.dart';
+import 'package:accessability/accessability/logic/bloc/place/bloc/place_event.dart';
+import 'package:accessability/accessability/logic/bloc/place/bloc/place_state.dart';
 import 'package:accessability/accessability/logic/bloc/user/user_bloc.dart';
 import 'package:accessability/accessability/presentation/widgets/bottomSheetWidgets/rating_review_widget.dart';
 import 'package:flutter/material.dart';
@@ -23,7 +26,41 @@ class EstablishmentDetailsCard extends StatefulWidget {
 }
 
 class _EstablishmentDetailsCardState extends State<EstablishmentDetailsCard> {
-  bool isFavorite = false;
+  bool _isFavorite = false;
+  bool _isCheckingFavorite = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkFavoriteStatus();
+  }
+
+  void _checkFavoriteStatus() async {
+    if (widget.place.id.isEmpty) return;
+
+    setState(() {
+      _isCheckingFavorite = true;
+    });
+
+    try {
+      // Check if this place exists in favorites
+      context
+          .read<PlaceBloc>()
+          .add(CheckFavoriteStatusEvent(place: widget.place));
+    } catch (e) {
+      print('Error checking favorite status: $e');
+    }
+
+    setState(() {
+      _isCheckingFavorite = false;
+    });
+  }
+
+  void _toggleFavorite() {
+    context
+        .read<PlaceBloc>()
+        .add(ToggleFavoritePlaceEvent(place: widget.place));
+  }
 
   String _streetViewUrl() {
     final key = dotenv.env['GOOGLE_API_KEY'] ?? '';
@@ -34,6 +71,54 @@ class _EstablishmentDetailsCardState extends State<EstablishmentDetailsCard> {
 
   @override
   Widget build(BuildContext context) {
+    return BlocListener<PlaceBloc, PlaceState>(
+      listener: (context, state) {
+        if (state is PlaceFavoriteStatusChecked) {
+          setState(() {
+            _isFavorite = state.isFavorite;
+          });
+        } else if (state is PlacesLoaded) {
+          // Update favorite status when places are loaded
+          final favoritePlace = state.places.firstWhere(
+            (p) => _isSamePlace(p, widget.place),
+            orElse: () => widget.place,
+          );
+          setState(() {
+            _isFavorite = favoritePlace.isFavorite;
+          });
+        } else if (state is PlaceFavoriteToggled) {
+          // Update when favorite is toggled
+          if (_isSamePlace(state.place, widget.place)) {
+            setState(() {
+              _isFavorite = state.isFavorite;
+            });
+          }
+        }
+      },
+      child: _buildCardContent(),
+    );
+  }
+
+  bool _isSamePlace(Place a, Place b) {
+    // Compare by Google Place ID
+    if (a.googlePlaceId != null &&
+        b.googlePlaceId != null &&
+        a.googlePlaceId == b.googlePlaceId) {
+      return true;
+    }
+
+    // Compare by OSM ID
+    if (a.osmId != null && b.osmId != null && a.osmId == b.osmId) {
+      return true;
+    }
+
+    // Compare by coordinates and name (with tolerance for floating point precision)
+    final latDiff = (a.latitude - b.latitude).abs();
+    final lngDiff = (a.longitude - b.longitude).abs();
+    return latDiff < 0.0001 && lngDiff < 0.0001 && a.name == b.name;
+  }
+
+  Widget _buildCardContent() {
     // If PWD location we keep the old RatingReviewWidget approach
     if (widget.isPwdLocation) {
       return Padding(
@@ -75,14 +160,24 @@ class _EstablishmentDetailsCardState extends State<EstablishmentDetailsCard> {
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
-              // Heart (favorite)
-              IconButton(
-                icon: Icon(
-                  isFavorite ? Icons.favorite : Icons.favorite_border,
-                  color: isFavorite ? const Color(0xFF5B2EA6) : Colors.grey,
+              // Heart (favorite) - Now works for all place types
+              if (_isCheckingFavorite)
+                const Padding(
+                  padding: EdgeInsets.all(8.0),
+                  child: SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                )
+              else
+                IconButton(
+                  icon: Icon(
+                    _isFavorite ? Icons.favorite : Icons.favorite_border,
+                    color: _isFavorite ? const Color(0xFF5B2EA6) : Colors.grey,
+                  ),
+                  onPressed: _toggleFavorite,
                 ),
-                onPressed: () => setState(() => isFavorite = !isFavorite),
-              ),
 
               // Close (X)
               IconButton(
@@ -110,6 +205,25 @@ class _EstablishmentDetailsCardState extends State<EstablishmentDetailsCard> {
               ),
             ],
           ),
+
+          // Source indicator (optional)
+          if (widget.place.source != 'user') ...[
+            const SizedBox(height: 4),
+            Row(
+              children: [
+                Icon(Icons.public, size: 14, color: Colors.grey[500]),
+                const SizedBox(width: 4),
+                Text(
+                  'From ${widget.place.source}',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey[500],
+                    fontStyle: FontStyle.italic,
+                  ),
+                ),
+              ],
+            ),
+          ],
 
           const SizedBox(height: 12),
 

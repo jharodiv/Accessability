@@ -334,5 +334,8 @@
   "implement_message_action": "Message action not implemented",
   "cannot_launch_messages": "Cannot open messages app",
   "locationNotAvailable": "Location not available",
-  "contact_name_is": "Contact name is {0}"
+  "contact_name_is": "Contact name is {0}",
+  "remove_from_favorites": "Remove from Favorites",
+  "remove_from_list": "Remove from List",
+  "removed_from_favorites": "Successfully removed from favorites"
 }

@@ -1,16 +1,16 @@
 // Replace the previous SendLocationScreen with this file contents.
 
 import 'package:accessability/accessability/firebaseServices/auth/auth_service.dart';
+import 'package:accessability/accessability/firebaseServices/chat/chat_service.dart';
+import 'package:accessability/accessability/firebaseServices/place/geocoding_service.dart';
 import 'package:accessability/accessability/presentation/screens/gpsscreen/location_handler.dart';
 import 'package:accessability/accessability/presentation/widgets/shimmer/shimmer_chat_list.dart';
 import 'package:accessability/accessability/themes/theme_provider.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:easy_localization/easy_localization.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:accessability/accessability/firebaseServices/chat/chat_service.dart';
-import 'package:accessability/accessability/firebaseServices/place/geocoding_service.dart';
 import 'package:provider/provider.dart';
 import 'package:rxdart/rxdart.dart';
 
@@ -216,7 +216,7 @@ class _SendLocationScreenState extends State<SendLocationScreen>
               children: [
                 Expanded(
                   child: Text(
-                    'Select Chat Rooms or Spaces',
+                    'select_chat_rooms_or_spaces'.tr(),
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
@@ -325,7 +325,7 @@ class _SendLocationScreenState extends State<SendLocationScreen>
             int cursor = 0;
             if (spaceChats.isNotEmpty) {
               // space header
-              if (index == cursor) return _sectionHeader('Space Chats');
+              if (index == cursor) return _sectionHeader('space_chats'.tr());
               cursor += 1;
               final int endSpaceIndex = cursor + spaceChats.length - 1;
               if (index >= cursor && index <= endSpaceIndex) {
@@ -335,7 +335,7 @@ class _SendLocationScreenState extends State<SendLocationScreen>
               cursor += spaceChats.length;
             }
             if (individualUsers.isNotEmpty) {
-              if (index == cursor) return _sectionHeader('People');
+              if (index == cursor) return _sectionHeader('people'.tr());
               cursor += 1;
               final int endPeopleIndex = cursor + individualUsers.length - 1;
               if (index >= cursor && index <= endPeopleIndex) {
@@ -423,7 +423,7 @@ class _SendLocationScreenState extends State<SendLocationScreen>
                             borderRadius: BorderRadius.circular(16),
                           ),
                           child: Text(
-                            'Space',
+                            'space'.tr(),
                             style: TextStyle(fontSize: 12, color: _purple),
                           ),
                         ),
@@ -432,8 +432,8 @@ class _SendLocationScreenState extends State<SendLocationScreen>
                   const SizedBox(height: 6),
                   Text(
                     isSpace
-                        ? 'Group chat — tap to select'
-                        : 'Tap to select person',
+                        ? 'group_chat_tap_to_select'.tr()
+                        : 'tap_to_select_person'.tr(),
                     style: TextStyle(
                       fontSize: 13,
                       color: Provider.of<ThemeProvider>(context).isDarkMode

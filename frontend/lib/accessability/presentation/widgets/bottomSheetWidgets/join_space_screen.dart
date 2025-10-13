@@ -1,10 +1,11 @@
+import 'dart:math' as math;
+
+import 'package:accessability/accessability/firebaseServices/chat/chat_service.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:easy_localization/easy_localization.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:easy_localization/easy_localization.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:accessability/accessability/firebaseServices/chat/chat_service.dart';
-import 'dart:math' as math;
 
 class JoinSpaceScreen extends StatefulWidget {
   const JoinSpaceScreen({super.key});
@@ -24,7 +25,13 @@ class _JoinSpaceScreenState extends State<JoinSpaceScreen> {
   bool _isDisposed = false;
   bool _navigationCompleted = false;
   String? _inviteCodeFromLink;
-  bool _isAutoFilled = false; // add this in your state
+  bool _isAutoFilled = false;
+
+  static const Color purple = Color(0xFF6750A4);
+  static const Color lightLavender = Color(0xFFD8CFE8);
+
+  bool get _isCodeComplete =>
+      _controllers.every((c) => c.text.trim().isNotEmpty);
 
   @override
   void initState() {
@@ -43,11 +50,10 @@ class _JoinSpaceScreenState extends State<JoinSpaceScreen> {
       _inviteCodeFromLink = args['inviteCode'] as String?;
       if (_inviteCodeFromLink != null &&
           _inviteCodeFromLink!.length == _controllers.length) {
-        // Autofill the 6 boxes
         for (int i = 0; i < _controllers.length; i++) {
           _controllers[i].text = _inviteCodeFromLink![i];
         }
-        _isAutoFilled = true; // mark as auto-filled
+        _isAutoFilled = true;
       }
     }
   }
@@ -55,21 +61,17 @@ class _JoinSpaceScreenState extends State<JoinSpaceScreen> {
   @override
   void dispose() {
     _isDisposed = true;
-    for (var controller in _controllers) {
-      controller.dispose();
+    for (var c in _controllers) {
+      c.dispose();
     }
-    for (var node in _focusNodes) {
-      node.dispose();
+    for (var n in _focusNodes) {
+      n.dispose();
     }
     super.dispose();
   }
 
-  bool get _isCodeComplete =>
-      _controllers.every((c) => c.text.trim().isNotEmpty);
-
   Future<void> _joinSpace() async {
     if (_isLoading || _isDisposed || _navigationCompleted) return;
-
     _navigationCompleted = true;
 
     final user = _auth.currentUser;
@@ -108,23 +110,16 @@ class _JoinSpaceScreenState extends State<JoinSpaceScreen> {
         return;
       }
 
-      // Check if user is already a member
       final currentMembers = List<String>.from(spaceDoc['members'] ?? []);
-
       if (!currentMembers.contains(user.uid)) {
-        // Add user to space
         await _firestore.collection('Spaces').doc(spaceId).update({
           'members': FieldValue.arrayUnion([user.uid]),
         });
       }
 
-      // Always add to space chat room (handles re-joining case)
       await _chatService.addMemberToSpaceChatRoom(spaceId, user.uid);
 
       _showSnackBar('joined_space_successfully'.tr());
-
-      _navigationCompleted = true;
-
       Future.microtask(() {
         if (!_isDisposed && Navigator.canPop(context)) {
           Navigator.of(context).pop({
@@ -135,11 +130,9 @@ class _JoinSpaceScreenState extends State<JoinSpaceScreen> {
         }
       });
     } catch (e) {
-      if (!_isDisposed) {
-        _showSnackBar('error_joining_space'.tr(args: [e.toString()]));
-      }
+      _showSnackBar('error_joining_space'.tr(args: [e.toString()]));
     } finally {
-      if (!_isDisposed && !_navigationCompleted) {
+      if (!_isDisposed) {
         setState(() => _isLoading = false);
       }
     }
@@ -148,10 +141,7 @@ class _JoinSpaceScreenState extends State<JoinSpaceScreen> {
   void _showSnackBar(String message) {
     if (_isDisposed) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        duration: const Duration(seconds: 2),
-      ),
+      SnackBar(content: Text(message), duration: const Duration(seconds: 2)),
     );
   }
 
@@ -160,9 +150,7 @@ class _JoinSpaceScreenState extends State<JoinSpaceScreen> {
         _isDisposed ||
         _navigationCompleted ||
         !Navigator.canPop(context)) return;
-
     _navigationCompleted = true;
-
     Future.microtask(() {
       if (!_isDisposed) {
         Navigator.of(context).pop({'success': false});
@@ -170,9 +158,7 @@ class _JoinSpaceScreenState extends State<JoinSpaceScreen> {
     });
   }
 
-  /// Build a constrained code box. We **do not** force a fixed width here —
-  /// the parent Row uses Flexible so the layout can shrink on small screens.
-  Widget _buildCodeBox(int index) {
+  Widget _buildCodeBox(int index, bool isDark) {
     final filled = _controllers[index].text.isNotEmpty;
     return ConstrainedBox(
       constraints: const BoxConstraints(minWidth: 40, maxWidth: 64),
@@ -190,30 +176,38 @@ class _JoinSpaceScreenState extends State<JoinSpaceScreen> {
           maxLength: 1,
           keyboardType: TextInputType.number,
           inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
+          style: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.w600,
+            color: isDark ? Colors.white : const Color(0xFF2E1750),
+          ),
           decoration: InputDecoration(
             counterText: '',
             filled: true,
-            fillColor: filled ? const Color(0xFFEDE1F9) : Colors.transparent,
+            fillColor: filled
+                ? (isDark ? purple.withOpacity(0.3) : const Color(0xFFEDE1F9))
+                : Colors.transparent,
             contentPadding: const EdgeInsets.symmetric(vertical: 12),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(10),
               borderSide: BorderSide(
-                color: filled ? Colors.transparent : const Color(0xFFE8E5EA),
+                color: filled
+                    ? Colors.transparent
+                    : (isDark ? Colors.white24 : const Color(0xFFE8E5EA)),
                 width: 1.2,
               ),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(10),
               borderSide: BorderSide(
-                color: Theme.of(context).colorScheme.primary,
+                color: purple,
                 width: 2,
               ),
             ),
           ),
           onChanged: (value) {
             if (_isDisposed || _isAutoFilled) return;
-            setState(() {}); // update fill & button enabled state
+            setState(() {});
             if (value.isNotEmpty && index < 5) {
               FocusScope.of(context).requestFocus(_focusNodes[index + 1]);
             } else if (value.isEmpty && index > 0) {
@@ -227,35 +221,38 @@ class _JoinSpaceScreenState extends State<JoinSpaceScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
-      // AppBar with shadow like your SettingsScreen, title left-aligned
+      backgroundColor: isDark ? const Color(0xFF1C1B1F) : Colors.white,
       appBar: PreferredSize(
         preferredSize: const Size.fromHeight(65),
         child: Container(
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: isDark ? const Color(0xFF2A2433) : Colors.white,
             boxShadow: [
-              // subtle shadow to match your design
-              BoxShadow(
-                color: Colors.black.withOpacity(0.06),
-                offset: const Offset(0, 2),
-                blurRadius: 8,
-              ),
+              if (!isDark)
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.06),
+                  offset: const Offset(0, 2),
+                  blurRadius: 8,
+                ),
             ],
           ),
           child: AppBar(
             elevation: 0,
             backgroundColor: Colors.transparent,
-            foregroundColor: const Color(0xFF2E1750),
             leading: IconButton(
               icon: const Icon(Icons.arrow_back),
-              color: const Color(0xFF6750A4),
+              color: purple,
               onPressed: _safePop,
             ),
-            title: const Text(
+            title: Text(
               'Join a Space',
               style: TextStyle(
-                  color: Color(0xFF2E1750), fontWeight: FontWeight.w600),
+                color: isDark ? Colors.white : const Color(0xFF2E1750),
+                fontWeight: FontWeight.w600,
+              ),
             ),
             centerTitle: false,
           ),
@@ -266,54 +263,49 @@ class _JoinSpaceScreenState extends State<JoinSpaceScreen> {
           padding: EdgeInsets.only(
             left: 24,
             right: 24,
-            top:
-                24, // increased top gap so "Enter the invite code" sits a little lower
+            top: 24,
             bottom: math.max(16, MediaQuery.of(context).viewInsets.bottom),
           ),
           child: Column(
             children: [
               // removed the extra SizedBox here since padding.top now provides the spacing
-              const Text(
-                'Enter the invite code',
+              Text(
+                'enter_invite_code',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 24,
                   fontWeight: FontWeight.bold,
-                  letterSpacing: 0.2,
-                  color: Color(0xFF2E1750),
+                  color: isDark ? Colors.white : const Color(0xFF2E1750),
                 ),
               ).tr(),
               const SizedBox(height: 18),
-              const Text(
-                'Get the code from the person setting up your family\'s Space',
+              Text(
+                'invite_code_subheading',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 14,
-                  color: Color(0xFF8E8E93),
+                  color: isDark ? Colors.white70 : const Color(0xFF8E8E93),
                 ),
               ).tr(),
               const SizedBox(height: 30),
-
-              // Flexible, constrained boxes to avoid overflow on narrow screens.
-              LayoutBuilder(builder: (context, constraints) {
-                return Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    // left three boxes
-                    for (int i = 0; i < 3; i++)
-                      Flexible(flex: 1, child: _buildCodeBox(i)),
-                    const SizedBox(width: 8),
-                    const Text('-',
-                        style:
-                            TextStyle(fontSize: 22, color: Color(0xFF9A8FB6))),
-                    const SizedBox(width: 8),
-                    // right three boxes
-                    for (int i = 3; i < 6; i++)
-                      Flexible(flex: 1, child: _buildCodeBox(i)),
-                  ],
-                );
-              }),
-
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  for (int i = 0; i < 3; i++)
+                    Flexible(child: _buildCodeBox(i, isDark)),
+                  const SizedBox(width: 8),
+                  Text(
+                    '-',
+                    style: TextStyle(
+                      fontSize: 22,
+                      color: isDark ? Colors.white54 : const Color(0xFF9A8FB6),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  for (int i = 3; i < 6; i++)
+                    Flexible(child: _buildCodeBox(i, isDark)),
+                ],
+              ),
               const SizedBox(height: 40),
               SizedBox(
                 width: double.infinity,
@@ -322,10 +314,12 @@ class _JoinSpaceScreenState extends State<JoinSpaceScreen> {
                   onPressed:
                       (_isLoading || !_isCodeComplete) ? null : _joinSpace,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF6750A4),
-                    disabledBackgroundColor: const Color(0xFFF1E7F9),
+                    backgroundColor: _isCodeComplete
+                        ? purple
+                        : (isDark ? Colors.white12 : const Color(0xFFF1E7F9)),
                     foregroundColor: Colors.white,
-                    disabledForegroundColor: const Color(0xFF9A8FB6),
+                    disabledForegroundColor:
+                        isDark ? Colors.white38 : const Color(0xFF9A8FB6),
                     shape: const StadiumBorder(),
                     padding: const EdgeInsets.symmetric(vertical: 14),
                   ),
@@ -339,13 +333,12 @@ class _JoinSpaceScreenState extends State<JoinSpaceScreen> {
                           ),
                         )
                       : const Text(
-                          'Submit',
+                          'submit',
                           style: TextStyle(
                               fontSize: 18, fontWeight: FontWeight.w600),
                         ).tr(),
                 ),
               ),
-              const SizedBox(height: 16),
               const SizedBox(height: 100),
             ],
           ),

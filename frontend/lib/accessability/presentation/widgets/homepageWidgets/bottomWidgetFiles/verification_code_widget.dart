@@ -8,12 +8,12 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:qr_flutter/qr_flutter.dart';
 import 'package:flutter/services.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 
 class VerificationCodeScreen extends StatefulWidget {
   final String spaceId;
-  final String? spaceName; // <-- new optional parameter
+  final String? spaceName; // <-- optional for nicer share text
 
   const VerificationCodeScreen({
     super.key,
@@ -77,11 +77,14 @@ class _VerificationCodeScreenState extends State<VerificationCodeScreen> {
       final rawTs = data['codeTimestamp'];
 
       DateTime? ts;
-      if (rawTs is Timestamp)
+      // preserve the original flexible timestamp handling
+      if (rawTs is Timestamp) {
         ts = rawTs.toDate();
-      else if (rawTs is int)
+      } else if (rawTs is int) {
         ts = DateTime.fromMillisecondsSinceEpoch(rawTs);
-      else if (rawTs is DateTime) ts = rawTs;
+      } else if (rawTs is DateTime) {
+        ts = rawTs;
+      }
 
       final now = DateTime.now();
       if (existing != null &&
@@ -96,7 +99,7 @@ class _VerificationCodeScreenState extends State<VerificationCodeScreen> {
         });
       }
 
-      // ✅ CLEAR CLIPBOARD AFTER SUCCESSFUL CODE FETCH
+      // CLEAR CLIPBOARD AFTER SUCCESSFUL CODE FETCH (keeps original behaviour)
       await _clearClipboard();
     } catch (e) {
       debugPrint('Error ensuring code: $e');
@@ -115,7 +118,7 @@ class _VerificationCodeScreenState extends State<VerificationCodeScreen> {
   }
 
   String _generateVerificationCode() {
-    // 6-digit numeric code, displayed as AAA-BBB to match screenshot's hyphen style.
+    // 6-digit numeric code, displayed as AAA-BBB to match UI
     final rand = Random();
     final code = (100000 + rand.nextInt(900000)).toString();
     return code;
@@ -131,7 +134,6 @@ class _VerificationCodeScreenState extends State<VerificationCodeScreen> {
     final hrs = codeValidityDuration.inHours;
     if (hrs % 24 == 0) {
       final days = hrs ~/ 24;
-      // Use tr for singular/plural if you later add plurals; for now return plain text
       return '$days ${days == 1 ? "day" : "days"}';
     } else {
       return '$hrs ${hrs == 1 ? "hour" : "hours"}';
@@ -141,9 +143,7 @@ class _VerificationCodeScreenState extends State<VerificationCodeScreen> {
   Future<String?> _showEmailInputDialog() async {
     // show our styled dialog which returns the entered email (or null)
     final result = await showDialog<String?>(
-      context: context,
-      builder: (context) => const SendCodeDialogWidget(),
-    );
+        context: context, builder: (context) => const SendCodeDialogWidget());
     return result;
   }
 
@@ -211,6 +211,9 @@ class _VerificationCodeScreenState extends State<VerificationCodeScreen> {
         ? widget.spaceName!.trim()
         : 'Space';
 
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+
+    // Keep all original logic; only adapt visuals for dark mode
     return Column(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
@@ -221,7 +224,7 @@ class _VerificationCodeScreenState extends State<VerificationCodeScreen> {
           'inviteMembers'.tr(namedArgs: {'space': displayName}),
           style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                 fontWeight: FontWeight.bold,
-                color: const Color(0xFF2E1750),
+                color: isDarkMode ? Colors.white : const Color(0xFF2E1750),
               ),
           textAlign: TextAlign.center,
         ),
@@ -232,26 +235,30 @@ class _VerificationCodeScreenState extends State<VerificationCodeScreen> {
           'shareCodeInstruction'.tr(),
           textAlign: TextAlign.center,
           style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: const Color(0xFF7A6E9A),
+                color: isDarkMode ? Colors.white70 : const Color(0xFF7A6E9A),
                 height: 1.4,
               ),
         ),
         const SizedBox(height: 28),
 
-        /// Code Card
+        /// Code Card (preserve logic & structure)
         Card(
           shape:
               RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           elevation: 3,
-          color: const Color(0xFFF7F3FF),
+          color: isDarkMode ? const Color(0xFF2A2140) : const Color(0xFFF7F3FF),
           child: Padding(
             padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 20),
             child: Column(
               children: [
                 _isLoading
-                    ? const Padding(
-                        padding: EdgeInsets.all(24),
-                        child: CircularProgressIndicator(),
+                    ? Padding(
+                        padding: const EdgeInsets.all(24),
+                        child: CircularProgressIndicator(
+                          color: isDarkMode
+                              ? const Color(0xFF6750A4)
+                              : const Color(0xFF6750A4),
+                        ),
                       )
                     : Column(
                         children: [
@@ -277,7 +284,9 @@ class _VerificationCodeScreenState extends State<VerificationCodeScreen> {
                                 .textTheme
                                 .bodyMedium
                                 ?.copyWith(
-                                  color: Colors.black87,
+                                  color: isDarkMode
+                                      ? Colors.white70
+                                      : Colors.black87,
                                 ),
                           ),
                           const SizedBox(height: 24),
@@ -311,20 +320,30 @@ class _VerificationCodeScreenState extends State<VerificationCodeScreen> {
         /// OR Divider
         Row(
           children: [
-            const Expanded(
-                child: Divider(color: Color(0xFFCCC2DC), thickness: 1)),
+            Expanded(
+                child: Divider(
+                    color: Theme.of(context).brightness == Brightness.dark
+                        ? Colors.white24
+                        : const Color(0xFFCCC2DC),
+                    thickness: 1)),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 12),
               child: Text(
                 'or'.tr(),
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                       fontWeight: FontWeight.w600,
-                      color: const Color(0xFF7A6E9A),
+                      color: Theme.of(context).brightness == Brightness.dark
+                          ? Colors.white70
+                          : const Color(0xFF7A6E9A),
                     ),
               ),
             ),
-            const Expanded(
-                child: Divider(color: Color(0xFFCCC2DC), thickness: 1)),
+            Expanded(
+                child: Divider(
+                    color: Theme.of(context).brightness == Brightness.dark
+                        ? Colors.white24
+                        : const Color(0xFFCCC2DC),
+                    thickness: 1)),
           ],
         ),
 
@@ -335,7 +354,9 @@ class _VerificationCodeScreenState extends State<VerificationCodeScreen> {
           shape:
               RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           elevation: 2,
-          color: const Color(0xFFF5F0FF),
+          color: Theme.of(context).brightness == Brightness.dark
+              ? const Color(0xFF2A2140)
+              : const Color(0xFFF5F0FF),
           child: Padding(
             padding: const EdgeInsets.all(20),
             child: Column(
@@ -344,21 +365,31 @@ class _VerificationCodeScreenState extends State<VerificationCodeScreen> {
                   'scanToEnter'.tr(),
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.w600,
-                        color: const Color(0xFF2E1750),
+                        color: Theme.of(context).brightness == Brightness.dark
+                            ? Colors.white
+                            : const Color(0xFF2E1750),
                       ),
                 ),
                 const SizedBox(height: 16),
-                QrImageView(
-                  data:
-                      "https://3-y2-aapwd-8vze.vercel.app/?code=${_verificationCode ?? ""}",
-                  version: QrVersions.auto,
-                  size: 180,
+                // keep QR readability by giving it a white background box
+                Container(
+                  color: Colors.white,
+                  padding: const EdgeInsets.all(8),
+                  child: QrImageView(
+                    data:
+                        "https://3-y2-aapwd-8vze.vercel.app/?code=${_verificationCode ?? ""}",
+                    version: QrVersions.auto,
+                    size: 180,
+                    backgroundColor: Colors.white,
+                  ),
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'Point your camera to join',
+                  'point_camera_to_join'.tr(),
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: Colors.grey[700],
+                        color: Theme.of(context).brightness == Brightness.dark
+                            ? Colors.white70
+                            : Colors.grey[700],
                       ),
                 ),
               ],
@@ -375,13 +406,15 @@ class _VerificationCodeScreenState extends State<VerificationCodeScreen> {
       if (Navigator.of(context).canPop()) Navigator.of(context).pop();
     }
 
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
-      // AppBar styled to match the provided design
+      backgroundColor: isDarkMode ? const Color(0xFF1C1B20) : Colors.white,
       appBar: PreferredSize(
         preferredSize: const Size.fromHeight(65),
         child: Container(
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: isDarkMode ? const Color(0xFF1C1B20) : Colors.white,
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withOpacity(0.06),
@@ -393,16 +426,19 @@ class _VerificationCodeScreenState extends State<VerificationCodeScreen> {
           child: AppBar(
             elevation: 0,
             backgroundColor: Colors.transparent,
-            foregroundColor: const Color(0xFF2E1750),
+            foregroundColor:
+                isDarkMode ? Colors.white : const Color(0xFF2E1750),
             leading: IconButton(
               icon: const Icon(Icons.arrow_back),
-              color: const Color(0xFF6750A4),
+              color: const Color(0xFF6750A4), // purple arrow kept
               onPressed: _safePop,
             ),
             title: Text(
               'inviteCode'.tr(),
-              style: const TextStyle(
-                  color: Color(0xFF2E1750), fontWeight: FontWeight.w600),
+              style: TextStyle(
+                color: isDarkMode ? Colors.white : const Color(0xFF2E1750),
+                fontWeight: FontWeight.w600,
+              ),
             ),
             centerTitle: false,
           ),

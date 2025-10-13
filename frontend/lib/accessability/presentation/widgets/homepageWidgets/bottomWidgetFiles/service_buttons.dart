@@ -34,9 +34,9 @@ class ServiceButtons extends StatelessWidget {
   Widget build(BuildContext context) {
     final bool isDarkMode = Provider.of<ThemeProvider>(context).isDarkMode;
 
-    final Color pillBg = isDarkMode ? Colors.grey[850]! : Colors.white;
-    final Color circleBg =
-        isDarkMode ? Colors.grey[850]! : Colors.white.withOpacity(0.95);
+    // Consistent dark/light colors
+    final Color cardColor = isDarkMode ? Colors.grey[800]! : Colors.white;
+    final Color iconColor = isDarkMode ? Colors.white : _purple;
 
     // compute the total height that must fit (two rows + gaps + small padding)
     final double contentHeight =
@@ -54,15 +54,13 @@ class ServiceButtons extends StatelessWidget {
               height: _smallCircleSize, // keep row same height as circle
               child: Row(
                 children: [
-                  // left is empty to push the icon to right
                   const Spacer(),
-                  // right: MapView circle
                   _buildCircularIcon(
                     context,
                     iconWidget: const Icon(Icons.layers_outlined),
                     tooltip: 'mapView'.tr(),
-                    background: circleBg,
-                    iconColor: _purple,
+                    background: cardColor,
+                    iconColor: iconColor,
                     onTap: () async {
                       if (onMapViewPressed != null) {
                         try {
@@ -115,7 +113,8 @@ class ServiceButtons extends StatelessWidget {
                             );
                           }
                         },
-                        isDarkMode,
+                        cardColor,
+                        iconColor,
                       ),
                       SizedBox(width: _pillSpacing),
                       _buildPillButton(
@@ -123,8 +122,8 @@ class ServiceButtons extends StatelessWidget {
                         iconWidget:
                             const FaIcon(FontAwesomeIcons.lifeRing, size: 18),
                         label: 'sos'.tr(),
-                        background: pillBg,
-                        iconColor: _purple,
+                        background: cardColor,
+                        iconColor: iconColor,
                         onTap: () {
                           try {
                             onButtonPressed('SOS');
@@ -137,16 +136,15 @@ class ServiceButtons extends StatelessWidget {
                     ],
                   ),
 
-                  // spacer pushes reset icon to the right
                   const Spacer(),
 
-                  // right: Reset (center on me) - aligned to same vertical center as pills
+                  // right: Reset (center on me)
                   _buildCircularIcon(
                     context,
                     iconWidget: const Icon(Icons.gps_fixed_outlined),
                     tooltip: 'centerOnMe'.tr(),
-                    background: circleBg,
-                    iconColor: _purple,
+                    background: cardColor,
+                    iconColor: iconColor,
                     onTap: () {
                       if (onCenterPressed != null) onCenterPressed!();
                     },
@@ -162,17 +160,15 @@ class ServiceButtons extends StatelessWidget {
     );
   }
 
-  // standard pill with icon + label (used for Check-in)
+  // Service button (Check-in style)
   Widget _buildServiceButton(
     BuildContext context,
     IconData icon,
     String label,
     VoidCallback onTap,
-    bool isDarkMode,
+    Color background,
+    Color iconColor,
   ) {
-    final Color iconColor = isDarkMode ? Colors.white : _purple;
-    final Color background = isDarkMode ? Colors.grey[800]! : Colors.white;
-
     return Material(
       color: Colors.transparent,
       child: InkWell(
@@ -195,16 +191,7 @@ class ServiceButtons extends StatelessWidget {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Container(
-                  width: 26,
-                  height: 26,
-                  alignment: Alignment.center,
-                  child: Icon(
-                    icon,
-                    color: iconColor,
-                    size: 18,
-                  ),
-                ),
+                Icon(icon, color: iconColor, size: 18),
                 const SizedBox(width: 8),
                 Text(
                   label,
@@ -222,8 +209,7 @@ class ServiceButtons extends StatelessWidget {
     );
   }
 
-  // pill that accepts a custom icon widget (used for SOS)
-  /// New pill builder using Material + InkWell for dependable taps
+  // SOS pill
   Widget _buildPillButton(
     BuildContext context, {
     required Widget iconWidget,
@@ -254,14 +240,9 @@ class ServiceButtons extends StatelessWidget {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Container(
-                  width: 26,
-                  height: 26,
-                  alignment: Alignment.center,
-                  child: IconTheme(
-                    data: IconThemeData(color: iconColor, size: 18),
-                    child: iconWidget,
-                  ),
+                IconTheme(
+                  data: IconThemeData(color: iconColor, size: 18),
+                  child: iconWidget,
                 ),
                 const SizedBox(width: 8),
                 Text(
@@ -280,7 +261,7 @@ class ServiceButtons extends StatelessWidget {
     );
   }
 
-  // circular icon builder used for MapView and Reset; accepts a widget so we can pass outlined Icon
+  // Circular icon (MapView, Center)
   Widget _buildCircularIcon(
     BuildContext context, {
     required Widget iconWidget,
@@ -304,9 +285,10 @@ class ServiceButtons extends StatelessWidget {
             shape: BoxShape.circle,
             boxShadow: [
               BoxShadow(
-                  color: Colors.black.withOpacity(0.16),
-                  blurRadius: 6,
-                  offset: const Offset(0, 3)),
+                color: Colors.black.withOpacity(0.16),
+                blurRadius: 6,
+                offset: const Offset(0, 3),
+              ),
             ],
           ),
           alignment: Alignment.center,

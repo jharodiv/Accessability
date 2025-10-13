@@ -30,6 +30,7 @@ class _RatingReviewWidgetState extends State<RatingReviewWidget> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final TextEditingController _reviewController = TextEditingController();
+
   double _currentRating = 0;
   List<Review> _reviews = [];
   double _averageRating = 0;
@@ -198,13 +199,22 @@ class _RatingReviewWidgetState extends State<RatingReviewWidget> {
 
   @override
   Widget build(BuildContext context) {
-    final purple = Color(0xFF6A3ED6);
+    final purple = const Color(0xFF6A3ED6);
     final theme = Theme.of(context);
+    final bool isDark = theme.brightness == Brightness.dark;
 
-    // unified color palette for consistency
-    final Color primaryText = Colors.black87;
-    final Color secondaryText = Colors.grey.shade800;
-    final Color mutedText = Colors.grey.shade600;
+// semantic colors that adapt to dark/light
+    final Color primaryText = isDark ? Colors.white : Colors.black87;
+    final Color secondaryText = isDark ? Colors.white70 : Colors.grey.shade800;
+    final Color mutedText = isDark ? Colors.white60 : Colors.grey.shade600;
+
+// background/surface colors used in multiple places
+    final Color cardBackground = isDark ? Colors.grey[900]! : Colors.white;
+    final Color? surfaceBackground =
+        isDark ? Colors.grey[850]! : Colors.grey[50];
+    final Color fieldFill = isDark ? Colors.grey[800]! : Colors.grey.shade50;
+    final Color dividerColor =
+        isDark ? Colors.grey[700]! : Colors.grey.shade300;
 
     // read user state for avatar display (watch so UI updates if state changes)
     final userState = context.watch<UserBloc>().state;
@@ -235,10 +245,11 @@ class _RatingReviewWidgetState extends State<RatingReviewWidget> {
                   fit: BoxFit.cover,
                   errorBuilder: (_, __, ___) => Container(
                     height: 180,
-                    color: Colors.grey[100],
+                    color: isDark ? Colors.grey[800] : Colors.grey[100],
                     child: Center(
                         child: Icon(Icons.image_not_supported,
-                            color: Colors.grey[400])),
+                            color:
+                                isDark ? Colors.grey[600] : Colors.grey[400])),
                   ),
                 ),
               ),
@@ -248,13 +259,18 @@ class _RatingReviewWidgetState extends State<RatingReviewWidget> {
                   top: 8,
                   child: ClipOval(
                     child: Material(
-                      color: Colors.white.withOpacity(0.85),
+                      color: isDark
+                          ? Colors.black.withOpacity(0.45)
+                          : Colors.white.withOpacity(0.85),
                       child: InkWell(
                         onTap: widget.onClose,
                         child: Padding(
                           padding: const EdgeInsets.all(6.0),
-                          child: Icon(Icons.close,
-                              size: 20, color: Colors.grey[800]),
+                          child: Icon(
+                            Icons.close,
+                            size: 20,
+                            color: isDark ? Colors.white : Colors.grey[800],
+                          ),
                         ),
                       ),
                     ),
@@ -321,7 +337,7 @@ class _RatingReviewWidgetState extends State<RatingReviewWidget> {
         // Main white block containing summary, breakdown and limited reviews (flat white look)
         Container(
           width: double.infinity,
-          color: Colors.white,
+          color: cardBackground,
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 14.0),
             child: Column(
@@ -425,7 +441,7 @@ class _RatingReviewWidgetState extends State<RatingReviewWidget> {
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 14.0),
                     child: Divider(
-                      color: Colors.grey.shade300,
+                      color: dividerColor,
                       thickness: 1,
                       height: 1,
                     ),
@@ -447,11 +463,13 @@ class _RatingReviewWidgetState extends State<RatingReviewWidget> {
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
           child: Container(
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: cardBackground,
               borderRadius: BorderRadius.circular(12),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.04),
+                  color: isDark
+                      ? Colors.black.withOpacity(0.24)
+                      : Colors.black.withOpacity(0.04),
                   offset: const Offset(0, 4),
                   blurRadius: 12,
                 )
@@ -573,16 +591,22 @@ class _RatingReviewWidgetState extends State<RatingReviewWidget> {
                       hintText: 'write_feedback_hint'.tr(),
                       hintStyle: TextStyle(color: mutedText),
                       filled: true,
-                      fillColor: Colors.grey.shade50,
+                      fillColor: fieldFill,
                       contentPadding: const EdgeInsets.symmetric(
                           horizontal: 12, vertical: 12),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: Colors.grey.shade300),
+                        borderSide: BorderSide(
+                            color: isDark
+                                ? Colors.grey[700]!
+                                : Colors.grey.shade300),
                       ),
                       enabledBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: Colors.grey.shade300),
+                        borderSide: BorderSide(
+                            color: isDark
+                                ? Colors.grey[700]!
+                                : Colors.grey.shade300),
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
@@ -675,12 +699,11 @@ class _RatingReviewWidgetState extends State<RatingReviewWidget> {
                       style: TextButton.styleFrom(
                         padding: const EdgeInsets.symmetric(
                             horizontal: 12, vertical: 12),
-                        foregroundColor: Colors.black87,
+                        foregroundColor: primaryText,
                       ),
                       child: Text('clear'.tr(),
-                          style: const TextStyle(
-                              fontWeight: FontWeight.w700,
-                              color: Colors.black87)),
+                          style: TextStyle(
+                              fontWeight: FontWeight.w700, color: primaryText)),
                     ),
                   ],
                 ),
@@ -707,15 +730,21 @@ class _RatingReviewWidgetState extends State<RatingReviewWidget> {
 
   Widget _compactReviewRow(
       Review review, Color primaryText, Color secondaryText, Color mutedText) {
+    // compute theme-aware values here instead of relying on build-local variables
+    final theme = Theme.of(context);
+    final bool isDark = theme.brightness == Brightness.dark;
+    final Color cardBackground = isDark ? Colors.grey[900]! : Colors.white;
+    final Color topBorder = isDark ? Colors.grey[800]! : Colors.grey.shade100;
+
     final displayName = review.userName.isEmpty ? 'Anonymous' : review.userName;
     final hasPic = review.userProfilePicture != null &&
         review.userProfilePicture!.isNotEmpty;
     return Container(
-      margin: EdgeInsets.symmetric(vertical: 10),
-      padding: EdgeInsets.symmetric(vertical: 8),
+      margin: const EdgeInsets.symmetric(vertical: 10),
+      padding: const EdgeInsets.symmetric(vertical: 8),
       decoration: BoxDecoration(
-        color: Colors.white,
-        border: Border(top: BorderSide(color: Colors.grey.shade100)),
+        color: cardBackground,
+        border: Border(top: BorderSide(color: topBorder)),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -730,7 +759,7 @@ class _RatingReviewWidgetState extends State<RatingReviewWidget> {
                         fontWeight: FontWeight.bold, color: primaryText))
                 : null,
           ),
-          SizedBox(width: 10),
+          const SizedBox(width: 10),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -744,9 +773,9 @@ class _RatingReviewWidgetState extends State<RatingReviewWidget> {
                   Text(_formatDate(review.timestamp),
                       style: TextStyle(color: mutedText, fontSize: 12)),
                 ]),
-                SizedBox(height: 6),
+                const SizedBox(height: 6),
                 _starRow(review.rating, size: 14),
-                SizedBox(height: 8),
+                const SizedBox(height: 8),
                 Text(review.comment, style: TextStyle(color: secondaryText)),
               ],
             ),
@@ -757,15 +786,21 @@ class _RatingReviewWidgetState extends State<RatingReviewWidget> {
   }
 
   Widget _outlineChip(IconData icon, String text, Color textColor) {
+    final theme = Theme.of(context);
+
+    final bool isDark = theme.brightness == Brightness.dark;
+
     return Container(
       padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
         color: Colors.transparent,
         borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: Colors.grey.shade200),
+        border: Border.all(
+            color: isDark ? Colors.grey[700]! : Colors.grey.shade200),
       ),
       child: Row(mainAxisSize: MainAxisSize.min, children: [
-        Icon(icon, size: 16, color: Colors.grey.shade700),
+        Icon(icon,
+            size: 16, color: isDark ? Colors.grey[300]! : Colors.grey.shade700),
         SizedBox(width: 8),
         Text(text, style: TextStyle(color: textColor)),
       ]),
@@ -773,6 +808,8 @@ class _RatingReviewWidgetState extends State<RatingReviewWidget> {
   }
 
   Widget _buildBreakdownBars(Color purple, Color primaryText, Color mutedText) {
+    final theme = Theme.of(context);
+    final bool isDark = theme.brightness == Brightness.dark;
     final counts = _breakdown();
     final maxCount = counts.values.isEmpty
         ? 1
@@ -790,16 +827,17 @@ class _RatingReviewWidgetState extends State<RatingReviewWidget> {
                   child: Text('$star',
                       style: TextStyle(
                           fontWeight: FontWeight.w600, color: primaryText))),
-              SizedBox(width: 8),
+              const SizedBox(width: 8),
               Expanded(
                 child: LinearProgressIndicator(
                   value: fraction,
                   minHeight: 10,
-                  backgroundColor: Colors.grey.shade200,
+                  backgroundColor:
+                      isDark ? Colors.grey[800]! : Colors.grey.shade200,
                   valueColor: AlwaysStoppedAnimation(purple),
                 ),
               ),
-              SizedBox(width: 12),
+              const SizedBox(width: 12),
               SizedBox(
                   width: 20,
                   child: Text('$c',
@@ -813,11 +851,18 @@ class _RatingReviewWidgetState extends State<RatingReviewWidget> {
   }
 
   void _openAllReviewsSheet(BuildContext context) {
+    final theme = Theme.of(context);
+    final bool isDark = theme.brightness == Brightness.dark;
+    final Color cardBackground = isDark ? Colors.grey[900]! : Colors.white;
+    final Color primaryText = isDark ? Colors.white : Colors.black87;
+    final Color mutedText = isDark ? Colors.white60 : Colors.grey.shade700;
+    final Color handleColor = isDark ? Colors.grey[700]! : Colors.grey.shade300;
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: Colors.white,
-      shape: RoundedRectangleBorder(
+      backgroundColor: cardBackground,
+      shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
       builder: (ctx) {
         return DraggableScrollableSheet(
@@ -835,27 +880,31 @@ class _RatingReviewWidgetState extends State<RatingReviewWidget> {
                       width: 48,
                       height: 4,
                       decoration: BoxDecoration(
-                          color: Colors.grey.shade300,
+                          color: handleColor,
                           borderRadius: BorderRadius.circular(4))),
-                  SizedBox(height: 10),
+                  const SizedBox(height: 10),
                   Text('all_reviews'.tr(),
                       style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
-                          color: Colors.black87)),
-                  SizedBox(height: 8),
+                          color: primaryText)),
+                  const SizedBox(height: 8),
                   Expanded(
                     child: _reviews.isEmpty
                         ? Center(
                             child: Text('no_reviews_yet'.tr(),
-                                style: TextStyle(color: Colors.grey.shade700)))
+                                style: TextStyle(color: mutedText)))
                         : ListView.builder(
                             controller: controller,
                             itemCount: _reviews.length,
                             itemBuilder: (_, i) {
                               final r = _reviews[i];
-                              return _compactReviewRow(r, Colors.black87,
-                                  Colors.grey.shade800, Colors.grey.shade600);
+                              // pass the same semantic colors used across the widget
+                              final secondaryText = isDark
+                                  ? Colors.white70
+                                  : Colors.grey.shade800;
+                              return _compactReviewRow(
+                                  r, primaryText, secondaryText, mutedText);
                             },
                           ),
                   ),

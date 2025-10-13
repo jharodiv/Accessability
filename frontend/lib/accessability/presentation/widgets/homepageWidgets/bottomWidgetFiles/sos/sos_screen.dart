@@ -231,7 +231,7 @@ class _SOSScreenState extends State<SOSScreen> {
           ? Colors.red
           : _isCounting
               ? const Color(0xFF6750A4)
-              : Colors.white,
+              : (isDarkMode ? const Color(0xFF121212) : Colors.white),
       appBar: PreferredSize(
         preferredSize: const Size.fromHeight(65),
         child: Container(
@@ -288,6 +288,7 @@ class _SOSScreenState extends State<SOSScreen> {
 
   Widget _initialScreen() {
     const innerColor = Color(0xFF6750A4);
+    final bool isDarkMode = Theme.of(context).brightness == Brightness.dark;
 
     return GestureDetector(
       onTap: () {
@@ -314,18 +315,16 @@ class _SOSScreenState extends State<SOSScreen> {
               child: Stack(
                 alignment: Alignment.center,
                 children: [
-                  // Outer ring: now matches inner color (same hue, lower opacity)
+                  // Outer glow ring
                   Container(
                     width: 220,
                     height: 220,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: innerColor.withOpacity(
-                          0.14), // match color (darker than before)
+                      color: innerColor.withOpacity(0.12),
                       boxShadow: [
                         BoxShadow(
-                          color: innerColor.withOpacity(
-                              0.22), // stronger glow using same color
+                          color: innerColor.withOpacity(0.25),
                           blurRadius: 36,
                           spreadRadius: 10,
                           offset: const Offset(0, 6),
@@ -350,7 +349,7 @@ class _SOSScreenState extends State<SOSScreen> {
                       shape: BoxShape.circle,
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.12),
+                          color: Colors.black.withOpacity(0.25),
                           blurRadius: 16,
                           offset: const Offset(0, 8),
                         ),
@@ -382,7 +381,7 @@ class _SOSScreenState extends State<SOSScreen> {
                     ),
                   ),
 
-                  // translucent ring on hold
+                  // On hold ring
                   if (_isHolding)
                     Container(
                       width: 190,
@@ -402,10 +401,11 @@ class _SOSScreenState extends State<SOSScreen> {
             child: Text(
               'sos_sent_info'.tr(),
               textAlign: TextAlign.center,
-              style: const TextStyle(
-                  fontSize: 16,
-                  color: Colors.black,
-                  fontWeight: FontWeight.w500),
+              style: TextStyle(
+                fontSize: 16,
+                color: isDarkMode ? Colors.white70 : Colors.black,
+                fontWeight: FontWeight.w500,
+              ),
             ),
           ),
         ],

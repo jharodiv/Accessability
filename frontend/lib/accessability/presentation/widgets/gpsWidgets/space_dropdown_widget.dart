@@ -1,7 +1,4 @@
-// lib/presentation/widgets/homepageWidgets/space_selection_sheet.dart
-
 import 'dart:async';
-
 import 'package:accessability/accessability/presentation/widgets/shimmer/shimmer_space_selection.dart';
 import 'package:accessability/accessability/presentation/widgets/homepageWidgets/bottomWidgetFiles/verification_code_widget.dart';
 import 'package:accessability/accessability/themes/theme_provider.dart';
@@ -10,18 +7,13 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:provider/provider.dart';
-import 'package:shimmer/shimmer.dart';
 
-/// SpaceSelectionSheet
-/// - Shows list of "Spaces" the current user is a member of
-/// - Displays a compact stacked avatar cluster as the leading widget
-/// - Shows a shimmer placeholder while loading
 class SpaceSelectionSheet extends StatefulWidget {
   final void Function(String id, String name) onPick;
   final String initialId;
-  final bool autoPickOnLoad; // new flag
-
+  final bool autoPickOnLoad;
   final String initialName;
+
   const SpaceSelectionSheet({
     super.key,
     required this.initialId,
@@ -38,15 +30,12 @@ class _SpaceSelectionSheetState extends State<SpaceSelectionSheet> {
   final _firestore = FirebaseFirestore.instance;
   final _auth = FirebaseAuth.instance;
   static const Color _purple = Color(0xFF6750A4);
-  bool _didAutoSelect =
-      false; // track if we've already auto-picked to avoid repeats
+  static const Color _lightPurple = Color(0xFFD8CFE8);
 
+  bool _didAutoSelect = false;
   late String _activeId;
   late String _activeName;
-
-  /// Each space: { id, name, members: List<String>, avatars: List<Map<String,String>> }
   List<Map<String, dynamic>> _spaces = [];
-
   bool _isLoading = true;
   StreamSubscription<QuerySnapshot>? _spacesSub;
 
@@ -65,7 +54,6 @@ class _SpaceSelectionSheetState extends State<SpaceSelectionSheet> {
   }
 
   void _listenToSpaces() {
-    // show shimmer while we subscribe / fetch
     setState(() => _isLoading = true);
 
     _spacesSub = _firestore
@@ -85,7 +73,6 @@ class _SpaceSelectionSheetState extends State<SpaceSelectionSheet> {
           }
 
           final limited = members.take(8).toList();
-
           List<Map<String, String>> avatars = [];
           if (limited.isNotEmpty) {
             try {
@@ -130,32 +117,23 @@ class _SpaceSelectionSheetState extends State<SpaceSelectionSheet> {
             final hasActive = _activeId.isNotEmpty &&
                 _spaces.any((s) => s['id'] == _activeId);
             if (!hasActive) {
-              // auto-select the first available space
               _activeId = _spaces[0]['id'] as String;
               _activeName = _spaces[0]['name'] as String;
             }
           } else {
-            // no spaces: clear active
             _activeId = '';
             _activeName = '';
             _didAutoSelect = false;
           }
         });
 
-        // Notify parent exactly once per auto-selection
-        if (_spaces.isNotEmpty && !_didAutoSelect) {
+        if (_spaces.isNotEmpty && !_didAutoSelect && widget.autoPickOnLoad) {
           _didAutoSelect = true;
-          if (widget.autoPickOnLoad) {
-            final selectedId = _activeId;
-            final selectedName = _activeName;
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              try {
-                widget.onPick(selectedId, selectedName);
-              } catch (e) {
-                debugPrint('onPick callback failed: $e');
-              }
-            });
-          }
+          final selectedId = _activeId;
+          final selectedName = _activeName;
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            widget.onPick(selectedId, selectedName);
+          });
         }
       } catch (e) {
         if (mounted) setState(() => _isLoading = false);
@@ -165,8 +143,6 @@ class _SpaceSelectionSheetState extends State<SpaceSelectionSheet> {
     });
   }
 
-  /// Avatar cluster: up to 3 avatars shown overlapping (horizontal),
-  /// with a +N badge if more.
   Widget _avatarStack(List<Map<String, String>> avatars, double size) {
     final total = avatars.length;
     final display = avatars.take(3).toList();
@@ -220,14 +196,12 @@ class _SpaceSelectionSheetState extends State<SpaceSelectionSheet> {
     );
   }
 
-  /// Returns an Image widget or a colored initial box sized to [size].
   Widget _singleAvatarInner(Map<String, String> a, double size) {
     final photo = a['photo'] ?? '';
     final initial = a['initial'] ?? '?';
     if (photo.isNotEmpty && photo.startsWith('http')) {
       return Image.network(photo, width: size, height: size, fit: BoxFit.cover,
           errorBuilder: (_, __, ___) {
-        // fallback to initials if image fails
         return _initialBox(initial, size);
       });
     }
@@ -238,7 +212,7 @@ class _SpaceSelectionSheetState extends State<SpaceSelectionSheet> {
     return Container(
       width: size,
       height: size,
-      color: const Color(0xFF0F6B4A), // adjust to your brand if needed
+      color: const Color(0xFF0F6B4A),
       child: Center(
         child: Text(
           initial,
@@ -255,79 +229,89 @@ class _SpaceSelectionSheetState extends State<SpaceSelectionSheet> {
   Widget _buildHeader() {
     final isDark =
         Provider.of<ThemeProvider>(context, listen: false).isDarkMode;
-    final pill = GestureDetector(
-      onTap: () {
-        if (_activeId.isEmpty) {
-          Navigator.pushNamed(context, '/createSpace').then((success) {
-            if (success == true) _listenToSpaces();
-          });
-        } else {
-          // Close sheet and return the currently selected space (same behaviour as tapping a tile)
-          Navigator.of(context).pop({'id': _activeId, 'name': _activeName});
-        }
-      },
-      child: Container(
-        width: 175,
-        height: 36,
-        padding: const EdgeInsets.symmetric(horizontal: 12),
-        decoration: BoxDecoration(
-          color: isDark ? Colors.grey[800] : Colors.white,
-          borderRadius: BorderRadius.circular(18),
-          boxShadow: const [
-            BoxShadow(
-                color: Colors.black26, blurRadius: 4, offset: Offset(1, 1))
-          ],
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Expanded(
-              child: Text(
-                _isLoading
-                    ? 'loading'.tr()
-                    : (_activeName.isNotEmpty
-                        ? (_activeName.length > 12
-                            ? '${_activeName.substring(0, 12)}…'
-                            : _activeName)
-                        : 'selectSpace'.tr()),
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: isDark ? Colors.white : _purple),
-              ),
-            ),
-            Icon(Icons.keyboard_arrow_up,
-                size: 20, color: isDark ? Colors.white : _purple),
-          ],
-        ),
-      ),
-    );
-
-    // Modified addBtn: open VerificationCodeScreen for the currently selected space.
-    final addBtn = GestureDetector(
-      onTap: () {
-        if (_activeId.isEmpty) {
-          // no space selected — fallback to create flow
-          Navigator.pushNamed(context, '/createSpace').then((success) {
-            if (success == true) _listenToSpaces();
-          });
-          return;
-        }
-        Navigator.of(context).push(
-          MaterialPageRoute(
-            builder: (_) => VerificationCodeScreen(
-              spaceId: _activeId,
-              spaceName: _activeName,
-            ),
-          ),
-        );
-      },
-      child: Icon(Icons.person_add_outlined, color: _purple, size: 24),
-    );
-
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-      child: Row(children: [Expanded(child: Center(child: pill)), addBtn]),
+      child: Row(
+        children: [
+          Expanded(
+            child: Center(
+              child: GestureDetector(
+                onTap: () {
+                  if (_activeId.isEmpty) {
+                    Navigator.pushNamed(context, '/createSpace')
+                        .then((success) {
+                      if (success == true) _listenToSpaces();
+                    });
+                  } else {
+                    Navigator.of(context)
+                        .pop({'id': _activeId, 'name': _activeName});
+                  }
+                },
+                child: Container(
+                  width: 175,
+                  height: 36,
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  decoration: BoxDecoration(
+                    color: isDark ? Colors.grey[850] : Colors.white,
+                    borderRadius: BorderRadius.circular(18),
+                    boxShadow: [
+                      BoxShadow(
+                        color: isDark
+                            ? Colors.black.withOpacity(0.4)
+                            : Colors.black26,
+                        blurRadius: 4,
+                        offset: const Offset(1, 1),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          _isLoading
+                              ? 'loading'.tr()
+                              : (_activeName.isNotEmpty
+                                  ? (_activeName.length > 12
+                                      ? '${_activeName.substring(0, 12)}…'
+                                      : _activeName)
+                                  : 'selectSpace'.tr()),
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: isDark ? Colors.white : _purple,
+                          ),
+                        ),
+                      ),
+                      Icon(Icons.keyboard_arrow_up,
+                          size: 20, color: isDark ? Colors.white : _purple),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+          GestureDetector(
+            onTap: () {
+              if (_activeId.isEmpty) {
+                Navigator.pushNamed(context, '/createSpace').then((success) {
+                  if (success == true) _listenToSpaces();
+                });
+                return;
+              }
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => VerificationCodeScreen(
+                    spaceId: _activeId,
+                    spaceName: _activeName,
+                  ),
+                ),
+              );
+            },
+            child: Icon(Icons.person_add_outlined, color: _purple, size: 24),
+          ),
+        ],
+      ),
     );
   }
 
@@ -336,12 +320,22 @@ class _SpaceSelectionSheetState extends State<SpaceSelectionSheet> {
     final String name = space['name'] as String;
     final bool isSelected = id == _activeId;
     final avatars = List<Map<String, String>>.from(space['avatars'] ?? []);
+    final isDark =
+        Provider.of<ThemeProvider>(context, listen: false).isDarkMode;
+
+    final Color textColor = isSelected
+        ? (isDark ? Colors.white : const Color(0xFF6750A4))
+        : (isDark ? Colors.white70 : Colors.black87);
+
+    final Color? bgColor = isSelected
+        ? (isDark ? Colors.deepPurple.withOpacity(0.25) : Colors.grey[200])
+        : null;
 
     return Container(
       decoration: BoxDecoration(
-        color: isSelected ? Colors.grey[200] : null,
+        color: bgColor,
         border: isSelected
-            ? const Border(left: BorderSide(width: 4, color: _purple))
+            ? const Border(left: BorderSide(width: 4, color: Color(0xFF6750A4)))
             : null,
       ),
       child: ListTile(
@@ -352,11 +346,13 @@ class _SpaceSelectionSheetState extends State<SpaceSelectionSheet> {
         title: Text(
           name,
           style: TextStyle(
-            color: isSelected ? _purple : Colors.black87,
+            color: textColor,
             fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
           ),
         ),
-        trailing: isSelected ? Icon(Icons.check, color: _purple) : null,
+        trailing: isSelected
+            ? const Icon(Icons.check, color: Color(0xFF6750A4))
+            : null,
         onTap: () {
           setState(() {
             _activeId = id;
@@ -370,7 +366,6 @@ class _SpaceSelectionSheetState extends State<SpaceSelectionSheet> {
 
   @override
   Widget build(BuildContext context) {
-    // restrict max height so sheet stays “short”
     final maxHeight = MediaQuery.of(context).size.height * 0.6;
     final isDark = Provider.of<ThemeProvider>(context).isDarkMode;
 
@@ -384,7 +379,6 @@ class _SpaceSelectionSheetState extends State<SpaceSelectionSheet> {
             const SizedBox(height: 20),
             _buildHeader(),
             if (_isLoading)
-              // show shimmer while loading
               Expanded(
                 child: ShimmerSpaceSelection(
                   isDark: isDark,
@@ -393,7 +387,6 @@ class _SpaceSelectionSheetState extends State<SpaceSelectionSheet> {
               )
             else ...[
               if (_spaces.isEmpty) ...[
-                // show placeholder "My Space" if none — always include a divider after it
                 _buildSpaceTile(
                     {'id': '', 'name': 'mySpace'.tr(), 'avatars': []}),
                 const Divider(height: 1, thickness: 0.5),
@@ -405,7 +398,6 @@ class _SpaceSelectionSheetState extends State<SpaceSelectionSheet> {
                   itemCount: _spaces.length,
                   itemBuilder: (_, idx) {
                     final s = _spaces[idx];
-                    // Always render a divider after each item (including the last one)
                     return Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
@@ -420,7 +412,6 @@ class _SpaceSelectionSheetState extends State<SpaceSelectionSheet> {
             ],
             const Divider(height: 1, thickness: 0.5),
             const SizedBox(height: 8),
-            // Update the buttons in the build method:
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Row(
@@ -430,15 +421,13 @@ class _SpaceSelectionSheetState extends State<SpaceSelectionSheet> {
                       onPressed: () =>
                           Navigator.pushNamed(context, '/createSpace')
                               .then((success) {
-                        if (success == true) {
-                          // Refresh spaces if creation was successful
-                          _listenToSpaces();
-                        }
+                        if (success == true) _listenToSpaces();
                       }),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: _purple,
+                        foregroundColor: Colors.white,
                         shape: const StadiumBorder(),
-                        padding: const EdgeInsets.symmetric(vertical: 8),
+                        padding: const EdgeInsets.symmetric(vertical: 10),
                       ),
                       child: Text('createSpace'.tr()),
                     ),
@@ -446,19 +435,17 @@ class _SpaceSelectionSheetState extends State<SpaceSelectionSheet> {
                   const SizedBox(width: 12),
                   Expanded(
                     child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: _purple,
-                        shape: const StadiumBorder(),
-                        padding: const EdgeInsets.symmetric(vertical: 8),
-                      ),
                       onPressed: () =>
                           Navigator.pushNamed(context, '/joinSpace')
                               .then((success) {
-                        if (success == true) {
-                          // Refresh spaces if join was successful
-                          _listenToSpaces();
-                        }
+                        if (success == true) _listenToSpaces();
                       }),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: _purple,
+                        foregroundColor: Colors.white,
+                        shape: const StadiumBorder(),
+                        padding: const EdgeInsets.symmetric(vertical: 10),
+                      ),
                       child: Text('joinSpace'.tr()),
                     ),
                   ),

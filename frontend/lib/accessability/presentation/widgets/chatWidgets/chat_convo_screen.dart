@@ -1,16 +1,14 @@
 import 'package:accessability/accessability/presentation/screens/chat_system/speech_service.dart';
+import 'package:accessability/accessability/firebaseServices/auth/auth_service.dart';
+import 'package:accessability/accessability/firebaseServices/chat/chat_service.dart';
+import 'package:accessability/accessability/presentation/widgets/chatWidgets/chat_convo_bubble.dart';
 import 'package:accessability/accessability/presentation/widgets/chatWidgets/verification_code_bubble.dart';
 import 'package:accessability/accessability/presentation/widgets/shimmer/shimmer_chat_center_empty.dart';
 import 'package:accessability/accessability/themes/theme_provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:easy_localization/easy_localization.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:accessability/accessability/firebaseServices/auth/auth_service.dart';
-import 'package:accessability/accessability/firebaseServices/chat/chat_service.dart';
-import 'package:accessability/accessability/presentation/widgets/chatWidgets/chat_convo_bubble.dart';
-import 'package:accessability/accessability/presentation/widgets/reusableWidgets/custom_text_field.dart';
-import 'package:speech_to_text/speech_to_text.dart' as stt;
-import 'package:flutter_tts/flutter_tts.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
@@ -794,8 +792,9 @@ class _ChatConvoScreenState extends State<ChatConvoScreen> {
                         color: isDarkMode ? Colors.white : Colors.black,
                       ),
                       decoration: InputDecoration(
-                        hintText:
-                            _isListening ? "Listening..." : "Type a message...",
+                        hintText: _isListening
+                            ? "Listening..."
+                            : 'type_a_message'.tr(),
                         hintStyle: TextStyle(
                           color: isDarkMode ? Colors.white70 : Colors.grey[600],
                         ),

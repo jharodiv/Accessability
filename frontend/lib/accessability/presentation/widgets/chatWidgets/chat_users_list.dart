@@ -1,12 +1,12 @@
-import 'package:accessability/accessability/presentation/widgets/shimmer/shimmer_chat_user_list.dart';
-import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:accessability/accessability/firebaseServices/auth/auth_service.dart';
 import 'package:accessability/accessability/firebaseServices/chat/chat_service.dart';
-import 'package:intl/intl.dart';
-import 'package:rxdart/rxdart.dart';
-import 'package:provider/provider.dart';
+import 'package:accessability/accessability/presentation/widgets/shimmer/shimmer_chat_user_list.dart';
 import 'package:accessability/accessability/themes/theme_provider.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:easy_localization/easy_localization.dart';
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:rxdart/rxdart.dart';
 
 class ChatUsersList extends StatelessWidget {
   ChatUsersList({super.key});
@@ -164,7 +164,7 @@ class ChatUsersList extends StatelessWidget {
                 padding:
                     const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 child: Text(
-                  'Space Chats',
+                  'space_chats'.tr(),
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
@@ -187,7 +187,7 @@ class ChatUsersList extends StatelessWidget {
                 padding:
                     const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 child: Text(
-                  'People',
+                  'people'.tr(),
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,

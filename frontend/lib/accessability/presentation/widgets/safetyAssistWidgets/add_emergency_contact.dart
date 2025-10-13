@@ -267,18 +267,20 @@ class _AddEmergencyContactScreenState extends State<AddEmergencyContactScreen>
   @override
   Widget build(BuildContext context) {
     final bool isDarkMode = Provider.of<ThemeProvider>(context).isDarkMode;
-    final bg = isDarkMode ? Colors.grey[900] : const Color(0xFFF7F8FB);
-    final cardBg = isDarkMode ? Colors.grey[850] : Colors.white;
+    final bg = isDarkMode ? const Color(0xFF121212) : const Color(0xFFF7F8FB);
+    final cardBg = isDarkMode ? const Color(0xFF1E1E1E) : Colors.white;
+    final textColor = isDarkMode ? Colors.white : Colors.black87;
+    final hintColor = isDarkMode ? Colors.grey[400] : Colors.grey[600];
+    final iconColor = isDarkMode ? Colors.white70 : Colors.grey[700];
 
     return Scaffold(
-      // keep your AppBar visually unchanged
       appBar: PreferredSize(
         preferredSize: const Size.fromHeight(65),
         child: SafeArea(
           top: true,
           child: Container(
             decoration: BoxDecoration(
-              color: isDarkMode ? Colors.grey[900] : Colors.white,
+              color: isDarkMode ? const Color(0xFF1E1E1E) : Colors.white,
               boxShadow: [
                 BoxShadow(
                   color: Colors.black.withOpacity(0.1),
@@ -291,12 +293,18 @@ class _AddEmergencyContactScreenState extends State<AddEmergencyContactScreen>
               elevation: 0,
               leading: IconButton(
                 onPressed: () => Navigator.of(context).pop(),
-                icon: const Icon(Icons.arrow_back),
-                color: const Color(0xFF6750A4),
+                icon: const Icon(
+                  Icons.arrow_back,
+                  color:
+                      Color(0xFF6750A4), // 🔹 Always purple, even in dark mode
+                ),
               ),
               title: Text(
                 'add_emergency_number'.tr(),
-                style: const TextStyle(fontWeight: FontWeight.bold),
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: isDarkMode ? Colors.white : Colors.black,
+                ),
               ),
               centerTitle: true,
               backgroundColor: Colors.transparent,
@@ -309,11 +317,12 @@ class _AddEmergencyContactScreenState extends State<AddEmergencyContactScreen>
         child: ListView(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
           children: [
-            // header card
+            // Header card
             Container(
               padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(14),
+                color: isDarkMode ? const Color(0xFF1E1E1E) : null,
                 gradient: isDarkMode
                     ? null
                     : const LinearGradient(
@@ -348,17 +357,16 @@ class _AddEmergencyContactScreenState extends State<AddEmergencyContactScreen>
                       children: [
                         Text(
                           'add_emergency_contact_title'.tr(),
-                          style: const TextStyle(
-                              fontSize: 16, fontWeight: FontWeight.w800),
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w800,
+                            color: textColor,
+                          ),
                         ),
                         const SizedBox(height: 6),
                         Text(
                           'add_emergency_contact_subtitle'.tr(),
-                          style: TextStyle(
-                              fontSize: 13,
-                              color: isDarkMode
-                                  ? Colors.grey[400]
-                                  : Colors.grey[700]),
+                          style: TextStyle(fontSize: 13, color: hintColor),
                         ),
                       ],
                     ),
@@ -369,7 +377,7 @@ class _AddEmergencyContactScreenState extends State<AddEmergencyContactScreen>
 
             const SizedBox(height: 18),
 
-            // form card
+            // Form card
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
@@ -377,220 +385,201 @@ class _AddEmergencyContactScreenState extends State<AddEmergencyContactScreen>
                 borderRadius: BorderRadius.circular(14),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(isDarkMode ? 0.03 : 0.04),
-                    blurRadius: 12,
+                    color: Colors.black.withOpacity(isDarkMode ? 0.05 : 0.08),
+                    blurRadius: 10,
                     offset: const Offset(0, 6),
                   ),
                 ],
               ),
-              child: Form(
-                key: _formKey,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Contact name label
-                    Text('contact_name'.tr(),
-                        style: const TextStyle(
-                            fontWeight: FontWeight.w600, fontSize: 14)),
-                    const SizedBox(height: 8),
-
-                    // Name field (full width)
-                    TextFormField(
-                      controller: _nameCtrl,
-                      textInputAction: TextInputAction.next,
-                      decoration: _decoration(
-                        hint: 'enter_contact_name'.tr(),
-                        icon: Icons.person,
-                        dark: isDarkMode,
+              child: Theme(
+                data: Theme.of(context).copyWith(
+                  inputDecorationTheme: InputDecorationTheme(
+                    hintStyle: TextStyle(color: hintColor),
+                  ),
+                ),
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('contact_name'.tr(),
+                          style: TextStyle(
+                              fontWeight: FontWeight.w600,
+                              fontSize: 14,
+                              color: textColor)),
+                      const SizedBox(height: 8),
+                      TextFormField(
+                        controller: _nameCtrl,
+                        textInputAction: TextInputAction.next,
+                        style: TextStyle(color: textColor),
+                        decoration: _decoration(
+                            hint: 'enter_contact_name'.tr(),
+                            icon: Icons.person,
+                            dark: isDarkMode),
+                        validator: (v) => v == null || v.trim().isEmpty
+                            ? 'required'.tr()
+                            : null,
                       ),
-                      validator: (v) {
-                        if (v == null || v.trim().isEmpty) {
-                          return 'required'.tr();
-                        }
-                        return null;
-                      },
-                    ),
 
-                    const SizedBox(height: 12),
-
-                    // Pick from contacts (separate full-width row)
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton.icon(
-                        onPressed:
-                            _loadingContacts ? null : _onPickContactPressed,
-                        icon: const Icon(Icons.contact_phone, size: 18),
-                        label: Text(
-                          'pick_from_contacts'.tr(),
-                          style: const TextStyle(fontWeight: FontWeight.w700),
-                        ),
-                        style: ElevatedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                          backgroundColor: const Color(0xFF7C5BE6),
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12)),
-                          elevation: 6,
-                        ),
-                      ),
-                    ),
-
-                    const SizedBox(height: 16),
-
-                    // Phone label + input
-                    Text('phone_number'.tr(),
-                        style: const TextStyle(
-                            fontWeight: FontWeight.w600, fontSize: 14)),
-                    const SizedBox(height: 8),
-
-                    // Phone row with working country code selector
-                    Row(
-                      children: [
-                        SizedBox(
-                          width: 120,
-                          child: DropdownButtonFormField<String>(
-                            value: _countryCode,
-                            items: _countryCodes
-                                .map((c) =>
-                                    DropdownMenuItem(value: c, child: Text(c)))
-                                .toList(),
-                            onChanged: (v) => setState(
-                                () => _countryCode = v ?? _countryCode),
-                            decoration: InputDecoration(
-                              filled: true,
-                              fillColor: isDarkMode
-                                  ? Colors.grey[850]
-                                  : Colors.grey[100],
-                              contentPadding: const EdgeInsets.symmetric(
-                                  vertical: 14, horizontal: 12),
-                              border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                  borderSide: BorderSide.none),
-                            ),
+                      const SizedBox(height: 12),
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton.icon(
+                          onPressed:
+                              _loadingContacts ? null : _onPickContactPressed,
+                          icon: const Icon(Icons.contact_phone,
+                              size: 18, color: Colors.white),
+                          label: Text('pick_from_contacts'.tr(),
+                              style: const TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                  color: Colors.white)),
+                          style: ElevatedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            backgroundColor: isDarkMode
+                                ? const Color(0xFF7C5BE6).withOpacity(0.85)
+                                : const Color(0xFF7C5BE6),
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12)),
+                            elevation: 3,
                           ),
                         ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: TextFormField(
-                            controller: _phoneCtrl,
-                            keyboardType: TextInputType.phone,
-                            textInputAction: TextInputAction.next,
-                            decoration: _decoration(
-                              hint: 'enter_phone_number'.tr(),
-                              icon: Icons.phone,
-                              dark: isDarkMode,
-                            ),
-                            validator: (v) {
-                              if (v == null || v.trim().isEmpty) {
-                                return 'required'.tr();
-                              }
-                              return null;
-                            },
-                          ),
-                        ),
-                      ],
-                    ),
-
-                    const SizedBox(height: 16),
-
-                    // Address (multi-line) with fixed icon alignment
-                    // Replace the existing Address label + TextFormField with this block
-                    Text('address'.tr(),
-                        style: const TextStyle(
-                            fontWeight: FontWeight.w600, fontSize: 14)),
-                    const SizedBox(height: 8),
-
-// A container that places the location icon outside the TextField so multi-line text aligns nicely
-                    Container(
-                      decoration: BoxDecoration(
-                        color: isDarkMode ? Colors.grey[850] : Colors.grey[100],
-                        borderRadius: BorderRadius.circular(12),
                       ),
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 8),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+
+                      const SizedBox(height: 16),
+                      Text('phone_number'.tr(),
+                          style: TextStyle(
+                              fontWeight: FontWeight.w600,
+                              fontSize: 14,
+                              color: textColor)),
+                      const SizedBox(height: 8),
+
+                      Row(
                         children: [
-                          // Icon placed in its own column so it vertically centers with multi-line input
-                          Padding(
-                            padding: const EdgeInsets.only(
-                                top:
-                                    6.0), // tweak this to perfect vertical alignment
-                            child: Icon(
-                              Icons.location_on,
-                              size: 20,
-                              color: isDarkMode
-                                  ? Colors.white70
-                                  : Colors.grey[700],
+                          SizedBox(
+                            width: 120,
+                            child: DropdownButtonFormField<String>(
+                              value: _countryCode,
+                              dropdownColor: cardBg,
+                              style: TextStyle(color: textColor),
+                              items: _countryCodes
+                                  .map((c) => DropdownMenuItem(
+                                      value: c, child: Text(c)))
+                                  .toList(),
+                              onChanged: (v) => setState(
+                                  () => _countryCode = v ?? _countryCode),
+                              decoration: InputDecoration(
+                                filled: true,
+                                fillColor: isDarkMode
+                                    ? Colors.grey[850]
+                                    : Colors.grey[100],
+                                contentPadding: const EdgeInsets.symmetric(
+                                    vertical: 14, horizontal: 12),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  borderSide: BorderSide.none,
+                                ),
+                              ),
                             ),
                           ),
-
-                          const SizedBox(width: 12),
-
-                          // The actual multiline TextFormField with no prefixIcon (so text lines are aligned cleanly)
+                          const SizedBox(width: 10),
                           Expanded(
                             child: TextFormField(
-                              controller: _addressCtrl,
-                              maxLines: 3,
-                              textInputAction: TextInputAction.newline,
-                              style: TextStyle(
-                                  color: isDarkMode
-                                      ? Colors.white
-                                      : Colors.black87),
-                              decoration: InputDecoration(
-                                hintText: 'enter_contact_address'.tr(),
-                                hintStyle: TextStyle(
-                                    color: isDarkMode
-                                        ? Colors.grey[400]
-                                        : Colors.grey[600]),
-                                border: InputBorder.none,
-                                isDense: true,
-                                contentPadding: const EdgeInsets.symmetric(
-                                    vertical: 6, horizontal: 0),
+                              controller: _phoneCtrl,
+                              keyboardType: TextInputType.phone,
+                              textInputAction: TextInputAction.next,
+                              style: TextStyle(color: textColor),
+                              decoration: _decoration(
+                                hint: 'enter_phone_number'.tr(),
+                                icon: Icons.phone,
+                                dark: isDarkMode,
                               ),
+                              validator: (v) => v == null || v.trim().isEmpty
+                                  ? 'required'.tr()
+                                  : null,
                             ),
                           ),
                         ],
                       ),
-                    ),
 
-                    const SizedBox(height: 16),
+                      const SizedBox(height: 16),
+                      Text('address'.tr(),
+                          style: TextStyle(
+                              fontWeight: FontWeight.w600,
+                              fontSize: 14,
+                              color: textColor)),
+                      const SizedBox(height: 8),
 
-                    // Relationship
-                    Text('relationship'.tr(),
-                        style: const TextStyle(
-                            fontWeight: FontWeight.w600, fontSize: 14)),
-                    const SizedBox(height: 8),
-                    TextFormField(
-                      controller: _relationCtrl,
-                      textInputAction: TextInputAction.done,
-                      decoration: _decoration(
-                        hint: 'enter_relationship_info'.tr(),
-                        icon: Icons.group,
-                        dark: isDarkMode,
+                      // Address
+                      Container(
+                        decoration: BoxDecoration(
+                          color:
+                              isDarkMode ? Colors.grey[850] : Colors.grey[100],
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 8),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Padding(
+                              padding: const EdgeInsets.only(top: 6.0),
+                              child: Icon(Icons.location_on,
+                                  size: 20, color: iconColor),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: TextFormField(
+                                controller: _addressCtrl,
+                                maxLines: 3,
+                                textInputAction: TextInputAction.newline,
+                                style: TextStyle(color: textColor),
+                                decoration: InputDecoration(
+                                  hintText: 'enter_contact_address'.tr(),
+                                  hintStyle: TextStyle(color: hintColor),
+                                  border: InputBorder.none,
+                                  isDense: true,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
-                  ],
+
+                      const SizedBox(height: 16),
+                      Text('relationship'.tr(),
+                          style: TextStyle(
+                              fontWeight: FontWeight.w600,
+                              fontSize: 14,
+                              color: textColor)),
+                      const SizedBox(height: 8),
+                      TextFormField(
+                        controller: _relationCtrl,
+                        textInputAction: TextInputAction.done,
+                        style: TextStyle(color: textColor),
+                        decoration: _decoration(
+                          hint: 'enter_relationship_info'.tr(),
+                          icon: Icons.group,
+                          dark: isDarkMode,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
 
             const SizedBox(height: 18),
-
             Center(
               child: Text(
                 'tip_add_emergency_contact'.tr(),
-                style: TextStyle(
-                    fontSize: 12,
-                    color: isDarkMode ? Colors.grey[400] : Colors.grey[700]),
+                style: TextStyle(fontSize: 12, color: hintColor),
                 textAlign: TextAlign.center,
               ),
             ),
-
             const SizedBox(height: 110),
           ],
         ),
       ),
-
       bottomNavigationBar: SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -601,27 +590,37 @@ class _AddEmergencyContactScreenState extends State<AddEmergencyContactScreen>
               onPressed: (_isButtonEnabled && !_saving) ? _onSavePressed : null,
               style: ElevatedButton.styleFrom(
                 backgroundColor: _isButtonEnabled
-                    ? const Color(0xFF6750A4)
-                    : const Color(0xFFDFDFDF),
-                disabledBackgroundColor: const Color(0xFFDFDFDF),
+                    ? const Color(0xFF6750A4) // 🔹 active = purple
+                    : (isDarkMode
+                        ? Colors.grey[800] // 🔹 dark mode disabled = light gray
+                        : const Color(0xFFDFDFDF)), // 🔹 light mode disabled
+                disabledBackgroundColor:
+                    isDarkMode ? Colors.grey[800] : const Color(0xFFDFDFDF),
                 shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12)),
-                elevation: 6,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                elevation: 3,
               ),
               child: _saving
                   ? const SizedBox(
                       width: 20,
                       height: 20,
                       child: CircularProgressIndicator(
-                          strokeWidth: 2, color: Colors.white))
+                          strokeWidth: 2, color: Colors.white),
+                    )
                   : Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        const Icon(Icons.save, size: 18),
+                        const Icon(Icons.save, size: 18, color: Colors.white),
                         const SizedBox(width: 10),
-                        Text('save'.tr().toUpperCase(),
-                            style: const TextStyle(
-                                fontWeight: FontWeight.bold, fontSize: 15)),
+                        Text(
+                          'save'.tr().toUpperCase(),
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 15,
+                            color: Colors.white,
+                          ),
+                        ),
                       ],
                     ),
             ),

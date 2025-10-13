@@ -1,9 +1,10 @@
 import 'dart:async';
+
 import 'package:accessability/accessability/firebaseServices/chat/chat_service.dart';
-import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:easy_localization/easy_localization.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 class VerificationCodeBubble extends StatefulWidget {
@@ -247,7 +248,7 @@ class _VerificationCodeBubbleState extends State<VerificationCodeBubble> {
       statusIcon = Icons.check_circle;
       statusColor = Colors.green.shade600;
     } else if (isExpired) {
-      statusText = 'Invitation expired';
+      statusText = 'invitation_expired'.tr();
       statusIcon = Icons.error_outline;
       statusColor = Colors.red.shade600;
     } else {
@@ -477,10 +478,11 @@ class _VerificationCodeBubbleState extends State<VerificationCodeBubble> {
                                     height: 20,
                                     child: CircularProgressIndicator(
                                         strokeWidth: 2, color: Colors.white))
-                                : const Text('Join Space',
-                                    style: TextStyle(
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.w700)),
+                                : const Text('joinSpace',
+                                        style: TextStyle(
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.w700))
+                                    .tr(),
                           ),
                         )
                       else
@@ -495,9 +497,9 @@ class _VerificationCodeBubbleState extends State<VerificationCodeBubble> {
                             ),
                             child: Text(
                               isMember
-                                  ? 'You are a member'
+                                  ? 'you_are_a_member'.tr()
                                   : (isExpired
-                                      ? 'Invitation expired'
+                                      ? 'invitation_expired'.tr()
                                       : 'Not available'),
                               style: TextStyle(
                                   fontSize: 14,

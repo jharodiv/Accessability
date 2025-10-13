@@ -369,125 +369,140 @@ class _ChatConvoBubbleState extends State<ChatConvoBubble> {
     );
   }
 
+  // Helper - builds the outside mic button, vertically centered by Row's crossAxisAlignment
+  Widget buildOutsideMic(bool isDarkMode) {
+    const Color mainPurple = Color(0xFF6750A4); // base purple
+    const Color accentPurple = Color(0xFF7C4DFF); // brighter accent
+
+    // Background: slightly stronger when speaking, very light when idle
+    final Color bgColor = _isSpeaking
+        ? mainPurple.withOpacity(0.18)
+        : mainPurple.withOpacity(0.10);
+
+    // Icon color: darker purple (accent when speaking)
+    final Color iconColor = _isSpeaking ? accentPurple : mainPurple;
+
+    return GestureDetector(
+      onTap: _speakMessage,
+      behavior: HitTestBehavior.translucent,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 160),
+        padding: const EdgeInsets.all(10), // roomy touch target like your mock
+        decoration: BoxDecoration(
+          color: bgColor,
+          shape: BoxShape.circle,
+          boxShadow: [
+            BoxShadow(
+              color: mainPurple.withOpacity(0.08),
+              blurRadius: 6,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Icon(
+          _isSpeaking ? Icons.volume_up : Icons.volume_up_outlined,
+          size: 20,
+          color: iconColor,
+        ),
+      ),
+    );
+  }
+
   Widget _buildNormalMessage(BuildContext context, bool isDarkMode) {
+    // The main message bubble (no mic inside)
+    final bubble = Flexible(
+      child: Column(
+        crossAxisAlignment: widget.isCurrentUser
+            ? CrossAxisAlignment.end
+            : CrossAxisAlignment.start,
+        children: [
+          if (widget.edited)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 4),
+              child: Text(
+                'edited',
+                style: TextStyle(
+                  color: isDarkMode ? Colors.white54 : Colors.grey[600],
+                  fontSize: 10,
+                  fontStyle: FontStyle.italic,
+                ),
+              ),
+            ),
+          InkWell(
+            onTap: () {
+              setState(() {
+                _showTimestamp = !_showTimestamp;
+              });
+            },
+            onLongPress: () => _showOptionsMenu(context),
+            borderRadius: BorderRadius.circular(16),
+            child: Container(
+              constraints: BoxConstraints(
+                maxWidth: MediaQuery.of(context).size.width * 0.72,
+              ),
+              margin: const EdgeInsets.symmetric(vertical: 4),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              decoration: _bubbleDecoration(isDarkMode, widget.isCurrentUser),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (_location != null) ...[
+                    _buildMapPreview(_location!),
+                    const SizedBox(height: 8),
+                  ],
+                  // message text only (speaker removed from here)
+                  Text(
+                    widget.message,
+                    style: TextStyle(
+                      color: widget.isCurrentUser
+                          ? Colors.white
+                          : (isDarkMode ? Colors.white : Colors.black),
+                      fontSize: 14,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          if (_showTimestamp)
+            Padding(
+              padding: const EdgeInsets.only(top: 6),
+              child: Text(
+                _formatTimestamp(widget.timestamp),
+                style: TextStyle(
+                  color: isDarkMode ? Colors.white54 : Colors.grey[600],
+                  fontSize: 10,
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+
+    // Row with mic placed outside and vertically centered.
     return Row(
       mainAxisAlignment: widget.isCurrentUser
           ? MainAxisAlignment.end
           : MainAxisAlignment.start,
-      crossAxisAlignment: CrossAxisAlignment.end,
+      crossAxisAlignment:
+          CrossAxisAlignment.center, // centers mic vs bubble height
       children: [
-        if (!widget.isCurrentUser)
+        if (!widget.isCurrentUser) ...[
+          // Incoming message: avatar -> bubble -> mic (mic outside on right, centered)
           CircleAvatar(
             backgroundImage: NetworkImage(widget.profilePicture),
             radius: 16,
           ),
-        if (!widget.isCurrentUser) const SizedBox(width: 8),
-        Flexible(
-          child: Column(
-            crossAxisAlignment: widget.isCurrentUser
-                ? CrossAxisAlignment.end
-                : CrossAxisAlignment.start,
-            children: [
-              if (widget.edited)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 4),
-                  child: Text(
-                    'edited',
-                    style: TextStyle(
-                      color: isDarkMode ? Colors.white54 : Colors.grey[600],
-                      fontSize: 10,
-                      fontStyle: FontStyle.italic,
-                    ),
-                  ),
-                ),
-              InkWell(
-                onTap: () {
-                  setState(() {
-                    _showTimestamp = !_showTimestamp;
-                  });
-                },
-                onLongPress: () => _showOptionsMenu(context),
-                borderRadius: BorderRadius.circular(16),
-                child: Container(
-                  constraints: BoxConstraints(
-                    maxWidth: MediaQuery.of(context).size.width * 0.72,
-                  ),
-                  margin: const EdgeInsets.symmetric(vertical: 4),
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                  decoration:
-                      _bubbleDecoration(isDarkMode, widget.isCurrentUser),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      if (_location != null) ...[
-                        _buildMapPreview(_location!),
-                        const SizedBox(height: 8),
-                      ],
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Expanded(
-                            child: Text(
-                              widget.message,
-                              style: TextStyle(
-                                color: widget.isCurrentUser
-                                    ? Colors.white
-                                    : (isDarkMode
-                                        ? Colors.white
-                                        : Colors.black),
-                                fontSize: 14,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          // Speaker Icon
-                          GestureDetector(
-                            onTap: _speakMessage,
-                            child: AnimatedContainer(
-                              duration: const Duration(milliseconds: 200),
-                              padding: const EdgeInsets.all(6),
-                              decoration: BoxDecoration(
-                                color: _isSpeaking
-                                    ? Colors.blue.withOpacity(0.2)
-                                    : Colors.transparent,
-                                shape: BoxShape.circle,
-                              ),
-                              child: Icon(
-                                _isSpeaking
-                                    ? Icons.volume_up
-                                    : Icons.volume_up_outlined,
-                                size: 16,
-                                color: _isSpeaking
-                                    ? Colors.blue
-                                    : (widget.isCurrentUser
-                                        ? Colors.white70
-                                        : (isDarkMode
-                                            ? Colors.white70
-                                            : Colors.grey[600])),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              if (_showTimestamp)
-                Padding(
-                  padding: const EdgeInsets.only(top: 6),
-                  child: Text(
-                    _formatTimestamp(widget.timestamp),
-                    style: TextStyle(
-                      color: isDarkMode ? Colors.white54 : Colors.grey[600],
-                      fontSize: 10,
-                    ),
-                  ),
-                ),
-            ],
-          ),
-        ),
+          const SizedBox(width: 8),
+          bubble,
+          const SizedBox(width: 8),
+          buildOutsideMic(isDarkMode),
+        ] else ...[
+          // Outgoing message: mic (left, centered) -> bubble
+          buildOutsideMic(isDarkMode),
+          const SizedBox(width: 8),
+          bubble,
+        ],
       ],
     );
   }

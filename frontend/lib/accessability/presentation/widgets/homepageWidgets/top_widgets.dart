@@ -77,15 +77,23 @@ class TopwidgetsState extends State<Topwidgets> {
       'Restawran': 'Restaurant',
       'Pamimili': 'Shopping',
       'Grocery': 'Groceries',
-      // Add hospital mapping (localized label -> internal type)
-      'Ospital': 'Hospital', // for Tagalog label 'Ospital'
-      'Hospital':
-          'Hospital', // just in case the translation is already 'Hospital'
+      'Ospital': 'Hospital', // Tagalog to English mapping
+      'Hospital': 'Hospital', // fallback
     };
+
     final mapped = map[cat] ?? cat;
+
     setState(() {
       _selectedCategory = _selectedCategory == mapped ? null : mapped;
     });
+
+    // 🔍 Debug print to check hospital selection
+    debugPrint('[Topwidgets] Selected Category: $mapped');
+
+    if (mapped == 'Hospital') {
+      debugPrint('[Topwidgets] ✅ Hospital category is working!');
+    }
+
     widget.onCategorySelected(_selectedCategory ?? '');
   }
 

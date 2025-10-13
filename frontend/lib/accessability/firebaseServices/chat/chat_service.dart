@@ -754,6 +754,10 @@ class ChatService {
     bool isSpaceChat = false,
   }) async {
     try {
+      if (chatRoomId.isEmpty || messageId.isEmpty) {
+        throw Exception('Chat room ID and message ID cannot be empty');
+      }
+
       final collection = isSpaceChat
           ? firebaseFirestore
               .collection('space_chat_rooms')
@@ -764,6 +768,17 @@ class ChatService {
               .doc(chatRoomId)
               .collection('messages');
 
+      // Verify the message exists and belongs to current user
+      final messageDoc = await collection.doc(messageId).get();
+      if (!messageDoc.exists) {
+        throw Exception('Message not found');
+      }
+
+      final messageData = messageDoc.data();
+      if (messageData?['senderID'] != _auth.currentUser!.uid) {
+        throw Exception('You can only edit your own messages');
+      }
+
       await collection.doc(messageId).update({
         'message': newMessage,
         'edited': true,
@@ -771,7 +786,7 @@ class ChatService {
       });
     } catch (e) {
       print('Error editing message: $e');
-      throw Exception('Failed to edit message');
+      throw Exception('Failed to edit message: ${e.toString()}');
     }
   }
 
@@ -781,6 +796,16 @@ class ChatService {
     bool isSpaceChat = false,
   }) async {
     try {
+      print('🔍 DELETE DEBUG - Starting delete process');
+      print('🔍 DELETE DEBUG - chatRoomId: $chatRoomId');
+      print('🔍 DELETE DEBUG - messageId: $messageId');
+      print('🔍 DELETE DEBUG - isSpaceChat: $isSpaceChat');
+      print('🔍 DELETE DEBUG - currentUser: ${_auth.currentUser!.uid}');
+
+      if (chatRoomId.isEmpty || messageId.isEmpty) {
+        throw Exception('Chat room ID and message ID cannot be empty');
+      }
+
       final collection = isSpaceChat
           ? firebaseFirestore
               .collection('space_chat_rooms')
@@ -791,19 +816,45 @@ class ChatService {
               .doc(chatRoomId)
               .collection('messages');
 
+      print('🔍 DELETE DEBUG - Collection path: ${collection.path}');
+
+      // Verify the message exists and belongs to current user
+      final messageDoc = await collection.doc(messageId).get();
+      print('🔍 DELETE DEBUG - Message exists: ${messageDoc.exists}');
+
+      if (!messageDoc.exists) {
+        throw Exception('Message not found');
+      }
+
+      final messageData = messageDoc.data();
+      print('🔍 DELETE DEBUG - Message data: $messageData');
+
+      if (messageData?['senderID'] != _auth.currentUser!.uid) {
+        print(
+            '🔍 DELETE DEBUG - User mismatch. Message sender: ${messageData?['senderID']}, Current user: ${_auth.currentUser!.uid}');
+        throw Exception('You can only delete your own messages');
+      }
+
       // Option 1: Soft delete (recommended)
+      print('🔍 DELETE DEBUG - Performing soft delete update...');
       await collection.doc(messageId).update({
         'deleted': true,
         'deletedAt': FieldValue.serverTimestamp(),
-        'originalMessage':
-            FieldValue.delete(), // Optional: store original message
+        'originalMessage': messageData?['message'], // Store original message
       });
 
-      // Option 2: Hard delete (uncomment if you want to permanently remove)
-      // await collection.doc(messageId).delete();
+      print('✅ DELETE DEBUG - Message soft-deleted successfully');
+
+      // Verify the update worked
+      final updatedDoc = await collection.doc(messageId).get();
+      print(
+          '✅ DELETE DEBUG - After update - deleted field: ${updatedDoc.data()?['deleted']}');
+      print('✅ DELETE DEBUG - After update - full data: ${updatedDoc.data()}');
     } catch (e) {
-      print('Error deleting message: $e');
-      throw Exception('Failed to delete message');
+      print('❌ DELETE DEBUG - Error deleting message: $e');
+      print('❌ DELETE DEBUG - Error type: ${e.runtimeType}');
+      print('❌ DELETE DEBUG - Stack trace: ${e.toString()}');
+      throw Exception('Failed to delete message: ${e.toString()}');
     }
   }
 

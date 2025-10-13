@@ -187,10 +187,14 @@ class _ChatConvoScreenState extends State<ChatConvoScreen> {
                         onPressed: () async {
                           if (editController.text.trim().isNotEmpty) {
                             try {
-                              final chatRoomId = chatService.getChatRoomId(
-                                _auth.currentUser!.uid,
-                                widget.receiverID,
-                              );
+                              // FIX: Use correct chat room ID for space chats
+                              final chatRoomId = widget.isSpaceChat
+                                  ? widget
+                                      .receiverID // For space chats, use the space ID directly
+                                  : chatService.getChatRoomId(
+                                      _auth.currentUser!.uid,
+                                      widget.receiverID,
+                                    );
 
                               await chatService.editMessage(
                                 chatRoomId: chatRoomId,
@@ -203,6 +207,13 @@ class _ChatConvoScreenState extends State<ChatConvoScreen> {
                               setState(() {
                                 editingMessageId = null;
                               });
+
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('Message edited successfully'),
+                                  backgroundColor: Colors.green,
+                                ),
+                              );
                             } catch (e) {
                               ScaffoldMessenger.of(context).showSnackBar(
                                 SnackBar(
@@ -230,11 +241,15 @@ class _ChatConvoScreenState extends State<ChatConvoScreen> {
   }
 
   void _deleteMessage(String messageId) {
-    final bool isDarkMode = Provider.of<ThemeProvider>(context).isDarkMode;
+    final bool isDarkMode =
+        Provider.of<ThemeProvider>(context, listen: false).isDarkMode;
 
     showDialog(
       context: context,
       builder: (context) {
+        // Store the dialog context separately
+        final dialogContext = context;
+
         return Dialog(
           backgroundColor: isDarkMode ? Colors.grey[900] : Colors.white,
           shape: RoundedRectangleBorder(
@@ -272,7 +287,7 @@ class _ChatConvoScreenState extends State<ChatConvoScreen> {
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
                     TextButton(
-                      onPressed: () => Navigator.pop(context),
+                      onPressed: () => Navigator.pop(dialogContext),
                       child: Text(
                         'Cancel',
                         style: TextStyle(
@@ -289,25 +304,58 @@ class _ChatConvoScreenState extends State<ChatConvoScreen> {
                       child: TextButton(
                         onPressed: () async {
                           try {
-                            final chatRoomId = chatService.getChatRoomId(
-                              _auth.currentUser!.uid,
-                              widget.receiverID,
-                            );
+                            // Get the chat room ID before any async operations
+                            final chatRoomId = widget.isSpaceChat
+                                ? widget.receiverID
+                                : chatService.getChatRoomId(
+                                    _auth.currentUser!.uid,
+                                    widget.receiverID,
+                                  );
 
+                            // Close the dialog FIRST
+                            Navigator.pop(dialogContext);
+
+                            // Then perform the delete operation
                             await chatService.deleteMessage(
                               chatRoomId: chatRoomId,
                               messageId: messageId,
                               isSpaceChat: widget.isSpaceChat,
                             );
 
-                            Navigator.pop(context);
+                            // Use the original context (from the widget) for SnackBar
+                            if (mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('Message deleted successfully'),
+                                  backgroundColor: Colors.green,
+                                  duration: Duration(seconds: 2),
+                                ),
+                              );
+                            }
                           } catch (e) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text('Failed to delete message: $e'),
-                                backgroundColor: Colors.red,
-                              ),
-                            );
+                            // Use the original context (from the widget) for SnackBar
+                            if (mounted) {
+                              String errorMessage = 'Failed to delete message';
+                              if (e.toString().contains('permission')) {
+                                errorMessage =
+                                    'You do not have permission to delete this message';
+                              } else if (e.toString().contains('not found')) {
+                                errorMessage = 'Message not found';
+                              } else if (e.toString().contains('network')) {
+                                errorMessage =
+                                    'Network error. Please check your connection';
+                              }
+
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(errorMessage),
+                                  backgroundColor: Colors.red,
+                                  duration: Duration(seconds: 3),
+                                ),
+                              );
+                            }
+
+                            print('Delete error details: $e');
                           }
                         },
                         child: const Text(
@@ -476,12 +524,17 @@ class _ChatConvoScreenState extends State<ChatConvoScreen> {
     Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
     bool isSystemMessage = data['isSystemMessage'] == true;
     bool isCurrentUser = data['senderID'] == authService.getCurrentUser()!.uid;
-    bool isDeleted = data['deleted'] == true;
+
+    // FIX: Better soft delete detection
+    bool isDeleted = data['deleted'] == true ||
+        data['deletedAt'] != null ||
+        data['message'] == '[deleted]';
+
     bool isEdited = data['edited'] == true;
 
-    // Get chat room ID
+    // FIX: Use correct chat room ID logic
     final chatRoomId = widget.isSpaceChat
-        ? widget.receiverID
+        ? widget.receiverID // Space ID for space chats
         : chatService.getChatRoomId(
             _auth.currentUser!.uid,
             widget.receiverID,
@@ -498,7 +551,6 @@ class _ChatConvoScreenState extends State<ChatConvoScreen> {
       return _buildVerificationCodeBubble(data);
     }
 
-    // ✅ Use cached user lookup instead of refetching every time
     return FutureBuilder<Map<String, dynamic>>(
       future: _getUserData(data['senderID']),
       builder: (context, snapshot) {

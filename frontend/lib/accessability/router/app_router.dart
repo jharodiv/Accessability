@@ -1,4 +1,5 @@
 import 'package:accessability/accessability/presentation/screens/gpsscreen/gps.dart';
+import 'package:accessability/accessability/presentation/screens/settings/settingsScreens/faq_screen.dart';
 import 'package:accessability/accessability/presentation/widgets/chatWidgets/verification_request_screen.dart';
 import 'package:accessability/accessability/presentation/widgets/google_helper/map_view_screen.dart';
 import 'package:accessability/accessability/presentation/widgets/homepageWidgets/bottomWidgetFiles/checkIn/send_location_screen.dart';
@@ -80,6 +81,8 @@ class AppRouter {
         return _buildRoute(const CreateSpaceScreen(), settings: routeSettings);
       case '/joinSpace':
         return _buildRoute(const JoinSpaceScreen(), settings: routeSettings);
+      case '/faq':
+        return _buildRoute(const FAQScreen(), settings: routeSettings);
       case '/spaceManagement':
         return _buildRoute(const SpaceManagementScreen(),
             settings: routeSettings);

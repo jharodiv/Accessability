@@ -234,6 +234,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
                 const Divider(),
                 ListTile(
+                  leading:
+                      const Icon(Icons.help_outline, color: Color(0xFF6750A4)),
+                  title: Text(
+                    'FAQ'.tr(),
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  onTap: () {
+                    Navigator.pushNamed(context, '/faq');
+                  },
+                ),
+                const Divider(),
+                ListTile(
                   leading: const Icon(Icons.logout, color: Color(0xFF6750A4)),
                   title: Text(
                     'logout'.tr(),

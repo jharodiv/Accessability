@@ -148,31 +148,42 @@ class _SendLocationScreenState extends State<SendLocationScreen>
                           animation: _sendAnimController,
                           builder: (context, child) {
                             final double anim = _sendAnimController.value;
-                            return ShaderMask(
-                              shaderCallback: (rect) {
-                                final double width = rect.width;
-                                final double shift = (anim * 1.4 - 0.2) * width;
-                                final Rect shaderRect = Rect.fromLTWH(
-                                    shift, 0, width * 1.4, rect.height);
-                                return LinearGradient(
-                                  begin: Alignment.centerLeft,
-                                  end: Alignment.centerRight,
-                                  colors: [
-                                    _purple.withOpacity(0.95),
-                                    _purple.withOpacity(0.25),
-                                    _purple.withOpacity(0.95),
+
+                            // Smooth pulsing purple animation
+                            return Transform.scale(
+                              scale: 1 + (anim * 0.2), // gentle pulse
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  gradient: LinearGradient(
+                                    colors: [
+                                      const Color(0xFF7C4DFF), // deep purple
+                                      const Color(0xFFD1C4E9), // soft lavender
+                                    ],
+                                    begin: Alignment.topLeft,
+                                    end: Alignment.bottomRight,
+                                    transform: GradientRotation(anim * 6.28),
+                                  ),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: const Color(0xFF7C4DFF)
+                                          .withOpacity(0.4),
+                                      blurRadius: 8,
+                                      spreadRadius: 1,
+                                    ),
                                   ],
-                                  stops: const [0.15, 0.5, 0.85],
-                                ).createShader(shaderRect);
-                              },
-                              blendMode: BlendMode.srcATop,
-                              child: const CircleAvatar(
-                                  radius: 14, backgroundColor: Colors.white),
+                                ),
+                                child: const Icon(
+                                  Icons.location_on_rounded,
+                                  color: Colors.white,
+                                  size: 18,
+                                ),
+                              ),
                             );
                           },
                         ),
                       )
-                    : const Icon(Icons.send, color: _purple),
+                    : const Icon(Icons.send, color: Color(0xFF7C4DFF)),
               ),
             ],
           ),
@@ -565,7 +576,19 @@ class _SendLocationScreenState extends State<SendLocationScreen>
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Location sent successfully!')),
+        SnackBar(
+          content: const Text(
+            'Location sent successfully!',
+            style: TextStyle(color: Colors.white),
+          ),
+          backgroundColor: Colors.green, // ✅ green background
+          behavior: SnackBarBehavior.floating, // optional for a modern look
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          duration: const Duration(seconds: 2),
+        ),
       );
       Navigator.pop(context);
     } catch (e) {

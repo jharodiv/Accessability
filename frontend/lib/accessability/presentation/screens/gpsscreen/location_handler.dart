@@ -5,6 +5,7 @@ import 'dart:ui' as ui;
 import 'package:accessability/accessability/backgroundServices/pwd_location_notification_service.dart';
 import 'package:accessability/accessability/backgroundServices/space_member_notification_service.dart';
 import 'package:accessability/accessability/firebaseServices/place/geocoding_service.dart';
+import 'package:accessability/accessability/presentation/widgets/errorWidget/error_display_widget.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -1070,24 +1071,17 @@ class LocationHandler {
   }
 
   Future<bool> onWillPop(BuildContext context) async {
-    return await showDialog(
+    return await showDialog<bool>(
           context: context,
-          builder: (context) {
-            return AlertDialog(
-              title: const Text('Confirm Exit'),
-              content: const Text('Do you really want to exit?'),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.of(context).pop(false),
-                  child: const Text('No'),
-                ),
-                TextButton(
-                  onPressed: () => Navigator.of(context).pop(true),
-                  child: const Text('Yes'),
-                ),
-              ],
-            );
-          },
+          barrierDismissible: false,
+          builder: (context) => ErrorDisplayWidget(
+            title: 'Confirm Exit',
+            message: 'Do you really want to exit?',
+            secondaryLabel: 'No',
+            secondaryOnPressed: () => Navigator.of(context).pop(false),
+            primaryLabel: 'Yes',
+            primaryOnPressed: () => Navigator.of(context).pop(true),
+          ),
         ) ??
         false;
   }

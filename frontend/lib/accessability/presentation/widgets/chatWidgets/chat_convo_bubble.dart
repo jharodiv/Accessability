@@ -1,4 +1,3 @@
-// paste/replace your ChatConvoBubble file with this (only visual changes)
 import 'package:accessability/accessability/presentation/widgets/chatWidgets/verification_code_bubble.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
@@ -87,51 +86,105 @@ class _ChatConvoBubbleState extends State<ChatConvoBubble> {
     }
   }
 
+  // 💜 Redesigned Aesthetic Bottom Sheet
   void _showOptionsMenu(BuildContext context) {
     if (widget.isSystemMessage || widget.deleted) return;
 
+    final isDarkMode =
+        Provider.of<ThemeProvider>(context, listen: false).isDarkMode;
+
     showModalBottomSheet(
       context: context,
+      backgroundColor: Colors.transparent,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
       builder: (context) {
-        return Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (widget.isCurrentUser) ...[
-              ListTile(
-                leading: const Icon(Icons.edit),
-                title: const Text('Edit'),
-                onTap: () {
-                  Navigator.pop(context);
-                  widget.onEdit?.call();
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.delete),
-                title: const Text('Delete'),
-                onTap: () {
-                  Navigator.pop(context);
-                  widget.onDelete?.call();
-                },
+        return AnimatedContainer(
+          duration: const Duration(milliseconds: 250),
+          decoration: BoxDecoration(
+            color: isDarkMode ? const Color(0xFF1E1E2C) : Colors.white,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.1),
+                blurRadius: 10,
+                offset: const Offset(0, -4),
               ),
             ],
-            ListTile(
-              leading: const Icon(Icons.content_copy),
-              title: const Text('Copy'),
-              onTap: () {
-                Navigator.pop(context);
-                _copyToClipboard(widget.message);
-              },
+          ),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // top handle
+                Container(
+                  width: 40,
+                  height: 4,
+                  margin: const EdgeInsets.only(bottom: 16),
+                  decoration: BoxDecoration(
+                    color: isDarkMode ? Colors.white24 : Colors.grey[300],
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                if (widget.isCurrentUser) ...[
+                  _buildOptionTile(
+                    context,
+                    icon: Icons.edit_rounded,
+                    label: 'Edit Message',
+                    color: const Color(0xFF7C4DFF),
+                    onTap: widget.onEdit,
+                  ),
+                  _buildOptionTile(
+                    context,
+                    icon: Icons.delete_outline_rounded,
+                    label: 'Delete Message',
+                    color: Colors.redAccent,
+                    onTap: widget.onDelete,
+                  ),
+                ],
+                _buildOptionTile(
+                  context,
+                  icon: Icons.content_copy_rounded,
+                  label: 'Copy Message',
+                  color: isDarkMode ? Colors.white70 : Colors.deepPurple,
+                  onTap: () => _copyToClipboard(widget.message),
+                ),
+                const SizedBox(height: 12),
+              ],
             ),
-            ListTile(
-              leading: const Icon(Icons.emoji_emotions),
-              title: const Text('React'),
-              onTap: () {
-                Navigator.pop(context);
-                _showEmojiPicker(context);
-              },
-            ),
-          ],
+          ),
         );
+      },
+    );
+  }
+
+  Widget _buildOptionTile(
+    BuildContext context, {
+    required IconData icon,
+    required String label,
+    required Color color,
+    Function()? onTap,
+  }) {
+    final isDarkMode =
+        Provider.of<ThemeProvider>(context, listen: false).isDarkMode;
+    return ListTile(
+      leading: CircleAvatar(
+        radius: 18,
+        backgroundColor: color.withOpacity(0.15),
+        child: Icon(icon, color: color, size: 20),
+      ),
+      title: Text(
+        label,
+        style: TextStyle(
+          color: isDarkMode ? Colors.white : Colors.black87,
+          fontWeight: FontWeight.w500,
+        ),
+      ),
+      onTap: () {
+        Navigator.pop(context);
+        onTap?.call();
       },
     );
   }
@@ -146,12 +199,19 @@ class _ChatConvoBubbleState extends State<ChatConvoBubble> {
   void _showEmojiPicker(BuildContext context) {
     showModalBottomSheet(
       context: context,
+      backgroundColor: Colors.transparent,
       builder: (context) {
-        return EmojiPicker(
-          onEmojiSelected: (category, emoji) {
-            widget.onReact?.call(emoji.emoji);
-            Navigator.pop(context);
-          },
+        return Container(
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          child: EmojiPicker(
+            onEmojiSelected: (category, emoji) {
+              widget.onReact?.call(emoji.emoji);
+              Navigator.pop(context);
+            },
+          ),
         );
       },
     );
@@ -269,7 +329,6 @@ class _ChatConvoBubbleState extends State<ChatConvoBubble> {
   }
 
   Widget _buildNormalMessage(BuildContext context, bool isDarkMode) {
-    // layout: left avatar for other user; do NOT show avatar for current user
     return Row(
       mainAxisAlignment: widget.isCurrentUser
           ? MainAxisAlignment.end
@@ -351,21 +410,19 @@ class _ChatConvoBubbleState extends State<ChatConvoBubble> {
             ],
           ),
         ),
-        // NOTE: removed the right-side avatar for current user (per request)
       ],
     );
   }
 
   BoxDecoration _bubbleDecoration(bool isDarkMode, bool isCurrentUser) {
     if (isCurrentUser) {
-      // Purple gradient for current user's messages
       return BoxDecoration(
         gradient: const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            Color(0xFF7C4DFF), // light purple
-            Color(0xFF5E35B1), // deep purple
+            Color(0xFF7C4DFF),
+            Color(0xFF5E35B1),
           ],
         ),
         borderRadius: const BorderRadius.only(
@@ -383,7 +440,6 @@ class _ChatConvoBubbleState extends State<ChatConvoBubble> {
         ],
       );
     } else {
-      // Slight grayish (almost white) bubble for other person's messages in light mode
       return BoxDecoration(
         color: isDarkMode ? const Color(0xFF1F1F1F) : const Color(0xFFF7F8FB),
         borderRadius: const BorderRadius.only(

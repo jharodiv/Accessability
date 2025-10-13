@@ -8,6 +8,7 @@ import 'package:accessability/accessability/presentation/screens/auth_screens/lo
 import 'package:accessability/accessability/presentation/screens/gpsscreen/gps.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:lottie/lottie.dart';
 
 class AuthGate extends StatelessWidget {
   const AuthGate({super.key});
@@ -21,23 +22,46 @@ class AuthGate extends StatelessWidget {
     return BlocBuilder<AuthBloc, AuthState>(
       builder: (context, authState) {
         if (authState is AuthLoading) {
-          return const SizedBox.shrink();
+          return Scaffold(
+            backgroundColor: Colors.white,
+            body: Center(
+              child: SizedBox(
+                height: 200,
+                child: OverflowBox(
+                  minHeight: 150,
+                  maxHeight: 150,
+                  child: Lottie.asset(
+                    'assets/animation/Animation - 1735294254709.json',
+                    fit: BoxFit.contain,
+                  ),
+                ),
+              ),
+            ),
+          );
         } else if (authState is AuthenticatedLogin) {
           userBloc.add(FetchUserData());
           return BlocBuilder<UserBloc, UserState>(
             builder: (context, userState) {
               if (userState is UserLoading) {
-                return const Center(child: CircularProgressIndicator());
+                return Scaffold(
+                  backgroundColor: Colors.white,
+                  body: Center(
+                    child: Lottie.asset(
+                      'assets/animations/gps_loading.json',
+                      width: 180,
+                      height: 180,
+                      repeat: true,
+                    ),
+                  ),
+                );
               } else if (userState is UserLoaded) {
                 return const GpsScreen();
               } else {
-                // Fall back to LoginScreen if user data fails
                 return const LoginScreen();
               }
             },
           );
         } else {
-          // For AuthError, AuthInitial, or any other state → Show LoginScreen
           return const LoginScreen();
         }
       },

@@ -82,6 +82,7 @@ flutter:
     - assets/translations/
     - assets/images/authentication/authenticationImage.png
     - assets/animation/
+    - assets/animation/gps_loading.json
     - assets/images/emergencyservices/
     - assets/images/others/
     - assets/images/onboarding/

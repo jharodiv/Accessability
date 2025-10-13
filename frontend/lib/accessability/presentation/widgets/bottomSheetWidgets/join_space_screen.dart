@@ -71,8 +71,7 @@ class _JoinSpaceScreenState extends State<JoinSpaceScreen> {
   }
 
   Future<void> _joinSpace() async {
-    if (_isLoading || _isDisposed || _navigationCompleted) return;
-    _navigationCompleted = true;
+    if (_isLoading || _isDisposed) return;
 
     final user = _auth.currentUser;
     if (user == null) {
@@ -120,19 +119,23 @@ class _JoinSpaceScreenState extends State<JoinSpaceScreen> {
       await _chatService.addMemberToSpaceChatRoom(spaceId, user.uid);
 
       _showSnackBar('joined_space_successfully'.tr());
+
+      _navigationCompleted = true; // ✅ only mark completed on success
+
       Future.microtask(() {
         if (!_isDisposed && Navigator.canPop(context)) {
           Navigator.of(context).pop({
             'success': true,
             'spaceId': spaceId,
-            'spaceName': spaceDoc['name']
+            'spaceName': spaceDoc['name'],
           });
         }
       });
     } catch (e) {
       _showSnackBar('error_joining_space'.tr(args: [e.toString()]));
     } finally {
-      if (!_isDisposed) {
+      // ✅ Always reset loading state and navigation flag if join failed
+      if (!_isDisposed && !_navigationCompleted) {
         setState(() => _isLoading = false);
       }
     }

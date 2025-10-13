@@ -50,7 +50,7 @@ class MapUtils {
     if (t.contains('bus')) return Colors.blue;
 
     if (t.contains('restaurant') || t.contains('restawran')) {
-      return Colors.red;
+      return Colors.pinkAccent;
     }
 
     if (t.contains('grocery') || t.contains('grocer')) {

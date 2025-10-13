@@ -166,6 +166,7 @@ class NearbyPlacesHandler {
       'Bus' => ('amenity=bus_station', Icons.directions_bus),
       'Shopping' => ('shop=mall', Icons.shopping_bag),
       'Groceries' => ('shop=supermarket', Icons.local_grocery_store),
+      'Hospital' => ('amenity=hospital', Icons.local_hospital),
       _ => (null, Icons.place),
     };
   }

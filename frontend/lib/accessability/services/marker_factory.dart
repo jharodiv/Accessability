@@ -18,59 +18,13 @@ class MarkerFactory {
   static final Map<String, BitmapDescriptor> _favCache = {};
   static final Map<String, BitmapDescriptor> _badgeCache = {};
 
-  /// Generate (or return cached) favorite/place marker bitmap.
-  // static Future<BitmapDescriptor> ensureFavoriteBitmap({
-  //   required BuildContext ctx,
-  //   required String cacheKey,
-  //   Color? placeColor, // optional now
-  //   double outerSize = 88,
-  //   double innerSize = 45,
-  //   double pixelRatio = 1.0,
-  //   double outerOpacity = 1.0,
-  // }) async {
-  //   // Build a composite key so different colors/sizes won't collide in the cache
-  //   final resolvedColor = placeColor ?? const Color(0xFF7C4DFF);
-  //   final compositeKey =
-  //       '${cacheKey}_${resolvedColor.value}_os${outerSize.toInt()}_is${innerSize.toInt()}_pr${pixelRatio.toStringAsFixed(2)}';
-  //   final Color accent = MapUtils.colorForPlaceType(placeType);
-
-  //   if (_favCache.containsKey(compositeKey)) return _favCache[compositeKey]!;
-
-  //   try {
-  //     // Use BadgeIcon (keeps BadgeIcon untouched). We'll set:
-  //     // - outerRingColor = resolvedColor (purple),
-  //     // - innerBgColor = white (pointer/background white),
-  //     // - iconBgColor = resolvedColor (not strictly needed by your BadgeIcon impl,
-  //     //   but keeps intent clear), and
-  //     // - icon = Icons.place with the glyph colored purple by BadgeIcon (if BadgeIcon supports icon color).
-  //     final bmp = await BadgeIcon.createBadgeWithIcon(
-  //       ctx: ctx,
-  //       size: outerSize.toInt(),
-  //       outerRingColor: Colors.white,
-  //       iconBgColor: accent,
-  //       icon: Icons.place,
-  //       innerRatio: 0.56,
-  //       iconRatio: 0.52,
-  //     );
-
-  //     _favCache[compositeKey] = bmp;
-  //     return bmp;
-  //   } catch (e, st) {
-  //     debugPrint('MarkerFactory.ensureFavoriteBitmap error: $e\n$st');
-  //     final fallback =
-  //         BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueViolet);
-  //     _favCache[compositeKey] = fallback;
-  //     return fallback;
-  //   }
-  // }
-
   /// Create and/or cache a category badge (used by the nearby fetch logic).
   static Future<BitmapDescriptor> createBadgeForPlaceType({
     required BuildContext ctx,
     required String placeType,
     int size = 64,
   }) async {
-    final cacheKey = 'badge_$placeType';
+    final cacheKey = 'badge_${placeType.toLowerCase()}_$size';
     if (_badgeCache.containsKey(cacheKey)) return _badgeCache[cacheKey]!;
 
     final IconData iconData = _iconForPlaceType(placeType);
@@ -93,6 +47,38 @@ class MarkerFactory {
       final fallback = BitmapDescriptor.defaultMarker;
       _badgeCache[cacheKey] = fallback;
       return fallback;
+    }
+  }
+
+  /// Create a larger, more prominent badge for important places like hospitals
+  static Future<BitmapDescriptor> createProminentBadgeForPlaceType({
+    required BuildContext ctx,
+    required String placeType,
+    int size = 72, // Slightly larger for important places
+  }) async {
+    final cacheKey = 'prominent_badge_${placeType.toLowerCase()}_$size';
+    if (_badgeCache.containsKey(cacheKey)) return _badgeCache[cacheKey]!;
+
+    final IconData iconData = _iconForPlaceType(placeType);
+    final Color accent = MapUtils.colorForPlaceType(placeType);
+
+    try {
+      final badge = await BadgeIcon.createBadgeWithIcon(
+        ctx: ctx,
+        size: size,
+        outerRingColor: Colors.white,
+        iconBgColor: accent,
+        innerRatio: 0.88, // Slightly larger inner circle
+        iconRatio: 0.92, // Slightly larger icon
+        icon: iconData,
+      );
+      _badgeCache[cacheKey] = badge;
+      return badge;
+    } catch (e) {
+      debugPrint('MarkerFactory.createProminentBadgeForPlaceType error: $e');
+      // Fall back to regular badge
+      return createBadgeForPlaceType(
+          ctx: ctx, placeType: placeType, size: size);
     }
   }
 
@@ -131,34 +117,83 @@ class MarkerFactory {
   static IconData _iconForPlaceType(String type) {
     final t = type.toLowerCase();
 
+    // 🏥 Hospital - HIGH PRIORITY - check this first
+    if (t.contains('hospital') ||
+        t.contains('ospital') ||
+        t.contains('medical') ||
+        t.contains('clinic') ||
+        t.contains('health')) {
+      return Icons.local_hospital;
+    }
+
+    // 🚑 Emergency services
+    if (t.contains('emergency') || t.contains('ambulance')) {
+      return Icons.emergency;
+    }
+
+    // 🚌 Transportation
     if (t.contains('bus')) return Icons.directions_bus;
 
+    // 🍕 Food
     if (t.contains('restaurant') || t.contains('restawran')) {
       return Icons.restaurant;
     }
 
+    // 🛒 Groceries
     if (t.contains('grocery') || t.contains('grocer')) {
       return Icons.local_grocery_store;
     }
 
-    if (t.contains('hotel')) return Icons.hotel;
+    // 🏨 Accommodation
+    if (t.contains('hotel') || t.contains('motel')) return Icons.hotel;
 
     // 🛍️ Shopping
     if (t.contains('shop') ||
         t.contains('store') ||
         t.contains('pamimili') ||
-        t.contains('shopping')) {
+        t.contains('shopping') ||
+        t.contains('mall')) {
       return Icons.storefront;
     }
 
-    // 🏥 Hospital
-    if (t.contains('hospital') ||
-        t.contains('ospital') ||
-        t.contains('ospit')) {
-      return Icons.local_hospital;
+    // ⛽ Fuel
+    if (t.contains('fuel') || t.contains('gas') || t.contains('petrol')) {
+      return Icons.local_gas_station;
+    }
+
+    // 🏦 Banking
+    if (t.contains('bank') || t.contains('atm')) {
+      return Icons.account_balance;
+    }
+
+    // 🎓 Education
+    if (t.contains('school') ||
+        t.contains('university') ||
+        t.contains('college')) {
+      return Icons.school;
+    }
+
+    // 🏛️ Government
+    if (t.contains('government') || t.contains('municipal')) {
+      return Icons.account_balance;
     }
 
     return Icons.place; // fallback
+  }
+
+  /// Check if a place type should use prominent styling
+  static bool isProminentPlaceType(String type) {
+    final t = type.toLowerCase();
+    return t.contains('hospital') ||
+        t.contains('emergency') ||
+        t.contains('medical') ||
+        t.contains('police') ||
+        t.contains('fire');
+  }
+
+  /// Get appropriate badge size for a place type
+  static int getBadgeSizeForPlaceType(String type) {
+    return isProminentPlaceType(type) ? 72 : 64;
   }
 
   static void clearCaches() {

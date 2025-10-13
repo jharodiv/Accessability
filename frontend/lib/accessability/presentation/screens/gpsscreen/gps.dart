@@ -1376,6 +1376,11 @@ class _GpsScreenState extends State<GpsScreen> {
   Future<void> _fetchNearbyPlaces(String placeType) async {
     FavoriteMapMarker.clearCache();
     MarkerFactory.clearCaches();
+
+    print("🏥 Nearby places search for: $placeType");
+    if (placeType == 'Hospital') {
+      print("✅ Hospital-specific markers will be created");
+    }
     // If PWD category is selected
     if (placeType == 'PWD') {
       if (_showingPwdMarkers) {

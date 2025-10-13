@@ -1,3 +1,4 @@
+import 'package:accessability/accessability/presentation/screens/chat_system/speech_service.dart';
 import 'package:accessability/accessability/presentation/widgets/chatWidgets/verification_code_bubble.dart';
 import 'package:accessability/accessability/presentation/widgets/shimmer/shimmer_chat_center_empty.dart';
 import 'package:accessability/accessability/themes/theme_provider.dart';
@@ -8,6 +9,8 @@ import 'package:accessability/accessability/firebaseServices/auth/auth_service.d
 import 'package:accessability/accessability/firebaseServices/chat/chat_service.dart';
 import 'package:accessability/accessability/presentation/widgets/chatWidgets/chat_convo_bubble.dart';
 import 'package:accessability/accessability/presentation/widgets/reusableWidgets/custom_text_field.dart';
+import 'package:speech_to_text/speech_to_text.dart' as stt;
+import 'package:flutter_tts/flutter_tts.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
@@ -39,6 +42,9 @@ class _ChatConvoScreenState extends State<ChatConvoScreen> {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   String? editingMessageId;
   final Map<String, Map<String, dynamic>> _userCache = {};
+  final SpeechService _speechService = SpeechService();
+  bool _isListening = false;
+  String _speechText = '';
 
   @override
   void initState() {
@@ -50,6 +56,7 @@ class _ChatConvoScreenState extends State<ChatConvoScreen> {
       }
     });
     WidgetsBinding.instance.addPostFrameCallback((_) => scrollDown());
+    _initializeSpeech();
   }
 
   Future<Map<String, dynamic>> _getUserData(String userId) async {
@@ -63,6 +70,62 @@ class _ChatConvoScreenState extends State<ChatConvoScreen> {
     final data = snapshot.data() ?? {};
     _userCache[userId] = data;
     return data;
+  }
+
+  Future<void> _initializeSpeech() async {
+    bool initialized = await _speechService.initializeSpeech();
+    if (!initialized) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Speech recognition not available on this device'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  void _startListening() async {
+    if (_isListening) {
+      await _stopListening();
+      return;
+    }
+
+    // CORRECTED: Check if speech is available (property, not method)
+    if (!_speechService.isAvailable) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Speech recognition is not available on this device'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    await _speechService.startListening(
+      onResult: (text) {
+        setState(() {
+          _speechText = text;
+          messageController.text = text;
+        });
+      },
+      onListeningStarted: () {
+        setState(() {
+          _isListening = true;
+        });
+      },
+      onListeningStopped: () {
+        setState(() {
+          _isListening = false;
+        });
+      },
+    );
+  }
+
+  Future<void> _stopListening() async {
+    await _speechService.stopListening();
+    setState(() {
+      _isListening = false;
+    });
   }
 
   Future<void> _checkChatRequest() async {
@@ -376,6 +439,7 @@ class _ChatConvoScreenState extends State<ChatConvoScreen> {
 
   @override
   void dispose() {
+    _speechService.dispose();
     focusNode.dispose();
     messageController.dispose();
     scrollController.dispose();
@@ -693,35 +757,80 @@ class _ChatConvoScreenState extends State<ChatConvoScreen> {
       ),
       child: Row(
         children: [
-          Expanded(
-            child: TextField(
-              controller: messageController,
-              focusNode: focusNode,
-              style: TextStyle(
-                color: isDarkMode ? Colors.white : Colors.black,
+          // Mic Icon Button
+          Container(
+            decoration: BoxDecoration(
+              color: _isListening
+                  ? Colors.red.withOpacity(0.2)
+                  : Colors.transparent,
+              shape: BoxShape.circle,
+            ),
+            child: IconButton(
+              onPressed: _startListening,
+              icon: Icon(
+                _isListening ? Icons.mic : Icons.mic_none,
+                color: _isListening ? Colors.red : Colors.grey,
+                size: 24,
               ),
-              decoration: InputDecoration(
-                hintText: "Type a message...",
-                hintStyle: TextStyle(
-                  color: isDarkMode ? Colors.white70 : Colors.grey[600],
-                ),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(25),
-                  borderSide: BorderSide.none,
-                ),
-                filled: true,
-                fillColor: isDarkMode ? Colors.grey[800] : Colors.grey[200],
-                contentPadding: const EdgeInsets.symmetric(
-                  vertical: 10,
-                  horizontal: 16,
-                ),
-              ),
-              onChanged: (_) {
-                setState(() {}); // rebuild to check if text is empty or not
-              },
+              tooltip: _isListening ? 'Stop listening' : 'Start voice input',
             ),
           ),
           const SizedBox(width: 8),
+
+          // Message Text Field
+          Expanded(
+            child: Container(
+              decoration: BoxDecoration(
+                color: isDarkMode ? Colors.grey[800] : Colors.grey[200],
+                borderRadius: BorderRadius.circular(25),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: messageController,
+                      focusNode: focusNode,
+                      style: TextStyle(
+                        color: isDarkMode ? Colors.white : Colors.black,
+                      ),
+                      decoration: InputDecoration(
+                        hintText:
+                            _isListening ? "Listening..." : "Type a message...",
+                        hintStyle: TextStyle(
+                          color: isDarkMode ? Colors.white70 : Colors.grey[600],
+                        ),
+                        border: InputBorder.none,
+                        contentPadding: const EdgeInsets.symmetric(
+                          vertical: 12,
+                          horizontal: 16,
+                        ),
+                      ),
+                      onChanged: (_) {
+                        setState(() {});
+                      },
+                    ),
+                  ),
+
+                  // Show listening animation when active
+                  if (_isListening)
+                    Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor: AlwaysStoppedAnimation<Color>(Colors.red),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+
+          // Send/Like Button
           Container(
             decoration: const BoxDecoration(
               color: Color(0xFF6750A4),
@@ -731,7 +840,6 @@ class _ChatConvoScreenState extends State<ChatConvoScreen> {
               onPressed: messageController.text.trim().isNotEmpty
                   ? sendMessage
                   : () {
-                      // Example: send a like/emoji
                       chatService.sendMessage(
                         widget.receiverID,
                         "👍",
@@ -740,8 +848,8 @@ class _ChatConvoScreenState extends State<ChatConvoScreen> {
                     },
               icon: Icon(
                 messageController.text.trim().isNotEmpty
-                    ? Icons.arrow_upward // send
-                    : Icons.thumb_up_alt_outlined, // like/emoji
+                    ? Icons.send
+                    : Icons.thumb_up_alt_outlined,
               ),
               color: Colors.white,
             ),

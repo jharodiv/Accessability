@@ -165,6 +165,25 @@ class _SafetyAssistWidgetState extends State<SafetyAssistWidget> {
     }
   }
 
+  Future<void> _launchSMS(String phoneNumber) async {
+    // Clean the phone number - remove any non-digit characters except +
+    final cleanedNumber = phoneNumber.replaceAll(RegExp(r'[^\d+]'), '');
+
+    final uri = Uri(scheme: 'sms', path: cleanedNumber);
+
+    try {
+      if (!await launchUrl(uri)) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('cannot_launch_messages'.tr())),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error launching messages: $e')),
+      );
+    }
+  }
+
   Future<void> _safeAnimateSheetTo(double target,
       {Duration duration = const Duration(milliseconds: 300),
       Curve curve = Curves.easeOut}) async {
@@ -582,14 +601,19 @@ class _SafetyAssistWidgetState extends State<SafetyAssistWidget> {
                                             );
                                           }
                                         },
-                                        onMessagePressed: (contact) {
-                                          ScaffoldMessenger.of(context)
-                                              .showSnackBar(
-                                            SnackBar(
-                                                content: Text(
-                                                    'implement_message_action'
-                                                        .tr())),
-                                          );
+                                        onMessagePressed: (contact) async {
+                                          if (contact.phone != null &&
+                                              contact.phone!.isNotEmpty) {
+                                            await _launchSMS(contact.phone!);
+                                          } else {
+                                            ScaffoldMessenger.of(context)
+                                                .showSnackBar(
+                                              SnackBar(
+                                                  content: Text(
+                                                      'no_number_available'
+                                                          .tr())),
+                                            );
+                                          }
                                         },
                                         onDeletePressed: (contactId) {
                                           if (contactId != null &&

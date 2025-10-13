@@ -1,6 +1,7 @@
-import 'package:accessability/accessability/presentation/widgets/chatWidgets/verification_code_bubble.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:accessability/accessability/presentation/screens/chat_system/speech_service.dart';
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:accessability/accessability/presentation/widgets/chatWidgets/verification_code_bubble.dart';
 import 'package:accessability/accessability/themes/theme_provider.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -49,11 +50,60 @@ class ChatConvoBubble extends StatefulWidget {
 class _ChatConvoBubbleState extends State<ChatConvoBubble> {
   bool _showTimestamp = false;
   LatLng? _location;
+  final SpeechService _speechService = SpeechService();
+  bool _isSpeaking = false;
 
   @override
   void initState() {
     super.initState();
     _location = _extractLatLngFromMessage(widget.message);
+    _initializeSpeech();
+  }
+
+  Future<void> _initializeSpeech() async {
+    await _speechService.initializeSpeech();
+  }
+
+  Future<void> _speakMessage() async {
+    if (_isSpeaking) {
+      await _speechService.stopSpeaking();
+      setState(() {
+        _isSpeaking = false;
+      });
+      return;
+    }
+
+    setState(() {
+      _isSpeaking = true;
+    });
+
+    await _speechService.speakText(widget.message);
+
+    // Listen for completion (you might want to use a stream instead)
+    // For simplicity, we'll use a delayed check
+    Future.delayed(Duration(seconds: 1), () {
+      if (mounted) {
+        // Periodically check if speaking has stopped
+        _checkSpeakingStatus();
+      }
+    });
+  }
+
+  void _checkSpeakingStatus() {
+    if (!_speechService.isSpeaking && _isSpeaking) {
+      if (mounted) {
+        setState(() {
+          _isSpeaking = false;
+        });
+      }
+    } else if (_speechService.isSpeaking) {
+      // Check again after 1 second
+      Future.delayed(Duration(seconds: 1), () {
+        if (mounted) {
+          _checkSpeakingStatus();
+        }
+      });
+    }
   }
 
   LatLng? _extractLatLngFromMessage(String message) {
@@ -86,7 +136,6 @@ class _ChatConvoBubbleState extends State<ChatConvoBubble> {
     }
   }
 
-  // 💜 Redesigned Aesthetic Bottom Sheet
   void _showOptionsMenu(BuildContext context) {
     if (widget.isSystemMessage || widget.deleted) return;
 
@@ -146,6 +195,13 @@ class _ChatConvoBubbleState extends State<ChatConvoBubble> {
                 ],
                 _buildOptionTile(
                   context,
+                  icon: Icons.volume_up_rounded,
+                  label: 'Read Aloud',
+                  color: Colors.blue,
+                  onTap: _speakMessage,
+                ),
+                _buildOptionTile(
+                  context,
                   icon: Icons.content_copy_rounded,
                   label: 'Copy Message',
                   color: isDarkMode ? Colors.white70 : Colors.deepPurple,
@@ -196,25 +252,10 @@ class _ChatConvoBubbleState extends State<ChatConvoBubble> {
     );
   }
 
-  void _showEmojiPicker(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (context) {
-        return Container(
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-          ),
-          child: EmojiPicker(
-            onEmojiSelected: (category, emoji) {
-              widget.onReact?.call(emoji.emoji);
-              Navigator.pop(context);
-            },
-          ),
-        );
-      },
-    );
+  @override
+  void dispose() {
+    _speechService.dispose();
+    super.dispose();
   }
 
   @override
@@ -383,14 +424,51 @@ class _ChatConvoBubbleState extends State<ChatConvoBubble> {
                         _buildMapPreview(_location!),
                         const SizedBox(height: 8),
                       ],
-                      Text(
-                        widget.message,
-                        style: TextStyle(
-                          color: widget.isCurrentUser
-                              ? Colors.white
-                              : (isDarkMode ? Colors.white : Colors.black),
-                          fontSize: 14,
-                        ),
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            child: Text(
+                              widget.message,
+                              style: TextStyle(
+                                color: widget.isCurrentUser
+                                    ? Colors.white
+                                    : (isDarkMode
+                                        ? Colors.white
+                                        : Colors.black),
+                                fontSize: 14,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          // Speaker Icon
+                          GestureDetector(
+                            onTap: _speakMessage,
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 200),
+                              padding: const EdgeInsets.all(6),
+                              decoration: BoxDecoration(
+                                color: _isSpeaking
+                                    ? Colors.blue.withOpacity(0.2)
+                                    : Colors.transparent,
+                                shape: BoxShape.circle,
+                              ),
+                              child: Icon(
+                                _isSpeaking
+                                    ? Icons.volume_up
+                                    : Icons.volume_up_outlined,
+                                size: 16,
+                                color: _isSpeaking
+                                    ? Colors.blue
+                                    : (widget.isCurrentUser
+                                        ? Colors.white70
+                                        : (isDarkMode
+                                            ? Colors.white70
+                                            : Colors.grey[600])),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),

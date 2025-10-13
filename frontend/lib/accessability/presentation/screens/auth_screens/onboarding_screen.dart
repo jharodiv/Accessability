@@ -1,7 +1,9 @@
+// onboarding_with_speech.dart
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:accessability/accessability/logic/bloc/auth/auth_bloc.dart';
 import 'package:accessability/accessability/logic/bloc/auth/auth_event.dart';
+import 'package:accessability/accessability/presentation/screens/chat_system/speech_service.dart'; // your service file
+// other imports...
 
 class OnboardingScreen extends StatefulWidget {
   const OnboardingScreen({super.key});
@@ -15,6 +17,14 @@ class OnboardingScreen extends StatefulWidget {
 class _OnboardingScreenState extends State<OnboardingScreen> {
   final PageController _pageController = PageController();
   int _currentPage = 0;
+
+  final SpeechService _speechService = SpeechService();
+
+  // if user dictates, we'll show live transcription here
+  final Map<int, String> _liveTranscription = {};
+
+  bool _isListening = false;
+  bool _speechAvailable = false;
 
   final List<String> _images = [
     'assets/images/onboarding/onboarding_0.png',
@@ -34,6 +44,17 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     'We’re so glad you’ve chosen our app to assist with your navigation and communication needs. Our goal is to make your journey safer and more connected. Thank you for using our app, and we hope it enhances your daily experience.',
   ];
 
+  @override
+  void initState() {
+    super.initState();
+    _initSpeech();
+  }
+
+  Future<void> _initSpeech() async {
+    _speechAvailable = await _speechService.initializeSpeech();
+    if (mounted) setState(() {});
+  }
+
   void _onNextPressed() {
     if (_currentPage < _images.length - 1) {
       _pageController.nextPage(
@@ -41,10 +62,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         curve: Curves.easeIn,
       );
     } else {
-      // Complete the onboarding process using BLoC
-      print('OnboardingScreen: Dispatching CompleteOnboardingEvent');
+      // Complete the onboarding process using BLoC (if needed)
       // context.read<AuthBloc>().add(CompleteOnboardingEvent());
-      // Navigate to the home screen
       Navigator.of(context).pushReplacementNamed(
         '/homescreen',
         arguments: {'showTutorial': true},
@@ -52,17 +71,75 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     }
   }
 
+  Future<void> _toggleListening() async {
+    if (!_speechAvailable) {
+      // optionally show a message or reinitialize
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Speech recognition not available')),
+      );
+      return;
+    }
+
+    if (_isListening) {
+      await _speechService.stopListening();
+      setState(() => _isListening = false);
+      return;
+    }
+
+    // start listening
+    await _speechService.startListening(
+      onResult: (text) {
+        // update live transcription for the current page
+        if (mounted) {
+          setState(() {
+            _liveTranscription[_currentPage] = text;
+          });
+        }
+      },
+      onListeningStarted: () {
+        if (mounted) setState(() => _isListening = true);
+      },
+      onListeningStopped: () {
+        if (mounted) setState(() => _isListening = false);
+      },
+    );
+  }
+
+  void _speakCurrentDescription() {
+    final text = _descriptions[_currentPage];
+    _speechService.speakText(text);
+  }
+
   @override
   void dispose() {
+    _speechService.dispose();
     _pageController.dispose();
     super.dispose();
+  }
+
+  Widget _buildIndicators() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: List.generate(_images.length, (index) {
+        return Container(
+          margin: const EdgeInsets.symmetric(horizontal: 4),
+          width: 12,
+          height: 12,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color:
+                index == _currentPage ? const Color(0xFF6750A4) : Colors.grey,
+          ),
+        );
+      }),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return WillPopScope(
       onWillPop: () async {
-        // Returning false disables back button
+        // Disable back button
         return false;
       },
       child: Scaffold(
@@ -85,6 +162,11 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                         },
                         itemCount: _images.length,
                         itemBuilder: (context, index) {
+                          final description =
+                              _liveTranscription[index]?.isNotEmpty == true
+                                  ? _liveTranscription[index]!
+                                  : _descriptions[index];
+
                           return Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
@@ -94,13 +176,36 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                                 fit: BoxFit.cover,
                               ),
                               const SizedBox(height: 20),
-                              Text(
-                                _descriptions[index],
-                                style: const TextStyle(
-                                  fontSize: 18,
-                                  color: Colors.black,
+                              // description (or live transcription while listening)
+                              Padding(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 12.0),
+                                child: Text(
+                                  description,
+                                  style: const TextStyle(
+                                    fontSize: 18,
+                                    color: Colors.black,
+                                  ),
+                                  textAlign: TextAlign.center,
                                 ),
-                                textAlign: TextAlign.center,
+                              ),
+                              const SizedBox(height: 12),
+
+                              // mic + speaker row (centered)
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  // Speaker (TTS)
+                                  IconButton(
+                                    onPressed: _speakCurrentDescription,
+                                    iconSize: 28,
+                                    icon: const Icon(Icons.volume_up_outlined),
+                                    color: const Color(0xFF6750A4),
+                                    tooltip: 'Read aloud',
+                                  ),
+
+                                  const SizedBox(width: 10),
+                                ],
                               ),
                             ],
                           );
@@ -108,22 +213,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                       ),
                     ),
                     const SizedBox(height: 20),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: List.generate(_images.length, (index) {
-                        return Container(
-                          margin: const EdgeInsets.symmetric(horizontal: 4),
-                          width: 12,
-                          height: 12,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: index == _currentPage
-                                ? const Color(0xFF6750A4)
-                                : Colors.grey,
-                          ),
-                        );
-                      }),
-                    ),
+                    _buildIndicators(),
                     const SizedBox(height: 20),
                     ElevatedButton(
                       onPressed: _onNextPressed,
@@ -137,6 +227,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                         style: const TextStyle(color: Colors.white),
                       ),
                     ),
+                    const SizedBox(height: 16),
                   ],
                 ),
               ),

@@ -19,8 +19,6 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   int _currentPage = 0;
 
   final SpeechService _speechService = SpeechService();
-
-  // if user dictates, we'll show live transcription here
   final Map<int, String> _liveTranscription = {};
 
   bool _isListening = false;
@@ -62,8 +60,6 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         curve: Curves.easeIn,
       );
     } else {
-      // Complete the onboarding process using BLoC (if needed)
-      // context.read<AuthBloc>().add(CompleteOnboardingEvent());
       Navigator.of(context).pushReplacementNamed(
         '/homescreen',
         arguments: {'showTutorial': true},
@@ -73,7 +69,6 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
   Future<void> _toggleListening() async {
     if (!_speechAvailable) {
-      // optionally show a message or reinitialize
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Speech recognition not available')),
       );
@@ -86,10 +81,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       return;
     }
 
-    // start listening
     await _speechService.startListening(
       onResult: (text) {
-        // update live transcription for the current page
         if (mounted) {
           setState(() {
             _liveTranscription[_currentPage] = text;
@@ -117,7 +110,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     super.dispose();
   }
 
-  Widget _buildIndicators() {
+  Widget _buildIndicators(Color activeColor, Color inactiveColor) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: List.generate(_images.length, (index) {
@@ -127,8 +120,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
           height: 12,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            color:
-                index == _currentPage ? const Color(0xFF6750A4) : Colors.grey,
+            color: index == _currentPage ? activeColor : inactiveColor,
           ),
         );
       }),
@@ -137,12 +129,21 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    final backgroundColor = isDark ? const Color(0xFF121212) : Colors.white;
+    final textColor = isDark ? Colors.white.withOpacity(0.9) : Colors.black;
+    final headingColor =
+        isDark ? const Color(0xFFD0BCFF) : const Color(0xFF6750A4);
+    final indicatorActive = const Color(0xFF6750A4);
+    final indicatorInactive = isDark ? Colors.white30 : Colors.grey.shade400;
+    final buttonColor = const Color(0xFF6750A4);
+
     return WillPopScope(
-      onWillPop: () async {
-        // Disable back button
-        return false;
-      },
+      onWillPop: () async => false,
       child: Scaffold(
+        backgroundColor: backgroundColor,
         body: Padding(
           padding: const EdgeInsets.all(20.0),
           child: Stack(
@@ -176,35 +177,29 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                                 fit: BoxFit.cover,
                               ),
                               const SizedBox(height: 20),
-                              // description (or live transcription while listening)
                               Padding(
                                 padding: const EdgeInsets.symmetric(
                                     horizontal: 12.0),
                                 child: Text(
                                   description,
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     fontSize: 18,
-                                    color: Colors.black,
+                                    color: textColor,
                                   ),
                                   textAlign: TextAlign.center,
                                 ),
                               ),
                               const SizedBox(height: 12),
-
-                              // mic + speaker row (centered)
                               Row(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
-                                  // Speaker (TTS)
                                   IconButton(
                                     onPressed: _speakCurrentDescription,
                                     iconSize: 28,
                                     icon: const Icon(Icons.volume_up_outlined),
-                                    color: const Color(0xFF6750A4),
+                                    color: buttonColor,
                                     tooltip: 'Read aloud',
                                   ),
-
-                                  const SizedBox(width: 10),
                                 ],
                               ),
                             ],
@@ -213,34 +208,40 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                       ),
                     ),
                     const SizedBox(height: 20),
-                    _buildIndicators(),
+                    _buildIndicators(indicatorActive, indicatorInactive),
                     const SizedBox(height: 20),
                     ElevatedButton(
                       onPressed: _onNextPressed,
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF6750A4),
+                        backgroundColor: buttonColor,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 32, vertical: 14),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(30)),
                       ),
                       child: Text(
                         _currentPage == _images.length - 1
                             ? 'Get Started'
                             : 'Next',
-                        style: const TextStyle(color: Colors.white),
+                        style:
+                            const TextStyle(color: Colors.white, fontSize: 16),
                       ),
                     ),
                     const SizedBox(height: 16),
                   ],
                 ),
               ),
-              const Align(
+              Align(
                 alignment: Alignment.topCenter,
                 child: Padding(
-                  padding: EdgeInsets.only(top: 40),
+                  padding: const EdgeInsets.only(top: 40),
                   child: Text(
                     'Accessibility',
                     style: TextStyle(
                       fontSize: 24,
-                      fontWeight: FontWeight.w500,
-                      color: Color(0xFF6750A4),
+                      fontWeight: FontWeight.w600,
+                      color: headingColor,
                     ),
                   ),
                 ),

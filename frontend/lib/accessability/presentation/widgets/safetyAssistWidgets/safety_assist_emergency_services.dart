@@ -8,7 +8,6 @@ import 'package:provider/provider.dart';
 class SafetyAssistEmergencyServices extends StatelessWidget {
   const SafetyAssistEmergencyServices({Key? key}) : super(key: key);
 
-  // Full services list
   static const List<Map<String, String>> _services = [
     {
       'title': 'DAGUPAN PNP',
@@ -102,31 +101,38 @@ class SafetyAssistEmergencyServices extends StatelessWidget {
     }
   }
 
-  /// Map a service title to an asset path.
-  /// Make sure these filenames match your assets exactly (case-sensitive on some platforms).
   String _assetForTitle(String title) {
     final t = title.toLowerCase();
-    if (t.contains('pnp') || t.contains('police'))
+    if (t.contains('pnp') || t.contains('police')) {
       return 'assets/images/emergencyservices/police_station.png';
-    if (t.contains('bfp') || t.contains('fire'))
+    }
+    if (t.contains('bfp') || t.contains('fire')) {
       return 'assets/images/emergencyservices/bfp_dagupan.png';
-    if (t.contains('red') || t.contains('cross'))
+    }
+    if (t.contains('red') || t.contains('cross')) {
       return 'assets/images/emergencyservices/red_cross.png';
-    if (t.contains('health') || t.contains('city health'))
+    }
+    if (t.contains('health') || t.contains('city health')) {
       return 'assets/images/emergencyservices/city_health.png';
-    if (t.contains('disaster') || t.contains('cdrrmo'))
+    }
+    if (t.contains('disaster') || t.contains('cdrrmo')) {
       return 'assets/images/emergencyservices/cdrrmo.png';
-    if (t.contains('social') || t.contains('cswd'))
+    }
+    if (t.contains('social') || t.contains('cswd')) {
       return 'assets/images/emergencyservices/cswd.png';
-    if (t.contains('poso'))
+    }
+    if (t.contains('poso')) {
       return 'assets/images/emergencyservices/poso_dagupan.png';
-    if (t.contains('panda'))
+    }
+    if (t.contains('panda')) {
       return 'assets/images/emergencyservices/panda_volunteer.png';
-    if (t.contains('ofw'))
+    }
+    if (t.contains('ofw')) {
       return 'assets/images/emergencyservices/ofw_desk.png';
-    if (t.contains('anti') || t.contains('vawc'))
+    }
+    if (t.contains('anti') || t.contains('vawc')) {
       return 'assets/images/emergencyservices/anti_vawc.png';
-    // fallback
+    }
     return 'assets/images/emergencyservices/support.png';
   }
 
@@ -134,16 +140,18 @@ class SafetyAssistEmergencyServices extends StatelessWidget {
   Widget build(BuildContext context) {
     final bool isDarkMode = Provider.of<ThemeProvider>(context).isDarkMode;
 
-    // header red for light mode, slightly darker red for dark mode
     final Color headerRed =
         isDarkMode ? const Color(0xFF8B0000) : const Color(0xFFD32F2F);
-    // scaffold background adapts to theme but keep light-ish for content in light mode
     final Color scaffoldBg =
         isDarkMode ? Colors.grey[900]! : const Color(0xFFF2F6FA);
 
-    const titleColor = Colors.black;
-    const subtitleColor = Colors.black54;
-    const numberColor = Colors.black87;
+    // text colors adapt to dark mode
+    final Color titleColor = isDarkMode ? Colors.white : Colors.black;
+    final Color subtitleColor = isDarkMode ? Colors.grey[400]! : Colors.black54;
+    final Color numberColor = isDarkMode ? Colors.grey[200]! : Colors.black87;
+
+    final Color dividerColor =
+        isDarkMode ? Colors.grey[800]! : const Color(0xFFF0F0F0);
 
     return Scaffold(
       backgroundColor: scaffoldBg,
@@ -154,7 +162,9 @@ class SafetyAssistEmergencyServices extends StatelessWidget {
             color: headerRed,
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.12),
+                color: isDarkMode
+                    ? Colors.black.withOpacity(0.4)
+                    : Colors.black.withOpacity(0.12),
                 offset: const Offset(0, 2),
                 blurRadius: 6,
               ),
@@ -166,7 +176,7 @@ class SafetyAssistEmergencyServices extends StatelessWidget {
                 IconButton(
                   onPressed: () => Navigator.of(context).maybePop(),
                   icon: const Icon(Icons.arrow_back),
-                  color: Colors.white, // white on red appbar
+                  color: Colors.white,
                 ),
                 Expanded(
                   child: Column(
@@ -193,7 +203,7 @@ class SafetyAssistEmergencyServices extends StatelessWidget {
                     ],
                   ),
                 ),
-                const SizedBox(width: 48), // keep symmetric spacing
+                const SizedBox(width: 48),
               ],
             ),
           ),
@@ -211,14 +221,14 @@ class SafetyAssistEmergencyServices extends StatelessWidget {
                   ? Center(
                       child: Text(
                         'no_contacts'.tr(),
-                        style: const TextStyle(color: Colors.black54),
+                        style: TextStyle(color: subtitleColor),
                       ),
                     )
                   : ListView.separated(
                       physics: const BouncingScrollPhysics(),
                       itemCount: _services.length,
                       separatorBuilder: (_, __) =>
-                          const Divider(color: Color(0xFFF0F0F0), height: 20),
+                          Divider(color: dividerColor, height: 20),
                       itemBuilder: (context, index) {
                         final s = _services[index];
                         final asset = _assetForTitle(s['title'] ?? '');

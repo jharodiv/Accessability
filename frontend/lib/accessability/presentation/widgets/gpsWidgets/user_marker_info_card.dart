@@ -6,15 +6,10 @@ class UserMarkerInfoCard extends StatelessWidget {
   final String address;
   final double distanceKm;
   final String profileUrl;
-
-  // telemetry fields are nullable now (real values expected from phone/Firestore)
-  final int? batteryPercent; // 0..100 or null if unknown
-  final double? speedKmh; // e.g. 12.5 (km/h) or null if unknown
-  final DateTime? timestamp; // nullable
-
+  final int? batteryPercent;
+  final double? speedKmh;
+  final DateTime? timestamp;
   final VoidCallback? onClose;
-
-  // Optional width & height so caller can control layout
   final double width;
   final double? height;
 
@@ -43,7 +38,6 @@ class UserMarkerInfoCard extends StatelessWidget {
     final ampm = ts.hour >= 12 ? 'PM' : 'AM';
 
     if (sameDay) return 'Today · $hour:$minute $ampm';
-
     final y = ts.year;
     final m = ts.month.toString().padLeft(2, '0');
     final d = ts.day.toString().padLeft(2, '0');
@@ -51,36 +45,46 @@ class UserMarkerInfoCard extends StatelessWidget {
   }
 
   Widget _chip({
+    required BuildContext context,
     required IconData icon,
     required String label,
     Color? iconColor,
   }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
       decoration: BoxDecoration(
-        color: Colors.grey.shade100,
+        color: isDark ? Colors.grey[850] : Colors.grey.shade100,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.grey.shade200),
+        border: Border.all(
+            color: isDark ? Colors.grey[700]! : Colors.grey.shade200),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 14, color: iconColor ?? Colors.grey[700]),
+          Icon(icon,
+              size: 14,
+              color:
+                  iconColor ?? (isDark ? Colors.grey[300] : Colors.grey[700])),
           const SizedBox(width: 6),
-          Text(label, style: const TextStyle(fontSize: 12)),
+          Text(
+            label,
+            style: TextStyle(
+                fontSize: 12, color: isDark ? Colors.grey[200] : Colors.black),
+          ),
         ],
       ),
     );
   }
 
-  Widget _batteryWidget() {
+  Widget _batteryWidget(BuildContext context) {
     if (batteryPercent == null) {
-      return _chip(icon: Icons.battery_unknown, label: '—');
+      return _chip(context: context, icon: Icons.battery_unknown, label: '—');
     }
 
     final p = batteryPercent!.clamp(0, 100);
     final Color color = p >= 50
-        ? Colors.green.shade700
+        ? Colors.green.shade600
         : (p >= 20 ? Colors.orange : Colors.red);
     final IconData icon;
     if (p >= 80) {
@@ -91,29 +95,25 @@ class UserMarkerInfoCard extends StatelessWidget {
       icon = Icons.battery_alert;
     }
 
-    return _chip(icon: icon, label: '$p%', iconColor: color);
+    return _chip(context: context, icon: icon, label: '$p%', iconColor: color);
   }
 
-  Widget _speedWidget() {
+  Widget _speedWidget(BuildContext context) {
     final label =
         speedKmh != null ? '${speedKmh!.toStringAsFixed(0)} km/h' : '—';
-    return _chip(icon: Icons.speed, label: label);
+    return _chip(context: context, icon: Icons.speed, label: label);
   }
 
   bool get _isOnline {
     if (timestamp == null) return false;
     final diff = DateTime.now().difference(timestamp!);
-    // treat as online if reported within last 3 minutes
     return diff.inMinutes < 3;
   }
 
   Widget _leftColumn(BuildContext context) {
-    // New layout: small circular status icon + "Online"/"Offline" in a single row,
-    // then the enlarged centered avatar.
     const double leftColumnWidth = 96;
     const double avatarSize = 84;
 
-    // small status dot widget so we can control size & color precisely
     Widget _statusDot(bool online) {
       return Container(
         width: 10,
@@ -125,12 +125,13 @@ class UserMarkerInfoCard extends StatelessWidget {
       );
     }
 
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return SizedBox(
       width: leftColumnWidth,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // status row at the very top (dot icon + Online/Offline)
           Padding(
             padding: const EdgeInsets.only(top: 2.0, bottom: 8.0),
             child: Row(
@@ -140,27 +141,28 @@ class UserMarkerInfoCard extends StatelessWidget {
                 const SizedBox(width: 6),
                 Text(
                   _isOnline ? 'Online' : 'Offline',
-                  style: const TextStyle(
-                      fontSize: 12, fontWeight: FontWeight.w600),
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: isDark ? Colors.white : Colors.black,
+                  ),
                 ),
               ],
             ),
           ),
-
-          // larger avatar centered
           ClipRRect(
             borderRadius: BorderRadius.circular(12),
             child: SizedBox(
               width: avatarSize,
               height: avatarSize,
               child: profileUrl.isNotEmpty
-                  ? Image.network(profileUrl,
-                      width: avatarSize, height: avatarSize, fit: BoxFit.cover)
-                  : Image.asset('assets/images/others/default_profile.png',
-                      width: avatarSize, height: avatarSize, fit: BoxFit.cover),
+                  ? Image.network(profileUrl, fit: BoxFit.cover)
+                  : Image.asset(
+                      'assets/images/others/default_profile.png',
+                      fit: BoxFit.cover,
+                    ),
             ),
           ),
-
           const SizedBox(height: 6),
         ],
       ),
@@ -169,59 +171,67 @@ class UserMarkerInfoCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final timeLabel = _formatTimestampShort(timestamp);
 
     return Material(
       color: Colors.transparent,
       child: Container(
         width: width,
-        height: height, // use supplied height to match overlay calc
+        height: height,
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: isDark ? Colors.grey[900] : Colors.white,
           borderRadius: BorderRadius.circular(14),
-          boxShadow: const [
+          boxShadow: [
             BoxShadow(
-                color: Colors.black26, blurRadius: 10, offset: Offset(0, 6))
+              color: isDark ? Colors.black45 : Colors.black26,
+              blurRadius: 10,
+              offset: const Offset(0, 6),
+            ),
           ],
         ),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Left column: status at top + big avatar (centered)
             _leftColumn(context),
-
             const SizedBox(width: 12),
-
-            // right column (info)
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // TOP ROW: timestamp at left, close at right (single row)
                   Row(
                     children: [
-                      // Make the timestamp chip flexible so it can shrink when space is tight.
                       Flexible(
                         child: Container(
                           padding: const EdgeInsets.symmetric(
                               horizontal: 8, vertical: 6),
                           decoration: BoxDecoration(
-                            color: Colors.grey.shade100,
+                            color: isDark
+                                ? Colors.grey[850]
+                                : Colors.grey.shade100,
                             borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: Colors.grey.shade200),
+                            border: Border.all(
+                                color: isDark
+                                    ? Colors.grey[700]!
+                                    : Colors.grey.shade200),
                           ),
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              const Icon(Icons.access_time,
-                                  size: 14, color: Colors.grey),
+                              Icon(Icons.access_time,
+                                  size: 14,
+                                  color:
+                                      isDark ? Colors.grey[400] : Colors.grey),
                               const SizedBox(width: 6),
-                              // Ensure the text truncates instead of overflowing
                               Expanded(
                                 child: Text(
                                   timeLabel,
-                                  style: const TextStyle(fontSize: 12),
+                                  style: TextStyle(
+                                      fontSize: 12,
+                                      color: isDark
+                                          ? Colors.grey[300]
+                                          : Colors.black),
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                   softWrap: false,
@@ -231,49 +241,44 @@ class UserMarkerInfoCard extends StatelessWidget {
                           ),
                         ),
                       ),
-
                       const SizedBox(width: 8),
-
-                      // close icon (right)
                       GestureDetector(
                         onTap: onClose,
                         child: Padding(
                           padding: const EdgeInsets.only(left: 8, bottom: 2),
                           child: Icon(Icons.close,
-                              size: 18, color: Colors.grey[700]),
+                              size: 18,
+                              color:
+                                  isDark ? Colors.grey[400] : Colors.grey[700]),
                         ),
                       ),
                     ],
                   ),
-
                   const SizedBox(height: 8),
-
-                  // NAME (own row)
                   Text(
                     username,
-                    style: const TextStyle(
-                        fontWeight: FontWeight.w700, fontSize: 15),
+                    style: TextStyle(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 15,
+                      color: isDark ? Colors.white : Colors.black,
+                    ),
                     overflow: TextOverflow.ellipsis,
                   ),
-
                   const SizedBox(height: 6),
-
-                  // distance + address (two-line)
                   Text(
                     '${distanceKm.toStringAsFixed(1)} km · $address',
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(fontSize: 13, color: Colors.grey[700]),
+                    style: TextStyle(
+                        fontSize: 13,
+                        color: isDark ? Colors.grey[400] : Colors.grey[700]),
                   ),
-
                   const SizedBox(height: 10),
-
-                  // chips row: battery | speed
                   Row(
                     children: [
-                      _batteryWidget(),
+                      _batteryWidget(context),
                       const SizedBox(width: 8),
-                      _speedWidget(),
+                      _speedWidget(context),
                       const Spacer(),
                     ],
                   ),
@@ -286,9 +291,6 @@ class UserMarkerInfoCard extends StatelessWidget {
     );
   }
 
-  /// Helper: show the card as a full-screen overlay/dialog.
-  /// Tapping anywhere outside the card will dismiss immediately.
-  /// alignment controls where the card sits (e.g. Alignment.topCenter).
   static Future<void> showOverlay(
     BuildContext context, {
     required String username,
@@ -304,21 +306,17 @@ class UserMarkerInfoCard extends StatelessWidget {
   }) {
     return showDialog(
       context: context,
-      barrierDismissible: true, // tapping outside dismisses immediately
+      barrierDismissible: true,
       barrierColor: Colors.transparent,
       builder: (ctx) {
         return GestureDetector(
           behavior: HitTestBehavior.opaque,
-          onTap: () {
-            // Tap on barrier (outside card) -> dismiss immediately
-            Navigator.of(ctx).pop();
-          },
+          onTap: () => Navigator.of(ctx).pop(),
           child: Material(
             type: MaterialType.transparency,
             child: SafeArea(
               child: Stack(
                 children: [
-                  // Align the card where caller wants it
                   Align(
                     alignment: alignment,
                     child: Padding(
@@ -334,9 +332,7 @@ class UserMarkerInfoCard extends StatelessWidget {
                         timestamp: timestamp,
                         width: width,
                         height: height,
-                        onClose: () {
-                          Navigator.of(ctx).pop();
-                        },
+                        onClose: () => Navigator.of(ctx).pop(),
                       ),
                     ),
                   ),

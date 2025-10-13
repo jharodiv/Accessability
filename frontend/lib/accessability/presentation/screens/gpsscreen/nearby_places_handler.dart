@@ -113,8 +113,8 @@ class NearbyPlacesHandler {
     final query = '''
       [out:json][timeout:25];
       (
-        node[$osmTag](around:15000,${location.latitude},${location.longitude});
-        way[$osmTag](around:15000,${location.latitude},${location.longitude});
+        node[$osmTag](around:1500,${location.latitude},${location.longitude});
+        way[$osmTag](around:1500,${location.latitude},${location.longitude});
       );
       out center;
     ''';

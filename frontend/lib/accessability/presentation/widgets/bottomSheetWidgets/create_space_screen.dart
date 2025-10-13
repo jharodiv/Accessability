@@ -23,6 +23,9 @@ class _CreateSpaceScreenState extends State<CreateSpaceScreen> {
   bool _isDisposed = false;
   bool _navigationCompleted = false;
 
+  static const Color purple = Color(0xFF6750A4);
+  static const Color lightPurple = Color(0xFFD8CFE8);
+
   @override
   void initState() {
     super.initState();
@@ -57,7 +60,6 @@ class _CreateSpaceScreenState extends State<CreateSpaceScreen> {
       final verificationCode = _generateVerificationCode();
       final now = Timestamp.now();
 
-      // Create space document
       final spaceRef = await _firestore.collection('Spaces').add({
         'name': spaceName,
         'creator': user.uid,
@@ -67,12 +69,9 @@ class _CreateSpaceScreenState extends State<CreateSpaceScreen> {
         'createdAt': now,
       });
 
-      // Create chat room
       await _chatService.createSpaceChatRoom(spaceRef.id, spaceName);
 
       _showSnackBar('space_created_successfully'.tr());
-
-      // Mark navigation as completed
       _navigationCompleted = true;
 
       Future.microtask(() {
@@ -94,10 +93,7 @@ class _CreateSpaceScreenState extends State<CreateSpaceScreen> {
   void _showSnackBar(String message) {
     if (_isDisposed) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        duration: const Duration(seconds: 2),
-      ),
+      SnackBar(content: Text(message), duration: const Duration(seconds: 2)),
     );
   }
 
@@ -106,9 +102,7 @@ class _CreateSpaceScreenState extends State<CreateSpaceScreen> {
         _isDisposed ||
         _navigationCompleted ||
         !Navigator.canPop(context)) return;
-
     _navigationCompleted = true;
-
     Future.microtask(() {
       if (!_isDisposed) {
         Navigator.of(context).pop({'success': false});
@@ -124,13 +118,16 @@ class _CreateSpaceScreenState extends State<CreateSpaceScreen> {
   @override
   Widget build(BuildContext context) {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    final textColor = isDarkMode ? Colors.white : Colors.black;
+    final backgroundColor = isDarkMode ? Colors.grey[900] : Colors.white;
 
     return Scaffold(
+      backgroundColor: backgroundColor,
       appBar: PreferredSize(
         preferredSize: const Size.fromHeight(65),
         child: Container(
           decoration: BoxDecoration(
-            color: isDarkMode ? Colors.grey[900] : Colors.white,
+            color: backgroundColor,
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withOpacity(0.1),
@@ -141,20 +138,20 @@ class _CreateSpaceScreenState extends State<CreateSpaceScreen> {
           ),
           child: AppBar(
             elevation: 0,
+            backgroundColor: Colors.transparent,
             leading: IconButton(
               onPressed: _safePop,
               icon: const Icon(Icons.arrow_back),
-              color: const Color(0xFF6750A4), // Purple arrow
+              color: purple, // Always purple arrow
             ),
             title: Text(
               'createSpace'.tr(),
-              style: const TextStyle(
+              style: TextStyle(
                 fontWeight: FontWeight.bold,
-                color: Colors.black, // Title black
+                color: textColor,
               ),
             ).tr(),
             centerTitle: true,
-            backgroundColor: Colors.transparent,
           ),
         ),
       ),
@@ -171,26 +168,24 @@ class _CreateSpaceScreenState extends State<CreateSpaceScreen> {
             TextField(
               controller: _spaceNameController,
               focusNode: _nameFocusNode,
+              style: TextStyle(color: textColor),
               decoration: InputDecoration(
                 labelText: 'space_name'.tr(),
                 labelStyle: const TextStyle(color: Color(0xFF6750A4)),
                 border: OutlineInputBorder(
-                  borderSide: const BorderSide(color: Color(0xFF6750A4)),
+                  borderSide: const BorderSide(color: purple),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 enabledBorder: OutlineInputBorder(
-                  borderSide: const BorderSide(color: Color(0xFF6750A4)),
+                  borderSide: const BorderSide(color: purple),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 focusedBorder: OutlineInputBorder(
-                  borderSide: const BorderSide(
-                    color: Color(0xFF6750A4),
-                    width: 2,
-                  ),
+                  borderSide: const BorderSide(color: purple, width: 2),
                   borderRadius: BorderRadius.circular(8),
                 ),
               ),
-              cursorColor: const Color(0xFF6750A4),
+              cursorColor: purple,
               textInputAction: TextInputAction.done,
               onSubmitted: (_) => _createSpace(),
             ),
@@ -199,11 +194,18 @@ class _CreateSpaceScreenState extends State<CreateSpaceScreen> {
               children: [
                 Expanded(
                   child: ElevatedButton(
-                    onPressed: _isLoading ? null : _createSpace,
+                    onPressed:
+                        _isLoading || _spaceNameController.text.trim().isEmpty
+                            ? null
+                            : _createSpace,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF6750A4),
+                      backgroundColor: _spaceNameController.text.trim().isEmpty
+                          ? lightPurple
+                          : purple,
+                      foregroundColor: Colors.white,
                       shape: const StadiumBorder(),
                       padding: const EdgeInsets.symmetric(vertical: 12),
+                      elevation: 0,
                     ),
                     child: _isLoading
                         ? const SizedBox(
@@ -222,7 +224,8 @@ class _CreateSpaceScreenState extends State<CreateSpaceScreen> {
                   child: OutlinedButton(
                     onPressed: _isLoading ? null : _safePop,
                     style: OutlinedButton.styleFrom(
-                      side: const BorderSide(color: Color(0xFF6750A4)),
+                      side: const BorderSide(color: purple),
+                      foregroundColor: purple,
                       shape: const StadiumBorder(),
                       padding: const EdgeInsets.symmetric(vertical: 12),
                     ),

@@ -73,7 +73,7 @@ class SpaceManagementList extends StatelessWidget {
         ? 'roleOwner'
         : (currentUserRole == 'admin' ? 'roleAdmin' : 'roleMember');
 
-    final dividerColor = isDark ? Colors.grey[800] : Colors.grey[200];
+    final dividerColor = isDark ? Colors.white12 : Colors.grey[200];
 
     return Container(
       // light-mode: soft gray like the screenshot; dark-mode keeps scaffold bg
@@ -85,7 +85,8 @@ class SpaceManagementList extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
             child: Card(
-              elevation: 4,
+              color: isDark ? Colors.grey[850] : Colors.white,
+              elevation: isDark ? 1 : 4,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12),
               ),
@@ -94,7 +95,7 @@ class SpaceManagementList extends StatelessWidget {
                     horizontal: 16.0, vertical: 18.0),
                 child: Row(
                   children: [
-                    // icon cluster (stacked avatars)
+                    // icon cluster (stacked avatars) — use toned backgrounds in dark mode
                     SizedBox(
                       width: 64,
                       height: 48,
@@ -105,7 +106,9 @@ class SpaceManagementList extends StatelessWidget {
                             left: 28,
                             child: CircleAvatar(
                               radius: 16,
-                              backgroundColor: Colors.yellow[700],
+                              backgroundColor: isDark
+                                  ? Colors.orange[700]
+                                  : Colors.yellow[700],
                               child: Icon(Icons.person,
                                   size: 16, color: Colors.white),
                             ),
@@ -114,7 +117,9 @@ class SpaceManagementList extends StatelessWidget {
                             left: 14,
                             child: CircleAvatar(
                               radius: 16,
-                              backgroundColor: Colors.pink[300],
+                              backgroundColor: isDark
+                                  ? Colors.pink[300]!.withOpacity(0.9)
+                                  : Colors.pink[300],
                               child: Icon(Icons.person,
                                   size: 16, color: Colors.white),
                             ),
@@ -146,13 +151,16 @@ class SpaceManagementList extends StatelessWidget {
                               color: (spaceId != null &&
                                       spaceId == lastUpdatedSpaceId)
                                   ? _purple
-                                  : null,
+                                  : (isDark ? Colors.white : Colors.black),
                             ),
                           ),
                           const SizedBox(height: 6),
                           Text(
-                            'space_changes_notice'.tr(),
-                            style: theme.textTheme.bodySmall,
+                            'Changes you make here apply only to the current selected Space.'
+                                .tr(),
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: isDark ? Colors.white70 : Colors.black54,
+                            ),
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
                           ),
@@ -415,17 +423,30 @@ class SpaceManagementList extends StatelessWidget {
     double verticalPadding = 18.0,
     Widget? trailingWidget,
   }) {
-    final effectiveTitleStyle = titleStyle ??
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    final baseTitleStyle = titleStyle ??
         const TextStyle(
             fontWeight: FontWeight.w700, fontSize: 16.0, color: _purple);
 
-    // White tile background to match screenshot
+    // ensure title is readable in dark
+    final effectiveTitleStyle = baseTitleStyle.copyWith(
+      color: isDark
+          ? (baseTitleStyle.color ?? _purple).computeLuminance() > 0.5
+              ? baseTitleStyle.color
+              : Colors.white
+          : (baseTitleStyle.color ?? _purple),
+    );
+
     return Material(
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
+        splashColor: _purple.withOpacity(isDark ? 0.18 : 0.12),
+        highlightColor: _purple.withOpacity(isDark ? 0.08 : 0.04),
         child: Container(
-          color: Colors.white,
+          color: isDark ? theme.scaffoldBackgroundColor : Colors.white,
           padding:
               EdgeInsets.symmetric(horizontal: 16.0, vertical: verticalPadding),
           child: Row(
@@ -433,7 +454,10 @@ class SpaceManagementList extends StatelessWidget {
               Expanded(child: Text(title, style: effectiveTitleStyle)),
               if (trailingWidget != null) trailingWidget,
               if (trailingWidget == null && onTap != null)
-                Icon(Icons.chevron_right, color: Colors.grey.shade400),
+                Icon(
+                  Icons.chevron_right,
+                  color: isDark ? Colors.white54 : Colors.grey.shade400,
+                ),
             ],
           ),
         ),

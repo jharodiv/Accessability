@@ -706,21 +706,49 @@ class _SpaceManagementScreenState extends State<SpaceManagementScreen> {
       List<dynamic> memberIds) {
     final bool isExpanded = _expandedSpaces[spaceId] ?? false;
     final isDeleting = _deletingSpaces.contains(spaceId);
+    final bool isSelected = _selectedSpaceId == spaceId;
+    final bool isDarkMode = Provider.of<ThemeProvider>(context).isDarkMode;
+    const Color purple = Color(0xFF6750A4);
+
+    final Color cardBg = isSelected
+        ? (isDarkMode ? purple.withOpacity(0.18) : const Color(0xFFE9DFF7))
+        : (isDarkMode ? Colors.grey[850]! : Colors.white);
+
+    final Color titleColor = isDeleting
+        ? (isDarkMode ? Colors.white38 : Colors.grey)
+        : (isSelected
+            ? (isDarkMode ? Colors.white : purple)
+            : (isDarkMode ? Colors.white70 : Colors.black87));
 
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      color: cardBg,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      elevation: isSelected ? 4 : 1,
       child: ExpansionTile(
         key: Key(spaceId),
         initiallyExpanded: false,
+        tilePadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        collapsedIconColor: isDarkMode ? Colors.white70 : purple,
+        iconColor: isDarkMode ? Colors.white : purple,
+        backgroundColor: cardBg,
+        collapsedBackgroundColor: isDarkMode ? Colors.grey[850] : Colors.white,
         trailing: isDeleting
-            ? const CircularProgressIndicator()
+            ? const SizedBox(
+                width: 24,
+                height: 24,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              )
             : isCreator
                 ? IconButton(
-                    icon: const Icon(Icons.delete, color: Colors.red),
+                    icon: Icon(Icons.delete,
+                        color: isDarkMode ? Colors.redAccent : Colors.red),
                     onPressed: () => _showDeleteSpaceDialog(spaceId, spaceName),
                   )
                 : IconButton(
-                    icon: const Icon(Icons.exit_to_app, color: Colors.orange),
+                    icon: Icon(Icons.exit_to_app,
+                        color:
+                            isDarkMode ? Colors.orangeAccent : Colors.orange),
                     onPressed: () => _showLeaveSpaceDialog(spaceId, spaceName),
                   ),
         title: Text(
@@ -728,7 +756,7 @@ class _SpaceManagementScreenState extends State<SpaceManagementScreen> {
           style: TextStyle(
             fontWeight: FontWeight.bold,
             fontSize: 16,
-            color: isDeleting ? Colors.grey : null,
+            color: titleColor,
           ),
         ),
         children: [
@@ -738,18 +766,18 @@ class _SpaceManagementScreenState extends State<SpaceManagementScreen> {
                 const EdgeInsets.symmetric(horizontal: 16.0, vertical: 6.0),
             child: Row(
               children: [
-                Expanded(child: SizedBox()), // push control to the right
+                const Expanded(child: SizedBox()), // push control to the right
                 if (_selectedSpaceId == spaceId)
                   Chip(
                     label: Text('Active',
                         style: const TextStyle(color: Colors.white)),
-                    backgroundColor: const Color(0xFF6750A4),
+                    backgroundColor: purple,
                   )
                 else
                   TextButton(
                     onPressed: () => _saveActiveSpace(spaceId, spaceName),
                     child: Text('setAsActive'.tr(),
-                        style: const TextStyle(color: Color(0xFF6750A4))),
+                        style: TextStyle(color: purple)),
                   ),
               ],
             ),
@@ -771,26 +799,23 @@ class _SpaceManagementScreenState extends State<SpaceManagementScreen> {
                 );
               }
               if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-                // read theme locally here
-                final bool isDarkMode =
+                final bool isDarkLocal =
                     Provider.of<ThemeProvider>(context).isDarkMode;
-
                 return Center(
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(
-                        Icons.meeting_room,
-                        size: 64,
-                        color: isDarkMode ? Colors.white70 : Colors.grey[700],
-                      ),
+                      Icon(Icons.meeting_room,
+                          size: 64,
+                          color:
+                              isDarkLocal ? Colors.white70 : Colors.grey[700]),
                       const SizedBox(height: 12),
                       Text(
                         'noSpaceSelected'.tr(),
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w600,
-                          color: isDarkMode ? Colors.white70 : Colors.black54,
+                          color: isDarkLocal ? Colors.white70 : Colors.black54,
                         ),
                         textAlign: TextAlign.center,
                       ),
@@ -809,19 +834,31 @@ class _SpaceManagementScreenState extends State<SpaceManagementScreen> {
                   final isCurrentUser = memberId == _auth.currentUser?.uid;
 
                   return ListTile(
+                    tileColor: isDarkMode ? Colors.transparent : null,
                     leading: CircleAvatar(
                       backgroundImage: profilePicture.isNotEmpty
                           ? NetworkImage(profilePicture)
                           : const AssetImage(
                                   'assets/images/others/default_profile.png')
                               as ImageProvider,
+                      backgroundColor:
+                          isDarkMode ? Colors.grey[700] : Colors.grey[200],
                     ),
-                    title: Text(username),
-                    subtitle: isCurrentUser ? Text('you'.tr()) : null,
+                    title: Text(username,
+                        style: TextStyle(
+                            color: isDarkMode ? Colors.white : Colors.black87)),
+                    subtitle: isCurrentUser
+                        ? Text('you'.tr(),
+                            style: TextStyle(
+                                color: isDarkMode
+                                    ? Colors.white70
+                                    : Colors.black54))
+                        : null,
                     trailing: (isCreator && !isCurrentUser)
                         ? IconButton(
-                            icon: const Icon(Icons.remove_circle,
-                                color: Colors.red),
+                            icon: Icon(Icons.remove_circle,
+                                color:
+                                    isDarkMode ? Colors.redAccent : Colors.red),
                             onPressed: () => _showRemoveMemberDialog(
                                 spaceId, spaceName, memberId, username),
                           )

@@ -313,33 +313,36 @@ class _JoinSpaceScreenState extends State<JoinSpaceScreen> {
               SizedBox(
                 width: double.infinity,
                 height: 62,
-                child: ElevatedButton(
-                  onPressed:
-                      (_isLoading || !_isCodeComplete) ? null : _joinSpace,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: _isCodeComplete
-                        ? purple
-                        : (isDark ? Colors.white12 : const Color(0xFFF1E7F9)),
-                    foregroundColor: Colors.white,
-                    disabledForegroundColor:
-                        isDark ? Colors.white38 : const Color(0xFF9A8FB6),
-                    shape: const StadiumBorder(),
-                    padding: const EdgeInsets.symmetric(vertical: 14),
+                child: Semantics(
+                  label: 'Submit',
+                  child: ElevatedButton(
+                    onPressed:
+                        (_isLoading || !_isCodeComplete) ? null : _joinSpace,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: _isCodeComplete
+                          ? purple
+                          : (isDark ? Colors.white12 : const Color(0xFFF1E7F9)),
+                      foregroundColor: Colors.white,
+                      disabledForegroundColor:
+                          isDark ? Colors.white38 : const Color(0xFF9A8FB6),
+                      shape: const StadiumBorder(),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                    ),
+                    child: _isLoading
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
+                        : const Text(
+                            'submit',
+                            style: TextStyle(
+                                fontSize: 18, fontWeight: FontWeight.w600),
+                          ).tr(),
                   ),
-                  child: _isLoading
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.white,
-                          ),
-                        )
-                      : const Text(
-                          'submit',
-                          style: TextStyle(
-                              fontSize: 18, fontWeight: FontWeight.w600),
-                        ).tr(),
                 ),
               ),
               const SizedBox(height: 100),

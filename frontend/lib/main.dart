@@ -9,6 +9,9 @@ import 'package:accessability/accessability/firebaseServices/emergency/emergency
 import 'package:accessability/accessability/firebaseServices/place/place_service.dart';
 import 'package:accessability/accessability/logic/bloc/emergency/bloc/emergency_bloc.dart';
 import 'package:accessability/accessability/logic/bloc/place/bloc/place_bloc.dart';
+import 'package:accessability/accessability/services/global_tts_tap_listener.dart';
+import 'package:accessability/accessability/services/semantics_app_wrapper.dart';
+import 'package:accessability/accessability/services/tts_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -92,6 +95,9 @@ Future<void> main() async {
   final AuthService authService = AuthService();
   final PlaceService placeService = PlaceService();
 
+  await Future.delayed(const Duration(milliseconds: 300));
+  await TtsService.instance.init(language: 'en-US', rate: 0.45);
+
   runApp(
     EasyLocalization(
       supportedLocales: const [Locale('en'), Locale('fil'), Locale('pag')],
@@ -104,12 +110,17 @@ Future<void> main() async {
           ),
           // Removed LocaleProvider since EasyLocalization now manages locale.
         ],
-        child: MyApp(
-          sharedPreferences: sharedPreferences,
-          navigatorKey: navigatorKey,
-          fcmService: fcmService,
-          authService: authService,
-          placeService: placeService,
+        child: SemanticsAppWrapper(
+          child: GlobalTtsTapListener(
+            requireSemantics: false,
+            child: MyApp(
+              sharedPreferences: sharedPreferences,
+              navigatorKey: navigatorKey,
+              fcmService: fcmService,
+              authService: authService,
+              placeService: placeService,
+            ),
+          ),
         ),
       ),
     ),
@@ -223,9 +234,23 @@ class MyApp extends StatelessWidget {
                 final authBloc = context.read<AuthBloc>();
                 authBloc.add(CheckAuthStatus());
               });
-              return child!;
+
+              // Wrap every route's widget with WillPopScope so all back actions are detected:
+              return WillPopScope(
+                onWillPop: () async {
+                  // Speak a short phrase when the user triggers a Back (button, swipe, or hardware)
+                  try {
+                    TtsService.instance.speak('Going back');
+                  } catch (_) {}
+                  // Allow the pop to continue. Return true to let Navigator pop.
+                  return true;
+                },
+                child: child!,
+              );
             },
           );
+
+          app = SemanticsAppWrapper(child: app);
 
           // Protanopia color filter matrix
           const List<double> protanopiaMatrix = [

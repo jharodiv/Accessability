@@ -491,41 +491,48 @@ class _SafetyAssistWidgetState extends State<SafetyAssistWidget> {
                                       // contains emergency button + help icon
                                       children: [
                                         // Emergency services button (police / ambulance / fire)
-                                        GestureDetector(
-                                          onTap: _showEmergencyServicesWidget,
-                                          child: Padding(
-                                            padding: const EdgeInsets.symmetric(
-                                                horizontal: 8.0),
-                                            child: Icon(
-                                              Icons.local_police,
-                                              color: isDarkMode
-                                                  ? Colors.white
-                                                  : const Color(0xFF6750A4),
+                                        Semantics(
+                                          label: 'Emergency Contacts',
+                                          child: GestureDetector(
+                                            onTap: _showEmergencyServicesWidget,
+                                            child: Padding(
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                      horizontal: 8.0),
+                                              child: Icon(
+                                                Icons.local_police,
+                                                color: isDarkMode
+                                                    ? Colors.white
+                                                    : const Color(0xFF6750A4),
+                                              ),
                                             ),
                                           ),
                                         ),
                                         // Help icon toggles the helper widget.
-                                        GestureDetector(
-                                          onTap: () {
-                                            setState(() {
-                                              _showHelper = true;
-                                            });
-                                            try {
-                                              _draggableController.animateTo(
-                                                0.8, // Expand the sheet to 80% of the screen.
-                                                duration: const Duration(
-                                                    milliseconds: 300),
-                                                curve: Curves.easeInOut,
-                                              );
-                                            } catch (_) {
-                                              // ignore on older Flutter versions
-                                            }
-                                          },
-                                          child: Icon(
-                                            Icons.help_outline,
-                                            color: isDarkMode
-                                                ? Colors.white
-                                                : const Color(0xFF6750A4),
+                                        Semantics(
+                                          label: 'Safety Assist Information',
+                                          child: GestureDetector(
+                                            onTap: () {
+                                              setState(() {
+                                                _showHelper = true;
+                                              });
+                                              try {
+                                                _draggableController.animateTo(
+                                                  0.8, // Expand the sheet to 80% of the screen.
+                                                  duration: const Duration(
+                                                      milliseconds: 300),
+                                                  curve: Curves.easeInOut,
+                                                );
+                                              } catch (_) {
+                                                // ignore on older Flutter versions
+                                              }
+                                            },
+                                            child: Icon(
+                                              Icons.help_outline,
+                                              color: isDarkMode
+                                                  ? Colors.white
+                                                  : const Color(0xFF6750A4),
+                                            ),
                                           ),
                                         ),
                                       ],

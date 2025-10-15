@@ -146,25 +146,28 @@ class _AccountScreenState extends State<AccountScreen> {
                       child: Center(
                         child: Column(
                           children: [
-                            GestureDetector(
-                              onTap: _pickImage,
-                              child: CircleAvatar(
-                                radius: 40,
-                                backgroundColor: Colors.grey[300],
-                                backgroundImage: _imageFile != null
-                                    ? FileImage(File(_imageFile!.path))
-                                    : user.profilePicture.isNotEmpty
-                                        ? NetworkImage(user.profilePicture)
-                                        : null,
-                                child: _imageFile == null &&
-                                        user.profilePicture.isEmpty
-                                    ? Text(
-                                        user.username[0].toUpperCase(),
-                                        style: const TextStyle(
-                                            fontSize: 24,
-                                            fontWeight: FontWeight.bold),
-                                      )
-                                    : null,
+                            Semantics(
+                              label: 'Profile Picture',
+                              child: GestureDetector(
+                                onTap: _pickImage,
+                                child: CircleAvatar(
+                                  radius: 40,
+                                  backgroundColor: Colors.grey[300],
+                                  backgroundImage: _imageFile != null
+                                      ? FileImage(File(_imageFile!.path))
+                                      : user.profilePicture.isNotEmpty
+                                          ? NetworkImage(user.profilePicture)
+                                          : null,
+                                  child: _imageFile == null &&
+                                          user.profilePicture.isEmpty
+                                      ? Text(
+                                          user.username[0].toUpperCase(),
+                                          style: const TextStyle(
+                                              fontSize: 24,
+                                              fontWeight: FontWeight.bold),
+                                        )
+                                      : null,
+                                ),
                               ),
                             ),
                             const SizedBox(height: 8),

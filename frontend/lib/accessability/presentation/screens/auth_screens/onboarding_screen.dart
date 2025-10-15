@@ -210,22 +210,27 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                     const SizedBox(height: 20),
                     _buildIndicators(indicatorActive, indicatorInactive),
                     const SizedBox(height: 20),
-                    ElevatedButton(
-                      onPressed: _onNextPressed,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: buttonColor,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 32, vertical: 14),
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(30)),
-                      ),
-                      child: Text(
-                        _currentPage == _images.length - 1
-                            ? 'Get Started'
-                            : 'Next',
-                        style:
-                            const TextStyle(color: Colors.white, fontSize: 16),
+                    Semantics(
+                      label: 'Next',
+                      button: true, // 👈 important, tells Flutter it’s a button
+
+                      child: ElevatedButton(
+                        onPressed: _onNextPressed,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: buttonColor,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 32, vertical: 14),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(30)),
+                        ),
+                        child: Text(
+                          _currentPage == _images.length - 1
+                              ? 'Get Started'
+                              : 'Next',
+                          style: const TextStyle(
+                              color: Colors.white, fontSize: 16),
+                        ),
                       ),
                     ),
                     const SizedBox(height: 16),

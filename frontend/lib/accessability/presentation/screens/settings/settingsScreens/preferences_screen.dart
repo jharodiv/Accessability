@@ -1,3 +1,4 @@
+import 'package:accessability/accessability/services/tts_service.dart';
 import 'package:flutter/material.dart';
 import 'package:accessability/accessability/themes/theme_provider.dart';
 import 'package:provider/provider.dart';
@@ -11,14 +12,13 @@ class PreferencesScreen extends StatefulWidget {
 }
 
 class _PreferencesScreenState extends State<PreferencesScreen> {
-  // Removed local isColorblindmode, use ThemeProvider instead
-
   @override
   Widget build(BuildContext context) {
     final themeProvider = Provider.of<ThemeProvider>(context);
     final String currentLanguage = context.locale.languageCode;
     final bool isDarkMode = themeProvider.isDarkMode;
     final bool isColorBlindMode = themeProvider.isColorBlindMode;
+    final bool isTtsEnabled = themeProvider.isTtsEnabled; // 👈 new flag
 
     return Scaffold(
       appBar: PreferredSize(
@@ -50,67 +50,51 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
           ),
         ),
       ),
-      body: Center(
-        child: ListView(
-          children: [
-            // Dark Mode Toggle
-            Padding(
-              padding: const EdgeInsets.only(
-                top: 20,
-                left: 10,
-                right: 10,
-              ),
-              child: ListTile(
-                leading: const Icon(
-                  Icons.nightlight_outlined,
-                  color: Color(0xFF6750A4),
-                ),
-                title: Text(
-                  'darkMode'.tr(),
-                  style: const TextStyle(fontWeight: FontWeight.bold),
-                ),
-                trailing: Switch(
-                  activeColor: const Color(0xFF6750A4),
-                  value: isDarkMode,
-                  onChanged: (value) {
-                    themeProvider.toggleTheme();
-                  },
-                ),
-              ),
-            ),
-            const Divider(),
-            // Color Blind Mode Toggle
-            Padding(
-              padding: const EdgeInsets.only(
-                left: 10,
-                right: 10,
-              ),
-              child: ListTile(
-                leading: const Icon(
-                  Icons.remove_red_eye_outlined,
-                  color: Color(0xFF6750A4),
-                ),
-                title: Text(
-                  'colorBlindMode'.tr(),
-                  style: const TextStyle(fontWeight: FontWeight.bold),
-                ),
-                trailing: Switch(
-                  value: isColorBlindMode,
-                  activeColor: const Color(0xFF6750A4),
-                  onChanged: (bool value) async {
-                    await themeProvider.toggleColorBlindMode();
-                    setState(() {}); // Update UI after toggling
-                  },
-                ),
-              ),
-            ),
-            const Divider(),
-            // Language Dropdown using EasyLocalization's locale
-            Padding(
-              padding: const EdgeInsets.only(
-                left: 10,
-                right: 10,
-              ),
+      body: ListView(
+        children: [
+          // 🌙 Dark Mode
+          _buildSwitchTile(
+            icon: Icons.nightlight_outlined,
+            label: 'darkMode'.tr(),
+            value: isDarkMode,
+            onChanged: (_) => themeProvider.toggleTheme(),
+          ),
+
+          const Divider(),
+
+          // 👁️ Color Blind Mode
+          _buildSwitchTile(
+            icon: Icons.remove_red_eye_outlined,
+            label: 'colorBlindMode'.tr(),
+            value: isColorBlindMode,
+            onChanged: (_) async {
+              await themeProvider.toggleColorBlindMode();
+              setState(() {});
+            },
+          ),
+
+          const Divider(),
+
+          // 🗣️ TTS Enable/Disable
+          _buildSwitchTile(
+            icon: Icons.volume_up_outlined,
+            label: 'Text-to-Speech',
+            value: isTtsEnabled,
+            onChanged: (value) async {
+              await TtsService.instance.stop();
+              await TtsService.instance.setEnabled(value);
+              await themeProvider.toggleTts(value);
+              if (mounted) setState(() {});
+            },
+          ),
+
+          const Divider(),
+
+          // 🌐 Language Dropdown
+          Semantics(
+            label: 'Languages',
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 10),
               child: ListTile(
                 leading: const Icon(
                   Icons.language,
@@ -124,9 +108,8 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
                   value: currentLanguage,
                   onChanged: (String? newValue) {
                     if (newValue == null) return;
-                    // Change the locale and trigger a rebuild:
                     context.setLocale(Locale(newValue));
-                    setState(() {}); // Optionally trigger a rebuild if needed
+                    setState(() {});
                   },
                   items: <String>['en', 'fil', 'pag']
                       .map<DropdownMenuItem<String>>((String value) {
@@ -144,7 +127,41 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
                 ),
               ),
             ),
-          ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _reloadApp(BuildContext context) {
+    // Reload entire MaterialApp by forcing rebuild
+    WidgetsBinding.instance.performReassemble(); // works in debug
+    // OR, for production-safe:
+    Navigator.pushNamedAndRemoveUntil(context, '/', (_) => false);
+  }
+
+  Widget _buildSwitchTile({
+    required IconData icon,
+    required String label,
+    required bool value,
+    required ValueChanged<bool> onChanged,
+  }) {
+    return Semantics(
+      label: label,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+        child: ListTile(
+          leading: Icon(icon, color: const Color(0xFF6750A4)),
+          title:
+              Text(label, style: const TextStyle(fontWeight: FontWeight.bold)),
+          trailing: Semantics(
+            label: label,
+            child: Switch(
+              activeColor: const Color(0xFF6750A4),
+              value: value,
+              onChanged: onChanged,
+            ),
+          ),
         ),
       ),
     );

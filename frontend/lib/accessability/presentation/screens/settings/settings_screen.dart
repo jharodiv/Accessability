@@ -5,6 +5,7 @@ import 'package:accessability/accessability/logic/bloc/user/user_bloc.dart';
 import 'package:accessability/accessability/logic/bloc/user/user_state.dart';
 import 'package:accessability/accessability/presentation/widgets/dialog/logout_confirmation_dialog_widget.dart';
 import 'package:accessability/accessability/themes/theme_provider.dart';
+import 'package:accessability/accessability/services/tts_service.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -15,7 +16,7 @@ class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
 
   @override
-  _SettingsScreenState createState() => _SettingsScreenState();
+  State<SettingsScreen> createState() => _SettingsScreenState();
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
@@ -26,15 +27,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final authBloc = context.read<AuthBloc>();
 
     try {
-      // Clear the active space ID from SharedPreferences before logging out
       await _clearActiveSpaceId();
-
       await authService.signOut();
+
       authBloc.add(LogoutEvent());
       Navigator.of(context).pushNamedAndRemoveUntil(
-        '/login', // the route you want as new root
-        (Route<dynamic> route) => false,
+        '/login',
+        (route) => false,
       );
+      TtsService.instance.speak('You have been logged out successfully.');
     } catch (e) {
       showDialog(
         context: context,
@@ -43,9 +44,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           content: Text(e.toString()),
           actions: [
             TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
+              onPressed: () => Navigator.of(context).pop(),
               child: Text('ok'.tr()),
             ),
           ],
@@ -58,26 +57,24 @@ class _SettingsScreenState extends State<SettingsScreen> {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove('saved_active_space_id');
-      print('Cleared active space ID from SharedPreferences');
+      debugPrint('✅ Cleared active space ID from SharedPreferences');
     } catch (e) {
-      print('Error clearing active space ID: $e');
+      debugPrint('⚠️ Error clearing active space ID: $e');
     }
   }
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    // Trigger rebuild when the locale changes.
     setState(() {});
   }
 
   @override
   Widget build(BuildContext context) {
-    final bool isDarkMode = Provider.of<ThemeProvider>(context).isDarkMode;
+    final isDarkMode = Provider.of<ThemeProvider>(context).isDarkMode;
 
     return BlocBuilder<UserBloc, UserState>(
       builder: (context, state) {
-        // Get biometric login status from the user model.
         bool biometricEnabled = false;
         if (state is UserLoaded) {
           biometricEnabled = state.user.biometricEnabled;
@@ -102,6 +99,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 leading: IconButton(
                   onPressed: () {
                     Navigator.of(context).pop();
+                    TtsService.instance.speak('Back to previous screen');
                   },
                   icon: const Icon(Icons.arrow_back),
                   color: const Color(0xFF6750A4),
@@ -119,82 +117,58 @@ class _SettingsScreenState extends State<SettingsScreen> {
             color: isDarkMode ? Colors.grey[900] : Colors.white,
             child: ListView(
               children: [
-                ListTile(
-                  leading: const Icon(Icons.person_2_outlined,
-                      color: Color(0xFF6750A4)),
-                  title: Text(
-                    'account'.tr(),
-                    style: const TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                  onTap: () {
-                    Navigator.pushNamed(context, '/account');
-                  },
+                _buildSettingsTile(
+                  context,
+                  icon: Icons.person_2_outlined,
+                  label: 'account'.tr(),
+                  route: '/account',
                 ),
                 const Divider(),
-                ListTile(
-                  leading: const Icon(Icons.tune, color: Color(0xFF6750A4)),
-                  title: Text(
-                    'preference'.tr(),
-                    style: const TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                  onTap: () {
-                    Navigator.pushNamed(context, '/preferences');
-                  },
+                _buildSettingsTile(
+                  context,
+                  icon: Icons.tune,
+                  label: 'preference'.tr(),
+                  route: '/preferences',
                 ),
                 const Divider(),
-                ListTile(
-                  leading: const Icon(Icons.space_dashboard_outlined,
-                      color: Color(0xFF6750A4)),
-                  title: Text(
-                    'spaceManagement'.tr(),
-                    style: const TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                  onTap: () async {
-                    // wait for SpaceManagementScreen to finish
-                    final result =
-                        await Navigator.pushNamed(context, '/spaceManagement');
-
-                    // if it returned an update, forward it up the stack to the widget that opened Settings
+                _buildSettingsTile(
+                  context,
+                  icon: Icons.space_dashboard_outlined,
+                  label: 'spaceManagement'.tr(),
+                  route: '/spaceManagement',
+                  afterReturn: (result) {
                     if (result is Map && result['spaceUpdated'] == true) {
-                      // bubble the exact result up by popping Settings with the same result
                       Navigator.of(context).pop(result);
-
-                      // optionally: show feedback and keep Settings open instead of popping:
-                      // ScaffoldMessenger.of(context).showSnackBar(
-                      //   SnackBar(content: Text('Space updated')),
-                      // );
                     }
                   },
                 ),
                 const Divider(),
-                ListTile(
-                  leading: const Icon(Icons.notifications_active_outlined,
-                      color: Color(0xFF6750A4)),
+                SwitchListTile(
                   title: Text(
                     'notification'.tr(),
                     style: const TextStyle(fontWeight: FontWeight.bold),
                   ),
-                  trailing: Switch(
-                    activeColor: const Color(0xFF6750A4),
-                    value: isNotificationEnabled,
-                    onChanged: (bool value) {
-                      setState(() {
-                        isNotificationEnabled = value;
-                      });
-                    },
+                  secondary: const Icon(
+                    Icons.notifications_active_outlined,
+                    color: Color(0xFF6750A4),
                   ),
+                  activeColor: const Color(0xFF6750A4),
+                  value: isNotificationEnabled,
+                  onChanged: (value) {
+                    setState(() => isNotificationEnabled = value);
+                    TtsService.instance.speak(
+                      value
+                          ? 'Notifications enabled'
+                          : 'Notifications disabled',
+                    );
+                  },
                 ),
                 const Divider(),
-                ListTile(
-                  leading: const Icon(Icons.security_outlined,
-                      color: Color(0xFF6750A4)),
-                  title: Text(
-                    'privacySecurity'.tr(),
-                    style: const TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                  onTap: () {
-                    Navigator.pushNamed(context, '/privacy');
-                  },
+                _buildSettingsTile(
+                  context,
+                  icon: Icons.security_outlined,
+                  label: 'privacySecurity'.tr(),
+                  route: '/privacy',
                 ),
                 const Divider(),
                 ListTile(
@@ -204,45 +178,34 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     'biometricLogin'.tr(),
                     style: const TextStyle(fontWeight: FontWeight.bold),
                   ),
-                  trailing: biometricEnabled
-                      ? Text(
-                          biometricEnabled ? 'Enabled' : 'Disabled',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                            color: biometricEnabled
-                                ? const Color(0xFF6750A4)
-                                : const Color(0xFF5A5757),
-                          ),
-                        )
-                      : null,
+                  trailing: Text(
+                    biometricEnabled ? 'Enabled' : 'Disabled',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: biometricEnabled
+                          ? const Color(0xFF6750A4)
+                          : Colors.grey,
+                    ),
+                  ),
                   onTap: () {
                     Navigator.pushNamed(context, '/biometric');
+                    TtsService.instance.speak('Biometric login settings');
                   },
                 ),
                 const Divider(),
-                ListTile(
-                  leading:
-                      const Icon(Icons.info_outline, color: Color(0xFF6750A4)),
-                  title: Text(
-                    'about'.tr(),
-                    style: const TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                  onTap: () {
-                    Navigator.pushNamed(context, '/about');
-                  },
+                _buildSettingsTile(
+                  context,
+                  icon: Icons.info_outline,
+                  label: 'about'.tr(),
+                  route: '/about',
                 ),
                 const Divider(),
-                ListTile(
-                  leading:
-                      const Icon(Icons.help_outline, color: Color(0xFF6750A4)),
-                  title: Text(
-                    'FAQ'.tr(),
-                    style: const TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                  onTap: () {
-                    Navigator.pushNamed(context, '/faq');
-                  },
+                _buildSettingsTile(
+                  context,
+                  icon: Icons.help_outline,
+                  label: 'FAQ'.tr(),
+                  route: '/faq',
                 ),
                 const Divider(),
                 ListTile(
@@ -252,6 +215,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     style: const TextStyle(fontWeight: FontWeight.bold),
                   ),
                   onTap: () {
+                    TtsService.instance
+                        .speak('Are you sure you want to logout?');
                     showDialog(
                       context: context,
                       builder: (_) => LogoutConfirmationDialogWidget(
@@ -264,6 +229,28 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
           ),
         );
+      },
+    );
+  }
+
+  /// Helper function to build each tile with optional callback
+  Widget _buildSettingsTile(
+    BuildContext context, {
+    required IconData icon,
+    required String label,
+    required String route,
+    Function(dynamic result)? afterReturn,
+  }) {
+    return ListTile(
+      leading: Icon(icon, color: const Color(0xFF6750A4)),
+      title: Text(
+        label,
+        style: const TextStyle(fontWeight: FontWeight.bold),
+      ),
+      onTap: () async {
+        TtsService.instance.speak(label);
+        final result = await Navigator.pushNamed(context, route);
+        if (afterReturn != null) afterReturn(result);
       },
     );
   }

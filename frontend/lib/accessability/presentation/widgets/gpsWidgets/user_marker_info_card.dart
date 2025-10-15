@@ -242,14 +242,18 @@ class UserMarkerInfoCard extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(width: 8),
-                      GestureDetector(
-                        onTap: onClose,
-                        child: Padding(
-                          padding: const EdgeInsets.only(left: 8, bottom: 2),
-                          child: Icon(Icons.close,
-                              size: 18,
-                              color:
-                                  isDark ? Colors.grey[400] : Colors.grey[700]),
+                      Semantics(
+                        label: 'Close Button',
+                        child: GestureDetector(
+                          onTap: onClose,
+                          child: Padding(
+                            padding: const EdgeInsets.only(left: 8, bottom: 2),
+                            child: Icon(Icons.close,
+                                size: 18,
+                                color: isDark
+                                    ? Colors.grey[400]
+                                    : Colors.grey[700]),
+                          ),
                         ),
                       ),
                     ],

@@ -89,16 +89,19 @@ class _EditSpaceNameScreenState extends State<EditSpaceNameScreen> {
               ),
               centerTitle: true,
               actions: [
-                TextButton(
-                  onPressed: _canSave ? _saveAndPop : null,
-                  child: Text(
-                    'Save'.tr(),
-                    style: TextStyle(
-                      color: _canSave
-                          ? _purple
-                          : _purple.withOpacity(0.35), // faded when disabled
-                      fontWeight: FontWeight.w600,
-                      fontSize: 16,
+                Semantics(
+                  label: 'Save',
+                  child: TextButton(
+                    onPressed: _canSave ? _saveAndPop : null,
+                    child: Text(
+                      'Save'.tr(),
+                      style: TextStyle(
+                        color: _canSave
+                            ? _purple
+                            : _purple.withOpacity(0.35), // faded when disabled
+                        fontWeight: FontWeight.w600,
+                        fontSize: 16,
+                      ),
                     ),
                   ),
                 ),

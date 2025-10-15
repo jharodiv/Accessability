@@ -186,16 +186,19 @@ class _FingerprintEnrollmentScreenState
             const SizedBox(height: 20),
             _isEnrolling
                 ? const CircularProgressIndicator()
-                : ElevatedButton(
-                    onPressed: _onEnrollPressed,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF6750A4),
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 30, vertical: 15),
-                    ),
-                    child: Text(
-                      tr('enrollFingerprintButton'),
-                      style: const TextStyle(color: Colors.white),
+                : Semantics(
+                    label: 'Enroll Fingerprint',
+                    child: ElevatedButton(
+                      onPressed: _onEnrollPressed,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF6750A4),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 30, vertical: 15),
+                      ),
+                      child: Text(
+                        tr('enrollFingerprintButton'),
+                        style: const TextStyle(color: Colors.white),
+                      ),
                     ),
                   ),
           ],

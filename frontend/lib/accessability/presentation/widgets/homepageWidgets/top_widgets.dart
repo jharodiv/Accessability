@@ -191,92 +191,106 @@ class TopwidgetsState extends State<Topwidgets> {
                         radius: 20,
                         backgroundColor:
                             isDark ? Colors.grey[800] : Colors.white,
-                        child: IconButton(
-                          icon: Icon(Icons.settings,
-                              color: isDark ? Colors.white : purple),
-                          onPressed: () async {
-                            final result =
-                                await Navigator.pushNamed(context, '/settings');
+                        child: Semantics(
+                          label: 'Settings',
+                          button: true,
+                          container: true,
+                          child: IconButton(
+                            icon: Icon(Icons.settings,
+                                color: isDark ? Colors.white : purple),
+                            onPressed: () async {
+                              final result = await Navigator.pushNamed(
+                                  context, '/settings');
 
-                            if (result is Map &&
-                                result['spaceUpdated'] == true) {
-                              final id = (result['spaceId'] ?? '') as String;
-                              final name =
-                                  (result['spaceName'] ?? '') as String;
+                              if (result is Map &&
+                                  result['spaceUpdated'] == true) {
+                                final id = (result['spaceId'] ?? '') as String;
+                                final name =
+                                    (result['spaceName'] ?? '') as String;
 
-                              // update Topwidgets internal UI
-                              setState(() {
-                                _activeSpaceId = id;
-                                _activeSpaceName =
-                                    name.isNotEmpty ? name : "mySpace".tr();
-                              });
+                                // update Topwidgets internal UI
+                                setState(() {
+                                  _activeSpaceId = id;
+                                  _activeSpaceName =
+                                      name.isNotEmpty ? name : "mySpace".tr();
+                                });
 
-                              // notify the GpsScreen/parent (so LocationHandler etc. also update)
-                              widget.onSpaceSelected(id, name);
-                              widget.onSpaceIdChanged(id);
-                              if (id.isEmpty) widget.onMySpaceSelected();
-                            }
-                          },
+                                // notify the GpsScreen/parent (so LocationHandler etc. also update)
+                                widget.onSpaceSelected(id, name);
+                                widget.onSpaceIdChanged(id);
+                                if (id.isEmpty) widget.onMySpaceSelected();
+                              }
+                            },
+                          ),
                         ),
                       ),
                     ),
 
                     // Fixed-width "My Space" pill (now shows parent's value)
-                    GestureDetector(
-                      onTap: () => _openSpaceDialog(context),
-                      child: Container(
-                        width: 175,
-                        height: 30,
-                        decoration: BoxDecoration(
-                          color: isDark ? Colors.grey[800] : Colors.white,
-                          borderRadius: BorderRadius.circular(20),
-                          boxShadow: const [
-                            BoxShadow(
-                              color: Colors.black26,
-                              blurRadius: 4,
-                              offset: Offset(2, 2),
-                            ),
-                          ],
-                        ),
-                        padding: const EdgeInsets.symmetric(horizontal: 12),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Flexible(
-                              child: Text(
-                                _activeSpaceName.length > 12
-                                    ? '${_activeSpaceName.substring(0, 12)}…'
-                                    : _activeSpaceName,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  color: isDark ? Colors.white : purple,
+                    Semantics(
+                      label: 'List of Spaces',
+                      child: GestureDetector(
+                        onTap: () => _openSpaceDialog(context),
+                        child: Container(
+                          width: 175,
+                          height: 30,
+                          decoration: BoxDecoration(
+                            color: isDark ? Colors.grey[800] : Colors.white,
+                            borderRadius: BorderRadius.circular(20),
+                            boxShadow: const [
+                              BoxShadow(
+                                color: Colors.black26,
+                                blurRadius: 4,
+                                offset: Offset(2, 2),
+                              ),
+                            ],
+                          ),
+                          padding: const EdgeInsets.symmetric(horizontal: 12),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Flexible(
+                                child: Text(
+                                  _activeSpaceName.length > 12
+                                      ? '${_activeSpaceName.substring(0, 12)}…'
+                                      : _activeSpaceName,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    color: isDark ? Colors.white : purple,
+                                  ),
                                 ),
                               ),
-                            ),
-                            Icon(
-                              Icons.keyboard_arrow_down,
-                              size: 20,
-                              color: isDark ? Colors.white : purple,
-                            ),
-                          ],
+                              Icon(
+                                Icons.keyboard_arrow_down,
+                                size: 20,
+                                color: isDark ? Colors.white : purple,
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                     ),
 
                     // Inbox
-                    Padding(
-                      padding: const EdgeInsets.only(right: 20),
-                      child: CircleAvatar(
-                        key: widget.inboxKey,
-                        radius: 20,
-                        backgroundColor:
-                            isDark ? Colors.grey[800] : Colors.white,
-                        child: IconButton(
-                          icon: Icon(Icons.chat,
-                              color: isDark ? Colors.white : purple),
-                          onPressed: () =>
-                              Navigator.pushNamed(context, '/inbox'),
+                    Semantics(
+                      label: 'Inbox Button',
+                      child: Padding(
+                        padding: const EdgeInsets.only(right: 20),
+                        child: CircleAvatar(
+                          key: widget.inboxKey,
+                          radius: 20,
+                          backgroundColor:
+                              isDark ? Colors.grey[800] : Colors.white,
+                          child: Semantics(
+                            label: 'Chat Button',
+                            child: IconButton(
+                              icon: Icon(Icons.chat,
+                                  color: isDark ? Colors.white : purple),
+                              onPressed: () =>
+                                  Navigator.pushNamed(context, '/inbox'),
+                            ),
+                          ),
                         ),
                       ),
                     ),

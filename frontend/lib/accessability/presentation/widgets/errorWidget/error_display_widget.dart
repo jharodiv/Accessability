@@ -65,71 +65,83 @@ class ErrorDisplayWidget extends StatelessWidget {
 
                 // Button area
                 if (isLegacyMode)
-                  // Single OK button (purple)
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF6750A4),
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                      ),
-                      onPressed: () => Navigator.of(context).pop(),
-                      child: const Text(
-                        'OK',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.white,
+                  Semantics(
+                    label: 'OK button',
+                    button: true,
+                    child: SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF6750A4),
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                        ),
+                        onPressed: () => Navigator.of(context).pop(),
+                        child: const Text(
+                          'OK',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.white,
+                          ),
                         ),
                       ),
                     ),
                   )
                 else
-                  // Two buttons (Cancel-style + Confirm-style)
                   Row(
                     children: [
                       if (secondaryLabel != null)
                         Expanded(
-                          child: ElevatedButton(
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: isDarkMode
-                                  ? Colors.grey[700]
-                                  : Colors.grey[300],
-                              padding: const EdgeInsets.symmetric(vertical: 14),
-                            ),
-                            onPressed: secondaryOnPressed ??
-                                () => Navigator.of(context).pop(),
-                            child: Text(
-                              secondaryLabel!,
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600,
-                                color: isDarkMode ? Colors.white : Colors.black,
+                          child: Semantics(
+                            label: secondaryLabel!,
+                            button: true,
+                            child: ElevatedButton(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: isDarkMode
+                                    ? Colors.grey[700]
+                                    : Colors.grey[300],
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 14),
+                              ),
+                              onPressed: secondaryOnPressed ??
+                                  () => Navigator.of(context).pop(),
+                              child: Text(
+                                secondaryLabel!,
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
+                                  color:
+                                      isDarkMode ? Colors.white : Colors.black,
+                                ),
                               ),
                             ),
                           ),
                         ),
                       if (secondaryLabel != null) const SizedBox(width: 12),
                       Expanded(
-                        child: ElevatedButton(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF6750A4),
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                          ),
-                          onPressed: primaryOnPressed ??
-                              () => Navigator.of(context).pop(),
-                          child: Text(
-                            primaryLabel ?? 'OK',
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.white,
+                        child: Semantics(
+                          label: primaryLabel ?? 'OK',
+                          button: true,
+                          child: ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF6750A4),
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                            ),
+                            onPressed: primaryOnPressed ??
+                                () => Navigator.of(context).pop(),
+                            child: Text(
+                              primaryLabel ?? 'OK',
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.white,
+                              ),
                             ),
                           ),
                         ),
                       ),
                     ],
-                  )
+                  ),
               ],
             ),
           ),

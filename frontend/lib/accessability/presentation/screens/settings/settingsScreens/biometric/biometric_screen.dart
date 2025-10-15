@@ -173,44 +173,48 @@ class _BiometricScreenState extends State<BiometricScreen> {
                         color: isDarkMode ? Colors.white : Colors.black,
                       ),
                     ),
-                    trailing: Switch(
-                      value: isBiometricEnabled,
-                      onChanged: (value) async {
-                        if (value) {
-                          final result = await Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) =>
-                                  const FingerprintEnrollmentScreen(),
-                            ),
-                          );
+                    trailing: Semantics(
+                      label: 'Biometric Switch',
+                      child: Switch(
+                        value: isBiometricEnabled,
+                        onChanged: (value) async {
+                          if (value) {
+                            final result = await Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) =>
+                                    const FingerprintEnrollmentScreen(),
+                              ),
+                            );
 
-                          if (result == true && _deviceId != null) {
-                            final prefs = await SharedPreferences.getInstance();
-                            final backupUsername =
-                                prefs.getString('backup_email');
-                            final backupPassword =
-                                prefs.getString('backup_password');
-                            if (backupUsername != null &&
-                                backupPassword != null) {
-                              prefs.setString(
-                                  'biometric_email', backupUsername);
-                              prefs.setString(
-                                  'biometric_password', backupPassword);
+                            if (result == true && _deviceId != null) {
+                              final prefs =
+                                  await SharedPreferences.getInstance();
+                              final backupUsername =
+                                  prefs.getString('backup_email');
+                              final backupPassword =
+                                  prefs.getString('backup_password');
+                              if (backupUsername != null &&
+                                  backupPassword != null) {
+                                prefs.setString(
+                                    'biometric_email', backupUsername);
+                                prefs.setString(
+                                    'biometric_password', backupPassword);
+                              }
+
+                              context.read<UserBloc>().add(
+                                    EnableBiometricLogin(user!.uid, _deviceId!),
+                                  );
+                              setState(() {
+                                isBiometricEnabled = true;
+                              });
                             }
-
-                            context.read<UserBloc>().add(
-                                  EnableBiometricLogin(user!.uid, _deviceId!),
-                                );
-                            setState(() {
-                              isBiometricEnabled = true;
-                            });
+                          } else {
+                            await _showDisableBiometricDialog(context, user!);
                           }
-                        } else {
-                          await _showDisableBiometricDialog(context, user!);
-                        }
-                      },
-                      activeColor: const Color(0xFF6750A4),
+                        },
+                        activeColor: const Color(0xFF6750A4),
+                      ),
                     ),
                   ),
                 ),

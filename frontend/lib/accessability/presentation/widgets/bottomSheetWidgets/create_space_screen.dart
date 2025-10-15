@@ -29,9 +29,20 @@ class _CreateSpaceScreenState extends State<CreateSpaceScreen> {
   @override
   void initState() {
     super.initState();
+
+    // ensure focus opens keyboard on show
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!_isDisposed) FocusScope.of(context).requestFocus(_nameFocusNode);
     });
+
+    // rebuild when the space name changes so the create button updates its enabled state & color
+    _spaceNameController.addListener(_onSpaceNameChanged);
+  }
+
+  void _onSpaceNameChanged() {
+    if (!mounted) return;
+    // call setState to update button enabled/color
+    setState(() {});
   }
 
   @override

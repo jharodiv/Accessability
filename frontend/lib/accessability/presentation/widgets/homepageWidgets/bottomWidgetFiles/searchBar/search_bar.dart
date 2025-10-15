@@ -34,6 +34,7 @@ class _SearchBarWithAutocompleteState extends State<SearchBarWithAutocomplete> {
 
   //Tts Integration
   late FlutterTts _flutterTts;
+  String? _lastRecognizedWord;
 
   String? _selectedCategory;
 
@@ -50,9 +51,13 @@ class _SearchBarWithAutocompleteState extends State<SearchBarWithAutocomplete> {
     _flutterTts.setPitch(1.0);
     _flutterTts.setSpeechRate(0.9);
 
-    _flutterTts.setCompletionHandler(() {
+    _flutterTts.setCompletionHandler(() async {
       print("✅ Melody finished speaking");
-      _startDoryListening();
+      if (_lastRecognizedWord?.toLowerCase() == "melody") {
+        print("🎤 Wake word detected manually: Melody");
+        await Future.delayed(const Duration(milliseconds: 400));
+        _startDoryListening();
+      }
     });
   }
 
@@ -158,6 +163,7 @@ class _SearchBarWithAutocompleteState extends State<SearchBarWithAutocomplete> {
       onResult: (result) async {
         print(
             "🗣️ Speech result: ${result.recognizedWords} (final: ${result.finalResult})");
+        _lastRecognizedWord = result.recognizedWords.trim();
 
         setState(() {
           _searchController.text = result.recognizedWords;
@@ -216,6 +222,13 @@ class _SearchBarWithAutocompleteState extends State<SearchBarWithAutocomplete> {
 
         if (result.finalResult) {
           final command = result.recognizedWords.trim();
+          if (result.recognizedWords.trim().toLowerCase() == "melody") {
+            print("🎤 Wake word detected: Melody");
+            await _speak("Hi, what can I do for you?");
+            await Future.delayed(const Duration(milliseconds: 600));
+            _startDoryListening();
+            return;
+          }
           print("Manual command: $command");
 
           await _handleVoiceCommand(command);

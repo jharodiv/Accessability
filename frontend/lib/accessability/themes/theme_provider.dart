@@ -10,6 +10,9 @@ class ThemeProvider extends ChangeNotifier {
   // Color Blind Mode state
   bool _isColorBlindMode = false;
 
+  // TTS state
+  bool _isTtsEnabled = true; // default ON
+
   // Supported color blindness types
   static const List<String> colorBlindTypes = [
     'none',
@@ -25,23 +28,25 @@ class ThemeProvider extends ChangeNotifier {
     _loadThemePreference();
     _loadColorBlindPreference();
     _loadColorBlindTypePreference();
+    _loadTtsPreference(); // 👈 new line
   }
 
   ThemeData get themeData => _themeData;
   bool get isDarkMode => _themeData == darkMode;
 
-  // Color Blind Mode getter
+  // Color Blind getters
   bool get isColorBlindMode => _isColorBlindMode;
-
-  // Color Blind Type getter
   String get colorBlindType => _colorBlindType;
+
+  // TTS getter
+  bool get isTtsEnabled => _isTtsEnabled;
 
   set themeData(ThemeData themeData) {
     _themeData = themeData;
     notifyListeners();
   }
 
-  // Toggle dark mode
+  // 🌙 Toggle dark mode
   Future<void> toggleTheme() async {
     if (_themeData == lightMode) {
       themeData = darkMode;
@@ -52,7 +57,7 @@ class ThemeProvider extends ChangeNotifier {
     print('Theme toggled. isDarkMode: $isDarkMode');
   }
 
-  // Toggle color blind mode
+  // 👁️ Toggle color blind mode
   Future<void> toggleColorBlindMode() async {
     _isColorBlindMode = !_isColorBlindMode;
     await _prefs.setBool('isColorBlindMode', _isColorBlindMode);
@@ -60,7 +65,7 @@ class ThemeProvider extends ChangeNotifier {
     print('Color Blind Mode toggled. isColorBlindMode: $_isColorBlindMode');
   }
 
-  // Set color blind type
+  // 🎨 Set color blind type
   Future<void> setColorBlindType(String type) async {
     if (colorBlindTypes.contains(type)) {
       _colorBlindType = type;
@@ -70,7 +75,15 @@ class ThemeProvider extends ChangeNotifier {
     }
   }
 
-  // Load dark mode preference
+  // 🗣️ Toggle TTS mode
+  Future<void> toggleTts(bool value) async {
+    _isTtsEnabled = value;
+    await _prefs.setBool('isTtsEnabled', value);
+    notifyListeners();
+    print('TTS toggled. isTtsEnabled: $_isTtsEnabled');
+  }
+
+  // 🌙 Load dark mode preference
   Future<void> _loadThemePreference() async {
     final isDarkMode = _prefs.getBool('isDarkMode') ?? false;
     _themeData = isDarkMode ? darkMode : lightMode;
@@ -78,17 +91,24 @@ class ThemeProvider extends ChangeNotifier {
     print('Theme loaded. isDarkMode: $isDarkMode');
   }
 
-  // Load color blind mode preference
+  // 👁️ Load color blind mode preference
   Future<void> _loadColorBlindPreference() async {
     _isColorBlindMode = _prefs.getBool('isColorBlindMode') ?? false;
     notifyListeners();
     print('Color Blind Mode loaded. isColorBlindMode: $_isColorBlindMode');
   }
 
-  // Load color blind type preference
+  // 🎨 Load color blind type preference
   Future<void> _loadColorBlindTypePreference() async {
     _colorBlindType = _prefs.getString('colorBlindType') ?? 'none';
     notifyListeners();
     print('Color Blind Type loaded: $_colorBlindType');
+  }
+
+  // 🗣️ Load TTS preference
+  Future<void> _loadTtsPreference() async {
+    _isTtsEnabled = _prefs.getBool('isTtsEnabled') ?? true;
+    notifyListeners();
+    print('TTS preference loaded. isTtsEnabled: $_isTtsEnabled');
   }
 }

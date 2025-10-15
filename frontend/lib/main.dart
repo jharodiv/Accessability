@@ -234,7 +234,19 @@ class MyApp extends StatelessWidget {
                 final authBloc = context.read<AuthBloc>();
                 authBloc.add(CheckAuthStatus());
               });
-              return child!;
+
+              // Wrap every route's widget with WillPopScope so all back actions are detected:
+              return WillPopScope(
+                onWillPop: () async {
+                  // Speak a short phrase when the user triggers a Back (button, swipe, or hardware)
+                  try {
+                    TtsService.instance.speak('Going back');
+                  } catch (_) {}
+                  // Allow the pop to continue. Return true to let Navigator pop.
+                  return true;
+                },
+                child: child!,
+              );
             },
           );
 

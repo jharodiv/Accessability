@@ -1,4 +1,4 @@
-// tts_service.dart
+// tts_service.dart (only show changed/added parts)
 import 'package:flutter_tts/flutter_tts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -9,6 +9,10 @@ class TtsService {
   final FlutterTts _tts = FlutterTts();
   bool _initialized = false;
   bool _isEnabled = true; // Default ON
+
+  // NEW: last time we started a speak - used to debounce near-duplicates
+  DateTime? _lastSpeakAt;
+  final Duration _speakDebounce = const Duration(milliseconds: 600);
 
   Future<void> init({
     String language = 'en-US',
@@ -37,8 +41,16 @@ class TtsService {
     if (text.trim().isEmpty) return;
     if (!_initialized) await init();
 
+    // Debounce: if we spoke very recently, ignore to avoid duplicates
+    final now = DateTime.now();
+    if (_lastSpeakAt != null &&
+        now.difference(_lastSpeakAt!) < _speakDebounce) {
+      return;
+    }
+    _lastSpeakAt = now;
+
     try {
-      await _tts.stop(); // ✅ stop previous speech before speaking again
+      await _tts.stop(); // stop previous speech
       await _tts.speak(text);
     } catch (e) {
       print('TTS speak error: $e');

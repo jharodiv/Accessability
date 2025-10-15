@@ -92,28 +92,42 @@ class _AppBarBackButtonInterceptorState
     if (leading is IconButton &&
         leading.icon is Icon &&
         (leading.icon as Icon).icon == Icons.arrow_back) {
-      final wrapped = Semantics(
-        label: 'Back button',
+      final IconButton original = leading as IconButton;
+
+      final wrappedLeading = Semantics(
+        label: 'Back',
         button: true,
         onTapHint: 'Go back',
-        child: GestureDetector(
-          behavior: HitTestBehavior.opaque,
-          onTap: () {
-            Navigator.maybePop(context);
-            TtsService.instance.speak('Going back');
+        child: IconButton(
+          // reuse same icon widget
+          icon: original.icon,
+          // preserve original onPressed if provided, otherwise just pop
+          onPressed: () {
+            if (original.onPressed != null) {
+              original.onPressed!();
+            } else {
+              Navigator.maybePop(context);
+            }
           },
-          child: leading,
+          tooltip: original.tooltip ?? 'Back',
+          // keep same visual splash/constraints by copying common properties
+          iconSize: original.iconSize,
+          padding: original.padding,
+          alignment: original.alignment,
         ),
       );
+
       return AppBar(
-        leading: wrapped,
+        leading: wrappedLeading,
         title: appBar.title,
         centerTitle: appBar.centerTitle,
         elevation: appBar.elevation,
         backgroundColor: appBar.backgroundColor,
+        foregroundColor: appBar.foregroundColor,
         actions: appBar.actions,
       );
     }
+
     return appBar;
   }
 }

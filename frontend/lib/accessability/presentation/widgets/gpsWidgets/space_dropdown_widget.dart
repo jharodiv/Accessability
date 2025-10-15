@@ -308,7 +308,10 @@ class _SpaceSelectionSheetState extends State<SpaceSelectionSheet> {
                 ),
               );
             },
-            child: Icon(Icons.person_add_outlined, color: _purple, size: 24),
+            child: Semantics(
+                label: 'Add a person in your space',
+                child:
+                    Icon(Icons.person_add_outlined, color: _purple, size: 24)),
           ),
         ],
       ),

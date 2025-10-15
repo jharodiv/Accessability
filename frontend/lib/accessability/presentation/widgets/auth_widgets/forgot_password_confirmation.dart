@@ -118,34 +118,37 @@ class _ForgotpasswordconfirmationState
             // Continue Button with countdown
             SizedBox(
               width: double.infinity, // Makes it full-width
-              child: ElevatedButton(
-                onPressed: isButtonDisabled
-                    ? null // Disable the button if the timer is running
-                    : () => _onContinuePressed(context),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF6750A4),
-                  padding: const EdgeInsets.symmetric(vertical: 16.0),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8.0),
+              child: Semantics(
+                label: 'Continue',
+                child: ElevatedButton(
+                  onPressed: isButtonDisabled
+                      ? null // Disable the button if the timer is running
+                      : () => _onContinuePressed(context),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF6750A4),
+                    padding: const EdgeInsets.symmetric(vertical: 16.0),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8.0),
+                    ),
                   ),
+                  child: isButtonDisabled
+                      ? Text(
+                          'Please wait... ${remainingTime}s',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Text(
+                          'Continue',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        ),
                 ),
-                child: isButtonDisabled
-                    ? Text(
-                        'Please wait... ${remainingTime}s',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
-                      )
-                    : const Text(
-                        'Continue',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
-                      ),
               ),
             ),
             const SizedBox(height: 20),

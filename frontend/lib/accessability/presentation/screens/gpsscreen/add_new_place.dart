@@ -160,25 +160,30 @@ class _AddNewPlaceScreenState extends State<AddNewPlaceScreen> {
                       color: Color(0xFF6750A4),
                     ),
                   ),
-                  Positioned(
-                    bottom: 16,
-                    left: 16,
-                    right: 16,
-                    child: SizedBox(
-                      width: double.infinity,
-                      height: 48,
-                      child: ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF6750A4),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
+                  Semantics(
+                    label: 'Next Button',
+                    button: true, // 👈 important, tells Flutter it’s a button
+
+                    child: Positioned(
+                      bottom: 16,
+                      left: 16,
+                      right: 16,
+                      child: SizedBox(
+                        width: double.infinity,
+                        height: 48,
+                        child: ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF6750A4),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
                           ),
-                        ),
-                        onPressed: _onNextPressed,
-                        child: Text(
-                          'next'.tr(),
-                          style: const TextStyle(
-                              color: Colors.white, fontSize: 16),
+                          onPressed: _onNextPressed,
+                          child: Text(
+                            'next'.tr(),
+                            style: const TextStyle(
+                                color: Colors.white, fontSize: 16),
+                          ),
                         ),
                       ),
                     ),

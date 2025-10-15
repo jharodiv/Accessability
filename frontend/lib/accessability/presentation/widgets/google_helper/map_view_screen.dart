@@ -234,13 +234,16 @@ class _MapPerspectivePickerState extends State<MapPerspectivePicker> {
               child: Row(
                 children: [
                   // plain X button (no background)
-                  IconButton(
-                    visualDensity: VisualDensity.compact,
-                    padding: EdgeInsets.zero,
-                    constraints:
-                        const BoxConstraints(minWidth: 36, minHeight: 36),
-                    icon: Icon(Icons.close, size: 20, color: _purple),
-                    onPressed: () => Navigator.of(context).pop(),
+                  Semantics(
+                    label: 'Close Button',
+                    child: IconButton(
+                      visualDensity: VisualDensity.compact,
+                      padding: EdgeInsets.zero,
+                      constraints:
+                          const BoxConstraints(minWidth: 36, minHeight: 36),
+                      icon: Icon(Icons.close, size: 20, color: _purple),
+                      onPressed: () => Navigator.of(context).pop(),
+                    ),
                   ),
 
                   const SizedBox(width: 12),

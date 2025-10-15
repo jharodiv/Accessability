@@ -1,8 +1,9 @@
 import 'package:accessability/accessability/backgroundServices/deep_link_service.dart';
 import 'package:accessability/accessability/logic/bloc/auth/auth_bloc.dart';
 import 'package:accessability/accessability/logic/bloc/auth/auth_event.dart';
+import 'package:accessability/accessability/services/tts_service.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart'; // ✅ needed for context.read
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:tutorial_coach_mark/tutorial_coach_mark.dart';
 
 class TutorialWidget {
@@ -28,32 +29,37 @@ class TutorialWidget {
 
       // --- Inbox Target ---
       targets.add(TargetFocus(
-        identify: "inboxTarget",
+        identify: "Inbox - Tap here to view your messages.",
         keyTarget: inboxKey,
         contents: [
           TargetContent(
             align: ContentAlign.bottom,
             child: Container(
               color: Colors.transparent,
-              child: const Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    "This is your inbox.",
-                    style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 20.0,
-                        color: Colors.white),
-                  ),
-                  Padding(
-                    padding: EdgeInsets.only(top: 10.0),
-                    child: Text(
-                      "Tap here to view your messages.",
-                      style: TextStyle(color: Colors.white),
+              child: Semantics(
+                button: true,
+                label: 'This is your inbox. Tap here to view your messages.',
+                readOnly: true,
+                child: const Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      "This is your inbox.",
+                      style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 20.0,
+                          color: Colors.white),
                     ),
-                  ),
-                ],
+                    Padding(
+                      padding: EdgeInsets.only(top: 10.0),
+                      child: Text(
+                        "Tap here to view your messages.",
+                        style: TextStyle(color: Colors.white),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -62,32 +68,38 @@ class TutorialWidget {
 
       // --- Settings Target ---
       targets.add(TargetFocus(
-        identify: "settingsTarget",
+        identify: "Settings - Tap here to access settings.",
         keyTarget: settingsKey,
         contents: [
           TargetContent(
             align: ContentAlign.bottom,
             child: Container(
               color: Colors.transparent,
-              child: const Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    "This is the settings button.",
-                    style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 20.0,
-                        color: Colors.white),
-                  ),
-                  Padding(
-                    padding: EdgeInsets.only(top: 10.0),
-                    child: Text(
-                      "Tap here to access settings.",
-                      style: TextStyle(color: Colors.white),
+              child: Semantics(
+                button: true,
+                label:
+                    'This is the settings button. Tap here to access settings.',
+                readOnly: true,
+                child: const Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      "This is the settings button.",
+                      style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 20.0,
+                          color: Colors.white),
                     ),
-                  ),
-                ],
+                    Padding(
+                      padding: EdgeInsets.only(top: 10.0),
+                      child: Text(
+                        "Tap here to access settings.",
+                        style: TextStyle(color: Colors.white),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -96,32 +108,38 @@ class TutorialWidget {
 
       // --- Location Target ---
       targets.add(TargetFocus(
-        identify: "locationTarget",
+        identify: "Location - Tap here to view your location.",
         keyTarget: locationKey,
         contents: [
           TargetContent(
             align: ContentAlign.top,
             child: Container(
               color: Colors.transparent,
-              child: const Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    "This is the location button.",
-                    style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 20.0,
-                        color: Colors.white),
-                  ),
-                  Padding(
-                    padding: EdgeInsets.only(top: 10.0),
-                    child: Text(
-                      "Tap here to view your location.",
-                      style: TextStyle(color: Colors.white),
+              child: Semantics(
+                button: true,
+                label:
+                    'This is the location button. Tap here to view your location.',
+                readOnly: true,
+                child: const Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      "This is the location button.",
+                      style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 20.0,
+                          color: Colors.white),
                     ),
-                  ),
-                ],
+                    Padding(
+                      padding: EdgeInsets.only(top: 10.0),
+                      child: Text(
+                        "Tap here to view your location.",
+                        style: TextStyle(color: Colors.white),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -130,32 +148,38 @@ class TutorialWidget {
 
       // --- You Target ---
       targets.add(TargetFocus(
-        identify: "youTarget",
+        identify: "Favorite - Tap here to view your profile.",
         keyTarget: youKey,
         contents: [
           TargetContent(
             align: ContentAlign.top,
             child: Container(
               color: Colors.transparent,
-              child: const Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    "This is the 'Favorite' button.",
-                    style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 20.0,
-                        color: Colors.white),
-                  ),
-                  Padding(
-                    padding: EdgeInsets.only(top: 10.0),
-                    child: Text(
-                      "Tap here to view your profile.",
-                      style: TextStyle(color: Colors.white),
+              child: Semantics(
+                button: true,
+                label:
+                    "This is the Favorite button. Tap here to view your profile.",
+                readOnly: true,
+                child: const Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      "This is the 'Favorite' button.",
+                      style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 20.0,
+                          color: Colors.white),
                     ),
-                  ),
-                ],
+                    Padding(
+                      padding: EdgeInsets.only(top: 10.0),
+                      child: Text(
+                        "Tap here to view your profile.",
+                        style: TextStyle(color: Colors.white),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -164,32 +188,38 @@ class TutorialWidget {
 
       // --- Security Target ---
       targets.add(TargetFocus(
-        identify: "securityTarget",
+        identify: "Security - Tap here to view security settings.",
         keyTarget: securityKey,
         contents: [
           TargetContent(
             align: ContentAlign.top,
             child: Container(
               color: Colors.transparent,
-              child: const Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    "This is the security button.",
-                    style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 20.0,
-                        color: Colors.white),
-                  ),
-                  Padding(
-                    padding: EdgeInsets.only(top: 10.0),
-                    child: Text(
-                      "Tap here to view security settings.",
-                      style: TextStyle(color: Colors.white),
+              child: Semantics(
+                button: true,
+                label:
+                    "This is the security button. Tap here to view security settings.",
+                readOnly: true,
+                child: const Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      "This is the security button.",
+                      style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 20.0,
+                          color: Colors.white),
                     ),
-                  ),
-                ],
+                    Padding(
+                      padding: EdgeInsets.only(top: 10.0),
+                      child: Text(
+                        "Tap here to view security settings.",
+                        style: TextStyle(color: Colors.white),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -203,34 +233,34 @@ class TutorialWidget {
         textSkip: "SKIP",
         paddingFocus: 10,
         opacityShadow: 0.8,
+
+        // 🔊 Auto-speak each target when shown
+        onClickTarget: (target) {
+          final desc = target.identify ?? '';
+          TtsService.instance.speak(desc);
+        },
+        onClickOverlay: (target) {
+          final desc = target.identify ?? '';
+          TtsService.instance.speak(desc);
+        },
+
         onFinish: () {
           debugPrint("Tutorial finished ✅ marking onboarding complete");
-
-          // 🔹 Dispatch onboarding complete
           context.read<AuthBloc>().add(CompleteOnboardingEvent());
-
-          // 🔹 Trigger deferred deep link consumption after tutorial
-          debugPrint(
-              "🛰️ Tutorial finished, now consuming pending deep links...");
           Future.delayed(const Duration(seconds: 2), () {
             DeepLinkService().consumePendingLinkIfAny();
           });
-
+          TtsService.instance.speak('Tutorial complete.');
           onTutorialComplete?.call();
         },
+
         onSkip: () {
           debugPrint("Tutorial skipped ❌ marking onboarding complete anyway");
-
-          // 🔹 Dispatch onboarding complete
           context.read<AuthBloc>().add(CompleteOnboardingEvent());
-
-          // 🔹 Trigger deferred deep link consumption after skip
-          debugPrint(
-              "🛰️ Tutorial skipped, now consuming pending deep links...");
           Future.delayed(const Duration(seconds: 2), () {
             DeepLinkService().consumePendingLinkIfAny();
           });
-
+          TtsService.instance.speak('Tutorial skipped.');
           onTutorialComplete?.call();
           return true;
         },

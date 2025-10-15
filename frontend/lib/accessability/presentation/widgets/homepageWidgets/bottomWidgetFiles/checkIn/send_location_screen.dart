@@ -138,52 +138,56 @@ class _SendLocationScreenState extends State<SendLocationScreen>
             centerTitle: true,
             backgroundColor: Colors.transparent,
             actions: [
-              IconButton(
-                onPressed: _isSending ? null : _sendLocation,
-                icon: _isSending
-                    ? SizedBox(
-                        width: 28,
-                        height: 28,
-                        child: AnimatedBuilder(
-                          animation: _sendAnimController,
-                          builder: (context, child) {
-                            final double anim = _sendAnimController.value;
+              Semantics(
+                label: 'Send Location',
+                child: IconButton(
+                  onPressed: _isSending ? null : _sendLocation,
+                  icon: _isSending
+                      ? SizedBox(
+                          width: 28,
+                          height: 28,
+                          child: AnimatedBuilder(
+                            animation: _sendAnimController,
+                            builder: (context, child) {
+                              final double anim = _sendAnimController.value;
 
-                            // Smooth pulsing purple animation
-                            return Transform.scale(
-                              scale: 1 + (anim * 0.2), // gentle pulse
-                              child: Container(
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  gradient: LinearGradient(
-                                    colors: [
-                                      const Color(0xFF7C4DFF), // deep purple
-                                      const Color(0xFFD1C4E9), // soft lavender
-                                    ],
-                                    begin: Alignment.topLeft,
-                                    end: Alignment.bottomRight,
-                                    transform: GradientRotation(anim * 6.28),
-                                  ),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: const Color(0xFF7C4DFF)
-                                          .withOpacity(0.4),
-                                      blurRadius: 8,
-                                      spreadRadius: 1,
+                              // Smooth pulsing purple animation
+                              return Transform.scale(
+                                scale: 1 + (anim * 0.2), // gentle pulse
+                                child: Container(
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    gradient: LinearGradient(
+                                      colors: [
+                                        const Color(0xFF7C4DFF), // deep purple
+                                        const Color(
+                                            0xFFD1C4E9), // soft lavender
+                                      ],
+                                      begin: Alignment.topLeft,
+                                      end: Alignment.bottomRight,
+                                      transform: GradientRotation(anim * 6.28),
                                     ),
-                                  ],
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: const Color(0xFF7C4DFF)
+                                            .withOpacity(0.4),
+                                        blurRadius: 8,
+                                        spreadRadius: 1,
+                                      ),
+                                    ],
+                                  ),
+                                  child: const Icon(
+                                    Icons.location_on_rounded,
+                                    color: Colors.white,
+                                    size: 18,
+                                  ),
                                 ),
-                                child: const Icon(
-                                  Icons.location_on_rounded,
-                                  color: Colors.white,
-                                  size: 18,
-                                ),
-                              ),
-                            );
-                          },
-                        ),
-                      )
-                    : const Icon(Icons.send, color: Color(0xFF7C4DFF)),
+                              );
+                            },
+                          ),
+                        )
+                      : const Icon(Icons.send, color: Color(0xFF7C4DFF)),
+                ),
               ),
             ],
           ),
@@ -445,21 +449,24 @@ class _SendLocationScreenState extends State<SendLocationScreen>
               ),
             ),
             // Purple checkbox (flat style)
-            Checkbox(
-              value: _selectedChats.contains(chatId),
-              onChanged: (value) {
-                setState(() {
-                  if (value == true) {
-                    _selectedChats.add(chatId);
-                  } else {
-                    _selectedChats.remove(chatId);
-                  }
-                });
-              },
-              activeColor: _purple,
-              checkColor: Colors.white,
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(6)),
+            Semantics(
+              label: 'Checkbox',
+              child: Checkbox(
+                value: _selectedChats.contains(chatId),
+                onChanged: (value) {
+                  setState(() {
+                    if (value == true) {
+                      _selectedChats.add(chatId);
+                    } else {
+                      _selectedChats.remove(chatId);
+                    }
+                  });
+                },
+                activeColor: _purple,
+                checkColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(6)),
+              ),
             ),
           ],
         ),

@@ -111,7 +111,13 @@ class _LocationWidgetsState extends State<LocationWidgets> {
   VoidCallback? _overlayNotifierListener;
   double _serviceAreaFactor = 1.0; // 1.0 = fully visible, 0.0 = hidden
   bool _isAtTop = false; // track if sheet is at the very top (for safe padding)
-
+  String _semSearchLabel = 'Search locations';
+  String _semSearchHint = 'Type address or place name';
+  String _semServiceButtonsLabel = 'Quick actions: center map, show nearby';
+  String _semUserRowLabel = 'You Click Yourself';
+  String _semUserRowHint = 'Double tap to center the map on your location';
+  String _semMembersListLabel = 'You click one of members';
+  String _semMapTabLabel = 'Map view';
   //String? _selectedCategory;
 
   @override
@@ -1046,13 +1052,20 @@ class _LocationWidgetsState extends State<LocationWidgets> {
                                 margin: const EdgeInsets.only(bottom: 8),
                               ),
                               const SizedBox(height: 5),
-                              SearchBarWithAutocomplete(
-                                onSearch: _searchLocation,
-                                onCategorySelected: (category) {
-                                  print(
-                                      "Parent Callback triggered with: $category");
-                                  widget.onCategorySelectedName?.call(category);
-                                },
+                              Semantics(
+                                label: _semSearchLabel,
+                                hint: _semSearchHint,
+                                textField: true,
+                                container: true,
+                                child: SearchBarWithAutocomplete(
+                                  onSearch: _searchLocation,
+                                  onCategorySelected: (category) {
+                                    print(
+                                        "Parent Callback triggered with: $category");
+                                    widget.onCategorySelectedName
+                                        ?.call(category);
+                                  },
+                                ),
                               ),
                               const SizedBox(height: 10),
                               // --- If a place is selected, show only the EstablishmentDetailsCard ---
@@ -1116,107 +1129,115 @@ class _LocationWidgetsState extends State<LocationWidgets> {
                                           CrossAxisAlignment.start,
                                       children: [
                                         // 1) Current user row (same as MemberListWidget)
-                                        ListTile(
-                                          leading: CircleAvatar(
-                                            backgroundImage: profilePicture !=
-                                                        null &&
-                                                    profilePicture.isNotEmpty
-                                                ? NetworkImage(profilePicture)
-                                                : null,
-                                            child: profilePicture == null ||
-                                                    profilePicture.isEmpty
-                                                ? Text(avatarLetter,
-                                                    style: const TextStyle(
-                                                        color: Colors.white))
-                                                : null,
-                                          ),
-                                          title: Text(
-                                            userName,
-                                            style: TextStyle(
-                                              fontWeight: FontWeight.bold,
-                                              color: isDarkMode
-                                                  ? Colors.white
-                                                  : Colors.black,
+// REPLACE current-user Semantics+ListTile with:
+                                        Semantics(
+                                          container: true,
+                                          button: true,
+                                          label: 'You, $userName',
+                                          hint: 'Double tap to show your info',
+                                          selected: _selectedMemberId ==
+                                              (_auth.currentUser?.uid ?? ''),
+                                          onTapHint: 'Show my info',
+                                          explicitChildNodes: true,
+                                          child: ListTile(
+                                            leading: CircleAvatar(
+                                              backgroundImage: profilePicture !=
+                                                          null &&
+                                                      profilePicture.isNotEmpty
+                                                  ? NetworkImage(profilePicture)
+                                                  : null,
+                                              child: profilePicture == null ||
+                                                      profilePicture.isEmpty
+                                                  ? Text(avatarLetter,
+                                                      style: const TextStyle(
+                                                          color: Colors.white))
+                                                  : null,
                                             ),
-                                          ),
-                                          subtitle: Column(
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.start,
-                                            children: [
-                                              Text(
-                                                _yourAddress ??
-                                                    'Current Location',
-                                                style: TextStyle(
-                                                  fontSize: 12,
-                                                  color: isDarkMode
-                                                      ? Colors.white70
-                                                      : Colors.black54,
-                                                ),
+                                            title: Text(
+                                              userName,
+                                              style: TextStyle(
+                                                fontWeight: FontWeight.bold,
+                                                color: isDarkMode
+                                                    ? Colors.white
+                                                    : Colors.black,
                                               ),
-                                              const SizedBox(height: 2),
-                                              Text(
-                                                'Updated: ${_yourLastUpdate != null ? _timeDiff(_yourLastUpdate!) : 'just now'}',
-                                                style: TextStyle(
-                                                  fontSize: 12,
-                                                  color: isDarkMode
-                                                      ? Colors.white70
-                                                      : Colors.black54,
+                                            ),
+                                            subtitle: Column(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
+                                              children: [
+                                                Text(
+                                                  _yourAddress ??
+                                                      'Current Location',
+                                                  style: TextStyle(
+                                                    fontSize: 12,
+                                                    color: isDarkMode
+                                                        ? Colors.white70
+                                                        : Colors.black54,
+                                                  ),
                                                 ),
-                                              ),
-                                            ],
-                                          ),
-                                          onTap: () async {
-                                            final id = _auth.currentUser?.uid;
-                                            if (id != null) {
-                                              setState(() {
-                                                _selectedMemberId = id;
-                                              });
-                                            }
+                                                const SizedBox(height: 2),
+                                                Text(
+                                                  'Updated: ${_yourLastUpdate != null ? _timeDiff(_yourLastUpdate!) : 'just now'}',
+                                                  style: TextStyle(
+                                                    fontSize: 12,
+                                                    color: isDarkMode
+                                                        ? Colors.white70
+                                                        : Colors.black54,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                            onTap: () async {
+                                              final id = _auth.currentUser?.uid;
+                                              if (id != null) {
+                                                setState(() {
+                                                  _selectedMemberId = id;
+                                                });
+                                              }
 
-                                            // collapse sheet first
-                                            try {
-                                              await _safeAnimateSheetTo(
-                                                  _sheetMinChildSize,
-                                                  duration: const Duration(
-                                                      milliseconds: 260));
-                                            } catch (e, st) {
-                                              debugPrint(
-                                                  '[LocationWidgets] safeAnimateSheetTo failed: $e\n$st');
-                                            }
-
-                                            // call host overlay handler
-                                            if (widget.onShowMyInfoPressed !=
-                                                null) {
+                                              // collapse sheet first
                                               try {
-                                                await widget
-                                                    .onShowMyInfoPressed!
-                                                    .call();
+                                                await _safeAnimateSheetTo(
+                                                    _sheetMinChildSize,
+                                                    duration: const Duration(
+                                                        milliseconds: 260));
                                               } catch (e, st) {
                                                 debugPrint(
-                                                    '[LocationWidgets] onShowMyInfoPressed threw: $e\n$st');
-                                                // fallback to existing behavior if desired
-                                                if (widget.locationHandler
-                                                        .currentLocation !=
-                                                    null) {
-                                                  widget.onMemberPressed(
-                                                      widget.locationHandler
-                                                          .currentLocation!,
-                                                      _auth.currentUser!.uid);
-                                                }
+                                                    '[LocationWidgets] safeAnimateSheetTo failed: $e\n$st');
                                               }
-                                              return;
-                                            }
 
-                                            // fallback existing behavior
-                                            if (widget.locationHandler
-                                                    .currentLocation !=
-                                                null) {
-                                              widget.onMemberPressed(
-                                                  widget.locationHandler
-                                                      .currentLocation!,
-                                                  _auth.currentUser!.uid);
-                                            }
-                                          },
+                                              // call host overlay handler or fallback behaviour (unchanged)
+                                              if (widget.onShowMyInfoPressed !=
+                                                  null) {
+                                                try {
+                                                  await widget
+                                                      .onShowMyInfoPressed!
+                                                      .call();
+                                                } catch (e, st) {
+                                                  debugPrint(
+                                                      '[LocationWidgets] onShowMyInfoPressed threw: $e\n$st');
+                                                  if (widget.locationHandler
+                                                          .currentLocation !=
+                                                      null) {
+                                                    widget.onMemberPressed(
+                                                        widget.locationHandler
+                                                            .currentLocation!,
+                                                        _auth.currentUser!.uid);
+                                                  }
+                                                }
+                                                return;
+                                              }
+                                              if (widget.locationHandler
+                                                      .currentLocation !=
+                                                  null) {
+                                                widget.onMemberPressed(
+                                                    widget.locationHandler
+                                                        .currentLocation!,
+                                                    _auth.currentUser!.uid);
+                                              }
+                                            },
+                                          ),
                                         ),
 
                                         // small spacing + divider (same visual separation used in MemberListWidget)
@@ -1244,15 +1265,18 @@ class _LocationWidgetsState extends State<LocationWidgets> {
                                             },
                                             child: Row(
                                               children: [
-                                                CircleAvatar(
-                                                  radius: 24,
-                                                  backgroundColor:
-                                                      const Color(0xFF6750A4)
-                                                          .withOpacity(0.2),
-                                                  child: Icon(Icons.add,
-                                                      size: 26,
-                                                      color: const Color(
-                                                          0xFF6750A4)),
+                                                Semantics(
+                                                  label: 'Add a person',
+                                                  child: CircleAvatar(
+                                                    radius: 24,
+                                                    backgroundColor:
+                                                        const Color(0xFF6750A4)
+                                                            .withOpacity(0.2),
+                                                    child: Icon(Icons.add,
+                                                        size: 26,
+                                                        color: const Color(
+                                                            0xFF6750A4)),
+                                                  ),
                                                 ),
                                                 const SizedBox(width: 12),
                                                 const Text(
@@ -1271,80 +1295,88 @@ class _LocationWidgetsState extends State<LocationWidgets> {
                                     )
                                   else ...[
                                     // Space selected: show members
-                                    MemberListWidget(
-                                      activeSpaceId: widget.activeSpaceId,
-                                      members: _members,
-                                      selectedMemberId: _selectedMemberId,
-                                      yourLocation: widget
-                                          .locationHandler.currentLocation,
-                                      yourAddressLabel:
-                                          _yourAddress ?? 'Current Location',
-                                      yourLastUpdate: _yourLastUpdate,
-                                      onAddPerson: () {
-                                        Navigator.of(context).push(
-                                          MaterialPageRoute(
-                                            builder: (_) =>
-                                                VerificationCodeScreen(
-                                              spaceId: widget.activeSpaceId,
-                                              spaceName: _spaceName,
+                                    Semantics(
+                                      container: true,
+                                      label:
+                                          _semMembersListLabel, // e.g. 'Members list'
+                                      hint:
+                                          'Double tap a member to view details',
+                                      explicitChildNodes: true,
+                                      child: MemberListWidget(
+                                        activeSpaceId: widget.activeSpaceId,
+                                        members: _members,
+                                        selectedMemberId: _selectedMemberId,
+                                        yourLocation: widget
+                                            .locationHandler.currentLocation,
+                                        yourAddressLabel:
+                                            _yourAddress ?? 'Current Location',
+                                        yourLastUpdate: _yourLastUpdate,
+                                        onAddPerson: () {
+                                          Navigator.of(context).push(
+                                            MaterialPageRoute(
+                                              builder: (_) =>
+                                                  VerificationCodeScreen(
+                                                spaceId: widget.activeSpaceId,
+                                                spaceName: _spaceName,
+                                              ),
                                             ),
-                                          ),
-                                        );
-                                      },
-                                      onShowMyInfoPressed: () async {
-                                        final uid = FirebaseAuth
-                                            .instance.currentUser?.uid;
-                                        if (uid != null) {
+                                          );
+                                        },
+                                        onShowMyInfoPressed: () async {
+                                          final uid = FirebaseAuth
+                                              .instance.currentUser?.uid;
+                                          if (uid != null) {
+                                            setState(() {
+                                              _selectedMemberId = uid;
+                                            });
+                                          }
+
+                                          // collapse sheet to min immediately (or queued if detached)
+                                          try {
+                                            await _safeAnimateSheetTo(
+                                                _sheetMinChildSize,
+                                                duration: const Duration(
+                                                    milliseconds: 260));
+                                          } catch (e, st) {
+                                            debugPrint(
+                                                '[LocationWidgets] safeAnimateSheetTo failed: $e\n$st');
+                                          }
+
+                                          // then call the host-provided handler (GpsScreen) that shows the overlay
+                                          if (widget.onShowMyInfoPressed !=
+                                              null) {
+                                            try {
+                                              await widget.onShowMyInfoPressed!
+                                                  .call();
+                                            } catch (e, st) {
+                                              debugPrint(
+                                                  '[LocationWidgets] host onShowMyInfoPressed threw: $e\n$st');
+                                            }
+                                          }
+                                        },
+                                        isLoading: _isLoading,
+                                        onMemberPressed:
+                                            (LatLng loc, String uid) async {
+                                          // update local selection so the list highlights the tapped member
                                           setState(() {
                                             _selectedMemberId = uid;
                                           });
-                                        }
 
-                                        // collapse sheet to min immediately (or queued if detached)
-                                        try {
-                                          await _safeAnimateSheetTo(
-                                              _sheetMinChildSize,
-                                              duration: const Duration(
-                                                  milliseconds: 260));
-                                        } catch (e, st) {
-                                          debugPrint(
-                                              '[LocationWidgets] safeAnimateSheetTo failed: $e\n$st');
-                                        }
-
-                                        // then call the host-provided handler (GpsScreen) that shows the overlay
-                                        if (widget.onShowMyInfoPressed !=
-                                            null) {
+                                          // collapse sheet to min so overlay will position correctly
                                           try {
-                                            await widget.onShowMyInfoPressed!
-                                                .call();
+                                            await _safeAnimateSheetTo(
+                                                _sheetMinChildSize,
+                                                duration: const Duration(
+                                                    milliseconds: 260));
                                           } catch (e, st) {
                                             debugPrint(
-                                                '[LocationWidgets] host onShowMyInfoPressed threw: $e\n$st');
+                                                '[LocationWidgets] safeAnimateSheetTo failed: $e\n$st');
                                           }
-                                        }
-                                      },
-                                      isLoading: _isLoading,
-                                      onMemberPressed:
-                                          (LatLng loc, String uid) async {
-                                        // update local selection so the list highlights the tapped member
-                                        setState(() {
-                                          _selectedMemberId = uid;
-                                        });
 
-                                        // collapse sheet to min so overlay will position correctly
-                                        try {
-                                          await _safeAnimateSheetTo(
-                                              _sheetMinChildSize,
-                                              duration: const Duration(
-                                                  milliseconds: 260));
-                                        } catch (e, st) {
-                                          debugPrint(
-                                              '[LocationWidgets] safeAnimateSheetTo failed: $e\n$st');
-                                        }
-
-                                        // forward to GpsScreen (or whatever parent handler) to show overlay / pan camera
-                                        widget.onMemberPressed(loc, uid);
-                                      },
+                                          // forward to GpsScreen (or whatever parent handler) to show overlay / pan camera
+                                          widget.onMemberPressed(loc, uid);
+                                        },
+                                      ),
                                     ),
                                   ],
                                 ] else if (_activeIndex == 1) ...[

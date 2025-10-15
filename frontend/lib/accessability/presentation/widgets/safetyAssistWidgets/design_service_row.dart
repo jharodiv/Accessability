@@ -111,20 +111,26 @@ class DesignServiceRow extends StatelessWidget {
           Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              TealCircleAction(
-                icon: Icons.call,
-                label: 'call'.tr(),
-                onTap: () => onCall(primary),
-                iconColor: const Color(0xFF6750A4),
-                backgroundColor: Colors.white,
+              Semantics(
+                label: 'Call Button',
+                child: TealCircleAction(
+                  icon: Icons.call,
+                  label: 'call'.tr(),
+                  onTap: () => onCall(primary),
+                  iconColor: const Color(0xFF6750A4),
+                  backgroundColor: Colors.white,
+                ),
               ),
               const SizedBox(height: 8),
-              TealCircleAction(
-                icon: Icons.message,
-                label: 'message'.tr(),
-                iconColor: const Color(0xFF6750A4),
-                onTap: () => onSms(primary),
-                backgroundColor: Colors.white,
+              Semantics(
+                label: 'Message Button',
+                child: TealCircleAction(
+                  icon: Icons.message,
+                  label: 'message'.tr(),
+                  iconColor: const Color(0xFF6750A4),
+                  onTap: () => onSms(primary),
+                  backgroundColor: Colors.white,
+                ),
               ),
             ],
           ),

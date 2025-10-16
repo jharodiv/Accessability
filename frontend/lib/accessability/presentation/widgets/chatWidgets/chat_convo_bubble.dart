@@ -11,6 +11,7 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 class ChatConvoBubble extends StatefulWidget {
   final String message;
+  final String username;
   final bool isCurrentUser;
   final Timestamp timestamp;
   final String profilePicture;
@@ -28,6 +29,7 @@ class ChatConvoBubble extends StatefulWidget {
   const ChatConvoBubble({
     super.key,
     required this.isCurrentUser,
+    required this.username,
     required this.message,
     required this.timestamp,
     required this.profilePicture,
@@ -409,101 +411,155 @@ class _ChatConvoBubbleState extends State<ChatConvoBubble> {
   }
 
   Widget _buildNormalMessage(BuildContext context, bool isDarkMode) {
-    // The main message bubble (no mic inside)
-    final bubble = Flexible(
-      child: Column(
-        crossAxisAlignment: widget.isCurrentUser
-            ? CrossAxisAlignment.end
-            : CrossAxisAlignment.start,
-        children: [
-          if (widget.edited)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 4),
-              child: Text(
-                'edited',
-                style: TextStyle(
-                  color: isDarkMode ? Colors.white54 : Colors.grey[600],
-                  fontSize: 10,
-                  fontStyle: FontStyle.italic,
-                ),
-              ),
-            ),
-          InkWell(
-            onTap: () {
-              setState(() {
-                _showTimestamp = !_showTimestamp;
-              });
-            },
-            onLongPress: () => _showOptionsMenu(context),
-            borderRadius: BorderRadius.circular(16),
-            child: Container(
-              constraints: BoxConstraints(
-                maxWidth: MediaQuery.of(context).size.width * 0.72,
-              ),
-              margin: const EdgeInsets.symmetric(vertical: 4),
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-              decoration: _bubbleDecoration(isDarkMode, widget.isCurrentUser),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  if (_location != null) ...[
-                    _buildMapPreview(_location!),
-                    const SizedBox(height: 8),
-                  ],
-                  // message text only (speaker removed from here)
-                  Text(
-                    widget.message,
-                    style: TextStyle(
-                      color: widget.isCurrentUser
-                          ? Colors.white
-                          : (isDarkMode ? Colors.white : Colors.black),
-                      fontSize: 14,
+    final bubbleWithMic = Row(
+      crossAxisAlignment: CrossAxisAlignment.end,
+      mainAxisSize: MainAxisSize.min,
+      children: widget.isCurrentUser
+          ? [
+              buildOutsideMic(isDarkMode), // Mic on the left for current user
+              const SizedBox(width: 8),
+              Flexible(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    InkWell(
+                      onTap: () {
+                        setState(() {
+                          _showTimestamp = !_showTimestamp;
+                        });
+                      },
+                      onLongPress: () => _showOptionsMenu(context),
+                      borderRadius: BorderRadius.circular(16),
+                      child: Container(
+                        constraints: BoxConstraints(
+                          maxWidth: MediaQuery.of(context).size.width * 0.72,
+                        ),
+                        margin: const EdgeInsets.symmetric(vertical: 4),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 14, vertical: 10),
+                        decoration: _bubbleDecoration(isDarkMode, true),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            if (_location != null) ...[
+                              _buildMapPreview(_location!),
+                              const SizedBox(height: 8),
+                            ],
+                            Text(
+                              widget.message,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 14,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          if (_showTimestamp)
-            Padding(
-              padding: const EdgeInsets.only(top: 6),
-              child: Text(
-                _formatTimestamp(widget.timestamp),
-                style: TextStyle(
-                  color: isDarkMode ? Colors.white54 : Colors.grey[600],
-                  fontSize: 10,
+                    if (_showTimestamp)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 4),
+                        child: Text(
+                          _formatTimestamp(widget.timestamp),
+                          style: TextStyle(
+                            color:
+                                isDarkMode ? Colors.white54 : Colors.grey[600],
+                            fontSize: 10,
+                          ),
+                        ),
+                      ),
+                  ],
                 ),
               ),
-            ),
-        ],
-      ),
+            ]
+          : [
+              // Other users: avatar -> bubble -> mic
+              CircleAvatar(
+                backgroundImage: NetworkImage(widget.profilePicture),
+                radius: 16,
+              ),
+              const SizedBox(width: 8),
+              Flexible(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 2),
+                      child: Text(
+                        widget.username,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: isDarkMode ? Colors.white70 : Colors.black87,
+                        ),
+                      ),
+                    ),
+                    InkWell(
+                      onTap: () {
+                        setState(() {
+                          _showTimestamp = !_showTimestamp;
+                        });
+                      },
+                      onLongPress: () => _showOptionsMenu(context),
+                      borderRadius: BorderRadius.circular(16),
+                      child: Container(
+                        constraints: BoxConstraints(
+                          maxWidth: MediaQuery.of(context).size.width * 0.72,
+                        ),
+                        margin: const EdgeInsets.symmetric(vertical: 4),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 14, vertical: 10),
+                        decoration: _bubbleDecoration(isDarkMode, false),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            if (_location != null) ...[
+                              _buildMapPreview(_location!),
+                              const SizedBox(height: 8),
+                            ],
+                            Text(
+                              widget.message,
+                              style: TextStyle(
+                                color: isDarkMode ? Colors.white : Colors.black,
+                                fontSize: 14,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    if (_showTimestamp)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 4),
+                        child: Text(
+                          _formatTimestamp(widget.timestamp),
+                          style: TextStyle(
+                            color:
+                                isDarkMode ? Colors.white54 : Colors.grey[600],
+                            fontSize: 10,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              buildOutsideMic(isDarkMode),
+            ],
     );
 
-    // Row with mic placed outside and vertically centered.
-    return Row(
-      mainAxisAlignment: widget.isCurrentUser
-          ? MainAxisAlignment.end
-          : MainAxisAlignment.start,
-      crossAxisAlignment:
-          CrossAxisAlignment.center, // centers mic vs bubble height
-      children: [
-        if (!widget.isCurrentUser) ...[
-          // Incoming message: avatar -> bubble -> mic (mic outside on right, centered)
-          CircleAvatar(
-            backgroundImage: NetworkImage(widget.profilePicture),
-            radius: 16,
-          ),
-          const SizedBox(width: 8),
-          bubble,
-          const SizedBox(width: 8),
-          buildOutsideMic(isDarkMode),
-        ] else ...[
-          // Outgoing message: mic (left, centered) -> bubble
-          buildOutsideMic(isDarkMode),
-          const SizedBox(width: 8),
-          bubble,
+    return Padding(
+      padding: EdgeInsets.only(
+        top: widget.isCurrentUser ? 4.0 : 12.0, // more space for other users
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: widget.isCurrentUser
+            ? MainAxisAlignment.end
+            : MainAxisAlignment.start,
+        children: [
+          Flexible(child: bubbleWithMic),
         ],
-      ],
+      ),
     );
   }
 

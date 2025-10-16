@@ -3,6 +3,8 @@ import 'package:accessability/accessability/presentation/screens/settings/settin
 import 'package:accessability/accessability/presentation/widgets/chatWidgets/verification_request_screen.dart';
 import 'package:accessability/accessability/presentation/widgets/google_helper/map_view_screen.dart';
 import 'package:accessability/accessability/presentation/widgets/homepageWidgets/bottomWidgetFiles/checkIn/send_location_screen.dart';
+import 'package:accessability/accessability/presentation/widgets/homepageWidgets/bottomWidgetFiles/member.dart';
+import 'package:accessability/accessability/presentation/widgets/homepageWidgets/bottomWidgetFiles/verification_code_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:accessability/accessability/logic/firebase_logic/sign_up_model.dart';
 import 'package:accessability/accessability/presentation/screens/auth_screens/login_screen.dart';
@@ -83,8 +85,26 @@ class AppRouter {
         return _buildRoute(const JoinSpaceScreen(), settings: routeSettings);
       case '/faq':
         return _buildRoute(const FAQScreen(), settings: routeSettings);
+      case '/verificationCode':
+        final args =
+            routeSettings.arguments as Map<String, dynamic>?; // could be null
+        if (args == null || args['spaceId'] == null) {
+          throw ArgumentError(
+              'spaceId is required for /verificationCode route');
+        }
+        final spaceId = args['spaceId'] as String;
+
+        return _buildRoute(
+          VerificationCodeScreen(spaceId: spaceId),
+          settings: routeSettings,
+        );
       case '/spaceManagement':
         return _buildRoute(const SpaceManagementScreen(),
+            settings: routeSettings);
+      case '/spaceMembers':
+        final args = routeSettings.arguments as Map<String, dynamic>;
+        final spaceId = args['spaceId'] as String;
+        return _buildRoute(SpaceMembersScreen(spaceId: spaceId),
             settings: routeSettings);
       case '/verificationRequest':
         final args = routeSettings.arguments as Map<String, dynamic>?;

@@ -492,29 +492,40 @@ class _ChatConvoScreenState extends State<ChatConvoScreen> {
             ],
           ),
           child: AppBar(
-            elevation: 0,
-            backgroundColor: Colors.transparent,
-            leading: IconButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
-              icon: const Icon(Icons.arrow_back),
-              color: const Color(0xFF6750A4), // purple theme
-            ),
-            title: Row(
-              children: [
-                CircleAvatar(
-                  backgroundImage: NetworkImage(receiverProfilePicture),
+              elevation: 0,
+              backgroundColor: Colors.transparent,
+              leading: IconButton(
+                onPressed: () {
+                  Navigator.of(context).pop();
+                },
+                icon: const Icon(Icons.arrow_back),
+                color: const Color(0xFF6750A4), // purple theme
+              ),
+              title: Row(
+                children: [
+                  CircleAvatar(
+                    backgroundImage: NetworkImage(receiverProfilePicture),
+                  ),
+                  const SizedBox(width: 10),
+                  Text(
+                    receiverUsername,
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                ],
+              ),
+              centerTitle: false, // keep avatar + name aligned to left
+              actions: [
+                IconButton(
+                  onPressed: () {
+                    Navigator.pushNamed(
+                      context,
+                      '/spaceMembers',
+                      arguments: {'spaceId': widget.receiverID},
+                    );
+                  },
+                  icon: const Icon(Icons.more_vert, color: Color(0xFF6750A4)),
                 ),
-                const SizedBox(width: 10),
-                Text(
-                  receiverUsername,
-                  style: const TextStyle(fontWeight: FontWeight.bold),
-                ),
-              ],
-            ),
-            centerTitle: false, // keep avatar + name aligned to left
-          ),
+              ]),
         ),
       ),
       body: Container(

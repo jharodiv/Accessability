@@ -633,6 +633,7 @@ class _ChatConvoScreenState extends State<ChatConvoScreen> {
 
         return ChatConvoBubble(
           isCurrentUser: isCurrentUser,
+          username: userData['username'] ?? 'Unknown',
           message: isDeleted ? 'This message was deleted' : data['message'],
           timestamp: data['timestamp'],
           profilePicture: profilePicture,

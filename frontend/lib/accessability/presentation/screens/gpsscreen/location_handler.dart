@@ -15,6 +15,7 @@ import 'package:http/http.dart' as http;
 import 'package:location/location.dart' as location_package;
 import 'package:battery_plus/battery_plus.dart';
 import 'package:accessability/accessability/backgroundServices/place_notification_service.dart';
+import 'package:accessability/accessability/backgroundServices/distance_notification_service.dart';
 
 typedef UserMarkerTapCallback = void Function({
   required String userId,
@@ -79,6 +80,9 @@ class LocationHandler {
 
   final SpaceMemberNotificationService _spaceMemberNotificationService =
       SpaceMemberNotificationService();
+
+  final DistanceNotificationService _distanceNotificationService =
+      DistanceNotificationService();
 
   // Cache for addresses
   final Map<String, String> _addressCache = {};
@@ -218,6 +222,10 @@ class LocationHandler {
         'speedKmh': speedKmh, // km/h (nullable)
         'batteryPercent': batteryPercent, // nullable
       }, SetOptions(merge: true));
+
+      if (activeSpaceId.isNotEmpty) {
+        _distanceNotificationService.checkLocationForNotifications(location);
+      }
 
       PlaceNotificationService().checkLocationForNotifications(location);
 
@@ -426,8 +434,15 @@ class LocationHandler {
   void updateActiveSpaceId(String spaceId) {
     if (activeSpaceId == spaceId) return;
 
+    final previousSpaceId = activeSpaceId;
+    final user = FirebaseAuth.instance.currentUser;
+
     debugPrint(
         '[LocationHandler] Updating active space from $activeSpaceId to $spaceId');
+
+    if (user != null && previousSpaceId.isNotEmpty) {
+      _distanceNotificationService.userLeftSpace(user.uid, previousSpaceId);
+    }
 
     // Clear ALL member markers first (not just some)
     _removeAllMemberMarkers();
@@ -1196,6 +1211,8 @@ class LocationHandler {
     _locationStreamSubscription?.cancel();
     _firestoreSubscription?.cancel();
     _pwdNotificationService.stopLocationMonitoring();
+    _distanceNotificationService.dispose(); // Add this line
+
     try {
       _locationStreamController.close();
     } catch (_) {}

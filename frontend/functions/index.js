@@ -1,34 +1,44 @@
-const functions = require('firebase-functions');
-const admin = require('firebase-admin');
+const functions = require("firebase-functions");
+const admin = require("firebase-admin");
+
 admin.initializeApp();
 
 // Function for private chat notifications
 exports.sendMessageNotification = functions.firestore
-  .document('chat_rooms/{chatRoomID}/messages/{messageID}')
-  .onCreate(async (snapshot, context) => {
+  .document("chat_rooms/{chatRoomID}/messages/{messageID}")
+  .onCreate(async (snap, context) => {
     try {
-      const messageData = snapshot.data();
+      const messageData = snap.data();
       const senderID = messageData.senderID;
       const receiverID = messageData.receiverID;
       const message = messageData.message;
 
-      const senderDoc = await admin.firestore().collection('Users').doc(senderID).get();
-      const senderName = senderDoc.data()?.username || senderDoc.data()?.email || 'Someone';
-      const senderEmail = senderDoc.data()?.email;
+      // Get sender info
+      const senderDoc = await admin
+        .firestore()
+        .collection("Users")
+        .doc(senderID)
+        .get();
+      const senderData = senderDoc.data();
+      if (!senderData) return;
 
-      if (!senderEmail) {
-        console.log('Sender email not found');
-        return;
-      }
+      const senderName = senderData.username || senderData.email || "Someone";
+      const senderEmail = senderData.email;
+      if (!senderEmail) return;
 
-      const receiverDoc = await admin.firestore().collection('Users').doc(receiverID).get();
-      const receiverToken = receiverDoc.data()?.fcmToken;
+      // Get receiver info and FCM token
+      const receiverDoc = await admin
+        .firestore()
+        .collection("Users")
+        .doc(receiverID)
+        .get();
+      const receiverData = receiverDoc.data();
+      if (!receiverData) return;
 
-      if (!receiverToken) {
-        console.log('Receiver FCM token not found');
-        return;
-      }
+      const receiverToken = receiverData.fcmToken;
+      if (!receiverToken) return;
 
+      // Prepare notification payload
       const payload = {
         notification: {
           title: `${senderName}`,
@@ -39,80 +49,89 @@ exports.sendMessageNotification = functions.firestore
           senderEmail: senderEmail,
           receiverID: receiverID,
           message: message,
-          click_action: 'FLUTTER_NOTIFICATION_CLICK',
+          click_action: "FLUTTER_NOTIFICATION_CLICK",
         },
         android: {
           notification: {
-            sound: 'default',
-            priority: 'high',
-            visibility: 'public',
-            channel_id: 'higher',
+            sound: "default",
+            priority: "high",
+            visibility: "public",
+            channel_id: "higher",
           },
         },
         apns: {
           payload: {
             aps: {
-              sound: 'default',
+              sound: "default",
             },
           },
         },
         token: receiverToken,
       };
 
-      console.log('Payload:', payload);
-
-      const response = await admin.messaging().send(payload);
-      console.log('Notification sent successfully:', response);
+      // Send notification
+      await admin.messaging().send(payload);
+      console.log("Private chat notification sent successfully");
     } catch (error) {
-      console.error('Error sending notification:', error);
+      console.error("Error sending private chat notification:", error);
     }
   });
 
 // Function for space chat room notifications
 exports.sendSpaceChatNotification = functions.firestore
-  .document('space_chat_rooms/{spaceId}/messages/{messageId}')
-  .onCreate(async (snapshot, context) => {
+  .document("space_chat_rooms/{spaceId}/messages/{messageId}")
+  .onCreate(async (snap, context) => {
     try {
-      const messageData = snapshot.data();
+      const messageData = snap.data();
       const senderID = messageData.senderID;
       const spaceId = context.params.spaceId;
       const message = messageData.message;
 
-      // Fetch sender's details
-      const senderDoc = await admin.firestore().collection('Users').doc(senderID).get();
-      const senderName = senderDoc.data()?.username || senderDoc.data()?.email || 'Someone';
-      const senderEmail = senderDoc.data()?.email;
+      // Get sender info
+      const senderDoc = await admin
+        .firestore()
+        .collection("Users")
+        .doc(senderID)
+        .get();
+      const senderData = senderDoc.data();
+      if (!senderData) return;
 
-      if (!senderEmail) {
-        console.log('Sender email not found');
-        return;
-      }
+      const senderName = senderData.username || senderData.email || "Someone";
+      const senderEmail = senderData.email;
+      if (!senderEmail) return;
 
-      // Fetch space chat room details
-      const spaceDoc = await admin.firestore().collection('space_chat_rooms').doc(spaceId).get();
-      const spaceName = spaceDoc.data()?.name || 'Space';
-      const members = spaceDoc.data()?.members || [];
+      // Get space info
+      const spaceDoc = await admin
+        .firestore()
+        .collection("space_chat_rooms")
+        .doc(spaceId)
+        .get();
+      const spaceData = spaceDoc.data();
+      if (!spaceData) return;
 
-      // Fetch FCM tokens for all members (except the sender)
+      const spaceName = spaceData.name || "Space";
+      const members = spaceData.members || [];
+
+      // Get FCM tokens for all members except sender
       const tokens = [];
       for (const memberId of members) {
         if (memberId !== senderID) {
-          const memberDoc = await admin.firestore().collection('Users').doc(memberId).get();
-          const memberToken = memberDoc.data()?.fcmToken;
-
-          if (memberToken) {
-            tokens.push(memberToken);
+          const memberDoc = await admin
+            .firestore()
+            .collection("Users")
+            .doc(memberId)
+            .get();
+          const memberData = memberDoc.data();
+          if (memberData && memberData.fcmToken) {
+            tokens.push(memberData.fcmToken);
           }
         }
       }
 
-      if (tokens.length === 0) {
-        console.log('No FCM tokens found for members');
-        return;
-      }
+      if (tokens.length === 0) return;
 
-      // Prepare the notification payload
-      const payload = {
+      // Prepare the base payload (without token)
+      const basePayload = {
         notification: {
           title: `${senderName} in ${spaceName}`,
           body: `${message}`,
@@ -122,44 +141,108 @@ exports.sendSpaceChatNotification = functions.firestore
           senderEmail: senderEmail,
           spaceId: spaceId,
           message: message,
-          click_action: 'FLUTTER_NOTIFICATION_CLICK',
+          click_action: "FLUTTER_NOTIFICATION_CLICK",
         },
         android: {
           notification: {
-            sound: 'default',
-            priority: 'high',
-            visibility: 'public',
-            channel_id: 'space_chat',
+            sound: "default",
+            priority: "high",
+            visibility: "public",
+            channel_id: "space_chat",
           },
         },
         apns: {
           payload: {
             aps: {
-              sound: 'default',
+              sound: "default",
             },
           },
         },
       };
 
-      console.log('Payload:', payload);
-
-      // Send notifications one by one
+      // Send to each token
       for (const token of tokens) {
         try {
-          const individualPayload = { ...payload, token }; // Add the token to the payload
-          const response = await admin.messaging().send(individualPayload);
-          console.log('Notification sent successfully to token:', token, response);
+          const individualPayload = { ...basePayload, token };
+          await admin.messaging().send(individualPayload);
+          console.log("Space chat notification sent to:", token);
         } catch (error) {
-          console.error('Error sending notification to token:', token, error);
+          console.error("Error sending to token:", token, error);
 
-          // Optionally, remove invalid tokens from the database
-          if (error.code === 'messaging/invalid-registration-token' || error.code === 'messaging/registration-token-not-registered') {
-            console.log('Removing invalid token from the database:', token);
-            // Add logic to remove invalid tokens from Firestore
+          // Remove invalid tokens from the database
+          if (
+            error.code === "messaging/invalid-registration-token" ||
+            error.code === "messaging/registration-token-not-registered"
+          ) {
+            console.log("Removing invalid token from the database:", token);
+            // Add logic to remove invalid tokens from Firestore if needed
           }
         }
       }
     } catch (error) {
-      console.error('Error in sendSpaceChatNotification:', error);
+      console.error("Error in space chat notification:", error);
+    }
+  });
+
+// Function for distance movement notifications
+exports.sendDistanceNotification = functions.firestore
+  .document("DistanceNotifications/{notificationId}")
+  .onCreate(async (snap, context) => {
+    try {
+      const notificationData = snap.data();
+      const targetFCMToken = notificationData.targetFCMToken;
+      const movingUserName = notificationData.movingUserName;
+      const spaceName = notificationData.spaceName;
+      const distanceKm = notificationData.distanceKm;
+      const address = notificationData.address;
+      const movingUserId = notificationData.movingUserId;
+      const spaceId = notificationData.spaceId;
+
+      if (!targetFCMToken) {
+        await snap.ref.delete();
+        return;
+      }
+
+      const payload = {
+        notification: {
+          title: `🚀 ${movingUserName} Moved ${distanceKm.toFixed(1)} km!`,
+          body: `In ${spaceName} space`,
+        },
+        data: {
+          type: "distance_alert",
+          movingUserId: movingUserId,
+          movingUserName: movingUserName,
+          spaceId: spaceId,
+          spaceName: spaceName,
+          distanceKm: distanceKm.toString(),
+          address: address,
+          click_action: "FLUTTER_NOTIFICATION_CLICK",
+        },
+        android: {
+          notification: {
+            sound: "default",
+            priority: "high",
+            visibility: "public",
+            channel_id: "distance_alerts",
+          },
+        },
+        apns: {
+          payload: {
+            aps: {
+              sound: "default",
+            },
+          },
+        },
+        token: targetFCMToken,
+      };
+
+      await admin.messaging().send(payload);
+      console.log("Distance notification sent successfully");
+
+      // Clean up
+      await snap.ref.delete();
+    } catch (error) {
+      console.error("Error sending distance notification:", error);
+      await snap.ref.delete();
     }
   });

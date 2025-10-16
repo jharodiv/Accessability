@@ -2,7 +2,8 @@ import 'dart:async';
 
 import 'package:accessability/accessability/backgroundServices/place_notification_service.dart';
 import 'package:accessability/accessability/backgroundServices/space_member_notification_service.dart';
-import 'package:accessability/accessability/firebaseServices/chat/chat_service.dart'; // ADD THIS IMPORT
+import 'package:accessability/accessability/backgroundServices/distance_notification_service.dart';
+import 'package:accessability/accessability/firebaseServices/chat/chat_service.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter_background_service/flutter_background_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -48,6 +49,9 @@ void onStart(ServiceInstance service) async {
     final spaceMemberNotificationService = SpaceMemberNotificationService();
     await spaceMemberNotificationService.initialize();
 
+    final distanceNotificationService = DistanceNotificationService();
+    await distanceNotificationService.initialize();
+
     if (service is AndroidServiceInstance) {
       await service.setForegroundNotificationInfo(
         title: "Location Tracking",
@@ -81,7 +85,17 @@ void onStart(ServiceInstance service) async {
 
     print('Background service initialized successfully');
 
-    // Listen for location updates
+    // // 🧪 TEST MODE - Set this to true to test with static data
+    // final bool testMode = false; // Change to true when testing
+
+    // if (testMode) {
+    //   print('🧪 TEST MODE: Starting static location test sequence');
+    //   await _runStaticLocationTest(distanceNotificationService, user.uid);
+    //   print('🧪 TEST MODE: Static location test completed');
+    //   return; // Stop real location updates during test
+    // }
+
+    // Listen for location updates (REAL MODE)
     location.onLocationChanged.listen((LocationData locationData) async {
       if (locationData.latitude == null || locationData.longitude == null) {
         return;
@@ -107,15 +121,20 @@ void onStart(ServiceInstance service) async {
       print('Checking for regular places...');
       placeNotificationService.checkLocationForNotifications(latLng);
 
+      // Check for significant movement and notify space members
+      print('Checking for significant movement...');
+      distanceNotificationService.checkLocationForNotifications(latLng);
+
       service.invoke('update', {
         'latitude': locationData.latitude,
         'longitude': locationData.longitude,
       });
     });
 
-    // Start monitoring for both services
+    // Start monitoring for all services
     pwdNotificationService.startLocationMonitoring();
     placeNotificationService.startLocationMonitoring();
+    distanceNotificationService.startLocationMonitoring();
     print('Location monitoring started');
 
     service.on('stopService').listen((event) {
@@ -129,5 +148,87 @@ void onStart(ServiceInstance service) async {
     }
   } catch (e) {
     print('Error in background service: $e');
+  }
+}
+
+// 🧪 TEST METHOD: Run static location test sequence
+// Future<void> _runStaticLocationTest(
+//     DistanceNotificationService distanceService, String userId) async {
+//   try {
+//     // Test locations (use coordinates that are >5km apart)
+//     final testLocations = [
+//       {
+//         'name': 'Singapore Start',
+//         'latLng': LatLng(1.3521, 103.8198),
+//         'description': 'Initial position'
+//       },
+//       {
+//         'name': 'North Singapore',
+//         'latLng': LatLng(1.4500, 103.8500),
+//         'description': '11km away - should trigger notification'
+//       },
+//       {
+//         'name': 'South Singapore',
+//         'latLng': LatLng(1.2903, 103.8515),
+//         'description': '7km from previous - should trigger'
+//       },
+//       {
+//         'name': 'Far West',
+//         'latLng': LatLng(1.3521, 103.6000),
+//         'description': '24km from start - should trigger'
+//       },
+//     ];
+
+//     print('🧪 TEST: Starting with ${testLocations.length} test locations');
+
+//     for (int i = 0; i < testLocations.length; i++) {
+//       final location = testLocations[i];
+//       final latLng = location['latLng'] as LatLng;
+
+//       print('🧪 TEST [${i + 1}/${testLocations.length}]: ${location['name']}');
+//       print('   📍 Coordinates: ${latLng.latitude}, ${latLng.longitude}');
+//       print('   📝 ${location['description']}');
+
+//       // Update Firestore with test location
+//       await FirebaseFirestore.instance
+//           .collection('UserLocations')
+//           .doc(userId)
+//           .set({
+//         'latitude': latLng.latitude,
+//         'longitude': latLng.longitude,
+//         'timestamp': DateTime.now(),
+//         'is_test_data': true, // Mark as test data
+//       });
+
+//       // Trigger distance check
+//       await distanceService.checkLocationForNotifications(latLng);
+
+//       // Wait before next test location
+//       if (i < testLocations.length - 1) {
+//         print('🧪 TEST: Waiting 10 seconds before next location...');
+//         await Future.delayed(Duration(seconds: 10));
+//       }
+//     }
+
+//     print('🧪 TEST: All test locations completed!');
+//     print(
+//         '🧪 CHECK: Look for notifications on this device and other space members devices');
+//   } catch (e) {
+//     print('❌ TEST ERROR: $e');
+//   }
+// }
+
+// Helper method: Get user's spaces
+Future<List<String>> _getUserSpaces(String userId) async {
+  try {
+    final snapshot = await FirebaseFirestore.instance
+        .collection('Spaces')
+        .where('members', arrayContains: userId)
+        .get();
+
+    return snapshot.docs.map((doc) => doc.id).toList();
+  } catch (e) {
+    print('Error getting user spaces: $e');
+    return [];
   }
 }

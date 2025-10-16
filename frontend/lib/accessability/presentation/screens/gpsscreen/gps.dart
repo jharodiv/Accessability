@@ -2,6 +2,7 @@
 import 'dart:async';
 import 'dart:math';
 import 'package:accessability/accessability/backgroundServices/deep_link_service.dart';
+import 'package:accessability/accessability/backgroundServices/distance_notification_service.dart';
 import 'package:accessability/accessability/data/model/place.dart';
 import 'package:accessability/accessability/firebaseServices/place/geocoding_service.dart';
 import 'package:accessability/accessability/logic/bloc/place/bloc/place_state.dart';
@@ -163,6 +164,8 @@ class _GpsScreenState extends State<GpsScreen> {
   final double _placeBaseRadiusMeters = 30.0;
   final Color _placeCircleColor = const Color(0xFF7C4DFF);
   String? _selectedCategory;
+  final DistanceNotificationService _distanceNotificationService =
+      DistanceNotificationService();
 
   @override
   void initState() {
@@ -184,6 +187,8 @@ class _GpsScreenState extends State<GpsScreen> {
     _spaceMemberNotificationService.initialize().then((_) {
       _spaceMemberNotificationService.startMemberMonitoring();
     });
+
+    _distanceNotificationService.initialize();
 
     // Fetch user data and places.
     context.read<UserBloc>().add(FetchUserData());
@@ -1078,6 +1083,7 @@ class _GpsScreenState extends State<GpsScreen> {
     _favoriteSheetController.dispose();
     _locationSheetController.dispose();
     _safetySheetController.dispose();
+    _distanceNotificationService.dispose();
 
     _removeUserOverlay();
     super.dispose();

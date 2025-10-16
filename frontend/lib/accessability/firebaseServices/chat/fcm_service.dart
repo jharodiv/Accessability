@@ -24,8 +24,10 @@ class FCMService {
     const AndroidNotificationChannel channel = AndroidNotificationChannel(
       'high_importance_channel', // Channel ID
       'High Importance Notifications', // Channel Name
-      importance: Importance.high, // Set importance to high for heads-up notifications
-      sound: RawResourceAndroidNotificationSound('default'), // Use default sound
+      importance:
+          Importance.high, // Set importance to high for heads-up notifications
+      sound:
+          RawResourceAndroidNotificationSound('default'), // Use default sound
     );
     await _flutterLocalNotificationsPlugin
         .resolvePlatformSpecificImplementation<
@@ -62,19 +64,22 @@ class FCMService {
       RemoteMessage? initialMessage =
           await FirebaseMessaging.instance.getInitialMessage();
       if (initialMessage != null) {
-        print('App launched from terminated state: ${initialMessage.notification?.title}');
+        print(
+            'App launched from terminated state: ${initialMessage.notification?.title}');
         _handleNotificationClick(initialMessage.data);
       }
 
       // Set up background message handler
-      FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+      FirebaseMessaging.onBackgroundMessage(
+          _firebaseMessagingBackgroundHandler);
     } else {
       print('User declined or has not accepted notification permissions');
     }
   }
 
   // Background message handler
-  static Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  static Future<void> _firebaseMessagingBackgroundHandler(
+      RemoteMessage message) async {
     print('Handling a background message: ${message.messageId}');
   }
 
@@ -82,17 +87,19 @@ class FCMService {
   Future<void> _showNotification(RemoteMessage message) async {
     const AndroidNotificationDetails androidPlatformChannelSpecifics =
         AndroidNotificationDetails(
-      'high', 
-      'High Importance Notifications', 
+      'high',
+      'High Importance Notifications',
       importance: Importance.defaultImportance,
       priority: Priority.high,
-      sound: RawResourceAndroidNotificationSound('default'), // Use default sound
+      sound:
+          RawResourceAndroidNotificationSound('default'), // Use default sound
     );
     const NotificationDetails platformChannelSpecifics =
         NotificationDetails(android: androidPlatformChannelSpecifics);
 
     // Generate a unique ID for the notification
-    int notificationId = DateTime.now().millisecondsSinceEpoch.remainder(100000);
+    int notificationId =
+        DateTime.now().millisecondsSinceEpoch.remainder(100000);
 
     await _flutterLocalNotificationsPlugin.show(
       notificationId, // Use a unique ID
@@ -104,12 +111,24 @@ class FCMService {
 
   // Handle notification click
   void _handleNotificationClick(Map<String, dynamic> data) {
-    final String senderEmail = data['senderEmail'];
-    final String senderID = data['senderID'];
-    final String spaceId = data['spaceId'];
+    final String type = data['type'];
 
-    if (spaceId != null) {
-      // Navigate to the space chat room
+    if (type == 'distance_alert') {
+      // Handle distance notification click
+      final String movingUserId = data['movingUserId'];
+      final String spaceId = data['spaceId'];
+
+      // Navigate to map screen or space view
+      navigatorKey.currentState?.pushNamed(
+        '/map',
+        arguments: {
+          'highlightUser': movingUserId,
+          'spaceId': spaceId,
+        },
+      );
+    } else if (data['spaceId'] != null) {
+      // Existing space chat handling
+      final String spaceId = data['spaceId'];
       navigatorKey.currentState?.pushNamed(
         '/chatconvo',
         arguments: {
@@ -119,7 +138,9 @@ class FCMService {
         },
       );
     } else {
-      // Navigate to the private chat room
+      // Existing private chat handling
+      final String senderEmail = data['senderEmail'];
+      final String senderID = data['senderID'];
       navigatorKey.currentState?.pushNamed(
         '/chatconvo',
         arguments: {
@@ -128,6 +149,21 @@ class FCMService {
         },
       );
     }
+  }
+
+  void _handleDistanceNotification(Map<String, dynamic> data) {
+    final String movingUserId = data['movingUserId'];
+    final String movingUserName = data['movingUserName'];
+    final String spaceId = data['spaceId'];
+    final String spaceName = data['spaceName'];
+    final String distanceKm = data['distanceKm'];
+    final String address = data['address'];
+
+    print(
+        'Distance notification received: $movingUserName moved $distanceKm km in $spaceName');
+
+    // You can navigate to the map screen or show additional UI if needed
+    // For now, just show the notification
   }
 
   // Get the FCM token

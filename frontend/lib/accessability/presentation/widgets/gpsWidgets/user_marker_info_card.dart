@@ -10,8 +10,10 @@ class UserMarkerInfoCard extends StatelessWidget {
   final double? speedKmh;
   final DateTime? timestamp;
   final VoidCallback? onClose;
+  final VoidCallback? onNavigate;
   final double width;
   final double? height;
+  final bool isCurrentUser;
 
   const UserMarkerInfoCard({
     Key? key,
@@ -23,8 +25,10 @@ class UserMarkerInfoCard extends StatelessWidget {
     this.speedKmh,
     this.timestamp,
     this.onClose,
+    this.onNavigate,
     this.width = 300,
     this.height,
+    this.isCurrentUser = false,
   }) : super(key: key);
 
   String _formatTimestampShort(DateTime? ts) {
@@ -77,9 +81,36 @@ class UserMarkerInfoCard extends StatelessWidget {
     );
   }
 
+  Widget _navigationIconButton(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return Semantics(
+      label: 'Navigate to user',
+      child: GestureDetector(
+        onTap: () {
+          // Use the onNavigate callback if provided
+          if (onNavigate != null) {
+            onNavigate!();
+          }
+        },
+        child: Container(
+          padding: const EdgeInsets.all(6),
+          decoration: BoxDecoration(
+            color: isDark ? Colors.blue[700] : Colors.blue,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(
+                color: isDark ? Colors.blue[600]! : Colors.blue.shade300),
+          ),
+          child: Icon(Icons.navigation, size: 12, color: Colors.white),
+        ),
+      ),
+    );
+  }
+
   Widget _batteryWidget(BuildContext context) {
     if (batteryPercent == null) {
-      return _chip(context: context, icon: Icons.battery_unknown, label: '—');
+      return _smartChip(
+          context: context, icon: Icons.battery_unknown, label: '—');
     }
 
     final p = batteryPercent!.clamp(0, 100);
@@ -87,21 +118,85 @@ class UserMarkerInfoCard extends StatelessWidget {
         ? Colors.green.shade600
         : (p >= 20 ? Colors.orange : Colors.red);
     final IconData icon;
+
+    // Use simpler icons to save space
     if (p >= 80) {
       icon = Icons.battery_full;
     } else if (p >= 50) {
       icon = Icons.battery_std;
-    } else {
+    } else if (p >= 20) {
       icon = Icons.battery_alert;
+    } else {
+      icon = Icons.battery_alert; // Critical battery
     }
 
-    return _chip(context: context, icon: icon, label: '$p%', iconColor: color);
+    // Use shorter label for better fit
+    final String label = p >= 100 ? '100%' : '$p%';
+
+    return _smartChip(
+        context: context, icon: icon, label: label, iconColor: color);
   }
 
   Widget _speedWidget(BuildContext context) {
-    final label =
-        speedKmh != null ? '${speedKmh!.toStringAsFixed(0)} km/h' : '—';
-    return _chip(context: context, icon: Icons.speed, label: label);
+    if (speedKmh == null) {
+      return _smartChip(context: context, icon: Icons.speed, label: '—');
+    }
+
+    // Use shorter format for speed
+    final String label;
+    if (speedKmh! < 1) {
+      label = '0';
+    } else if (speedKmh! < 10) {
+      label = '${speedKmh!.toStringAsFixed(0)}'; // No decimal for low speeds
+    } else {
+      label = speedKmh != null ? '${speedKmh!.toStringAsFixed(0)} km/h' : '—';
+    }
+
+    return _smartChip(context: context, icon: Icons.speed, label: label);
+  }
+
+  Widget _smartChip({
+    required BuildContext context,
+    required IconData icon,
+    required String label,
+    Color? iconColor,
+  }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return Container(
+      constraints: BoxConstraints(
+        maxWidth: 60, // Maximum width to prevent overflow
+        minWidth: 30, // Minimum width for very short content
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+      decoration: BoxDecoration(
+        color: isDark ? Colors.grey[850] : Colors.grey.shade100,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+            color: isDark ? Colors.grey[700]! : Colors.grey.shade200),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(icon,
+              size: 12,
+              color:
+                  iconColor ?? (isDark ? Colors.grey[300] : Colors.grey[700])),
+          const SizedBox(width: 4),
+          Flexible(
+            child: Text(
+              label,
+              style: TextStyle(
+                  fontSize: 11,
+                  color: isDark ? Colors.grey[200] : Colors.black),
+              overflow: TextOverflow.clip, // Prevent text overflow
+              maxLines: 1,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   bool get _isOnline {
@@ -200,6 +295,7 @@ class UserMarkerInfoCard extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // Top row with timestamp and close button
                   Row(
                     children: [
                       Flexible(
@@ -246,10 +342,16 @@ class UserMarkerInfoCard extends StatelessWidget {
                         label: 'Close Button',
                         child: GestureDetector(
                           onTap: onClose,
-                          child: Padding(
-                            padding: const EdgeInsets.only(left: 8, bottom: 2),
+                          child: Container(
+                            padding: const EdgeInsets.all(4),
+                            decoration: BoxDecoration(
+                              color: isDark
+                                  ? Colors.grey[800]
+                                  : Colors.grey.shade200,
+                              borderRadius: BorderRadius.circular(8),
+                            ),
                             child: Icon(Icons.close,
-                                size: 18,
+                                size: 14,
                                 color: isDark
                                     ? Colors.grey[400]
                                     : Colors.grey[700]),
@@ -259,6 +361,8 @@ class UserMarkerInfoCard extends StatelessWidget {
                     ],
                   ),
                   const SizedBox(height: 8),
+
+                  // Username
                   Text(
                     username,
                     style: TextStyle(
@@ -269,6 +373,8 @@ class UserMarkerInfoCard extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 6),
+
+                  // Distance and address
                   Text(
                     '${distanceKm.toStringAsFixed(1)} km · $address',
                     maxLines: 2,
@@ -278,12 +384,22 @@ class UserMarkerInfoCard extends StatelessWidget {
                         color: isDark ? Colors.grey[400] : Colors.grey[700]),
                   ),
                   const SizedBox(height: 10),
+
+                  // Bottom row with status chips and navigation button
                   Row(
                     children: [
-                      _batteryWidget(context),
-                      const SizedBox(width: 8),
-                      _speedWidget(context),
-                      const Spacer(),
+                      Flexible(
+                        flex: 1,
+                        child: _batteryWidget(context),
+                      ),
+                      const SizedBox(width: 4),
+                      Flexible(
+                        flex: 1,
+                        child: _speedWidget(context),
+                      ),
+                      const SizedBox(width: 4),
+                      // NEW: Conditionally show navigation button
+                      if (!isCurrentUser) _navigationIconButton(context),
                     ],
                   ),
                 ],
@@ -295,7 +411,7 @@ class UserMarkerInfoCard extends StatelessWidget {
     );
   }
 
-  static Future<void> showOverlay(
+  static Future<String?> showOverlay(
     BuildContext context, {
     required String username,
     required String address,
@@ -307,15 +423,16 @@ class UserMarkerInfoCard extends StatelessWidget {
     double width = 300,
     double? height,
     Alignment alignment = Alignment.topCenter,
+    bool isCurrentUser = false,
   }) {
-    return showDialog(
+    return showDialog<String?>(
       context: context,
       barrierDismissible: true,
       barrierColor: Colors.transparent,
       builder: (ctx) {
         return GestureDetector(
           behavior: HitTestBehavior.opaque,
-          onTap: () => Navigator.of(ctx).pop(),
+          onTap: () => Navigator.of(ctx).pop('close'),
           child: Material(
             type: MaterialType.transparency,
             child: SafeArea(
@@ -336,7 +453,8 @@ class UserMarkerInfoCard extends StatelessWidget {
                         timestamp: timestamp,
                         width: width,
                         height: height,
-                        onClose: () => Navigator.of(ctx).pop(),
+                        isCurrentUser: isCurrentUser,
+                        onClose: () => Navigator.of(ctx).pop('close'),
                       ),
                     ),
                   ),

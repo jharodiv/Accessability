@@ -246,3 +246,66 @@ exports.sendDistanceNotification = functions.firestore
       await snap.ref.delete();
     }
   });
+
+exports.sendNavigationUpdateNotification = functions.firestore
+  .document("DistanceNotifications/{notificationId}")
+  .onCreate(async (snapshot, context) => {
+    try {
+      const notificationData = snapshot.data();
+
+      // Only handle navigation updates
+      if (notificationData.type !== "navigation_update") return;
+
+      const targetFCMToken = notificationData.targetFCMToken;
+      const movingUserName = notificationData.movingUserName;
+      const message = notificationData.message;
+      const movingUserId = notificationData.movingUserId;
+
+      if (!targetFCMToken) {
+        console.log("No FCM token found for target member");
+        await snapshot.ref.delete();
+        return;
+      }
+
+      const payload = {
+        notification: {
+          title: `📍 ${movingUserName} Navigation Update`,
+          body: message,
+        },
+        data: {
+          type: "navigation_update",
+          movingUserId: movingUserId,
+          movingUserName: movingUserName,
+          message: message,
+          click_action: "FLUTTER_NOTIFICATION_CLICK",
+        },
+        android: {
+          notification: {
+            sound: "default",
+            priority: "high",
+            visibility: "public",
+            channel_id: "navigation_updates",
+          },
+        },
+        apns: {
+          payload: {
+            aps: {
+              sound: "default",
+            },
+          },
+        },
+        token: targetFCMToken,
+      };
+
+      console.log("Sending navigation update payload:", payload);
+
+      const response = await admin.messaging().send(payload);
+      console.log("Navigation update sent successfully:", response);
+
+      // Clean up
+      await snapshot.ref.delete();
+    } catch (error) {
+      console.error("Error sending navigation update:", error);
+      await snapshot.ref.delete();
+    }
+  });

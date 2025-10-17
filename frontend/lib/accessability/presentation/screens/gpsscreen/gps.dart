@@ -164,6 +164,10 @@ class _GpsScreenState extends State<GpsScreen> {
   final double _placeBaseRadiusMeters = 30.0;
   final Color _placeCircleColor = const Color(0xFF7C4DFF);
   String? _selectedCategory;
+  Timer? _distanceMonitoringTimer;
+  String? _navigatingToUserId;
+  LatLng? _navigatingToLocation;
+  double _lastReportedDistance = 0.0;
   final DistanceNotificationService _distanceNotificationService =
       DistanceNotificationService();
 
@@ -421,6 +425,126 @@ class _GpsScreenState extends State<GpsScreen> {
     );
   }
 
+  void _startNavigationToUser(
+      LatLng targetLocation, String targetUserId) async {
+    if (_locationHandler.currentLocation == null) return;
+
+    // Stop any existing route
+    routeController.stopFollowingUser();
+    _routeUpdateTimer?.cancel();
+    _routeUpdateTimer = null;
+
+    // Create route to the user
+    routeController.createRoute(
+      _locationHandler.currentLocation!,
+      targetLocation,
+    );
+
+    // Start following but DON'T fix the camera (allow free movement)
+    routeController.startFollowingUser(
+      () => _locationHandler.currentLocation,
+      shouldFixCamera: false, // This allows free camera movement
+    );
+
+    // Set up periodic distance checking
+    _startDistanceMonitoring(targetUserId, targetLocation);
+
+    // Remove overlay
+    _removeUserOverlay();
+
+    // Show navigation started message
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Navigation started - camera is free to move')),
+    );
+  }
+
+  void _startDistanceMonitoring(String userId, LatLng targetLocation) {
+    _navigatingToUserId = userId;
+    _navigatingToLocation = targetLocation;
+    _lastReportedDistance = 0.0;
+
+    _distanceMonitoringTimer?.cancel();
+    _distanceMonitoringTimer = Timer.periodic(Duration(seconds: 30), (timer) {
+      _checkDistanceAndNotify();
+    });
+  }
+
+  void _stopDistanceMonitoring() {
+    _distanceMonitoringTimer?.cancel();
+    _distanceMonitoringTimer = null;
+    _navigatingToUserId = null;
+    _navigatingToLocation = null;
+    _lastReportedDistance = 0.0;
+  }
+
+  void _checkDistanceAndNotify() async {
+    if (_navigatingToUserId == null ||
+        _navigatingToLocation == null ||
+        _locationHandler.currentLocation == null) {
+      return;
+    }
+
+    final currentDistance = MapUtils.calculateDistanceKm(
+      _locationHandler.currentLocation!,
+      _navigatingToLocation!,
+    );
+
+    // Check if we've crossed a 5km threshold
+    final distanceDiff = (_lastReportedDistance - currentDistance).abs();
+
+    if (distanceDiff >= 5.0) {
+      await _sendDistanceUpdateNotification(currentDistance);
+      _lastReportedDistance = currentDistance;
+    }
+  }
+
+  Future<void> _sendDistanceUpdateNotification(double currentDistance) async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null || _navigatingToUserId == null) return;
+
+      // Get current user info
+      final userDoc = await FirebaseFirestore.instance
+          .collection('Users')
+          .doc(user.uid)
+          .get();
+
+      if (!userDoc.exists) return;
+
+      final userData = userDoc.data() as Map<String, dynamic>;
+      final displayName = _getDisplayName(userData);
+
+      // Create notification for the target user
+      await FirebaseFirestore.instance.collection('DistanceNotifications').add({
+        'targetUserId': _navigatingToUserId!,
+        'movingUserId': user.uid,
+        'movingUserName': displayName,
+        'distanceKm': currentDistance,
+        'timestamp': FieldValue.serverTimestamp(),
+        'type': 'navigation_update',
+        'message': currentDistance < _lastReportedDistance
+            ? '${displayName} is getting closer - ${currentDistance.toStringAsFixed(1)} km away'
+            : '${displayName} is moving away - ${currentDistance.toStringAsFixed(1)} km away',
+      });
+
+      print(
+          '📢 Navigation update sent: ${currentDistance.toStringAsFixed(1)} km');
+    } catch (e) {
+      print('❌ Error sending navigation update: $e');
+    }
+  }
+
+  String _getDisplayName(Map<String, dynamic> userData) {
+    final firstName = userData['firstName']?.toString() ?? '';
+    final lastName = userData['lastName']?.toString() ?? '';
+    final username = userData['username']?.toString() ?? 'A member';
+
+    if (firstName.isNotEmpty || lastName.isNotEmpty) {
+      return '$firstName $lastName'.trim();
+    }
+    return username;
+  }
+
   Future<void> _launchCaller(String number) async {
     if (number.trim().isEmpty) {
       if (!mounted) return;
@@ -448,8 +572,15 @@ class _GpsScreenState extends State<GpsScreen> {
   }
 
   void _removeUserOverlay() {
-    _userOverlayEntry?.remove();
-    _userOverlayEntry = null;
+    if (_userOverlayEntry != null) {
+      try {
+        _userOverlayEntry?.remove();
+      } catch (e) {
+        debugPrint('[GpsScreen] Error removing overlay: $e');
+      } finally {
+        _userOverlayEntry = null;
+      }
+    }
 
     // notify LocationWidgets overlay is gone
     _userOverlayVisible.value = false;
@@ -471,168 +602,78 @@ class _GpsScreenState extends State<GpsScreen> {
     double? speedKmh,
     DateTime? timestamp,
   }) async {
+    // Remove any existing overlay
     _removeUserOverlay();
 
     _userOverlayVisible.value = true;
     _suppressMapTapCollapse = true;
-    _suppressMapTapCollapseTimer?.cancel();
-    _suppressMapTapCollapseTimer = Timer(
-        const Duration(seconds: 4), () => _suppressMapTapCollapse = false);
 
-    // collapse sheets (same helper as before)
+    // Collapse sheets
+    await _collapseAllSheets();
+
+    final currentUid = FirebaseAuth.instance.currentUser?.uid;
+    final bool isCurrentUser = currentUid != null && currentUid == userId;
+
+    try {
+      // Create a simple dialog that looks like an overlay
+      await showDialog<void>(
+        context: context,
+        barrierColor: Colors.transparent,
+        barrierDismissible: true,
+        builder: (context) {
+          return _PositionedUserCard(
+            username: username,
+            address: address,
+            distanceKm: distanceMeters / 1000.0,
+            profileUrl: profileUrl,
+            batteryPercent: batteryPercent,
+            speedKmh: speedKmh,
+            timestamp: timestamp,
+            isCurrentUser: isCurrentUser,
+            onClose: () => Navigator.of(context).pop(),
+            onNavigate: () {
+              Navigator.of(context).pop();
+              if (!isCurrentUser) {
+                _startNavigationToUser(location, userId);
+              }
+            },
+          );
+        },
+      );
+    } catch (e, st) {
+      debugPrint('[GpsScreen] Error showing user card: $e\n$st');
+    } finally {
+      _userOverlayVisible.value = false;
+      _suppressMapTapCollapse = false;
+    }
+  }
+
+  Future<void> _collapseAllSheets() async {
     const double favoriteMin = 0.10;
     const double locationMin = 0.20;
     const double safetyMin = 0.10;
-    Future<void> tryCollapse(DraggableScrollableController? c, double t) async {
-      if (c == null) return;
-      try {
-        final cur = c.size;
-        if (cur > t + 0.01) {
-          if (c.isAttached) {
-            await c.animateTo(t,
-                duration: const Duration(milliseconds: 260),
-                curve: Curves.easeOut);
-          } else {
-            await Future.delayed(const Duration(milliseconds: 120));
-            if (c.isAttached) {
-              await c.animateTo(t,
-                  duration: const Duration(milliseconds: 260),
-                  curve: Curves.easeOut);
-            }
-          }
+
+    final controllers = [
+      _favoriteSheetController,
+      _locationSheetController,
+      _safetySheetController,
+    ];
+    final mins = [favoriteMin, locationMin, safetyMin];
+
+    for (int i = 0; i < controllers.length; i++) {
+      final controller = controllers[i];
+      final min = mins[i];
+      if (controller != null && controller.isAttached) {
+        try {
+          await controller.animateTo(
+            min,
+            duration: const Duration(milliseconds: 260),
+            curve: Curves.easeOut,
+          );
+        } catch (e) {
+          debugPrint('[GpsScreen] collapse error: $e');
         }
-      } catch (e) {
-        debugPrint('[GpsScreen] collapse attempt failed: $e');
       }
-    }
-
-    await tryCollapse(_favoriteSheetController, favoriteMin);
-    await tryCollapse(_locationSheetController, locationMin);
-    await tryCollapse(_safetySheetController, safetyMin);
-
-    final controller = _locationHandler.mapController;
-    if (controller == null) {
-      _suppressMapTapCollapse = false;
-      _suppressMapTapCollapseTimer?.cancel();
-      _suppressMapTapCollapseTimer = null;
-      return;
-    }
-
-    try {
-      // card sizes/offsets
-      const double cardWidth = 260.0;
-      const double cardHeight = 112.0;
-      const double topOffsetFromProfile = 20.0;
-      const double leftNudge = 8.0;
-
-      final screenW = MediaQuery.of(context).size.width;
-      final screenH = MediaQuery.of(context).size.height;
-      final devicePixelRatio = MediaQuery.of(context).devicePixelRatio;
-
-      final currentUid = FirebaseAuth.instance.currentUser?.uid;
-      final bool isCurrentUser = currentUid != null && currentUid == userId;
-
-      // fallback center (used if coordinate lookup fails)
-      double left = ((screenW - cardWidth) / 2 - leftNudge)
-          .clamp(8.0, screenW - cardWidth - 8.0);
-      double top = ((screenH / 2) - cardHeight - topOffsetFromProfile)
-          .clamp(8.0, screenH - cardHeight - 8.0);
-
-      if (isCurrentUser) {
-        // center map for current user then put card at center
-        try {
-          await controller.animateCamera(CameraUpdate.newLatLng(location));
-        } catch (e) {
-          debugPrint('[GpsScreen] animateCamera failed for current user: $e');
-        }
-        // let camera/layout settle
-        await Future.delayed(const Duration(milliseconds: 220));
-        final double centerY = screenH / 2;
-        left = ((screenW - cardWidth) / 2 - leftNudge)
-            .clamp(8.0, screenW - cardWidth - 8.0);
-        top = (centerY - cardHeight - topOffsetFromProfile)
-            .clamp(8.0, screenH - cardHeight - 8.0);
-      } else {
-        // NON-CURRENT USER: animate camera to the tapped member first,
-        // then position overlay centered above the MAP CENTER so the member
-        // will appear under the card.
-        try {
-          // animate camera to center the member
-          await controller.animateCamera(CameraUpdate.newLatLng(location));
-        } catch (e) {
-          debugPrint('[GpsScreen] animateCamera failed for other user: $e');
-        }
-
-        // Wait for camera + layout to settle. May need to tweak duration for slower devices.
-        await Future.delayed(const Duration(milliseconds: 250));
-
-        // Determine map center on screen: using MediaQuery center is safe because camera was centered on member.
-        // But if your map doesn't fill the entire screen, compute map's global offset and apply it.
-        Offset mapGlobal = Offset.zero;
-        RenderBox? mapBox;
-        try {
-          mapBox = _mapKey.currentContext?.findRenderObject() as RenderBox?;
-          if (mapBox != null) {
-            mapGlobal = mapBox.localToGlobal(Offset.zero);
-          } else {
-            debugPrint(
-                '[overlay-debug] mapBox was null when computing mapGlobal; falling back to screen center.');
-          }
-        } catch (e) {
-          debugPrint('[overlay-debug] mapBox lookup error: $e');
-        }
-
-        // If mapGlobal is zero, assume map fills entire screen and center overlay relative to screen.
-        final double centerXLogical = (mapGlobal == Offset.zero)
-            ? (screenW / 2)
-            : (mapGlobal.dx + (mapBox!.size.width / 2));
-        final double centerYLogical = (mapGlobal == Offset.zero)
-            ? (screenH / 2)
-            : (mapGlobal.dy + (mapBox!.size.height / 2));
-
-        // Place card centered above the center point
-        left = (centerXLogical - cardWidth / 2 - leftNudge)
-            .clamp(8.0, screenW - cardWidth - 8.0);
-        top = (centerYLogical - cardHeight - topOffsetFromProfile)
-            .clamp(8.0, screenH - cardHeight - 8.0);
-
-        debugPrint(
-            '[overlay-debug] centered overlay for other user: left=$left top=$top mapGlobal=$mapGlobal centerLogical=($centerXLogical,$centerYLogical)');
-      }
-
-      // Insert overlay once with computed coordinates.
-      _userOverlayEntry = OverlayEntry(builder: (ctx) {
-        return Stack(
-          children: [
-            const ModalBarrier(color: Colors.transparent, dismissible: false),
-            Positioned(
-              left: left,
-              top: top,
-              child: Material(
-                color: Colors.transparent,
-                child: UserMarkerInfoCard(
-                  username: username,
-                  address: address,
-                  distanceKm: distanceMeters / 1000.0,
-                  profileUrl: profileUrl,
-                  batteryPercent: batteryPercent,
-                  speedKmh: speedKmh,
-                  timestamp: timestamp,
-                  onClose: () => _removeUserOverlay(),
-                ),
-              ),
-            ),
-          ],
-        );
-      });
-
-      Overlay.of(context)!.insert(_userOverlayEntry!);
-    } catch (e, st) {
-      debugPrint('[GpsScreen] Error creating overlay: $e\n$st');
-      _suppressMapTapCollapse = false;
-      _suppressMapTapCollapseTimer?.cancel();
-      _suppressMapTapCollapseTimer = null;
-      _removeUserOverlay();
     }
   }
 
@@ -1074,6 +1115,7 @@ class _GpsScreenState extends State<GpsScreen> {
 
   @override
   void dispose() {
+    _stopDistanceMonitoring();
     routeController.dispose();
     _locationHandler.disposeHandler();
     _pwdNotificationService.stopLocationMonitoring();
@@ -2852,6 +2894,65 @@ class _GpsScreenState extends State<GpsScreen> {
           }
         },
       ),
+    );
+  }
+}
+
+class _PositionedUserCard extends StatelessWidget {
+  final String username;
+  final String address;
+  final double distanceKm;
+  final String profileUrl;
+  final int? batteryPercent;
+  final double? speedKmh;
+  final DateTime? timestamp;
+  final bool isCurrentUser;
+  final VoidCallback onClose;
+  final VoidCallback onNavigate;
+
+  const _PositionedUserCard({
+    required this.username,
+    required this.address,
+    required this.distanceKm,
+    required this.profileUrl,
+    required this.batteryPercent,
+    required this.speedKmh,
+    required this.timestamp,
+    required this.isCurrentUser,
+    required this.onClose,
+    required this.onNavigate,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      children: [
+        // Transparent barrier
+        Positioned.fill(
+          child: GestureDetector(
+            onTap: onClose,
+            behavior: HitTestBehavior.translucent,
+          ),
+        ),
+        // Positioned card
+        Positioned(
+          top: MediaQuery.of(context).size.height * 0.3,
+          left: 20,
+          right: 20,
+          child: UserMarkerInfoCard(
+            username: username,
+            address: address,
+            distanceKm: distanceKm,
+            profileUrl: profileUrl,
+            batteryPercent: batteryPercent,
+            speedKmh: speedKmh,
+            timestamp: timestamp,
+            isCurrentUser: isCurrentUser,
+            onClose: onClose,
+            onNavigate: onNavigate, // NEW: Pass the callback
+          ),
+        ),
+      ],
     );
   }
 }

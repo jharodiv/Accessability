@@ -45,6 +45,10 @@ class RouteController {
   bool _destinationReachedNotified =
       false; // NEW: Track if notification was shown
 
+  // NEW: Free camera movement control
+  bool _shouldFixCamera = true; // Default to true for backward compatibility
+  bool _isFollowingUser = false;
+
   Timer? _routeUpdateTimer;
   Timer? _rerouteCheckTimer;
 
@@ -60,6 +64,7 @@ class RouteController {
   bool get isRouteActive => _isRouteActive;
   bool get isRerouting => _isRerouting;
   Color get routeColor => _routeColor;
+  bool get isFollowingUser => _isFollowingUser; // NEW: Expose following state
 
   void dispose() {
     _routeUpdateTimer?.cancel();
@@ -136,15 +141,24 @@ class RouteController {
     }
   }
 
-  /// Start periodic camera following and reroute checking.
+  /// NEW: Start periodic camera following and reroute checking with optional camera fixation.
   /// [currentLocationGetter] should return the current LatLng or null.
-  void startFollowingUser(ValueGetter<LatLng?> currentLocationGetter,
-      {Duration updateInterval = const Duration(seconds: 1),
-      Duration rerouteInterval = const Duration(seconds: 10)}) {
+  /// [shouldFixCamera] controls whether camera follows user or stays free to move.
+  void startFollowingUser(
+    ValueGetter<LatLng?> currentLocationGetter, {
+    bool shouldFixCamera = true, // NEW: Parameter to control camera fixation
+    Duration updateInterval = const Duration(seconds: 1),
+    Duration rerouteInterval = const Duration(seconds: 10),
+  }) {
     stopFollowingUser();
 
-    // immediate update
-    _updateCameraForNavigation(currentLocationGetter);
+    _shouldFixCamera = shouldFixCamera; // NEW: Store camera preference
+    _isFollowingUser = true; // NEW: Track following state
+
+    // Only update camera immediately if we should fix it
+    if (_shouldFixCamera) {
+      _updateCameraForNavigation(currentLocationGetter);
+    }
 
     _routeUpdateTimer = Timer.periodic(updateInterval, (_) {
       final currentLocation = currentLocationGetter();
@@ -154,7 +168,11 @@ class RouteController {
           _handleDestinationReached();
           return; // Stop further updates if destination reached
         }
-        _updateCameraForNavigation(currentLocationGetter);
+
+        // NEW: Only update camera if we should fix it
+        if (_shouldFixCamera) {
+          _updateCameraForNavigation(currentLocationGetter);
+        }
       }
     });
 
@@ -172,6 +190,7 @@ class RouteController {
     _routeUpdateTimer = null;
     _rerouteCheckTimer?.cancel();
     _rerouteCheckTimer = null;
+    _isFollowingUser = false; // NEW: Reset following state
 
     // NEW: Clear route state when stopping
     if (_isRouteActive) {
@@ -182,6 +201,25 @@ class RouteController {
       onRouteActiveChanged?.call(false);
     }
   }
+
+  /// NEW: Toggle camera fixation on/off while keeping navigation active
+  void toggleCameraFixation() {
+    _shouldFixCamera = !_shouldFixCamera;
+
+    // If turning fixation on and we're following, do an immediate camera update
+    if (_shouldFixCamera && _isFollowingUser) {
+      final currentLocation = _getCurrentLocation?.call();
+      if (currentLocation != null) {
+        _updateCameraForNavigation(_getCurrentLocation!);
+      }
+    }
+  }
+
+  /// NEW: Get current camera fixation state
+  bool get isCameraFixed => _shouldFixCamera;
+
+  // Store the current location getter for reuse
+  ValueGetter<LatLng?>? _getCurrentLocation;
 
   /// Toggle wheelchair profile used for routing.
   void toggleWheelchairFriendly() {
@@ -213,6 +251,9 @@ class RouteController {
   /// - compute dynamic tilt/zoom based on remaining distance
   /// - offset camera target so user is not centered (user placed lower on screen)
   void _updateCameraForNavigation(ValueGetter<LatLng?> currentLocationGetter) {
+    // NEW: Store the location getter for reuse
+    _getCurrentLocation = currentLocationGetter;
+
     final controller = mapControllerGetter();
     final currentLocation = currentLocationGetter();
     if (controller == null ||

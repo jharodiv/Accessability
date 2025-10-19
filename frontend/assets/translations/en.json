@@ -368,5 +368,8 @@
   "home_removed": "Home location removed",
   "set_as_home": "Set as Home",
   "set_as_home_description": "This will be your main home location visible to space members",
-  "place_added_set_home_instructions": "Place added! You can set it as home from your places list."
+  "place_added_set_home_instructions": "Place added! You can set it as home from your places list.",
+  "home_address": "Home Address",
+  "address_geocoding": "Finding your location...",
+  "address_error": "Could not find the address. Please check and try again."
 }

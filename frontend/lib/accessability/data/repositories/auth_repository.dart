@@ -34,6 +34,20 @@ class AuthRepository {
         throw Exception('Registration failed: User is null');
       }
 
+      // NEW: Create home place after successful registration
+      try {
+        await authService.createHomePlace(
+          user.uid,
+          signUpModel.address,
+          signUpModel.latitude,
+          signUpModel.longitude,
+        );
+        print('✅ Home place created successfully for new user');
+      } catch (e) {
+        print('⚠️ Could not create home place, but registration succeeded: $e');
+        // Don't throw here - registration succeeded even if home place creation failed
+      }
+
       await Future.delayed(const Duration(seconds: 1));
 
       // Fetch user data from Firestore
@@ -44,8 +58,6 @@ class AuthRepository {
 
       return userModel;
     } on FirebaseAuthException {
-      // Let the BLoC’s `on FirebaseAuthException` catch block see
-      // the actual code (e.g. 'email-already-in-use').
       rethrow;
     } catch (e) {
       throw FirebaseAuthException(

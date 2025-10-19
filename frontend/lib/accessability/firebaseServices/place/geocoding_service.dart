@@ -34,6 +34,45 @@ class OpenStreetMapGeocodingService {
     }
   }
 
+  Future<Map<String, double>?> getCoordinatesFromAddress(String address) async {
+    if (address.isEmpty) return null;
+
+    try {
+      final url =
+          '$_searchUrl?format=jsonv2&q=${Uri.encodeQueryComponent(address)}&limit=1&addressdetails=1';
+
+      final response = await http.get(
+        Uri.parse(url),
+        headers: {'User-Agent': _userAgent},
+      );
+
+      if (response.statusCode == 200) {
+        final List<dynamic> data = json.decode(response.body);
+
+        if (data.isNotEmpty) {
+          final firstResult = data[0];
+          final double lat = double.parse(firstResult['lat']);
+          final double lon = double.parse(firstResult['lon']);
+
+          print('📍 Geocoding result for "$address": $lat, $lon');
+          return {
+            'latitude': lat,
+            'longitude': lon,
+          };
+        } else {
+          print('❌ No geocoding results found for: $address');
+          return null;
+        }
+      } else {
+        print('❌ Geocoding API error: ${response.statusCode}');
+        return null;
+      }
+    } catch (e) {
+      print('❌ Geocoding error: $e');
+      return null;
+    }
+  }
+
   // Method to search for locations based on a query (forward geocoding)
   Future<List<GeocodingResult>> searchLocation(String query) async {
     final url = '$_searchUrl?format=jsonv2&q=$query&addressdetails=1&limit=5';

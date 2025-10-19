@@ -1,8 +1,10 @@
+// signup_form.dart - Add address field and geocoding
 import 'package:accessability/accessability/presentation/widgets/errorWidget/error_display_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:accessability/accessability/logic/firebase_logic/sign_up_model.dart';
 import 'package:accessability/accessability/presentation/screens/auth_screens/upload_profile_screen.dart';
 import 'package:accessability/accessability/presentation/screens/auth_screens/login_screen.dart';
+import 'package:accessability/accessability/firebaseServices/place/geocoding_service.dart';
 
 class SignupForm extends StatefulWidget {
   const SignupForm({super.key});
@@ -20,17 +22,20 @@ class _SignupFormState extends State<SignupForm> {
   final TextEditingController passwordController = TextEditingController();
   final TextEditingController confirmPasswordController =
       TextEditingController();
+  final TextEditingController addressController =
+      TextEditingController(); // NEW
 
   // Focus nodes to allow keyboard "Next" navigation
   late final List<FocusNode> _focusNodes;
 
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
+  bool _isGeocoding = false; // NEW
 
   @override
   void initState() {
     super.initState();
-    _focusNodes = List.generate(7, (_) => FocusNode());
+    _focusNodes = List.generate(8, (_) => FocusNode()); // Changed from 7 to 8
   }
 
   @override
@@ -42,6 +47,7 @@ class _SignupFormState extends State<SignupForm> {
     contactNumberController.dispose();
     passwordController.dispose();
     confirmPasswordController.dispose();
+    addressController.dispose(); // NEW
 
     for (final node in _focusNodes) {
       node.dispose();
@@ -72,7 +78,34 @@ class _SignupFormState extends State<SignupForm> {
     return null; // valid
   }
 
-  void signup() {
+  // NEW: Geocode address to get coordinates
+  Future<Map<String, double>?> _geocodeAddress(String address) async {
+    if (address.isEmpty) return null;
+
+    setState(() {
+      _isGeocoding = true;
+    });
+
+    try {
+      final geocodingService = OpenStreetMapGeocodingService();
+      final coordinates =
+          await geocodingService.getCoordinatesFromAddress(address);
+
+      setState(() {
+        _isGeocoding = false;
+      });
+
+      return coordinates;
+    } catch (e) {
+      setState(() {
+        _isGeocoding = false;
+      });
+      print('Geocoding error: $e');
+      return null;
+    }
+  }
+
+  void signup() async {
     String username = usernameController.text.trim();
     String firstName = firstNameController.text.trim();
     String lastName = lastNameController.text.trim();
@@ -80,6 +113,7 @@ class _SignupFormState extends State<SignupForm> {
     String contact = contactNumberController.text.trim();
     String password = passwordController.text.trim();
     String confirmPassword = confirmPasswordController.text.trim();
+    String address = addressController.text.trim(); // NEW
 
     // Check for empty fields
     if (username.isEmpty ||
@@ -88,12 +122,14 @@ class _SignupFormState extends State<SignupForm> {
         email.isEmpty ||
         contact.isEmpty ||
         password.isEmpty ||
-        confirmPassword.isEmpty) {
+        confirmPassword.isEmpty ||
+        address.isEmpty) {
+      // NEW: Check address
       showDialog(
         context: context,
         builder: (context) => ErrorDisplayWidget(
           title: "Missing Fields",
-          message: "Please fill in all fields.",
+          message: "Please fill in all fields including your home address.",
         ),
       );
       return;
@@ -188,6 +224,19 @@ class _SignupFormState extends State<SignupForm> {
       return;
     }
 
+    // NEW: Geocode address
+    final coordinates = await _geocodeAddress(address);
+    if (coordinates == null) {
+      showDialog(
+        context: context,
+        builder: (context) => ErrorDisplayWidget(
+          title: "Address Error",
+          message: "Could not find the address. Please check and try again.",
+        ),
+      );
+      return;
+    }
+
     // If all validations pass, navigate to the next screen
     final signUpModel = SignUpModel(
       username: username,
@@ -196,6 +245,9 @@ class _SignupFormState extends State<SignupForm> {
       email: email,
       password: password,
       contactNumber: contact,
+      address: address, // NEW
+      latitude: coordinates['latitude']!, // NEW
+      longitude: coordinates['longitude']!, // NEW
     );
 
     Navigator.push(
@@ -210,7 +262,6 @@ class _SignupFormState extends State<SignupForm> {
 
   @override
   Widget build(BuildContext context) {
-    // Back to original visual design and spacing (no visible Next/DONE button)
     return Center(
       child: SizedBox(
         width: MediaQuery.of(context).size.width * 0.8,
@@ -307,13 +358,38 @@ class _SignupFormState extends State<SignupForm> {
                 ),
                 const SizedBox(height: 20),
 
+                // NEW: Address Field
+                TextField(
+                  controller: addressController,
+                  focusNode: _focusNodes[5],
+                  textInputAction: TextInputAction.next,
+                  onSubmitted: (_) => _focusNodes[6].requestFocus(),
+                  decoration: InputDecoration(
+                    labelText: 'Home Address',
+                    border: const OutlineInputBorder(
+                      borderSide: BorderSide(color: Colors.black, width: 3.0),
+                    ),
+                    suffixIcon: _isGeocoding
+                        ? const Padding(
+                            padding: EdgeInsets.all(8.0),
+                            child: SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            ),
+                          )
+                        : const Icon(Icons.location_on, color: Colors.grey),
+                  ),
+                ),
+                const SizedBox(height: 20),
+
                 // Password
                 TextField(
                   controller: passwordController,
-                  focusNode: _focusNodes[5],
+                  focusNode: _focusNodes[6],
                   obscureText: _obscurePassword,
                   textInputAction: TextInputAction.next,
-                  onSubmitted: (_) => _focusNodes[6].requestFocus(),
+                  onSubmitted: (_) => _focusNodes[7].requestFocus(),
                   decoration: InputDecoration(
                     labelText: 'Password',
                     border: const OutlineInputBorder(
@@ -339,7 +415,7 @@ class _SignupFormState extends State<SignupForm> {
                 // Confirm Password (last)
                 TextField(
                   controller: confirmPasswordController,
-                  focusNode: _focusNodes[6],
+                  focusNode: _focusNodes[7],
                   obscureText: _obscureConfirmPassword,
                   textInputAction: TextInputAction.done,
                   onSubmitted: (_) => signup(),
@@ -366,20 +442,30 @@ class _SignupFormState extends State<SignupForm> {
                 const SizedBox(height: 20),
 
                 ElevatedButton(
-                  onPressed: signup,
+                  onPressed: _isGeocoding ? null : signup,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF6750A4),
                     padding: const EdgeInsets.symmetric(
                         vertical: 15, horizontal: 50),
                     textStyle: const TextStyle(fontSize: 20),
                   ),
-                  child: const Text(
-                    'SIGN UP',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
+                  child: _isGeocoding
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor:
+                                AlwaysStoppedAnimation<Color>(Colors.white),
+                          ),
+                        )
+                      : const Text(
+                          'SIGN UP',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                 ),
                 const SizedBox(height: 15),
 
@@ -389,7 +475,6 @@ class _SignupFormState extends State<SignupForm> {
                     const Text("Already have an account? "),
                     GestureDetector(
                       onTap: () {
-                        // if you want to pop back to a previous LoginScreen:
                         Navigator.of(context).pop();
                       },
                       child: const Text(

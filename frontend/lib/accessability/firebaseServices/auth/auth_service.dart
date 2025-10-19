@@ -8,6 +8,7 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter_background_service/flutter_background_service.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
+import 'package:accessability/accessability/data/model/place.dart';
 
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -229,6 +230,32 @@ class AuthService {
     } catch (e) {
       print('Error during logout: $e');
       throw Exception('Failed to logout: $e');
+    }
+  }
+
+  Future<void> createHomePlace(
+      String uid, String address, double latitude, double longitude) async {
+    try {
+      final homePlace = Place(
+        id: '', // Firestore will generate ID
+        userId: uid,
+        name: 'My Home',
+        category: 'home',
+        latitude: latitude,
+        longitude: longitude,
+        timestamp: DateTime.now(),
+        address: address,
+        isHome: true, // Mark as home
+        source: 'user',
+        notificationRadius: 100.0,
+        isFavorite: false,
+      );
+
+      await _firestore.collection('Places').add(homePlace.toMap());
+      print('🏠 Home place created for user: $uid');
+    } catch (e) {
+      print('❌ Error creating home place: $e');
+      throw Exception('Failed to create home place: $e');
     }
   }
 

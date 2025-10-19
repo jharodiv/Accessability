@@ -27,6 +27,7 @@ class AuthRepository {
         signUpModel.lastName,
         signUpModel.contactNumber,
         profilePicture,
+        signUpModel.pwdType, // NEW
       );
 
       final user = userCredential.user;

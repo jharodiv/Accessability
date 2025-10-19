@@ -5,9 +5,10 @@ class SignUpModel {
   final String email;
   final String password;
   final String contactNumber;
-  final String address; // NEW
-  final double latitude; // NEW
-  final double longitude; // NEW
+  final String address;
+  final double latitude;
+  final double longitude;
+  final String pwdType;
 
   SignUpModel({
     required this.username,
@@ -19,6 +20,7 @@ class SignUpModel {
     required this.address,
     required this.latitude,
     required this.longitude,
+    required this.pwdType,
   });
 
   Map<String, dynamic> toJson() {
@@ -28,9 +30,12 @@ class SignUpModel {
       'lastName': lastName,
       'email': email,
       'password': password,
+      'pwdType': pwdType,
       'details': {
         'contactNumber': contactNumber,
         'address': address,
+        'latitude': latitude,
+        'longitude': longitude,
       },
     };
   }

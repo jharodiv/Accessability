@@ -1,9 +1,10 @@
 // signup_form.dart - Add address field and geocoding
+import 'dart:math';
+
 import 'package:accessability/accessability/presentation/widgets/errorWidget/error_display_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:accessability/accessability/logic/firebase_logic/sign_up_model.dart';
 import 'package:accessability/accessability/presentation/screens/auth_screens/upload_profile_screen.dart';
-import 'package:accessability/accessability/presentation/screens/auth_screens/login_screen.dart';
 import 'package:accessability/accessability/firebaseServices/place/geocoding_service.dart';
 
 class SignupForm extends StatefulWidget {
@@ -31,11 +32,17 @@ class _SignupFormState extends State<SignupForm> {
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
   bool _isGeocoding = false; // NEW
+  final TextEditingController captchaController =
+      TextEditingController(); // NEW
+  String? _selectedPwdType = 'Family'; // default value requested
+  late int _captchaA; // captcha values
+  late int _captchaB;
 
   @override
   void initState() {
     super.initState();
-    _focusNodes = List.generate(8, (_) => FocusNode()); // Changed from 7 to 8
+    _focusNodes = List.generate(9, (_) => FocusNode());
+    _generateCaptcha();
   }
 
   @override
@@ -47,12 +54,20 @@ class _SignupFormState extends State<SignupForm> {
     contactNumberController.dispose();
     passwordController.dispose();
     confirmPasswordController.dispose();
-    addressController.dispose(); // NEW
+    addressController.dispose();
+    captchaController.dispose();
 
     for (final node in _focusNodes) {
       node.dispose();
     }
     super.dispose();
+  }
+
+  void _generateCaptcha() {
+    final rnd = Random();
+    _captchaA = rnd.nextInt(9) + 1; // 1..9
+    _captchaB = rnd.nextInt(9) + 1; // 1..9
+    captchaController.clear();
   }
 
   /// Unicode-aware validator: requires at least 2 letters and only allows
@@ -113,7 +128,9 @@ class _SignupFormState extends State<SignupForm> {
     String contact = contactNumberController.text.trim();
     String password = passwordController.text.trim();
     String confirmPassword = confirmPasswordController.text.trim();
-    String address = addressController.text.trim(); // NEW
+    String address = addressController.text.trim();
+    String captchaInput = captchaController.text.trim();
+    String pwdType = _selectedPwdType ?? '';
 
     // Check for empty fields
     if (username.isEmpty ||
@@ -123,13 +140,15 @@ class _SignupFormState extends State<SignupForm> {
         contact.isEmpty ||
         password.isEmpty ||
         confirmPassword.isEmpty ||
-        address.isEmpty) {
+        address.isEmpty ||
+        captchaInput.isEmpty ||
+        pwdType.isEmpty) {
       // NEW: Check address
       showDialog(
         context: context,
         builder: (context) => ErrorDisplayWidget(
           title: "Missing Fields",
-          message: "Please fill in all fields including your home address.",
+          message: "Please fill in all fields.",
         ),
       );
       return;
@@ -224,6 +243,23 @@ class _SignupFormState extends State<SignupForm> {
       return;
     }
 
+    final expected = _captchaA + _captchaB;
+    final parsed = int.tryParse(captchaInput);
+    if (parsed == null || parsed != expected) {
+      showDialog(
+        context: context,
+        builder: (context) => ErrorDisplayWidget(
+          title: "Captcha Error",
+          message: "Captcha answer is incorrect. Please try again.",
+        ),
+      );
+      // regenerate captcha on wrong attempt
+      setState(() {
+        _generateCaptcha();
+      });
+      return;
+    }
+
     // NEW: Geocode address
     final coordinates = await _geocodeAddress(address);
     if (coordinates == null) {
@@ -248,6 +284,7 @@ class _SignupFormState extends State<SignupForm> {
       address: address, // NEW
       latitude: coordinates['latitude']!, // NEW
       longitude: coordinates['longitude']!, // NEW
+      pwdType: pwdType, // NEW
     );
 
     Navigator.push(
@@ -439,6 +476,221 @@ class _SignupFormState extends State<SignupForm> {
                     ),
                   ),
                 ),
+                const SizedBox(height: 20),
+
+// PWD Type Dropdown
+                DropdownButtonFormField<String>(
+                  decoration: const InputDecoration(
+                    labelText: 'Type of Disability',
+                    border: OutlineInputBorder(
+                      borderSide: BorderSide(color: Colors.black, width: 3.0),
+                    ),
+                  ),
+                  value: _selectedPwdType,
+                  items: const [
+                    DropdownMenuItem(
+                        value: 'Family',
+                        child: Text('Family')), // default value
+                    DropdownMenuItem(
+                        value: 'Visual Impairment',
+                        child: Text('Visual Impairment')),
+                    DropdownMenuItem(
+                        value: 'Hearing Impairment',
+                        child: Text('Hearing Impairment')),
+                    DropdownMenuItem(
+                        value: 'Speech Impairment',
+                        child: Text('Speech Impairment')),
+                    DropdownMenuItem(
+                        value: 'Physical Disability',
+                        child: Text('Physical Disability')),
+                    DropdownMenuItem(
+                        value: 'Intellectual Disability',
+                        child: Text('Intellectual Disability')),
+                    DropdownMenuItem(
+                        value: 'Learning Disability',
+                        child: Text('Learning Disability')),
+                    DropdownMenuItem(
+                        value: 'Psychosocial Disability',
+                        child: Text('Psychosocial Disability')),
+                    DropdownMenuItem(
+                        value: 'Chronic Illness',
+                        child: Text('Chronic Illness')),
+                    DropdownMenuItem(
+                        value: 'Multiple Disabilities',
+                        child: Text('Multiple Disabilities')),
+                    DropdownMenuItem(value: 'Others', child: Text('Others')),
+                  ],
+                  onChanged: (value) =>
+                      setState(() => _selectedPwdType = value),
+                ),
+                const SizedBox(height: 16),
+
+// Simple math captcha (A + B)
+// --- Responsive, near-white captcha block (replace previous captcha block) ---
+
+                LayoutBuilder(builder: (context, constraints) {
+                  final bool isNarrow = constraints.maxWidth < 420;
+
+                  Widget equationPill() {
+                    return Container(
+                      padding: const EdgeInsets.symmetric(
+                          vertical: 8, horizontal: 14),
+                      decoration: BoxDecoration(
+                        color: Colors.grey[50], // near-white
+                        borderRadius: BorderRadius.circular(30),
+                        border: Border.all(color: Colors.grey.shade200),
+                      ),
+                      child: Text(
+                        '$_captchaA  +  $_captchaB  =',
+                        style: const TextStyle(
+                            fontSize: 16, fontWeight: FontWeight.w700),
+                      ),
+                    );
+                  }
+
+                  Widget answerField({double? width}) {
+                    return SizedBox(
+                      width: width,
+                      child: TextField(
+                        controller: captchaController,
+                        focusNode: _focusNodes[8],
+                        keyboardType: TextInputType.number,
+                        textInputAction: TextInputAction.done,
+                        onSubmitted: (_) => signup(),
+                        decoration: InputDecoration(
+                          contentPadding: const EdgeInsets.symmetric(
+                              vertical: 12, horizontal: 12),
+                          hintText: 'Answer',
+                          hintStyle: TextStyle(color: Colors.grey.shade500),
+                          isDense: true,
+                          filled: true,
+                          fillColor: Colors.grey[50], // input nearly white
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(10),
+                            borderSide: BorderSide(color: Colors.grey.shade200),
+                          ),
+                        ),
+                      ),
+                    );
+                  }
+
+                  Widget refreshButton() {
+                    return Material(
+                      color: Colors.transparent,
+                      child: IconButton(
+                        tooltip: 'Refresh captcha',
+                        splashRadius: 22,
+                        icon: const Icon(Icons.refresh),
+                        color: const Color(0xFF6750A4),
+                        onPressed: () => setState(() => _generateCaptcha()),
+                      ),
+                    );
+                  }
+
+                  // the card wrapper (near-white)
+                  return Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(
+                        vertical: 12, horizontal: 12),
+                    decoration: BoxDecoration(
+                      color: Colors.white, // close to white
+                      borderRadius: BorderRadius.circular(12),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black
+                              .withOpacity(0.02), // very subtle shadow
+                          blurRadius: 6,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                      border: Border.all(color: Colors.grey.shade100),
+                    ),
+                    child: isNarrow
+                        // stacked layout for small screens
+                        ? Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      'Human verification',
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w600,
+                                        color: Colors.grey.shade900,
+                                      ),
+                                    ),
+                                  ),
+                                  refreshButton(),
+                                ],
+                              ),
+                              const SizedBox(height: 6),
+                              Text(
+                                'Prove you are not a bot — solve the quick sum.',
+                                style: TextStyle(
+                                    fontSize: 12, color: Colors.grey.shade600),
+                              ),
+                              const SizedBox(height: 10),
+                              Row(
+                                children: [
+                                  equationPill(),
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                      child:
+                                          answerField()), // expands on narrow screens
+                                ],
+                              ),
+                            ],
+                          )
+                        // row layout for wider screens
+                        : Row(
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            children: [
+                              // left: label + description
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Human verification',
+                                      style: TextStyle(
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.w600,
+                                          color: Colors.grey.shade900),
+                                    ),
+                                    const SizedBox(height: 6),
+                                    Text(
+                                      'Prove you are not a bot — solve the quick sum.',
+                                      style: TextStyle(
+                                          fontSize: 12,
+                                          color: Colors.grey.shade600),
+                                    ),
+                                  ],
+                                ),
+                              ),
+
+                              const SizedBox(width: 12),
+
+                              // equation pill
+                              equationPill(),
+
+                              const SizedBox(width: 12),
+
+                              // answer input (fixed width)
+                              answerField(width: 120),
+
+                              const SizedBox(width: 8),
+
+                              // refresh
+                              refreshButton(),
+                            ],
+                          ),
+                  );
+                }),
+
+                const SizedBox(height: 20),
+
                 const SizedBox(height: 20),
 
                 ElevatedButton(

@@ -20,7 +20,10 @@ class UserRepository {
       final userDoc = await _firestore.collection('Users').doc(uid).get();
       if (userDoc.exists) {
         final userData = userDoc.data() as Map<String, dynamic>;
-        print(userData);
+        print('Firestore ${userData}');
+        print(
+            'Firestore userData.pwdType: ${userData['pwdType']} (type: ${userData['pwdType']?.runtimeType})');
+
         return UserModel.fromJson(userData);
       }
       return null;
@@ -49,6 +52,7 @@ class UserRepository {
     _sharedPrefs?.setString('user_contactNumber', user.contactNumber);
     _sharedPrefs?.setBool('user_biometricEnabled', user.biometricEnabled);
     _sharedPrefs?.setString('user_deviceId', user.deviceId ?? '');
+    _sharedPrefs?.setString('user_pwdType', user.pwdType ?? '');
 
     _sharedPrefs?.setBool(
         'user_hasCompletedOnboarding', user.hasCompletedOnboarding);
@@ -70,6 +74,7 @@ class UserRepository {
         _sharedPrefs?.getBool('user_biometricEnabled') ?? false;
     final deviceId = _sharedPrefs?.getString('user_deviceId');
     final isDarkMode = _sharedPrefs?.getBool('isDarkMode') ?? false;
+    final pwdType = _sharedPrefs?.getString('user_pwdType') ?? ''; // ✅ ADD THIS
 
     if (userId != null && userName != null && userEmail != null) {
       return UserModel(
@@ -83,6 +88,8 @@ class UserRepository {
         hasCompletedOnboarding: hasCompletedOnboarding,
         biometricEnabled: biometricEnabled,
         deviceId: deviceId,
+        pwdType: pwdType, // ✅ ADD THIS
+
         details: UserDetails(
           address: _sharedPrefs?.getString('user_address') ?? '',
           phoneNumber: _sharedPrefs?.getString('user_phoneNumber') ?? '',
@@ -123,6 +130,8 @@ class UserRepository {
     _sharedPrefs?.remove('user_deviceId');
     _sharedPrefs?.remove('backup_email');
     _sharedPrefs?.remove('backup_password');
+    _sharedPrefs?.remove('user_pwdType');
+
     print('User cache cleared');
   }
 

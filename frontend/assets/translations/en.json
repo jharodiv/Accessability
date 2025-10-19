@@ -339,7 +339,6 @@
   "remove_from_list": "Remove from List",
   "removed_from_favorites": "Successfully removed from favorites",
 
-
   "add_a_person": "Add a person",
   "select_chat_rooms_or_spaces": "Select Chat Rooms or Spaces",
   "space_chats": "Space Chats",
@@ -348,9 +347,9 @@
   "people": "People",
   "space": "Space",
   "welcome_to_the": "Welcome to the",
-   "space_details": "Space details",
-   "edit_space_name": "Edit Space Name",
-"my_role": "My Role",
+  "space_details": "Space details",
+  "edit_space_name": "Edit Space Name",
+  "my_role": "My Role",
   "change_admin_status": "Change Admin Status",
   "add_people_to_space": "Add people to Space",
   "please_select_a_space": "Please select a space",
@@ -361,6 +360,13 @@
   "point_camera_to_join": "Point your camera to join",
   "you_are_a_member": "You are a member",
   "invitation_expired": "Invitation expired",
-  "join_a_space": "Join a Space"
-
+  "join_a_space": "Join a Space",
+  "set_home_title": "Set as Home",
+  "set_home_message": "This will replace your current home location. Are you sure?",
+  "set_home": "Set Home",
+  "home_set": "Home location set successfully!",
+  "home_removed": "Home location removed",
+  "set_as_home": "Set as Home",
+  "set_as_home_description": "This will be your main home location visible to space members",
+  "place_added_set_home_instructions": "Place added! You can set it as home from your places list."
 }

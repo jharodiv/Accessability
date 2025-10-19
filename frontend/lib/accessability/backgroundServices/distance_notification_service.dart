@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:math';
 import 'package:accessability/accessability/backgroundServices/userposition_data.dart';
+import 'package:accessability/accessability/data/model/place.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -29,6 +30,7 @@ class DistanceNotificationService {
   // Track positions and timestamps
   final Map<String, UserPositionData> _lastKnownPositions = {};
   final Map<String, Timer> _debounceTimers = {};
+  final Map<String, double> _lastReportedHomeDistances = {};
 
   // Configuration
   static const double _distanceThresholdKm = 5.0; // 5 km threshold
@@ -430,6 +432,163 @@ class DistanceNotificationService {
 
     print(
         '✅ Cleared distance tracking data for user $userId in space $spaceId');
+  }
+
+  Future<void> checkHomeDistance(
+      LatLng currentLocation, String activeSpaceId) async {
+    if (activeSpaceId.isEmpty) return;
+
+    try {
+      // Get all home markers in the current user's spaces
+      final homePlaces = await _getHomePlacesInSpace(activeSpaceId);
+
+      for (final homePlace in homePlaces) {
+        final distanceKm = MapUtils.calculateDistanceKm(
+          currentLocation,
+          LatLng(homePlace.latitude, homePlace.longitude),
+        );
+
+        // Check if we've crossed a 5km threshold
+        final homeKey = 'home_${homePlace.id}';
+        final lastDistance = _lastReportedHomeDistances[homeKey] ?? 0.0;
+
+        if ((lastDistance - distanceKm).abs() >= 5.0) {
+          await _sendHomeDistanceNotification(
+              homePlace, distanceKm, activeSpaceId);
+          _lastReportedHomeDistances[homeKey] = distanceKm;
+        }
+      }
+    } catch (e) {
+      print('Error checking home distance: $e');
+    }
+  }
+
+  // Helper to get home places in a space
+  Future<List<Place>> _getHomePlacesInSpace(String spaceId) async {
+    try {
+      // Get all members in the space
+      final spaceDoc = await _firestore.collection('Spaces').doc(spaceId).get();
+      if (!spaceDoc.exists) return [];
+
+      final members = List<String>.from(spaceDoc.data()?['members'] ?? []);
+      final homePlaces = <Place>[];
+
+      // Get home places for each member
+      for (final memberId in members) {
+        final homeQuery = await _firestore
+            .collection('Places')
+            .where('userId', isEqualTo: memberId)
+            .where('isHome', isEqualTo: true)
+            .limit(1)
+            .get();
+
+        if (homeQuery.docs.isNotEmpty) {
+          final homePlace = Place.fromMap(
+              homeQuery.docs.first.id, homeQuery.docs.first.data());
+          homePlaces.add(homePlace);
+        }
+      }
+
+      return homePlaces;
+    } catch (e) {
+      print('Error getting home places in space: $e');
+      return [];
+    }
+  }
+
+  // Send home distance notification
+  Future<void> _sendHomeDistanceNotification(
+      Place homePlace, double distanceKm, String spaceId) async {
+    try {
+      final currentUser = _auth.currentUser;
+      if (currentUser == null) return;
+
+      // Get home owner info
+      final homeOwnerDoc =
+          await _firestore.collection('Users').doc(homePlace.userId).get();
+
+      if (!homeOwnerDoc.exists) return;
+
+      final homeOwnerData = homeOwnerDoc.data() as Map<String, dynamic>;
+      final homeOwnerName = _getDisplayName(homeOwnerData);
+
+      // Get current user info
+      final currentUserDoc =
+          await _firestore.collection('Users').doc(currentUser.uid).get();
+
+      if (!currentUserDoc.exists) return;
+
+      final currentUserData = currentUserDoc.data() as Map<String, dynamic>;
+      final currentUserName = _getDisplayName(currentUserData);
+
+      // Get other members in the space to notify them
+      final otherMembers =
+          await _getOtherSpaceMembers(spaceId, currentUser.uid);
+
+      for (final memberId in otherMembers) {
+        await _sendHomeFCMNotification(
+          memberId,
+          homePlace,
+          homeOwnerName,
+          currentUserName,
+          distanceKm,
+          spaceId,
+        );
+      }
+
+      print(
+          '📢 Home distance notification sent: ${distanceKm.toStringAsFixed(1)} km from $homeOwnerName\'s Home');
+    } catch (e) {
+      print('❌ Error sending home distance notification: $e');
+    }
+  }
+
+  // Send FCM notification for home distance
+  Future<void> _sendHomeFCMNotification(
+      String targetMemberId,
+      Place homePlace,
+      String homeOwnerName,
+      String movingUserName,
+      double distanceKm,
+      String spaceId) async {
+    try {
+      // Get target member's FCM token
+      final targetMemberDoc =
+          await _firestore.collection('Users').doc(targetMemberId).get();
+      if (!targetMemberDoc.exists) return;
+
+      final targetMemberData = targetMemberDoc.data() as Map<String, dynamic>;
+      final fcmToken = targetMemberData['fcmToken'];
+
+      if (fcmToken == null || fcmToken.isEmpty) {
+        print('   ⚠️ No FCM token for member: $targetMemberId');
+        return;
+      }
+
+      // Create notification document to trigger Cloud Function
+      await _firestore.collection('DistanceNotifications').add({
+        'targetUserId': targetMemberId,
+        'targetFCMToken': fcmToken,
+        'homePlaceId': homePlace.id,
+        'homeOwnerName': homeOwnerName,
+        'movingUserId': _auth.currentUser!.uid,
+        'movingUserName': movingUserName,
+        'spaceId': spaceId,
+        'distanceKm': distanceKm,
+        'timestamp': FieldValue.serverTimestamp(),
+        'type': 'home_distance_alert',
+        'message': distanceKm <
+                (_lastReportedHomeDistances['home_${homePlace.id}'] ??
+                    double.infinity)
+            ? '$movingUserName is getting closer to $homeOwnerName\'s Home - ${distanceKm.toStringAsFixed(1)} km away'
+            : '$movingUserName is moving away from $homeOwnerName\'s Home - ${distanceKm.toStringAsFixed(1)} km away',
+      });
+
+      print('   📲 Home FCM notification queued for member: $targetMemberId');
+    } catch (e) {
+      print(
+          '❌ Error sending home FCM notification to member $targetMemberId: $e');
+    }
   }
 
   void updateUserId(String? userId) {

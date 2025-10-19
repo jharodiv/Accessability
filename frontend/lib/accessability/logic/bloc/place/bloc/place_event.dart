@@ -134,3 +134,31 @@ class CleanupOrphanedPlacesEvent extends PlaceEvent {
   @override
   List<Object> get props => [];
 }
+
+class SetHomePlaceEvent extends PlaceEvent {
+  final String placeId;
+  final bool isHome;
+
+  const SetHomePlaceEvent({required this.placeId, required this.isHome});
+
+  @override
+  List<Object> get props => [placeId, isHome];
+}
+
+class GetUserHomeEvent extends PlaceEvent {
+  final String userId;
+
+  const GetUserHomeEvent({required this.userId});
+
+  @override
+  List<Object> get props => [userId];
+}
+
+class GetSpacePlacesEvent extends PlaceEvent {
+  final String spaceId;
+
+  const GetSpacePlacesEvent({required this.spaceId});
+
+  @override
+  List<Object> get props => [spaceId];
+}

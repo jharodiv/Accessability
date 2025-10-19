@@ -1,5 +1,7 @@
 import 'package:accessability/accessability/logic/bloc/place/bloc/place_event.dart';
 import 'package:accessability/accessability/logic/bloc/place/bloc/place_state.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:accessability/accessability/data/model/place.dart';
@@ -24,6 +26,9 @@ class PlaceBloc extends Bloc<PlaceEvent, PlaceState> {
     on<DeletePlaceCompletelyEvent>(_onDeletePlaceCompletelyEvent);
     on<CleanupOrphanedPlacesEvent>(_onCleanupOrphanedPlacesEvent);
     on<ToggleFavoriteWithDeletionEvent>(_onToggleFavoriteWithDeletionEvent);
+    on<SetHomePlaceEvent>(_onSetHomePlaceEvent);
+    on<GetUserHomeEvent>(_onGetUserHomeEvent);
+    on<GetSpacePlacesEvent>(_onGetSpacePlacesEvent);
   }
 
   Future<void> _onAddPlaceEvent(
@@ -99,6 +104,71 @@ class PlaceBloc extends Bloc<PlaceEvent, PlaceState> {
     }
   }
 
+  Future<void> _onSetHomePlaceEvent(
+      SetHomePlaceEvent event, Emitter<PlaceState> emit) async {
+    emit(PlaceOperationLoading());
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) throw Exception('User not authenticated');
+
+      print('🏠 Setting home place: ${event.placeId}, isHome: ${event.isHome}');
+
+      // Use the repository to handle the home setting logic
+      await placeRepository.setHomePlace(event.placeId, event.isHome);
+
+      // Fetch updated places to reflect the changes
+      final places = await placeRepository.getAllPlaces();
+
+      // Find the newly set home place for confirmation
+      final newHomePlace = places.firstWhere(
+        (place) => place.isHome,
+        orElse: () => Place(
+          id: '',
+          userId: '',
+          name: '',
+          category: '',
+          latitude: 0,
+          longitude: 0,
+          timestamp: DateTime.now(),
+        ),
+      );
+
+      if (event.isHome && newHomePlace.id.isNotEmpty) {
+        print('✅ Successfully set home: ${newHomePlace.name}');
+      } else {
+        print('✅ Home status removed');
+      }
+
+      emit(PlacesLoaded(places));
+    } catch (e) {
+      print('❌ Failed to set home: $e');
+      emit(PlaceOperationError('Failed to set home: $e'));
+    }
+  }
+
+  // NEW: Get user home event handler
+  Future<void> _onGetUserHomeEvent(
+      GetUserHomeEvent event, Emitter<PlaceState> emit) async {
+    try {
+      final querySnapshot = await FirebaseFirestore.instance
+          .collection('Places')
+          .where('userId', isEqualTo: event.userId)
+          .where('isHome', isEqualTo: true)
+          .limit(1)
+          .get();
+
+      if (querySnapshot.docs.isNotEmpty) {
+        final homePlace = Place.fromMap(
+            querySnapshot.docs.first.id, querySnapshot.docs.first.data());
+        emit(UserHomeLoaded(homePlace));
+      } else {
+        emit(UserHomeLoaded(null));
+      }
+    } catch (e) {
+      emit(PlaceOperationError('Failed to get user home: $e'));
+    }
+  }
+
   Future<void> _onGetAllPlacesEvent(
       GetAllPlacesEvent event, Emitter<PlaceState> emit) async {
     emit(PlaceOperationLoading());
@@ -122,6 +192,17 @@ class PlaceBloc extends Bloc<PlaceEvent, PlaceState> {
       );
     } catch (e) {
       emit(PlaceOperationError('Failed to get places: ${e.toString()}'));
+    }
+  }
+
+  Future<void> _onGetSpacePlacesEvent(
+      GetSpacePlacesEvent event, Emitter<PlaceState> emit) async {
+    emit(PlaceOperationLoading());
+    try {
+      final places = await placeRepository.getPlacesForSpace(event.spaceId);
+      emit(PlacesLoaded(places));
+    } catch (e) {
+      emit(PlaceOperationError('Failed to load space places: $e'));
     }
   }
 

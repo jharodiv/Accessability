@@ -21,7 +21,8 @@ class Place {
   final List<Map<String, dynamic>>? reviews;
   final double notificationRadius;
   final bool isFavorite;
-  final String source; // NEW: 'user', 'google', 'osm', 'pwd'
+  final String source;
+  final bool isHome;
 
   Place({
     required this.id,
@@ -43,40 +44,41 @@ class Place {
     this.isFromOSM = false,
     this.notificationRadius = 100.0,
     this.isFavorite = false,
-    this.source = 'user', // NEW: default to 'user'
+    this.source = 'user',
+    this.isHome = false,
   });
 
   factory Place.fromMap(String id, Map<String, dynamic> data) {
     return Place(
-      id: id,
-      userId: data['userId'] ?? '',
-      googlePlaceId: data['googlePlaceId'],
-      osmId: data['osmId'],
-      rating:
-          data['rating'] != null ? (data['rating'] as num).toDouble() : null,
-      reviewsCount:
-          data['reviewsCount'] != null ? data['reviewsCount'] as int : null,
-      address: data['address'],
-      imageUrl: data['imageUrl'],
-      name: data['name'] ?? '',
-      category: data['category'] ?? '',
-      latitude: (data['latitude'] as num).toDouble(),
-      longitude: (data['longitude'] as num).toDouble(),
-      timestamp: (data['timestamp'] as Timestamp).toDate(),
-      isFromOSM: data['isFromOSM'] ?? false,
-      averageRating: data['averageRating'] != null
-          ? (data['averageRating'] as num).toDouble()
-          : null,
-      totalRatings:
-          data['totalRatings'] != null ? data['totalRatings'] as int : null,
-      reviews: data['reviews'] != null
-          ? List<Map<String, dynamic>>.from(data['reviews'])
-          : null,
-      notificationRadius:
-          (data['notificationRadius'] as num?)?.toDouble() ?? 100.0,
-      isFavorite: data['isFavorite'] ?? false,
-      source: data['source'] ?? 'user', // NEW
-    );
+        id: id,
+        userId: data['userId'] ?? '',
+        googlePlaceId: data['googlePlaceId'],
+        osmId: data['osmId'],
+        rating:
+            data['rating'] != null ? (data['rating'] as num).toDouble() : null,
+        reviewsCount:
+            data['reviewsCount'] != null ? data['reviewsCount'] as int : null,
+        address: data['address'],
+        imageUrl: data['imageUrl'],
+        name: data['name'] ?? '',
+        category: data['category'] ?? '',
+        latitude: (data['latitude'] as num).toDouble(),
+        longitude: (data['longitude'] as num).toDouble(),
+        timestamp: (data['timestamp'] as Timestamp).toDate(),
+        isFromOSM: data['isFromOSM'] ?? false,
+        averageRating: data['averageRating'] != null
+            ? (data['averageRating'] as num).toDouble()
+            : null,
+        totalRatings:
+            data['totalRatings'] != null ? data['totalRatings'] as int : null,
+        reviews: data['reviews'] != null
+            ? List<Map<String, dynamic>>.from(data['reviews'])
+            : null,
+        notificationRadius:
+            (data['notificationRadius'] as num?)?.toDouble() ?? 100.0,
+        isFavorite: data['isFavorite'] ?? false,
+        source: data['source'] ?? 'user',
+        isHome: data['isHome'] ?? false);
   }
 
   Map<String, dynamic> toMap() {
@@ -99,7 +101,8 @@ class Place {
       'reviews': reviews,
       'notificationRadius': notificationRadius,
       'isFavorite': isFavorite,
-      'source': source, // NEW
+      'source': source,
+      'isHome': isHome
     };
   }
 
@@ -123,29 +126,30 @@ class Place {
         isFromOSM: isOSM,
         notificationRadius: 100.0,
         isFavorite: false,
-        source: source); // NEW: Set the source
+        source: source,
+        isHome: false);
   }
 
   /// Creates a copy of the place with updated values
-  Place copyWith({
-    String? id,
-    String? userId,
-    String? googlePlaceId,
-    String? osmId,
-    double? rating,
-    int? reviewsCount,
-    String? address,
-    String? imageUrl,
-    String? name,
-    String? category,
-    double? latitude,
-    double? longitude,
-    DateTime? timestamp,
-    bool? isFromOSM,
-    double? notificationRadius,
-    bool? isFavorite,
-    String? source, // NEW
-  }) {
+  Place copyWith(
+      {String? id,
+      String? userId,
+      String? googlePlaceId,
+      String? osmId,
+      double? rating,
+      int? reviewsCount,
+      String? address,
+      String? imageUrl,
+      String? name,
+      String? category,
+      double? latitude,
+      double? longitude,
+      DateTime? timestamp,
+      bool? isFromOSM,
+      double? notificationRadius,
+      bool? isFavorite,
+      String? source,
+      bool? isHome}) {
     return Place(
         id: id ?? this.id,
         userId: userId ?? this.userId,
@@ -163,6 +167,7 @@ class Place {
         isFromOSM: isFromOSM ?? this.isFromOSM,
         notificationRadius: notificationRadius ?? this.notificationRadius,
         isFavorite: isFavorite ?? this.isFavorite,
-        source: source ?? this.source); // NEW
+        source: source ?? this.source,
+        isHome: isHome ?? this.isHome);
   }
 }

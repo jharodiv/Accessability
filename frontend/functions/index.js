@@ -309,3 +309,65 @@ exports.sendNavigationUpdateNotification = functions.firestore
       await snapshot.ref.delete();
     }
   });
+
+exports.sendHomeDistanceNotification = functions.firestore
+  .document("DistanceNotifications/{notificationId}")
+  .onCreate(async (snap, context) => {
+    try {
+      const notificationData = snap.data();
+
+      // Only handle home distance alerts
+      if (notificationData.type !== "home_distance_alert") return;
+
+      const targetFCMToken = notificationData.targetFCMToken;
+      const homeOwnerName = notificationData.homeOwnerName;
+      const movingUserName = notificationData.movingUserName;
+      const distanceKm = notificationData.distanceKm;
+      const message = notificationData.message;
+
+      if (!targetFCMToken) {
+        await snap.ref.delete();
+        return;
+      }
+
+      const payload = {
+        notification: {
+          title: `🏠 ${movingUserName} near ${homeOwnerName}'s Home`,
+          body: message,
+        },
+        data: {
+          type: "home_distance_alert",
+          homeOwnerName: homeOwnerName,
+          movingUserName: movingUserName,
+          distanceKm: distanceKm.toString(),
+          message: message,
+          click_action: "FLUTTER_NOTIFICATION_CLICK",
+        },
+        android: {
+          notification: {
+            sound: "default",
+            priority: "high",
+            visibility: "public",
+            channel_id: "home_distance_alerts",
+          },
+        },
+        apns: {
+          payload: {
+            aps: {
+              sound: "default",
+            },
+          },
+        },
+        token: targetFCMToken,
+      };
+
+      await admin.messaging().send(payload);
+      console.log("Home distance notification sent successfully");
+
+      // Clean up
+      await snap.ref.delete();
+    } catch (error) {
+      console.error("Error sending home distance notification:", error);
+      await snap.ref.delete();
+    }
+  });

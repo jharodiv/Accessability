@@ -1,4 +1,5 @@
 // lib/services/marker_factory.dart
+import 'dart:ui' as ui;
 import 'package:accessability/accessability/data/model/place.dart' show Place;
 import 'package:accessability/accessability/presentation/widgets/reusableWidgets/favorite_map_marker.dart'
     show FavoriteMapMarker;
@@ -113,9 +114,64 @@ class MarkerFactory {
     );
   }
 
+  static Future<BitmapDescriptor> createHomeMarker({
+    required BuildContext ctx,
+    required int size,
+  }) async {
+    try {
+      final pictureRecorder = ui.PictureRecorder();
+      final canvas = Canvas(pictureRecorder);
+      final radius = size / 2;
+
+      // Draw home icon with orange color
+      final homePaint = Paint()
+        ..color = const Color(0xFFFF9800) // Orange color for home
+        ..style = PaintingStyle.fill;
+
+      // Draw house shape
+      final path = Path();
+      path.moveTo(radius, radius * 0.3);
+      path.lineTo(radius * 0.7, radius * 0.6);
+      path.lineTo(radius * 0.7, radius * 0.9);
+      path.lineTo(radius * 0.3, radius * 0.9);
+      path.lineTo(radius * 0.3, radius * 0.6);
+      path.close();
+
+      canvas.drawPath(path, homePaint);
+
+      // Draw roof
+      final roofPaint = Paint()
+        ..color = const Color(0xFFF57C00) // Darker orange
+        ..style = PaintingStyle.fill;
+
+      final roofPath = Path();
+      roofPath.moveTo(radius * 0.2, radius * 0.6);
+      roofPath.lineTo(radius, radius * 0.3);
+      roofPath.lineTo(radius * 0.8, radius * 0.6);
+      roofPath.close();
+
+      canvas.drawPath(roofPath, roofPaint);
+
+      final image = await pictureRecorder.endRecording().toImage(size, size);
+      final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
+
+      if (bytes != null) {
+        return BitmapDescriptor.fromBytes(bytes.buffer.asUint8List());
+      }
+    } catch (e) {
+      debugPrint('Error creating home marker: $e');
+    }
+
+    return BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueOrange);
+  }
+
   /// Decide which icon to use for each place type.
   static IconData _iconForPlaceType(String type) {
     final t = type.toLowerCase();
+
+    if (t == 'home') {
+      return Icons.home;
+    }
 
     // 🏥 Hospital - HIGH PRIORITY - check this first
     if (t.contains('hospital') ||

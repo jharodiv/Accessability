@@ -51,9 +51,19 @@ class PlaceService {
 
   Future<bool> shouldDeletePlace(Place place) async {
     try {
-      // If place is not favorite and has no category (or category is 'none'), it can be deleted
+      // Only delete places that meet ALL these conditions:
+      // 1. Not marked as favorite
+      // 2. Has no category or category is 'none'
+      // 3. Is NOT a home place (NEW: protect home places)
+      // 4. Was created more than 24 hours ago (NEW: protect recent places)
+
+      final bool isOldPlace = place.timestamp != null &&
+          DateTime.now().difference(place.timestamp!).inHours > 24;
+
       return !place.isFavorite &&
-          (place.category.isEmpty || place.category == 'none');
+          !place.isHome && // NEW: Don't delete home places
+          (place.category.isEmpty || place.category == 'none') &&
+          isOldPlace; // NEW: Only delete old places
     } catch (e) {
       print('Error checking if place should be deleted: $e');
       return false;
@@ -160,6 +170,64 @@ class PlaceService {
     } catch (e) {
       debugPrint('Error toggling favorite with deletion: $e');
       throw Exception('Failed to toggle favorite: $e');
+    }
+  }
+
+  Future<void> setHomePlace(String placeId, bool isHome) async {
+    try {
+      final user = _auth.currentUser;
+      if (user == null) throw Exception("User not authenticated");
+
+      // First, unset ANY existing home for this user
+      final querySnapshot = await _firestore
+          .collection('Places')
+          .where('userId', isEqualTo: user.uid)
+          .where('isHome', isEqualTo: true)
+          .get();
+
+      final batch = _firestore.batch();
+
+      // Unset all existing homes
+      for (final doc in querySnapshot.docs) {
+        batch.update(doc.reference, {'isHome': false});
+        print('🔄 Unsetting previous home: ${doc.id}');
+      }
+
+      // Set the new home place (only if isHome is true)
+      final placeRef = _firestore.collection('Places').doc(placeId);
+      if (isHome) {
+        batch.update(placeRef, {'isHome': true});
+        print('✅ Setting new home: $placeId');
+      } else {
+        batch.update(placeRef, {'isHome': false});
+        print('❌ Removing home status: $placeId');
+      }
+
+      await batch.commit();
+      print('🎯 Home status updated successfully');
+    } catch (e) {
+      print('Error setting home place: $e');
+      throw Exception('Failed to set home place: $e');
+    }
+  }
+
+  Future<Place?> getUserHome(String userId) async {
+    try {
+      final querySnapshot = await _firestore
+          .collection('Places')
+          .where('userId', isEqualTo: userId)
+          .where('isHome', isEqualTo: true)
+          .limit(1)
+          .get();
+
+      if (querySnapshot.docs.isNotEmpty) {
+        return Place.fromMap(
+            querySnapshot.docs.first.id, querySnapshot.docs.first.data());
+      }
+      return null;
+    } catch (e) {
+      print('Error getting user home: $e');
+      return null;
     }
   }
 
@@ -327,6 +395,42 @@ class PlaceService {
     return snapshot.docs
         .map((doc) => Place.fromMap(doc.id, doc.data() as Map<String, dynamic>))
         .toList();
+  }
+
+  // place_service.dart - Update getPlacesForSpace method
+  Future<List<Place>> getPlacesForSpace(String spaceId) async {
+    try {
+      // Get all members in the space
+      final spaceDoc = await _firestore.collection('Spaces').doc(spaceId).get();
+      if (!spaceDoc.exists) return [];
+
+      final members = List<String>.from(spaceDoc.data()?['members'] ?? []);
+      final allPlaces = <Place>[];
+
+      // Get places for each member in the space
+      for (final memberId in members) {
+        final placesSnapshot = await _firestore
+            .collection('Places')
+            .where('userId', isEqualTo: memberId)
+            .get();
+
+        for (final doc in placesSnapshot.docs) {
+          final place = Place.fromMap(doc.id, doc.data());
+
+          // Include ALL home places from ALL users in the space
+          // Include ALL places from current user (both home and regular)
+          if (place.isHome || memberId == _auth.currentUser?.uid) {
+            allPlaces.add(place);
+          }
+        }
+      }
+
+      debugPrint('Loaded ${allPlaces.length} places for space $spaceId');
+      return allPlaces;
+    } catch (e) {
+      print('Error getting places for space: $e');
+      return [];
+    }
   }
 
   Future<void> deletePlace(String placeId) async {

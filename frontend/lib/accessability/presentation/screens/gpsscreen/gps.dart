@@ -6,6 +6,8 @@ import 'package:accessability/accessability/backgroundServices/distance_notifica
 import 'package:accessability/accessability/data/model/place.dart';
 import 'package:accessability/accessability/firebaseServices/place/geocoding_service.dart';
 import 'package:accessability/accessability/logic/bloc/place/bloc/place_state.dart';
+import 'package:accessability/accessability/logic/bloc/user/user_state.dart'
+    hide PlacesLoaded;
 import 'package:accessability/accessability/presentation/widgets/dialog/ok_dialog_widget.dart';
 import 'package:accessability/accessability/presentation/widgets/gpsWidgets/map_perspective.dart';
 import 'package:accessability/accessability/presentation/widgets/gpsWidgets/navigation_controls.dart';
@@ -18,7 +20,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 import 'package:accessability/accessability/logic/bloc/place/bloc/place_event.dart'
-    show GetAllPlacesEvent, CleanupOrphanedPlacesEvent;
+    show GetAllPlacesEvent, CleanupOrphanedPlacesEvent, GetSpacePlacesEvent;
 import 'package:accessability/accessability/logic/bloc/place/bloc/place_state.dart'
     as place_state;
 import 'package:accessability/accessability/logic/bloc/user/user_bloc.dart'
@@ -816,30 +818,38 @@ class _GpsScreenState extends State<GpsScreen> {
   Future<Marker> _createPlaceMarker(Place place) async {
     _placeById[place.id] = place;
 
-    final badgeSize = 64;
+    // Check if this is a home marker
+    final bool isHome = place.isHome;
+    final badgeSize = 64; // Same size for both
+
     BitmapDescriptor icon;
     try {
+      // For home markers, use the same badge style but with 'home' type for orange color
       icon = await MarkerFactory.createBadgeForPlaceType(
         ctx: context,
-        placeType: place.category ?? 'place',
+        placeType: isHome ? 'home' : (place.category ?? 'place'),
         size: badgeSize,
       );
     } catch (e) {
-      icon = BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueViolet);
+      debugPrint('Error creating marker for ${place.name}: $e');
+      // Fallback with clear color distinction
+      icon = BitmapDescriptor.defaultMarkerWithHue(
+          isHome ? BitmapDescriptor.hueOrange : BitmapDescriptor.hueViolet);
     }
 
-    // Build a marker using same visual anchor as fetchNearbyPlaces
+    // Get display name - show "Username's Home" for home markers when viewed by other users
+    String displayName = await _getPlaceDisplayName(place);
+
     return Marker(
       markerId: MarkerId('place_${place.id}'),
       position: LatLng(place.latitude, place.longitude),
       icon: icon,
-      anchor: const Offset(0.5, 0.72), // matches your nearby badges
-      zIndex: 300,
+      anchor: const Offset(0.5, 0.72),
+      zIndex: isHome ? 400 : 300,
       infoWindow: InfoWindow(
-        title: place.name,
-        snippet: 'Tap to show route',
+        title: displayName,
+        snippet: isHome ? 'Home - Tap to show route' : 'Tap to show route',
         onTap: () {
-          // start route + visually "drop" this marker
           if (_locationHandler.currentLocation != null) {
             routeController.createRoute(
               _locationHandler.currentLocation!,
@@ -847,7 +857,6 @@ class _GpsScreenState extends State<GpsScreen> {
             );
             routeController
                 .startFollowingUser(() => _locationHandler.currentLocation);
-            // mark this place as dropped (makes icon bigger / lifts above)
             _droppedPlaceId = place.id;
             _setPlaceMarkerDropped(place.id, true);
           }
@@ -859,7 +868,7 @@ class _GpsScreenState extends State<GpsScreen> {
           final detailedPlace = await openStreetMapHelper.fetchPlaceDetails(
             place.latitude,
             place.longitude,
-            place.name,
+            displayName,
           );
           if (!mounted) return;
           setState(() => _selectedPlace = detailedPlace);
@@ -868,6 +877,39 @@ class _GpsScreenState extends State<GpsScreen> {
         }
       },
     );
+  }
+
+  Future<String> _getPlaceDisplayName(Place place) async {
+    final currentUser = FirebaseAuth.instance.currentUser;
+
+    // If it's a home place and NOT owned by current user, show "Username's Home"
+    if (place.isHome && currentUser?.uid != place.userId) {
+      try {
+        final userDoc = await FirebaseFirestore.instance
+            .collection('Users')
+            .doc(place.userId)
+            .get();
+
+        if (userDoc.exists) {
+          final userData = userDoc.data() as Map<String, dynamic>;
+          final firstName = userData['firstName']?.toString() ?? '';
+          final lastName = userData['lastName']?.toString() ?? '';
+          final username = userData['username']?.toString() ?? 'User';
+
+          if (firstName.isNotEmpty || lastName.isNotEmpty) {
+            return "$firstName $lastName".trim() + "'s Home";
+          } else {
+            return "$username's Home";
+          }
+        }
+      } catch (e) {
+        debugPrint('Error getting home owner name: $e');
+      }
+      return "Home";
+    }
+
+    // For current user's home or regular places, show the original name
+    return place.name;
   }
 
   Future<void> _setPlaceMarkerDropped(String placeId, bool dropped) async {
@@ -1303,6 +1345,14 @@ class _GpsScreenState extends State<GpsScreen> {
       _activeSpaceName = name;
       _isLoading = false;
     });
+
+    // IMMEDIATELY load places for this space
+    if (spaceId.isNotEmpty) {
+      context.read<PlaceBloc>().add(GetSpacePlacesEvent(spaceId: spaceId));
+    } else {
+      // If no space selected, load only current user's places
+      context.read<PlaceBloc>().add(const GetAllPlacesEvent());
+    }
   }
 
   Set<Circle> _postProcessNearbyCircles(Set<Circle> rawCircles,
@@ -2276,6 +2326,12 @@ class _GpsScreenState extends State<GpsScreen> {
           _buildPlaceMarkersAsync(state.places);
         } else if (state is place_state.PlaceOperationError) {
           print("Error loading places: ${state.message}");
+        } else if (state is PlaceFavoriteToggled) {
+          // Refresh places when favorite status changes
+          context.read<PlaceBloc>().add(const GetAllPlacesEvent());
+        } else if (state is UserHomeLoaded) {
+          // Refresh places when home status changes
+          context.read<PlaceBloc>().add(const GetAllPlacesEvent());
         }
       },
       child: BlocBuilder<UserBloc, user_state.UserState>(

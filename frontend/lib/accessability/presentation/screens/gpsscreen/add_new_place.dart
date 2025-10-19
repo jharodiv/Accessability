@@ -23,8 +23,12 @@ class _AddNewPlaceScreenState extends State<AddNewPlaceScreen> {
   // Default fallback location.
   LatLng _currentLatLng = const LatLng(16.0430, 120.3333);
 
+  // NEW: Option to set as home immediately
+  bool _setAsHome = false;
+
   // Instance of LocationHandler (requires onMarkersUpdated).
   late LocationHandler _locationHandler;
+
   @override
   void initState() {
     super.initState();
@@ -102,6 +106,49 @@ class _AddNewPlaceScreenState extends State<AddNewPlaceScreen> {
             ),
           ),
 
+          // NEW: Set as home option
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8),
+            child: Row(
+              children: [
+                Icon(Icons.home, color: Colors.orange.shade600),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'set_as_home'.tr(),
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+                Switch(
+                  value: _setAsHome,
+                  onChanged: (value) {
+                    setState(() {
+                      _setAsHome = value;
+                    });
+                  },
+                  activeColor: Colors.orange,
+                ),
+              ],
+            ),
+          ),
+          if (_setAsHome)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0),
+              child: Text(
+                'set_as_home_description'.tr(),
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Colors.grey.shade600,
+                  fontStyle: FontStyle.italic,
+                ),
+              ),
+            ),
+
+          const SizedBox(height: 8),
+
           // Map location section
           Padding(
             padding: const EdgeInsets.only(left: 16.0, top: 8, bottom: 4),
@@ -162,8 +209,7 @@ class _AddNewPlaceScreenState extends State<AddNewPlaceScreen> {
                   ),
                   Semantics(
                     label: 'Next Button',
-                    button: true, // 👈 important, tells Flutter it’s a button
-
+                    button: true,
                     child: Positioned(
                       bottom: 16,
                       left: 16,
@@ -206,19 +252,32 @@ class _AddNewPlaceScreenState extends State<AddNewPlaceScreen> {
       return;
     }
 
-    // Add the place
+    // Add the place first
     context.read<PlaceBloc>().add(
           AddPlaceEvent(
             name: placeName,
             latitude: _currentLatLng.latitude,
             longitude: _currentLatLng.longitude,
-            notificationRadius: 100.0, // Explicitly set the radius
+            notificationRadius: 100.0,
           ),
         );
 
+    // NEW: If set as home is enabled, we need to handle this differently
+    // Since we don't have the place ID immediately, we'll show a message
+    // and let the user set it as home from the places list
+    String successMessage;
+    if (_setAsHome) {
+      successMessage = 'place_added_set_home_instructions'.tr();
+    } else {
+      successMessage = 'placeAddedSuccessfully'.tr();
+    }
+
     // Show success message
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('placeAddedSuccessfully'.tr())),
+      SnackBar(
+        content: Text(successMessage),
+        duration: const Duration(seconds: 3),
+      ),
     );
 
     Navigator.of(context).pop();

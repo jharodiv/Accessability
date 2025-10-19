@@ -47,6 +47,10 @@ class MapUtils {
   static Color colorForPlaceType(String? type) {
     final t = (type ?? '').toLowerCase();
 
+    if (t == 'home') {
+      return const Color(0xFFFF9800);
+    }
+
     if (t.contains('bus')) return Colors.blue;
 
     if (t.contains('restaurant') || t.contains('restawran')) {

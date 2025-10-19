@@ -51,3 +51,12 @@ class PlaceFavoriteToggled extends PlaceState {
   @override
   List<Object?> get props => [place, isFavorite];
 }
+
+class UserHomeLoaded extends PlaceState {
+  final Place? homePlace;
+
+  const UserHomeLoaded(this.homePlace);
+
+  @override
+  List<Object?> get props => [homePlace];
+}

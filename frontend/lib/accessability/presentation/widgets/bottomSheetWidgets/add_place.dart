@@ -1,6 +1,9 @@
 import 'package:accessability/accessability/logic/bloc/place/bloc/place_bloc.dart';
 import 'package:accessability/accessability/logic/bloc/place/bloc/place_event.dart';
 import 'package:accessability/accessability/logic/bloc/place/bloc/place_state.dart';
+import 'package:accessability/accessability/logic/bloc/user/user_bloc.dart';
+import 'package:accessability/accessability/logic/bloc/user/user_state.dart'
+    hide PlaceOperationLoading, PlacesLoaded, PlaceOperationError;
 import 'package:accessability/accessability/presentation/widgets/shimmer/shimmer_place.dart';
 import 'package:accessability/accessability/data/model/place.dart';
 import 'package:flutter/material.dart';
@@ -35,6 +38,16 @@ class _AddPlaceWidgetState extends State<AddPlaceWidget> {
   // Dispatch a DeletePlaceEvent to remove a place from Firestore.
   void _removePlace(String placeId) {
     context.read<PlaceBloc>().add(DeletePlaceEvent(placeId: placeId));
+  }
+
+  // NEW: Toggle home status for a place
+  void _toggleHomePlace(String placeId, bool currentHomeStatus) {
+    context.read<PlaceBloc>().add(
+          SetHomePlaceEvent(
+            placeId: placeId,
+            isHome: !currentHomeStatus,
+          ),
+        );
   }
 
   @override
@@ -97,27 +110,82 @@ class _AddPlaceWidgetState extends State<AddPlaceWidget> {
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
                               border: Border.all(
-                                color: const Color(0xFF6750A4),
+                                color: place.isHome
+                                    ? Colors.orange // Highlight home places
+                                    : const Color(0xFF6750A4),
                               ),
                             ),
-                            child: const Center(
+                            child: Center(
                               child: Icon(
-                                Icons.place,
-                                color: Color(0xFF6750A4),
+                                place.isHome
+                                    ? Icons.home
+                                    : Icons.place, // Home icon for home places
+                                color: place.isHome
+                                    ? Colors.orange
+                                    : const Color(0xFF6750A4),
                               ),
                             ),
                           ),
-                          title: Text(
-                            place.name,
-                            style: const TextStyle(
-                              fontSize: 15,
-                              fontWeight: FontWeight.w500,
-                            ),
+                          title: Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  place.isHome
+                                      ? _getHomeDisplayName(place, context)
+                                      : place.name,
+                                  style: TextStyle(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w500,
+                                    color: place.isHome
+                                        ? Colors.orange
+                                        : Colors.black,
+                                  ),
+                                ),
+                              ),
+                              if (place.isHome)
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 8, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: Colors.orange.withOpacity(0.1),
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(
+                                        color: Colors.orange.withOpacity(0.3)),
+                                  ),
+                                  child: Text(
+                                    'home'.tr(),
+                                    style: const TextStyle(
+                                      fontSize: 10,
+                                      color: Colors.orange,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                            ],
                           ),
                           // "x" button remains only for removal.
-                          trailing: IconButton(
-                            icon: const Icon(Icons.close),
-                            onPressed: () => _removePlace(place.id),
+                          trailing: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              // Home toggle button
+                              IconButton(
+                                icon: Icon(
+                                  place.isHome
+                                      ? Icons.home
+                                      : Icons.home_outlined,
+                                  color: place.isHome
+                                      ? Colors.orange
+                                      : Colors.grey,
+                                ),
+                                onPressed: () =>
+                                    _toggleHomePlace(place.id, place.isHome),
+                              ),
+                              // Delete button
+                              IconButton(
+                                icon: const Icon(Icons.close),
+                                onPressed: () => _removePlace(place.id),
+                              ),
+                            ],
                           ),
                         ),
                         // Small divider between items.
@@ -145,5 +213,23 @@ class _AddPlaceWidgetState extends State<AddPlaceWidget> {
         ),
       ],
     );
+  }
+
+  // NEW: Get display name for home places
+  String _getHomeDisplayName(Place place, BuildContext context) {
+    final userState = context.read<UserBloc>().state;
+    if (userState is UserLoaded) {
+      final username = [userState.user.firstName, userState.user.lastName]
+          .where((s) => s != null && s!.trim().isNotEmpty)
+          .join(' ')
+          .trim();
+
+      if (username.isNotEmpty) {
+        return "$username's Home";
+      } else {
+        return "${userState.user.username}'s Home";
+      }
+    }
+    return "My Home";
   }
 }

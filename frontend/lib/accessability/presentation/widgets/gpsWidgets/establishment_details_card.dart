@@ -2,7 +2,11 @@ import 'package:accessability/accessability/logic/bloc/place/bloc/place_bloc.dar
 import 'package:accessability/accessability/logic/bloc/place/bloc/place_event.dart';
 import 'package:accessability/accessability/logic/bloc/place/bloc/place_state.dart';
 import 'package:accessability/accessability/logic/bloc/user/user_bloc.dart';
+import 'package:accessability/accessability/logic/bloc/user/user_state.dart'
+    hide PlacesLoaded;
 import 'package:accessability/accessability/presentation/widgets/bottomSheetWidgets/rating_review_widget.dart';
+import 'package:easy_localization/easy_localization.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:accessability/accessability/data/model/place.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -28,11 +32,16 @@ class EstablishmentDetailsCard extends StatefulWidget {
 class _EstablishmentDetailsCardState extends State<EstablishmentDetailsCard> {
   bool _isFavorite = false;
   bool _isCheckingFavorite = false;
+  bool _isHome = false;
+  bool _isCheckingHome = false;
+  bool _isCurrentUserPlace = false;
 
   @override
   void initState() {
     super.initState();
     _checkFavoriteStatus();
+    _checkHomeStatus();
+    _checkCurrentUser();
   }
 
   void _checkFavoriteStatus() async {
@@ -54,6 +63,90 @@ class _EstablishmentDetailsCardState extends State<EstablishmentDetailsCard> {
     setState(() {
       _isCheckingFavorite = false;
     });
+  }
+
+  void _checkHomeStatus() async {
+    if (widget.place.id.isEmpty) return;
+
+    setState(() {
+      _isCheckingHome = true;
+    });
+
+    try {
+      // Check if this place is the user's home
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        context.read<PlaceBloc>().add(GetUserHomeEvent(userId: user.uid));
+      }
+    } catch (e) {
+      print('Error checking home status: $e');
+    }
+
+    setState(() {
+      _isCheckingHome = false;
+    });
+  }
+
+  void _checkCurrentUser() {
+    final userState = context.read<UserBloc>().state;
+    if (userState is UserLoaded) {
+      setState(() {
+        _isCurrentUserPlace = userState.user.uid == widget.place.userId;
+      });
+    }
+  }
+
+  void _toggleHome() {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    // If trying to set a new home while another is already set
+    if (!_isHome) {
+      // Show confirmation dialog when setting a new home
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: Text('set_home_title'.tr()),
+          content: Text('set_home_message'.tr()),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text('cancel'.tr()),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context);
+                _performHomeToggle();
+              },
+              child: Text('set_home'.tr()),
+            ),
+          ],
+        ),
+      );
+    } else {
+      // Simply remove home status
+      _performHomeToggle();
+    }
+  }
+
+  void _performHomeToggle() {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    context.read<PlaceBloc>().add(
+          SetHomePlaceEvent(
+            placeId: widget.place.id,
+            isHome: !_isHome,
+          ),
+        );
+
+    // Show appropriate message
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(_isHome ? 'home_removed'.tr() : 'home_set'.tr()),
+        duration: Duration(seconds: 2),
+      ),
+    );
   }
 
   void _toggleFavorite() {
@@ -85,6 +178,7 @@ class _EstablishmentDetailsCardState extends State<EstablishmentDetailsCard> {
           );
           setState(() {
             _isFavorite = favoritePlace.isFavorite;
+            _isHome = favoritePlace.isHome;
           });
         } else if (state is PlaceFavoriteToggled) {
           // Update when favorite is toggled
@@ -93,6 +187,11 @@ class _EstablishmentDetailsCardState extends State<EstablishmentDetailsCard> {
               _isFavorite = state.isFavorite;
             });
           }
+        } else if (state is UserHomeLoaded) {
+          // Update home status
+          setState(() {
+            _isHome = state.homePlace?.id == widget.place.id;
+          });
         }
       },
       child: _buildCardContent(),
@@ -141,17 +240,14 @@ class _EstablishmentDetailsCardState extends State<EstablishmentDetailsCard> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Title + actions (heart + X button) in one row
+          // Title + actions (heart + home + X button) in one row
           Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               // Title
               Expanded(
                 child: Text(
-                  (widget.place.name != null &&
-                          widget.place.name!.trim().isNotEmpty)
-                      ? widget.place.name!
-                      : 'Unnamed Place',
+                  _getDisplayName(widget.place, _isCurrentUserPlace),
                   style: const TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
@@ -160,6 +256,27 @@ class _EstablishmentDetailsCardState extends State<EstablishmentDetailsCard> {
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
+
+              // Home button (only for current user's places)
+              if (_isCurrentUserPlace) ...[
+                if (_isCheckingHome)
+                  const Padding(
+                    padding: EdgeInsets.all(8.0),
+                    child: SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                  )
+                else
+                  IconButton(
+                    icon: Icon(
+                      _isHome ? Icons.home : Icons.home_outlined,
+                      color: _isHome ? const Color(0xFF5B2EA6) : Colors.grey,
+                    ),
+                    onPressed: _toggleHome,
+                  ),
+              ],
               // Heart (favorite) - Now works for all place types
               if (_isCheckingFavorite)
                 const Padding(
@@ -248,5 +365,28 @@ class _EstablishmentDetailsCardState extends State<EstablishmentDetailsCard> {
         ],
       ),
     );
+  }
+
+  String _getDisplayName(Place place, bool isCurrentUserPlace) {
+    // If it's a home place AND it belongs to another user (not current user), show "Username's Home"
+    if (place.isHome && !isCurrentUserPlace) {
+      final currentUser = context.read<UserBloc>().state;
+      if (currentUser is UserLoaded) {
+        final username = [currentUser.user.firstName, currentUser.user.lastName]
+            .where((s) => s != null && s!.trim().isNotEmpty)
+            .join(' ')
+            .trim();
+
+        if (username.isNotEmpty) {
+          return "$username's Home";
+        } else {
+          return "${currentUser.user.username}'s Home";
+        }
+      }
+      return "Home";
+    }
+
+    // For current user's home or regular places, show the original name
+    return place.name;
   }
 }

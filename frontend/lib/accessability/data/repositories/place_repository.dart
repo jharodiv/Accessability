@@ -1,5 +1,7 @@
 import 'package:accessability/accessability/data/model/place.dart';
 import 'package:accessability/accessability/firebaseServices/place/place_service.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class PlaceRepository {
   final PlaceService placeService;
@@ -30,6 +32,48 @@ class PlaceRepository {
       await placeService.updateNotificationRadius(placeId, radius);
     } catch (e) {
       throw Exception('Failed to update notification radius: ${e.toString()}');
+    }
+  }
+
+  Future<void> setHomePlace(String placeId, bool isHome) async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) throw Exception('User not authenticated');
+
+      // Additional validation: Ensure the place belongs to the current user
+      final placeDoc = await FirebaseFirestore.instance
+          .collection('Places')
+          .doc(placeId)
+          .get();
+
+      if (!placeDoc.exists) {
+        throw Exception('Place not found');
+      }
+
+      final placeData = placeDoc.data();
+      if (placeData?['userId'] != user.uid) {
+        throw Exception('You can only set home for your own places');
+      }
+
+      await placeService.setHomePlace(placeId, isHome);
+    } catch (e) {
+      throw Exception('Failed to set home place: ${e.toString()}');
+    }
+  }
+
+  Future<List<Place>> getPlacesForSpace(String spaceId) async {
+    try {
+      return await placeService.getPlacesForSpace(spaceId);
+    } catch (e) {
+      throw Exception('Failed to get space places: ${e.toString()}');
+    }
+  }
+
+  Future<Place?> getUserHome(String userId) async {
+    try {
+      return await placeService.getUserHome(userId);
+    } catch (e) {
+      throw Exception('Failed to get user home: ${e.toString()}');
     }
   }
 

@@ -30,6 +30,7 @@ class AuthService {
     String lastName,
     String contactNumber,
     XFile? profilePicture,
+    String pwdType, // NEW
   ) async {
     try {
       // Step 1: Create the user
@@ -62,6 +63,8 @@ class AuthService {
         'firstName': firstName,
         'lastName': lastName,
         'contactNumber': contactNumber,
+        'pwdType': pwdType, // NEW
+
         'profilePicture': profilePictureUrl ??
             'https://firebasestorage.googleapis.com/v0/b/accessability-71ef7.firebasestorage.app/o/profile_pictures%2Fdefault_profile.png?alt=media&token=bc7a75a7-a78e-4460-b816-026a8fc341ba',
         'hasCompletedOnboarding': false,

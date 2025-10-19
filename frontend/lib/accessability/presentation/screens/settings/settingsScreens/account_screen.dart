@@ -316,6 +316,70 @@ class _AccountScreenState extends State<AccountScreen> {
                       ),
                     ),
                     const Divider(),
+
+// 🦽 Type of Disability
+                    ListTile(
+                      leading: const Icon(
+                        Icons.accessibility_new,
+                        color: Color(0xFF6750A4),
+                      ),
+                      title: Text(
+                        'typeOfDisability'.tr(),
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      subtitle: Text(
+                        (user.pwdType != null && user.pwdType!.isNotEmpty)
+                            ? (user.pwdType == 'Family'
+                                ? 'notProvided'.tr() // If Family → not provided
+                                : user.pwdType!) // Otherwise show real value
+                            : 'notProvided'.tr(),
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      onTap: () {
+                        final value =
+                            (user.pwdType != null && user.pwdType!.isNotEmpty)
+                                ? (user.pwdType == 'Family'
+                                    ? 'notProvided'.tr()
+                                    : user.pwdType!)
+                                : 'notProvided'.tr();
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('${'typeOfDisability'.tr()}: $value'),
+                            backgroundColor: const Color(0xFF6750A4),
+                          ),
+                        );
+                      },
+                    ),
+
+// 👨‍👩‍👦 Show only when Family
+                    if (user.pwdType == 'Family') ...[
+                      const Divider(),
+                      ListTile(
+                        leading: const Icon(
+                          Icons.family_restroom,
+                          color: Color(0xFF6750A4),
+                        ),
+                        title: Text(
+                          'relationship'.tr(),
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        subtitle: Text(
+                          'Family',
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        onTap: () {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('${'relationship'.tr()}: Family'),
+                              backgroundColor: const Color(0xFF6750A4),
+                            ),
+                          );
+                        },
+                      ),
+                    ],
+
+                    const Divider(),
+
                     // Password (hidden)
                     ListTile(
                       leading: const Icon(Icons.lock_outline,

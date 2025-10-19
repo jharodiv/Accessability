@@ -373,6 +373,5 @@
   "address_geocoding": "Finding your location...",
   "address_error": "Could not find the address. Please check and try again.",
   "pwdType": "Visual Impairment",
-  "typeOfDisability": "Type of Disablity",
-  "notProvided": "Not provided"
+  "typeOfDisability": "Type of Disablity"
 }

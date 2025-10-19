@@ -20,15 +20,15 @@ class AuthRepository {
   ) async {
     try {
       final userCredential = await authService.signUpWithEmailAndPassword(
-        signUpModel.email,
-        signUpModel.password,
-        signUpModel.username,
-        signUpModel.firstName,
-        signUpModel.lastName,
-        signUpModel.contactNumber,
-        profilePicture,
-        signUpModel.pwdType, // NEW
-      );
+          signUpModel.email,
+          signUpModel.password,
+          signUpModel.username,
+          signUpModel.firstName,
+          signUpModel.lastName,
+          signUpModel.contactNumber,
+          profilePicture,
+          signUpModel.pwdType,
+          signUpModel.address);
 
       final user = userCredential.user;
       if (user == null) {

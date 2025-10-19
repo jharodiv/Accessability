@@ -281,10 +281,10 @@ class _SignupFormState extends State<SignupForm> {
       email: email,
       password: password,
       contactNumber: contact,
-      address: address, // NEW
-      latitude: coordinates['latitude']!, // NEW
-      longitude: coordinates['longitude']!, // NEW
-      pwdType: pwdType, // NEW
+      address: address,
+      latitude: coordinates['latitude']!,
+      longitude: coordinates['longitude']!,
+      pwdType: pwdType,
     );
 
     Navigator.push(

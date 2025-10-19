@@ -53,10 +53,12 @@ class UserRepository {
     _sharedPrefs?.setBool('user_biometricEnabled', user.biometricEnabled);
     _sharedPrefs?.setString('user_deviceId', user.deviceId ?? '');
     _sharedPrefs?.setString('user_pwdType', user.pwdType ?? '');
+    _sharedPrefs?.setString('user_address', user.details.address);
 
     _sharedPrefs?.setBool(
         'user_hasCompletedOnboarding', user.hasCompletedOnboarding);
     print('User cached: ${user.uid}, ${user.username}, ${user.email}');
+    print('Address cached: ${user.details.address}');
   }
 
   // Get cached user data
@@ -74,7 +76,8 @@ class UserRepository {
         _sharedPrefs?.getBool('user_biometricEnabled') ?? false;
     final deviceId = _sharedPrefs?.getString('user_deviceId');
     final isDarkMode = _sharedPrefs?.getBool('isDarkMode') ?? false;
-    final pwdType = _sharedPrefs?.getString('user_pwdType') ?? ''; // ✅ ADD THIS
+    final pwdType = _sharedPrefs?.getString('user_pwdType') ?? '';
+    final address = _sharedPrefs?.getString('user_address') ?? '';
 
     if (userId != null && userName != null && userEmail != null) {
       return UserModel(
@@ -91,7 +94,7 @@ class UserRepository {
         pwdType: pwdType, // ✅ ADD THIS
 
         details: UserDetails(
-          address: _sharedPrefs?.getString('user_address') ?? '',
+          address: address,
           phoneNumber: _sharedPrefs?.getString('user_phoneNumber') ?? '',
         ),
         settings: UserSettings(
@@ -131,6 +134,7 @@ class UserRepository {
     _sharedPrefs?.remove('backup_email');
     _sharedPrefs?.remove('backup_password');
     _sharedPrefs?.remove('user_pwdType');
+    _sharedPrefs?.remove('user_address');
 
     print('User cache cleared');
   }

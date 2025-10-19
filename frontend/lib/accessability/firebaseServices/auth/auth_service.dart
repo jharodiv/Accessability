@@ -23,15 +23,15 @@ class AuthService {
 
   // Register with profile picture
   Future<UserCredential> signUpWithEmailAndPassword(
-    String email,
-    String password,
-    String username,
-    String firstName,
-    String lastName,
-    String contactNumber,
-    XFile? profilePicture,
-    String pwdType, // NEW
-  ) async {
+      String email,
+      String password,
+      String username,
+      String firstName,
+      String lastName,
+      String contactNumber,
+      XFile? profilePicture,
+      String pwdType, // NEW
+      String address) async {
     try {
       // Step 1: Create the user
       UserCredential userCredential =
@@ -55,7 +55,7 @@ class AuthService {
             await uploadProfilePicture(user.uid, profilePicture);
       }
 
-      // Step 4: Save user data in Firestore
+      // Step 4: Save user data in Firestore WITH ADDRESS
       await _firestore.collection('Users').doc(user.uid).set({
         'uid': user.uid,
         'email': email,
@@ -63,17 +63,40 @@ class AuthService {
         'firstName': firstName,
         'lastName': lastName,
         'contactNumber': contactNumber,
-        'pwdType': pwdType, // NEW
-
+        'pwdType': pwdType,
         'profilePicture': profilePictureUrl ??
             'https://firebasestorage.googleapis.com/v0/b/accessability-71ef7.firebasestorage.app/o/profile_pictures%2Fdefault_profile.png?alt=media&token=bc7a75a7-a78e-4460-b816-026a8fc341ba',
         'hasCompletedOnboarding': false,
-        'emailVerified': false, // Track email verification status
+        'emailVerified': false,
+        // NEW: Add address fields
+        'details': {
+          'address': address, // We'll update this after geocoding
+          'phoneNumber': contactNumber,
+          'profilePicture': profilePictureUrl ??
+              'https://firebasestorage.googleapis.com/v0/b/accessability-71ef7.firebasestorage.app/o/profile_pictures%2Fdefault_profile.png?alt=media&token=bc7a75a7-a78e-4460-b816-026a8fc341ba',
+        }
       });
 
       return userCredential;
     } on FirebaseAuthException catch (e) {
       throw Exception(e.code);
+    }
+  }
+
+// Add this method to update the address after home place creation
+  Future<void> updateUserAddress(
+      String uid, String address, double latitude, double longitude) async {
+    try {
+      await _firestore.collection('Users').doc(uid).update({
+        'details.address': address,
+        // You can also save coordinates if needed
+        'details.latitude': latitude,
+        'details.longitude': longitude,
+      });
+      print('✅ User address updated: $address');
+    } catch (e) {
+      print('❌ Error updating user address: $e');
+      throw Exception('Failed to update user address: $e');
     }
   }
 
@@ -91,7 +114,6 @@ class AuthService {
     }
   }
 
-  // Login
   // Login with enhanced error handling
   Future<UserCredential> signInWithEmailPassword(
     String email,

@@ -250,7 +250,7 @@ class _AccountScreenState extends State<AccountScreen> {
                     ),
                     const Divider(),
 
-// Last Name
+                    // Last Name
                     ListTile(
                       leading: const Icon(Icons.person_outline,
                           color: Color(0xFF6750A4)),
@@ -281,6 +281,36 @@ class _AccountScreenState extends State<AccountScreen> {
                             ),
                           );
                           context.read<UserBloc>().add(FetchUserData());
+                        }
+                      },
+                    ),
+                    const Divider(),
+
+                    // NEW: Home Address
+                    ListTile(
+                      leading: const Icon(Icons.home_outlined,
+                          color: Color(0xFF6750A4)),
+                      title: Text(
+                        'homeAddress'.tr(),
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      subtitle: Text(
+                        user.details.address.isNotEmpty
+                            ? user.details.address
+                            : 'notProvided'.tr(),
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      onTap: () {
+                        // Show address in a snackbar when tapped
+                        if (user.details.address.isNotEmpty) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                  '${'home_address'.tr()}: ${user.details.address}'),
+                              backgroundColor: const Color(0xFF6750A4),
+                              duration: const Duration(seconds: 3),
+                            ),
+                          );
                         }
                       },
                     ),
@@ -317,7 +347,7 @@ class _AccountScreenState extends State<AccountScreen> {
                     ),
                     const Divider(),
 
-// 🦽 Type of Disability
+                    // 🦽 Type of Disability
                     ListTile(
                       leading: const Icon(
                         Icons.accessibility_new,
@@ -351,7 +381,7 @@ class _AccountScreenState extends State<AccountScreen> {
                       },
                     ),
 
-// 👨‍👩‍👦 Show only when Family
+                    // 👨‍👩‍👦 Show only when Family
                     if (user.pwdType == 'Family') ...[
                       const Divider(),
                       ListTile(
@@ -440,38 +470,6 @@ class _AccountScreenState extends State<AccountScreen> {
                       },
                     ),
                     const SizedBox(height: 20),
-                    // Cancel & Save Buttons
-                    // Row(
-                    //   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    //   children: [
-                    //     OutlinedButton(
-                    //       onPressed: () {},
-                    //       style: OutlinedButton.styleFrom(
-                    //         side: const BorderSide(color: Color(0xFF6750A4)),
-                    //         shape: RoundedRectangleBorder(
-                    //           borderRadius: BorderRadius.circular(50),
-                    //         ),
-                    //       ),
-                    //       child: Text(
-                    //         'cancel'.tr(),
-                    //         style: const TextStyle(color: Color(0xFF6750A4)),
-                    //       ),
-                    //     ),
-                    //     ElevatedButton(
-                    //       onPressed: () {},
-                    //       style: ElevatedButton.styleFrom(
-                    //         backgroundColor: const Color(0xFF6750A4),
-                    //         shape: RoundedRectangleBorder(
-                    //           borderRadius: BorderRadius.circular(50),
-                    //         ),
-                    //       ),
-                    //       child: Padding(
-                    //         padding: const EdgeInsets.symmetric(horizontal: 16),
-                    //         child: Text('save'.tr()),
-                    //       ),
-                    //     ),
-                    //   ],
-                    // ),
                   ],
                 ),
               ),
